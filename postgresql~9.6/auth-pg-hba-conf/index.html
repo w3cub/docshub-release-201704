@@ -1,0 +1,177 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>pg_hba.conf File - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="Client authentication is controlled by a configuration file, which traditionally is named pg_hba.conf and is stored in the database cluster&#39;s &hellip;">
+  <meta name="keywords" content="pg, hba, conf, file, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/auth-pg-hba-conf/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="AUTH-PG-HBA-CONF">20.1. The pg_hba.conf File</h1> <p>Client authentication is controlled by a configuration file, which traditionally is named <code class="FILENAME">pg_hba.conf</code> and is stored in the database cluster's data directory. (<acronym class="ACRONYM">HBA</acronym> stands for host-based authentication.) A default <code class="FILENAME">pg_hba.conf</code> file is installed when the data directory is initialized by <code class="COMMAND">initdb</code>. It is possible to place the authentication configuration file elsewhere, however; see the <a href="../runtime-config-file-locations/#GUC-HBA-FILE">hba_file</a> configuration parameter.</p> <p>The general format of the <code class="FILENAME">pg_hba.conf</code> file is a set of records, one per line. Blank lines are ignored, as is any text after the <code class="LITERAL">#</code> comment character. Records cannot be continued across lines. A record is made up of a number of fields which are separated by spaces and/or tabs. Fields can contain white space if the field value is double-quoted. Quoting one of the keywords in a database, user, or address field (e.g., <code class="LITERAL">all</code> or <code class="LITERAL">replication</code>) makes the word lose its special meaning, and just match a database, user, or host with that name.</p> <p>Each record specifies a connection type, a client IP address range (if relevant for the connection type), a database name, a user name, and the authentication method to be used for connections matching these parameters. The first record with a matching connection type, client address, requested database, and user name is used to perform authentication. There is no <span class="QUOTE">"fall-through"</span> or <span class="QUOTE">"backup"</span>: if one record is chosen and the authentication fails, subsequent records are not considered. If no record matches, access is denied.</p> <p>A record can have one of the seven formats</p> <pre class="SYNOPSIS" data-language="sql">
+local      database  user  auth-method  [auth-options]
+host       database  user  address  auth-method  [auth-options]
+hostssl    database  user  address  auth-method  [auth-options]
+hostnossl  database  user  address  auth-method  [auth-options]
+host       database  user  IP-address  IP-mask  auth-method  [auth-options]
+hostssl    database  user  IP-address  IP-mask  auth-method  [auth-options]
+hostnossl  database  user  IP-address  IP-mask  auth-method  [auth-options]
+</pre> <p>The meaning of the fields is as follows:</p> <div class="VARIABLELIST"> <dl> <dt><code class="LITERAL">local</code></dt> <dd> <p>This record matches connection attempts using Unix-domain sockets. Without a record of this type, Unix-domain socket connections are disallowed.</p> </dd> <dt><code class="LITERAL">host</code></dt> <dd> <p>This record matches connection attempts made using TCP/IP. <code class="LITERAL">host</code> records match either <acronym class="ACRONYM">SSL</acronym> or non-<acronym class="ACRONYM">SSL</acronym> connection attempts.</p>  <blockquote class="NOTE"> <p><b>Note:</b> Remote TCP/IP connections will not be possible unless the server is started with an appropriate value for the <a href="../runtime-config-connection/#GUC-LISTEN-ADDRESSES">listen_addresses</a> configuration parameter, since the default behavior is to listen for TCP/IP connections only on the local loopback address <code class="LITERAL">localhost</code>.</p> </blockquote>  </dd> <dt><code class="LITERAL">hostssl</code></dt> <dd> <p>This record matches connection attempts made using TCP/IP, but only when the connection is made with <acronym class="ACRONYM">SSL</acronym> encryption.</p> <p>To make use of this option the server must be built with <acronym class="ACRONYM">SSL</acronym> support. Furthermore, <acronym class="ACRONYM">SSL</acronym> must be enabled at server start time by setting the <a href="../runtime-config-connection/#GUC-SSL">ssl</a> configuration parameter (see <a href="../ssl-tcp/">Section 18.9</a> for more information).</p> </dd> <dt><code class="LITERAL">hostnossl</code></dt> <dd> <p>This record type has the opposite behavior of <code class="LITERAL">hostssl</code>; it only matches connection attempts made over TCP/IP that do not use <acronym class="ACRONYM">SSL</acronym>.</p> </dd> <dt><code class="REPLACEABLE c2">database</code></dt> <dd> <p>Specifies which database name(s) this record matches. The value <code class="LITERAL">all</code> specifies that it matches all databases. The value <code class="LITERAL">sameuser</code> specifies that the record matches if the requested database has the same name as the requested user. The value <code class="LITERAL">samerole</code> specifies that the requested user must be a member of the role with the same name as the requested database. (<code class="LITERAL">samegroup</code> is an obsolete but still accepted spelling of <code class="LITERAL">samerole</code>.) Superusers are not considered to be members of a role for the purposes of <code class="LITERAL">samerole</code> unless they are explicitly members of the role, directly or indirectly, and not just by virtue of being a superuser. The value <code class="LITERAL">replication</code> specifies that the record matches if a replication connection is requested (note that replication connections do not specify any particular database). Otherwise, this is the name of a specific <span class="PRODUCTNAME">PostgreSQL</span> database. Multiple database names can be supplied by separating them with commas. A separate file containing database names can be specified by preceding the file name with <code class="LITERAL">@</code>.</p> </dd> <dt><code class="REPLACEABLE c2">user</code></dt> <dd> <p>Specifies which database user name(s) this record matches. The value <code class="LITERAL">all</code> specifies that it matches all users. Otherwise, this is either the name of a specific database user, or a group name preceded by <code class="LITERAL">+</code>. (Recall that there is no real distinction between users and groups in <span class="PRODUCTNAME">PostgreSQL</span>; a <code class="LITERAL">+</code> mark really means <span class="QUOTE">"match any of the roles that are directly or indirectly members of this role"</span>, while a name without a <code class="LITERAL">+</code> mark matches only that specific role.) For this purpose, a superuser is only considered to be a member of a role if they are explicitly a member of the role, directly or indirectly, and not just by virtue of being a superuser. Multiple user names can be supplied by separating them with commas. A separate file containing user names can be specified by preceding the file name with <code class="LITERAL">@</code>.</p> </dd> <dt><code class="REPLACEABLE c2">address</code></dt> <dd> <p>Specifies the client machine address(es) that this record matches. This field can contain either a host name, an IP address range, or one of the special key words mentioned below.</p> <p>An IP address range is specified using standard numeric notation for the range's starting address, then a slash (<code class="LITERAL">/</code>) and a <acronym class="ACRONYM">CIDR</acronym> mask length. The mask length indicates the number of high-order bits of the client IP address that must match. Bits to the right of this should be zero in the given IP address. There must not be any white space between the IP address, the <code class="LITERAL">/</code>, and the CIDR mask length.</p> <p>Typical examples of an IPv4 address range specified this way are <code class="LITERAL">172.20.143.89/32</code> for a single host, or <code class="LITERAL">172.20.143.0/24</code> for a small network, or <code class="LITERAL">10.6.0.0/16</code> for a larger one. An IPv6 address range might look like <code class="LITERAL">::1/128</code> for a single host (in this case the IPv6 loopback address) or <code class="LITERAL">fe80::7a31:c1ff:0000:0000/96</code> for a small network. <code class="LITERAL">0.0.0.0/0</code> represents all IPv4 addresses, and <code class="LITERAL">::0/0</code> represents all IPv6 addresses. To specify a single host, use a mask length of 32 for IPv4 or 128 for IPv6. In a network address, do not omit trailing zeroes.</p> <p>An entry given in IPv4 format will match only IPv4 connections, and an entry given in IPv6 format will match only IPv6 connections, even if the represented address is in the IPv4-in-IPv6 range. Note that entries in IPv6 format will be rejected if the system's C library does not have support for IPv6 addresses.</p> <p>You can also write <code class="LITERAL">all</code> to match any IP address, <code class="LITERAL">samehost</code> to match any of the server's own IP addresses, or <code class="LITERAL">samenet</code> to match any address in any subnet that the server is directly connected to.</p> <p>If a host name is specified (anything that is not an IP address range or a special key word is treated as a host name), that name is compared with the result of a reverse name resolution of the client's IP address (e.g., reverse DNS lookup, if DNS is used). Host name comparisons are case insensitive. If there is a match, then a forward name resolution (e.g., forward DNS lookup) is performed on the host name to check whether any of the addresses it resolves to are equal to the client's IP address. If both directions match, then the entry is considered to match. (The host name that is used in <code class="FILENAME">pg_hba.conf</code> should be the one that address-to-name resolution of the client's IP address returns, otherwise the line won't be matched. Some host name databases allow associating an IP address with multiple host names, but the operating system will only return one host name when asked to resolve an IP address.)</p> <p>A host name specification that starts with a dot (<code class="LITERAL">.</code>) matches a suffix of the actual host name. So <code class="LITERAL">.example.com</code> would match <code class="LITERAL">foo.example.com</code> (but not just <code class="LITERAL">example.com</code>).</p> <p>When host names are specified in <code class="FILENAME">pg_hba.conf</code>, you should make sure that name resolution is reasonably fast. It can be of advantage to set up a local name resolution cache such as <code class="COMMAND">nscd</code>. Also, you may wish to enable the configuration parameter <code class="VARNAME">log_hostname</code> to see the client's host name instead of the IP address in the log.</p> <p>This field only applies to <code class="LITERAL">host</code>, <code class="LITERAL">hostssl</code>, and <code class="LITERAL">hostnossl</code> records.</p> <table class="SIDEBAR"> <tr> <td> <div class="SIDEBAR" id="AEN37221">  <p>Users sometimes wonder why host names are handled in this seemingly complicated way, with two name resolutions including a reverse lookup of the client's IP address. This complicates use of the feature in case the client's reverse DNS entry is not set up or yields some undesirable host name. It is done primarily for efficiency: this way, a connection attempt requires at most two resolver lookups, one reverse and one forward. If there is a resolver problem with some address, it becomes only that client's problem. A hypothetical alternative implementation that only did forward lookups would have to resolve every host name mentioned in <code class="FILENAME">pg_hba.conf</code> during every connection attempt. That could be quite slow if many names are listed. And if there is a resolver problem with one of the host names, it becomes everyone's problem.</p> <p>Also, a reverse lookup is necessary to implement the suffix matching feature, because the actual client host name needs to be known in order to match it against the pattern.</p> <p>Note that this behavior is consistent with other popular implementations of host name-based access control, such as the Apache HTTP Server and TCP Wrappers.</p> </div> </td> </tr> </table> </dd> <dt>
+<code class="REPLACEABLE c2">IP-address</code><br> <code class="REPLACEABLE c2">IP-mask</code>
+</dt> <dd> <p>These two fields can be used as an alternative to the <code class="REPLACEABLE c2">IP-address</code><code class="LITERAL">/</code><code class="REPLACEABLE c2">mask-length</code> notation. Instead of specifying the mask length, the actual mask is specified in a separate column. For example, <code class="LITERAL">255.0.0.0</code> represents an IPv4 CIDR mask length of 8, and <code class="LITERAL">255.255.255.255</code> represents a CIDR mask length of 32.</p> <p>These fields only apply to <code class="LITERAL">host</code>, <code class="LITERAL">hostssl</code>, and <code class="LITERAL">hostnossl</code> records.</p> </dd> <dt><code class="REPLACEABLE c2">auth-method</code></dt> <dd> <p>Specifies the authentication method to use when a connection matches this record. The possible choices are summarized here; details are in <a href="../auth-methods/">Section 20.3</a>.</p> <div class="VARIABLELIST"> <dl> <dt><code class="LITERAL">trust</code></dt> <dd> <p>Allow the connection unconditionally. This method allows anyone that can connect to the <span class="PRODUCTNAME">PostgreSQL</span> database server to login as any <span class="PRODUCTNAME">PostgreSQL</span> user they wish, without the need for a password or any other authentication. See <a href="../auth-methods/#AUTH-TRUST">Section 20.3.1</a> for details.</p> </dd> <dt><code class="LITERAL">reject</code></dt> <dd> <p>Reject the connection unconditionally. This is useful for <span class="QUOTE">"filtering out"</span> certain hosts from a group, for example a <code class="LITERAL">reject</code> line could block a specific host from connecting, while a later line allows the remaining hosts in a specific network to connect.</p> </dd> <dt><code class="LITERAL">md5</code></dt> <dd> <p>Require the client to supply a double-MD5-hashed password for authentication. See <a href="../auth-methods/#AUTH-PASSWORD">Section 20.3.2</a> for details.</p> </dd> <dt><code class="LITERAL">password</code></dt> <dd> <p>Require the client to supply an unencrypted password for authentication. Since the password is sent in clear text over the network, this should not be used on untrusted networks. See <a href="../auth-methods/#AUTH-PASSWORD">Section 20.3.2</a> for details.</p> </dd> <dt><code class="LITERAL">gss</code></dt> <dd> <p>Use GSSAPI to authenticate the user. This is only available for TCP/IP connections. See <a href="../auth-methods/#GSSAPI-AUTH">Section 20.3.3</a> for details.</p> </dd> <dt><code class="LITERAL">sspi</code></dt> <dd> <p>Use SSPI to authenticate the user. This is only available on Windows. See <a href="../auth-methods/#SSPI-AUTH">Section 20.3.4</a> for details.</p> </dd> <dt><code class="LITERAL">ident</code></dt> <dd> <p>Obtain the operating system user name of the client by contacting the ident server on the client and check if it matches the requested database user name. Ident authentication can only be used on TCP/IP connections. When specified for local connections, peer authentication will be used instead. See <a href="../auth-methods/#AUTH-IDENT">Section 20.3.5</a> for details.</p> </dd> <dt><code class="LITERAL">peer</code></dt> <dd> <p>Obtain the client's operating system user name from the operating system and check if it matches the requested database user name. This is only available for local connections. See <a href="../auth-methods/#AUTH-PEER">Section 20.3.6</a> for details.</p> </dd> <dt><code class="LITERAL">ldap</code></dt> <dd> <p>Authenticate using an <acronym class="ACRONYM">LDAP</acronym> server. See <a href="../auth-methods/#AUTH-LDAP">Section 20.3.7</a> for details.</p> </dd> <dt><code class="LITERAL">radius</code></dt> <dd> <p>Authenticate using a RADIUS server. See <a href="../auth-methods/#AUTH-RADIUS">Section 20.3.8</a> for details.</p> </dd> <dt><code class="LITERAL">cert</code></dt> <dd> <p>Authenticate using SSL client certificates. See <a href="../auth-methods/#AUTH-CERT">Section 20.3.9</a> for details.</p> </dd> <dt><code class="LITERAL">pam</code></dt> <dd> <p>Authenticate using the Pluggable Authentication Modules (PAM) service provided by the operating system. See <a href="../auth-methods/#AUTH-PAM">Section 20.3.10</a> for details.</p> </dd> <dt><code class="LITERAL">bsd</code></dt> <dd> <p>Authenticate using the BSD Authentication service provided by the operating system. See <a href="../auth-methods/#AUTH-BSD">Section 20.3.11</a> for details.</p> </dd> </dl> </div> </dd> <dt><code class="REPLACEABLE c2">auth-options</code></dt> <dd> <p>After the <code class="REPLACEABLE c2">auth-method</code> field, there can be field(s) of the form <code class="REPLACEABLE c2">name</code><code class="LITERAL">=</code><code class="REPLACEABLE c2">value</code> that specify options for the authentication method. Details about which options are available for which authentication methods appear below.</p> <p>In addition to the method-specific options listed below, there is one method-independent authentication option <code class="LITERAL">clientcert</code>, which can be specified in any <code class="LITERAL">hostssl</code> record. When set to <code class="LITERAL">1</code>, this option requires the client to present a valid (trusted) SSL certificate, in addition to the other requirements of the authentication method.</p> </dd> </dl> </div> <p>Files included by <code class="LITERAL">@</code> constructs are read as lists of names, which can be separated by either whitespace or commas. Comments are introduced by <code class="LITERAL">#</code>, just as in <code class="FILENAME">pg_hba.conf</code>, and nested <code class="LITERAL">@</code> constructs are allowed. Unless the file name following <code class="LITERAL">@</code> is an absolute path, it is taken to be relative to the directory containing the referencing file.</p> <p>Since the <code class="FILENAME">pg_hba.conf</code> records are examined sequentially for each connection attempt, the order of the records is significant. Typically, earlier records will have tight connection match parameters and weaker authentication methods, while later records will have looser match parameters and stronger authentication methods. For example, one might wish to use <code class="LITERAL">trust</code> authentication for local TCP/IP connections but require a password for remote TCP/IP connections. In this case a record specifying <code class="LITERAL">trust</code> authentication for connections from 127.0.0.1 would appear before a record specifying password authentication for a wider range of allowed client IP addresses.</p> <p>The <code class="FILENAME">pg_hba.conf</code> file is read on start-up and when the main server process receives a <span class="SYSTEMITEM">SIGHUP</span> signal. If you edit the file on an active system, you will need to signal the postmaster (using <code class="LITERAL">pg_ctl reload</code> or <code class="LITERAL">kill -HUP</code>) to make it re-read the file.</p> <div class="TIP"> <blockquote class="TIP"> <p><b>Tip:</b> To connect to a particular database, a user must not only pass the <code class="FILENAME">pg_hba.conf</code> checks, but must have the <code class="LITERAL">CONNECT</code> privilege for the database. If you wish to restrict which users can connect to which databases, it's usually easier to control this by granting/revoking <code class="LITERAL">CONNECT</code> privilege than to put the rules in <code class="FILENAME">pg_hba.conf</code> entries.</p> </blockquote> </div> <p>Some examples of <code class="FILENAME">pg_hba.conf</code> entries are shown in <a href="../auth-pg-hba-conf/#EXAMPLE-PG-HBA.CONF">Example 20-1</a>. See the next section for details on the different authentication methods.</p> <div class="EXAMPLE" id="EXAMPLE-PG-HBA.CONF">  <p class="c3">Example 20-1. Example <code class="FILENAME">pg_hba.conf</code> Entries</p> <pre class="PROGRAMLISTING" data-language="sql">
+# Allow any user on the local system to connect to any database with
+# any database user name using Unix-domain sockets (the default for local
+# connections).
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             all                                     trust
+
+# The same using local loopback TCP/IP connections.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             127.0.0.1/32            trust
+
+# The same as the previous line, but using a separate netmask column
+#
+# TYPE  DATABASE        USER            IP-ADDRESS      IP-MASK             METHOD
+host    all             all             127.0.0.1       255.255.255.255     trust
+
+# The same over IPv6.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             ::1/128                 trust
+
+# The same using a host name (would typically cover both IPv4 and IPv6).
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             localhost               trust
+
+# Allow any user from any host with IP address 192.168.93.x to connect
+# to database "postgres" as the same user name that ident reports for
+# the connection (typically the operating system user name).
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    postgres        all             192.168.93.0/24         ident
+
+# Allow any user from host 192.168.12.10 to connect to database
+# "postgres" if the user's password is correctly supplied.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    postgres        all             192.168.12.10/32        md5
+
+# Allow any user from hosts in the example.com domain to connect to
+# any database if the user's password is correctly supplied.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             .example.com            md5
+
+# In the absence of preceding "host" lines, these two lines will
+# reject all connections from 192.168.54.1 (since that entry will be
+# matched first), but allow GSSAPI connections from anywhere else
+# on the Internet.  The zero mask causes no bits of the host IP
+# address to be considered, so it matches any host.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             192.168.54.1/32         reject
+host    all             all             0.0.0.0/0               gss
+
+# Allow users from 192.168.x.x hosts to connect to any database, if
+# they pass the ident check.  If, for example, ident says the user is
+# "bryanh" and he requests to connect as PostgreSQL user "guest1", the
+# connection is allowed if there is an entry in pg_ident.conf for map
+# "omicron" that says "bryanh" is allowed to connect as "guest1".
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    all             all             192.168.0.0/16          ident map=omicron
+
+# If these are the only three lines for local connections, they will
+# allow local users to connect only to their own databases (databases
+# with the same name as their database user name) except for administrators
+# and members of role "support", who can connect to all databases.  The file
+# $PGDATA/admins contains a list of names of administrators.  Passwords
+# are required in all cases.
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   sameuser        all                                     md5
+local   all             @admins                                 md5
+local   all             +support                                md5
+
+# The last two lines above can be combined into a single line:
+local   all             @admins,+support                        md5
+
+# The database column can also use lists and file names:
+local   db1,db2,@demodbs  all                                   md5
+</pre> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.6/static/client-authentication.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../auth-username-maps/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Client Authentication</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/client-authentication.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">User Name Maps</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/auth-pg-hba-conf.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/auth-pg-hba-conf.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

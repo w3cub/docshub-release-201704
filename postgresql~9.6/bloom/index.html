@@ -1,0 +1,165 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Bloom - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" bloom provides an index access method based on Bloom filters. ">
+  <meta name="keywords" content="f, bloom, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/bloom/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="BLOOM">F.4. bloom</h1> <p><code class="LITERAL">bloom</code> provides an index access method based on <a href="http://en.wikipedia.org/wiki/Bloom_filter" target="_blank">Bloom filters</a>.</p> <p>A Bloom filter is a space-efficient data structure that is used to test whether an element is a member of a set. In the case of an index access method, it allows fast exclusion of non-matching tuples via signatures whose size is determined at index creation.</p> <p>A signature is a lossy representation of the indexed attribute(s), and as such is prone to reporting false positives; that is, it may be reported that an element is in the set, when it is not. So index search results must always be rechecked using the actual attribute values from the heap entry. Larger signatures reduce the odds of a false positive and thus reduce the number of useless heap visits, but of course also make the index larger and hence slower to scan.</p> <p>This type of index is most useful when a table has many attributes and queries test arbitrary combinations of them. A traditional btree index is faster than a bloom index, but it can require many btree indexes to support all possible queries where one needs only a single bloom index. Note however that bloom indexes only support equality queries, whereas btree indexes can also perform inequality and range searches.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN176843">F.4.1. Parameters</h2> <p>A <code class="LITERAL">bloom</code> index accepts the following parameters in its <code class="LITERAL">WITH</code> clause:</p> <div class="VARIABLELIST"> <dl> <dt><code class="LITERAL">length</code></dt> <dd> <p>Length of each signature (index entry) in bits. The default is <code class="LITERAL">80</code> bits and maximum is <code class="LITERAL">4096</code>.</p> </dd> </dl> </div> <div class="VARIABLELIST"> <dl> <dt><code class="LITERAL">col1 — col32</code></dt> <dd> <p>Number of bits generated for each index column. Each parameter's name refers to the number of the index column that it controls. The default is <code class="LITERAL">2</code> bits and maximum is <code class="LITERAL">4095</code>. Parameters for index columns not actually used are ignored.</p> </dd> </dl> </div> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN176864">F.4.2. Examples</h2> <p>This is an example of creating a bloom index:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE INDEX bloomidx ON tbloom USING bloom (i1,i2,i3)
+       WITH (length=80, col1=2, col2=2, col3=4);
+</pre> <p>The index is created with a signature length of 80 bits, with attributes i1 and i2 mapped to 2 bits, and attribute i3 mapped to 4 bits. We could have omitted the <code class="LITERAL">length</code>, <code class="LITERAL">col1</code>, and <code class="LITERAL">col2</code> specifications since those have the default values.</p> <p>Here is a more complete example of bloom index definition and usage, as well as a comparison with equivalent btree indexes. The bloom index is considerably smaller than the btree index, and can perform better.</p> <pre class="PROGRAMLISTING" data-language="sql">
+=# CREATE TABLE tbloom AS
+   SELECT
+     (random() * 1000000)::int as i1,
+     (random() * 1000000)::int as i2,
+     (random() * 1000000)::int as i3,
+     (random() * 1000000)::int as i4,
+     (random() * 1000000)::int as i5,
+     (random() * 1000000)::int as i6
+   FROM
+  generate_series(1,10000000);
+SELECT 10000000
+=# CREATE INDEX bloomidx ON tbloom USING bloom (i1, i2, i3, i4, i5, i6);
+CREATE INDEX
+=# SELECT pg_size_pretty(pg_relation_size('bloomidx'));
+ pg_size_pretty
+----------------
+ 153 MB
+(1 row)
+=# CREATE index btreeidx ON tbloom (i1, i2, i3, i4, i5, i6);
+CREATE INDEX
+=# SELECT pg_size_pretty(pg_relation_size('btreeidx'));
+ pg_size_pretty
+----------------
+ 387 MB
+(1 row)
+</pre> <p>A sequential scan over this large table takes a long time:</p> <pre class="PROGRAMLISTING" data-language="sql">
+=# EXPLAIN ANALYZE SELECT * FROM tbloom WHERE i2 = 898732 AND i5 = 123451;
+                                                 QUERY PLAN
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on tbloom  (cost=0.00..213694.08 rows=1 width=24) (actual time=1445.438..1445.438 rows=0 loops=1)
+   Filter: ((i2 = 898732) AND (i5 = 123451))
+   Rows Removed by Filter: 10000000
+ Planning time: 0.177 ms
+ Execution time: 1445.473 ms
+(5 rows)
+</pre> <p>So the planner will usually select an index scan if possible. With a btree index, we get results like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+=# EXPLAIN ANALYZE SELECT * FROM tbloom WHERE i2 = 898732 AND i5 = 123451;
+                                                           QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------
+ Index Only Scan using btreeidx on tbloom  (cost=0.56..298311.96 rows=1 width=24) (actual time=445.709..445.709 rows=0 loops=1)
+   Index Cond: ((i2 = 898732) AND (i5 = 123451))
+   Heap Fetches: 0
+ Planning time: 0.193 ms
+ Execution time: 445.770 ms
+(5 rows)
+</pre> <p>Bloom is better than btree in handling this type of search:</p> <pre class="PROGRAMLISTING" data-language="sql">
+=# EXPLAIN ANALYZE SELECT * FROM tbloom WHERE i2 = 898732 AND i5 = 123451;
+                                                        QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on tbloom  (cost=178435.39..178439.41 rows=1 width=24) (actual time=76.698..76.698 rows=0 loops=1)
+   Recheck Cond: ((i2 = 898732) AND (i5 = 123451))
+   Rows Removed by Index Recheck: 2439
+   Heap Blocks: exact=2408
+   -&gt;  Bitmap Index Scan on bloomidx  (cost=0.00..178435.39 rows=1 width=0) (actual time=72.455..72.455 rows=2439 loops=1)
+         Index Cond: ((i2 = 898732) AND (i5 = 123451))
+ Planning time: 0.475 ms
+ Execution time: 76.778 ms
+(8 rows)
+</pre> <p>Note the relatively large number of false positives: 2439 rows were selected to be visited in the heap, but none actually matched the query. We could reduce that by specifying a larger signature length. In this example, creating the index with <code class="LITERAL">length=200</code> reduced the number of false positives to 55; but it doubled the index size (to 306 MB) and ended up being slower for this query (125 ms overall).</p> <p>Now, the main problem with the btree search is that btree is inefficient when the search conditions do not constrain the leading index column(s). A better strategy for btree is to create a separate index on each column. Then the planner will choose something like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+=# EXPLAIN ANALYZE SELECT * FROM tbloom WHERE i2 = 898732 AND i5 = 123451;
+                                                          QUERY PLAN
+------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on tbloom  (cost=9.29..13.30 rows=1 width=24) (actual time=0.148..0.148 rows=0 loops=1)
+   Recheck Cond: ((i5 = 123451) AND (i2 = 898732))
+   -&gt;  BitmapAnd  (cost=9.29..9.29 rows=1 width=0) (actual time=0.145..0.145 rows=0 loops=1)
+         -&gt;  Bitmap Index Scan on tbloom_i5_idx  (cost=0.00..4.52 rows=11 width=0) (actual time=0.089..0.089 rows=10 loops=1)
+               Index Cond: (i5 = 123451)
+         -&gt;  Bitmap Index Scan on tbloom_i2_idx  (cost=0.00..4.52 rows=11 width=0) (actual time=0.048..0.048 rows=8 loops=1)
+               Index Cond: (i2 = 898732)
+ Planning time: 2.049 ms
+ Execution time: 0.280 ms
+(9 rows)
+</pre> <p>Although this query runs much faster than with either of the single indexes, we pay a large penalty in index size. Each of the single-column btree indexes occupies 214 MB, so the total space needed is over 1.2GB, more than 8 times the space used by the bloom index.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN176883">F.4.3. Operator Class Interface</h2> <p>An operator class for bloom indexes requires only a hash function for the indexed data type and an equality operator for searching. This example shows the operator class definition for the <code class="TYPE">text</code> data type:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE OPERATOR CLASS text_ops
+DEFAULT FOR TYPE text USING bloom AS
+    OPERATOR    1   =(text, text),
+    FUNCTION    1   hashtext(text);
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN176888">F.4.4. Limitations</h2> <ul> <li> <p>Only operator classes for <code class="TYPE">int4</code> and <code class="TYPE">text</code> are included with the module.</p> </li> <li> <p>Only the <code class="LITERAL">=</code> operator is supported for search. But it is possible to add support for arrays with union and intersection operations in the future.</p> </li> </ul> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN176899">F.4.5. Authors</h2> <p>Teodor Sigaev <code class="EMAIL">&lt;<a href="../mailto:teodor@postgrespro.ru/">teodor@postgrespro.ru</a>&gt;</code>, Postgres Professional, Moscow, Russia</p> <p>Alexander Korotkov <code class="EMAIL">&lt;<a href="../mailto:a.korotkov@postgrespro.ru/">a.korotkov@postgrespro.ru</a>&gt;</code>, Postgres Professional, Moscow, Russia</p> <p>Oleg Bartunov <code class="EMAIL">&lt;<a href="../mailto:obartunov@postgrespro.ru/">obartunov@postgrespro.ru</a>&gt;</code>, Postgres Professional, Moscow, Russia</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../auto-explain/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../btree-gin/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">auto_explain</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">btree_gin</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/bloom.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/bloom.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

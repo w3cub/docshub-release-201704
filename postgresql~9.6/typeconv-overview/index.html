@@ -1,0 +1,92 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Type Conversion - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="SQL is a strongly typed language. That is, every data item has an associated data type which determines its behavior and allowed usage. PostgreSQL &hellip;">
+  <meta name="keywords" content="overview, type, conversion, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/typeconv-overview/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TYPECONV-OVERVIEW">10.1. Overview</h1> <p><acronym class="ACRONYM">SQL</acronym> is a strongly typed language. That is, every data item has an associated data type which determines its behavior and allowed usage. <span class="PRODUCTNAME">PostgreSQL</span> has an extensible type system that is more general and flexible than other <acronym class="ACRONYM">SQL</acronym> implementations. Hence, most type conversion behavior in <span class="PRODUCTNAME">PostgreSQL</span> is governed by general rules rather than by <i class="FOREIGNPHRASE">ad hoc</i> heuristics. This allows the use of mixed-type expressions even with user-defined types.</p> <p>The <span class="PRODUCTNAME">PostgreSQL</span> scanner/parser divides lexical elements into five fundamental categories: integers, non-integer numbers, strings, identifiers, and key words. Constants of most non-numeric types are first classified as strings. The <acronym class="ACRONYM">SQL</acronym> language definition allows specifying type names with strings, and this mechanism can be used in <span class="PRODUCTNAME">PostgreSQL</span> to start the parser down the correct path. For example, the query:</p> <pre class="SCREEN">
+SELECT text 'Origin' AS "label", point '(0,0)' AS "value";
+
+ label  | value
+--------+-------
+ Origin | (0,0)
+(1 row)
+</pre> <p>has two literal constants, of type <code class="TYPE">text</code> and <code class="TYPE">point</code>. If a type is not specified for a string literal, then the placeholder type <code class="TYPE">unknown</code> is assigned initially, to be resolved in later stages as described below.</p> <p>There are four fundamental <acronym class="ACRONYM">SQL</acronym> constructs requiring distinct type conversion rules in the <span class="PRODUCTNAME">PostgreSQL</span> parser:</p> <div class="VARIABLELIST"> <dl> <dt>Function calls</dt> <dd> <p>Much of the <span class="PRODUCTNAME">PostgreSQL</span> type system is built around a rich set of functions. Functions can have one or more arguments. Since <span class="PRODUCTNAME">PostgreSQL</span> permits function overloading, the function name alone does not uniquely identify the function to be called; the parser must select the right function based on the data types of the supplied arguments.</p> </dd> <dt>Operators</dt> <dd> <p><span class="PRODUCTNAME">PostgreSQL</span> allows expressions with prefix and postfix unary (one-argument) operators, as well as binary (two-argument) operators. Like functions, operators can be overloaded, so the same problem of selecting the right operator exists.</p> </dd> <dt>Value Storage</dt> <dd> <p><acronym class="ACRONYM">SQL</acronym> <code class="COMMAND">INSERT</code> and <code class="COMMAND">UPDATE</code> statements place the results of expressions into a table. The expressions in the statement must be matched up with, and perhaps converted to, the types of the target columns.</p> </dd> <dt>
+<code class="LITERAL">UNION</code>, <code class="LITERAL">CASE</code>, and related constructs</dt> <dd> <p>Since all query results from a unionized <code class="COMMAND">SELECT</code> statement must appear in a single set of columns, the types of the results of each <code class="COMMAND">SELECT</code> clause must be matched up and converted to a uniform set. Similarly, the result expressions of a <code class="LITERAL">CASE</code> construct must be converted to a common type so that the <code class="LITERAL">CASE</code> expression as a whole has a known output type. The same holds for <code class="LITERAL">ARRAY</code> constructs, and for the <code class="FUNCTION">GREATEST</code> and <code class="FUNCTION">LEAST</code> functions.</p> </dd> </dl> </div> <p>The system catalogs store information about which conversions, or <i class="FIRSTTERM">casts</i>, exist between which data types, and how to perform those conversions. Additional casts can be added by the user with the <a href="../sql-createcast/">CREATE CAST</a> command. (This is usually done in conjunction with defining new data types. The set of casts between built-in types has been carefully crafted and is best not altered.)</p> <p>An additional heuristic provided by the parser allows improved determination of the proper casting behavior among groups of types that have implicit casts. Data types are divided into several basic <i class="FIRSTTERM">type categories</i>, including <code class="TYPE">boolean</code>, <code class="TYPE">numeric</code>, <code class="TYPE">string</code>, <code class="TYPE">bitstring</code>, <code class="TYPE">datetime</code>, <code class="TYPE">timespan</code>, <code class="TYPE">geometric</code>, <code class="TYPE">network</code>, and user-defined. (For a list see <a href="../catalog-pg-type/#CATALOG-TYPCATEGORY-TABLE">Table 50-56</a>; but note it is also possible to create custom type categories.) Within each category there can be one or more <i class="FIRSTTERM">preferred types</i>, which are preferred when there is a choice of possible types. With careful selection of preferred types and available implicit casts, it is possible to ensure that ambiguous expressions (those with multiple candidate parsing solutions) can be resolved in a useful way.</p> <p>All type conversion rules are designed with several principles in mind:</p> <ul> <li> <p>Implicit conversions should never have surprising or unpredictable outcomes.</p> </li> <li> <p>There should be no extra overhead in the parser or executor if a query does not need implicit type conversion. That is, if a query is well-formed and the types already match, then the query should execute without spending extra time in the parser and without introducing unnecessary implicit conversion calls in the query.</p> </li> <li> <p>Additionally, if a query usually requires an implicit conversion for a function, and if then the user defines a new function with the correct argument types, the parser should use this new function and no longer do implicit conversion to use the old function.</p> </li> </ul>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.6/static/typeconv.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../typeconv-oper/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Type Conversion</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/typeconv.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Operators</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/typeconv-overview.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/typeconv-overview.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

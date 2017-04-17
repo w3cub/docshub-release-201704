@@ -1,0 +1,93 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>How Parallel Query Works - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="When the optimizer determines that parallel query is the fastest execution strategy for a particular query, it will create a query plan which &hellip;">
+  <meta name="keywords" content="how, parallel, query, works, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/how-parallel-query-works/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="HOW-PARALLEL-QUERY-WORKS">15.1. How Parallel Query Works</h1> <p>When the optimizer determines that parallel query is the fastest execution strategy for a particular query, it will create a query plan which includes a <i class="FIRSTTERM">Gather node</i>. Here is a simple example:</p> <pre class="SCREEN">
+EXPLAIN SELECT * FROM pgbench_accounts WHERE filler LIKE '%x%';
+                                     QUERY PLAN                                      
+-------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..217018.43 rows=1 width=97)
+   Workers Planned: 2
+   -&gt;  Parallel Seq Scan on pgbench_accounts  (cost=0.00..216018.33 rows=1 width=97)
+         Filter: (filler ~~ '%x%'::text)
+(4 rows)
+</pre> <p>In all cases, the <code class="LITERAL">Gather</code> node will have exactly one child plan, which is the portion of the plan that will be executed in parallel. If the <code class="LITERAL">Gather</code> node is at the very top of the plan tree, then the entire query will execute in parallel. If it is somewhere else in the plan tree, then only that portion of the query will run in parallel. In the example above, the query accesses only one table, so there is only one plan node other than the <code class="LITERAL">Gather</code> node itself; since that plan node is a child of the <code class="LITERAL">Gather</code> node, it will run in parallel.</p> <p><a href="../using-explain/">Using EXPLAIN</a>, you can see the number of workers chosen by the planner. When the <code class="LITERAL">Gather</code> node is reached during query execution, the process which is implementing the user's session will request a number of <a href="https://www.postgresql.org/docs/9.6/static/bgworker.html" target="_blank">background worker processes</a> equal to the number of workers chosen by the planner. The total number of background workers that can exist at any one time is limited by <a href="../runtime-config-resource/#GUC-MAX-WORKER-PROCESSES">max_worker_processes</a>, so it is possible for a parallel query to run with fewer workers than planned, or even with no workers at all. The optimal plan may depend on the number of workers that are available, so this can result in poor query performance. If this occurrence is frequent, considering increasing <code class="VARNAME">max_worker_processes</code> so that more workers can be run simultaneously or alternatively reducing <a href="../runtime-config-resource/#GUC-MAX-PARALLEL-WORKERS-PER-GATHER"> max_parallel_workers_per_gather</a> so that the planner requests fewer workers.</p> <p>Every background worker process which is successfully started for a given parallel query will execute the portion of the plan which is a descendent of the <code class="LITERAL">Gather</code> node. The leader will also execute that portion of the plan, but it has an additional responsibility: it must also read all of the tuples generated by the workers. When the parallel portion of the plan generates only a small number of tuples, the leader will often behave very much like an additional worker, speeding up query execution. Conversely, when the parallel portion of the plan generates a large number of tuples, the leader may be almost entirely occupied with reading the tuples generated by the workers and performing any further processing steps which are required by plan nodes above the level of the <code class="LITERAL">Gather</code> node. In such cases, the leader will do very little of the work of executing the parallel portion of the plan.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.6/static/parallel-query.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../when-can-parallel-query-be-used/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Parallel Query</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/parallel-query.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">When Can Parallel Query Be Used?</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/how-parallel-query-works.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/how-parallel-query-works.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

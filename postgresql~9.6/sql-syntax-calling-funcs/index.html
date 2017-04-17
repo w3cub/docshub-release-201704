@@ -1,0 +1,137 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Calling Functions - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="PostgreSQL allows functions that have named parameters to be called using either positional or named notation. Named notation is especially useful &hellip;">
+  <meta name="keywords" content="calling, functions, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/sql-syntax-calling-funcs/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="SQL-SYNTAX-CALLING-FUNCS">4.3. Calling Functions</h1> <p><span class="PRODUCTNAME">PostgreSQL</span> allows functions that have named parameters to be called using either <i class="FIRSTTERM">positional</i> or <i class="FIRSTTERM">named</i> notation. Named notation is especially useful for functions that have a large number of parameters, since it makes the associations between parameters and actual arguments more explicit and reliable. In positional notation, a function call is written with its argument values in the same order as they are defined in the function declaration. In named notation, the arguments are matched to the function parameters by name and can be written in any order.</p> <p>In either notation, parameters that have default values given in the function declaration need not be written in the call at all. But this is particularly useful in named notation, since any combination of parameters can be omitted; while in positional notation parameters can only be omitted from right to left.</p> <p><span class="PRODUCTNAME">PostgreSQL</span> also supports <i class="FIRSTTERM">mixed</i> notation, which combines positional and named notation. In this case, positional parameters are written first and named parameters appear after them.</p> <p>The following examples will illustrate the usage of all three notations, using the following function definition:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE FUNCTION concat_lower_or_upper(a text, b text, uppercase boolean DEFAULT false)
+RETURNS text
+AS
+$$
+ SELECT CASE
+        WHEN $3 THEN UPPER($1 || ' ' || $2)
+        ELSE LOWER($1 || ' ' || $2)
+        END;
+$$
+LANGUAGE SQL IMMUTABLE STRICT;
+</pre> <p>Function <code class="FUNCTION">concat_lower_or_upper</code> has two mandatory parameters, <code class="LITERAL">a</code> and <code class="LITERAL">b</code>. Additionally there is one optional parameter <code class="LITERAL">uppercase</code> which defaults to <code class="LITERAL">false</code>. The <code class="LITERAL">a</code> and <code class="LITERAL">b</code> inputs will be concatenated, and forced to either upper or lower case depending on the <code class="LITERAL">uppercase</code> parameter. The remaining details of this function definition are not important here (see <a href="https://www.postgresql.org/docs/9.6/static/extend.html" target="_blank">Chapter 36</a> for more information).</p> <div class="SECT2"> <h2 class="SECT2" id="SQL-SYNTAX-CALLING-FUNCS-POSITIONAL">4.3.1. Using Positional Notation</h2> <p>Positional notation is the traditional mechanism for passing arguments to functions in <span class="PRODUCTNAME">PostgreSQL</span>. An example is:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper('Hello', 'World', true);
+ concat_lower_or_upper 
+-----------------------
+ HELLO WORLD
+(1 row)
+</pre> <p>All arguments are specified in order. The result is upper case since <code class="LITERAL">uppercase</code> is specified as <code class="LITERAL">true</code>. Another example is:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper('Hello', 'World');
+ concat_lower_or_upper 
+-----------------------
+ hello world
+(1 row)
+</pre> <p>Here, the <code class="LITERAL">uppercase</code> parameter is omitted, so it receives its default value of <code class="LITERAL">false</code>, resulting in lower case output. In positional notation, arguments can be omitted from right to left so long as they have defaults.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="SQL-SYNTAX-CALLING-FUNCS-NAMED">4.3.2. Using Named Notation</h2> <p>In named notation, each argument's name is specified using <code class="LITERAL">=&gt;</code> to separate it from the argument expression. For example:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper(a =&gt; 'Hello', b =&gt; 'World');
+ concat_lower_or_upper 
+-----------------------
+ hello world
+(1 row)
+</pre> <p>Again, the argument <code class="LITERAL">uppercase</code> was omitted so it is set to <code class="LITERAL">false</code> implicitly. One advantage of using named notation is that the arguments may be specified in any order, for example:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper(a =&gt; 'Hello', b =&gt; 'World', uppercase =&gt; true);
+ concat_lower_or_upper 
+-----------------------
+ HELLO WORLD
+(1 row)
+
+SELECT concat_lower_or_upper(a =&gt; 'Hello', uppercase =&gt; true, b =&gt; 'World');
+ concat_lower_or_upper 
+-----------------------
+ HELLO WORLD
+(1 row)
+</pre> <p>An older syntax based on ":=" is supported for backward compatibility:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper(a := 'Hello', uppercase := true, b := 'World');
+ concat_lower_or_upper 
+-----------------------
+ HELLO WORLD
+(1 row)
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="SQL-SYNTAX-CALLING-FUNCS-MIXED">4.3.3. Using Mixed Notation</h2> <p>The mixed notation combines positional and named notation. However, as already mentioned, named arguments cannot precede positional arguments. For example:</p> <pre class="SCREEN">
+SELECT concat_lower_or_upper('Hello', 'World', uppercase =&gt; true);
+ concat_lower_or_upper 
+-----------------------
+ HELLO WORLD
+(1 row)
+</pre> <p>In the above query, the arguments <code class="LITERAL">a</code> and <code class="LITERAL">b</code> are specified positionally, while <code class="LITERAL">uppercase</code> is specified by name. In this example, that adds little except documentation. With a more complex function having numerous parameters that have default values, named or mixed notation can save a great deal of writing and reduce chances for error.</p>  <blockquote class="NOTE"> <p><b>Note:</b> Named and mixed call notations currently cannot be used when calling an aggregate function (but they do work when an aggregate function is used as a window function).</p> </blockquote>  </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../sql-expressions/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="https://www.postgresql.org/docs/9.6/static/ddl.html" accesskey="N" target="_blank">Next</a></td> </tr> <tr> <td width="33%" align="left">Value Expressions</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/sql-syntax.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Data Definition</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/sql-syntax-calling-funcs.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/sql-syntax-calling-funcs.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

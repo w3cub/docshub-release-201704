@@ -1,0 +1,99 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Citext - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="The citext module provides a case-insensitive character string type, citext. Essentially, it internally calls lower when comparing values. Otherwise &hellip;">
+  <meta name="keywords" content="f, citext, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/citext/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="CITEXT">F.8. citext</h1> <p>The <code class="FILENAME">citext</code> module provides a case-insensitive character string type, <code class="TYPE">citext</code>. Essentially, it internally calls <code class="FUNCTION">lower</code> when comparing values. Otherwise, it behaves almost exactly like <code class="TYPE">text</code>.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN177041">F.8.1. Rationale</h2> <p>The standard approach to doing case-insensitive matches in <span class="PRODUCTNAME">PostgreSQL</span> has been to use the <code class="FUNCTION">lower</code> function when comparing values, for example</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM tab WHERE lower(col) = LOWER(?);
+</pre> <p>This works reasonably well, but has a number of drawbacks:</p> <ul> <li> <p>It makes your SQL statements verbose, and you always have to remember to use <code class="FUNCTION">lower</code> on both the column and the query value.</p> </li> <li> <p>It won't use an index, unless you create a functional index using <code class="FUNCTION">lower</code>.</p> </li> <li> <p>If you declare a column as <code class="LITERAL">UNIQUE</code> or <code class="LITERAL">PRIMARY KEY</code>, the implicitly generated index is case-sensitive. So it's useless for case-insensitive searches, and it won't enforce uniqueness case-insensitively.</p> </li> </ul> <p>The <code class="TYPE">citext</code> data type allows you to eliminate calls to <code class="FUNCTION">lower</code> in SQL queries, and allows a primary key to be case-insensitive. <code class="TYPE">citext</code> is locale-aware, just like <code class="TYPE">text</code>, which means that the matching of upper case and lower case characters is dependent on the rules of the database's <code class="LITERAL">LC_CTYPE</code> setting. Again, this behavior is identical to the use of <code class="FUNCTION">lower</code> in queries. But because it's done transparently by the data type, you don't have to remember to do anything special in your queries.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN177066">F.8.2. How to Use It</h2> <p>Here's a simple example of usage:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE users (
+    nick CITEXT PRIMARY KEY,
+    pass TEXT   NOT NULL
+);
+
+INSERT INTO users VALUES ( 'larry',  md5(random()::text) );
+INSERT INTO users VALUES ( 'Tom',    md5(random()::text) );
+INSERT INTO users VALUES ( 'Damian', md5(random()::text) );
+INSERT INTO users VALUES ( 'NEAL',   md5(random()::text) );
+INSERT INTO users VALUES ( 'Bjørn',  md5(random()::text) );
+
+SELECT * FROM users WHERE nick = 'Larry';
+</pre> <p>The <code class="COMMAND">SELECT</code> statement will return one tuple, even though the <code class="STRUCTFIELD">nick</code> column was set to <code class="LITERAL">larry</code> and the query was for <code class="LITERAL">Larry</code>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN177074">F.8.3. String Comparison Behavior</h2> <p><code class="TYPE">citext</code> performs comparisons by converting each string to lower case (as though <code class="FUNCTION">lower</code> were called) and then comparing the results normally. Thus, for example, two strings are considered equal if <code class="FUNCTION">lower</code> would produce identical results for them.</p> <p>In order to emulate a case-insensitive collation as closely as possible, there are <code class="TYPE">citext</code>-specific versions of a number of string-processing operators and functions. So, for example, the regular expression operators <code class="LITERAL">~</code> and <code class="LITERAL">~*</code> exhibit the same behavior when applied to <code class="TYPE">citext</code>: they both match case-insensitively. The same is true for <code class="LITERAL">!~</code> and <code class="LITERAL">!~*</code>, as well as for the <code class="LITERAL">LIKE</code> operators <code class="LITERAL">~~</code> and <code class="LITERAL">~~*</code>, and <code class="LITERAL">!~~</code> and <code class="LITERAL">!~~*</code>. If you'd like to match case-sensitively, you can cast the operator's arguments to <code class="TYPE">text</code>.</p> <p>Similarly, all of the following functions perform matching case-insensitively if their arguments are <code class="TYPE">citext</code>:</p> <ul> <li> <p><code class="FUNCTION">regexp_matches()</code></p> </li> <li> <p><code class="FUNCTION">regexp_replace()</code></p> </li> <li> <p><code class="FUNCTION">regexp_split_to_array()</code></p> </li> <li> <p><code class="FUNCTION">regexp_split_to_table()</code></p> </li> <li> <p><code class="FUNCTION">replace()</code></p> </li> <li> <p><code class="FUNCTION">split_part()</code></p> </li> <li> <p><code class="FUNCTION">strpos()</code></p> </li> <li> <p><code class="FUNCTION">translate()</code></p> </li> </ul> <p>For the regexp functions, if you want to match case-sensitively, you can specify the <span class="QUOTE">"c"</span> flag to force a case-sensitive match. Otherwise, you must cast to <code class="TYPE">text</code> before using one of these functions if you want case-sensitive behavior.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN177123">F.8.4. Limitations</h2> <ul> <li> <p><code class="TYPE">citext</code>'s case-folding behavior depends on the <code class="LITERAL">LC_CTYPE</code> setting of your database. How it compares values is therefore determined when the database is created. It is not truly case-insensitive in the terms defined by the Unicode standard. Effectively, what this means is that, as long as you're happy with your collation, you should be happy with <code class="TYPE">citext</code>'s comparisons. But if you have data in different languages stored in your database, users of one language may find their query results are not as expected if the collation is for another language.</p> </li> <li> <p>As of <span class="PRODUCTNAME">PostgreSQL</span> 9.1, you can attach a <code class="LITERAL">COLLATE</code> specification to <code class="TYPE">citext</code> columns or data values. Currently, <code class="TYPE">citext</code> operators will honor a non-default <code class="LITERAL">COLLATE</code> specification while comparing case-folded strings, but the initial folding to lower case is always done according to the database's <code class="LITERAL">LC_CTYPE</code> setting (that is, as though <code class="LITERAL">COLLATE "default"</code> were given). This may be changed in a future release so that both steps follow the input <code class="LITERAL">COLLATE</code> specification.</p> </li> <li> <p><code class="TYPE">citext</code> is not as efficient as <code class="TYPE">text</code> because the operator functions and the B-tree comparison functions must make copies of the data and convert it to lower case for comparisons. It is, however, slightly more efficient than using <code class="FUNCTION">lower</code> to get case-insensitive matching.</p> </li> <li> <p><code class="TYPE">citext</code> doesn't help much if you need data to compare case-sensitively in some contexts and case-insensitively in other contexts. The standard answer is to use the <code class="TYPE">text</code> type and manually use the <code class="FUNCTION">lower</code> function when you need to compare case-insensitively; this works all right if case-insensitive comparison is needed only infrequently. If you need case-insensitive behavior most of the time and case-sensitive infrequently, consider storing the data as <code class="TYPE">citext</code> and explicitly casting the column to <code class="TYPE">text</code> when you want case-sensitive comparison. In either situation, you will need two indexes if you want both types of searches to be fast.</p> </li> <li> <p>The schema containing the <code class="TYPE">citext</code> operators must be in the current <code class="VARNAME">search_path</code> (typically <code class="LITERAL">public</code>); if it is not, the normal case-sensitive <code class="TYPE">text</code> operators will be invoked instead.</p> </li> </ul> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN177159">F.8.5. Author</h2> <p>David E. Wheeler <code class="EMAIL">&lt;<a href="../mailto:david@kineticode.com/">david@kineticode.com</a>&gt;</code></p> <p>Inspired by the original <code class="TYPE">citext</code> module by Donald Fraser.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../chkpass/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../cube/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">chkpass</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">cube</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/citext.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/citext.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

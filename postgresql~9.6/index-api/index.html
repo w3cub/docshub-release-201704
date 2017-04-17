@@ -1,0 +1,140 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Index Access Method&#58; Basic API Structure for Indexes - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="Each index access method is described by a row in the pg_am system catalog. The pg_am entry specifies a name and a handler function for the access &hellip;">
+  <meta name="keywords" content="basic, api, structure, for, indexes, index, access, method, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/index-api/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INDEX-API">59.1. Basic API Structure for Indexes</h1> <p>Each index access method is described by a row in the <a href="../catalog-pg-am/"><code class="STRUCTNAME">pg_am</code></a> system catalog. The <code class="STRUCTNAME">pg_am</code> entry specifies a name and a <i class="FIRSTTERM">handler function</i> for the access method. These entries can be created and deleted using the <a href="../sql-create-access-method/">CREATE ACCESS METHOD</a> and <a href="../sql-drop-access-method/">DROP ACCESS METHOD</a> SQL commands.</p> <p>An index access method handler function must be declared to accept a single argument of type <code class="TYPE">internal</code> and to return the pseudo-type <code class="TYPE">index_am_handler</code>. The argument is a dummy value that simply serves to prevent handler functions from being called directly from SQL commands. The result of the function must be a palloc'd struct of type <code class="STRUCTNAME">IndexAmRoutine</code>, which contains everything that the core code needs to know to make use of the index access method. The <code class="STRUCTNAME">IndexAmRoutine</code> struct, also called the access method's <i class="FIRSTTERM">API struct</i>, includes fields specifying assorted fixed properties of the access method, such as whether it can support multicolumn indexes. More importantly, it contains pointers to support functions for the access method, which do all of the real work to access indexes. These support functions are plain C functions and are not visible or callable at the SQL level. The support functions are described in <a href="../index-functions/">Section 59.2</a>.</p> <p>The structure <code class="STRUCTNAME">IndexAmRoutine</code> is defined thus:</p> <pre class="PROGRAMLISTING" data-language="sql">
+typedef struct IndexAmRoutine
+{
+    NodeTag     type;
+
+    /*
+     * Total number of strategies (operators) by which we can traverse/search
+     * this AM.  Zero if AM does not have a fixed set of strategy assignments.
+     */
+    uint16      amstrategies;
+    /* total number of support functions that this AM uses */
+    uint16      amsupport;
+    /* does AM support ORDER BY indexed column's value? */
+    bool        amcanorder;
+    /* does AM support ORDER BY result of an operator on indexed column? */
+    bool        amcanorderbyop;
+    /* does AM support backward scanning? */
+    bool        amcanbackward;
+    /* does AM support UNIQUE indexes? */
+    bool        amcanunique;
+    /* does AM support multi-column indexes? */
+    bool        amcanmulticol;
+    /* does AM require scans to have a constraint on the first index column? */
+    bool        amoptionalkey;
+    /* does AM handle ScalarArrayOpExpr quals? */
+    bool        amsearcharray;
+    /* does AM handle IS NULL/IS NOT NULL quals? */
+    bool        amsearchnulls;
+    /* can index storage data type differ from column data type? */
+    bool        amstorage;
+    /* can an index of this type be clustered on? */
+    bool        amclusterable;
+    /* does AM handle predicate locks? */
+    bool        ampredlocks;
+    /* type of data stored in index, or InvalidOid if variable */
+    Oid         amkeytype;
+
+    /* interface functions */
+    ambuild_function ambuild;
+    ambuildempty_function ambuildempty;
+    aminsert_function aminsert;
+    ambulkdelete_function ambulkdelete;
+    amvacuumcleanup_function amvacuumcleanup;
+    amcanreturn_function amcanreturn;   /* can be NULL */
+    amcostestimate_function amcostestimate;
+    amoptions_function amoptions;
+    amproperty_function amproperty;     /* can be NULL */
+    amvalidate_function amvalidate;
+    ambeginscan_function ambeginscan;
+    amrescan_function amrescan;
+    amgettuple_function amgettuple;     /* can be NULL */
+    amgetbitmap_function amgetbitmap;   /* can be NULL */
+    amendscan_function amendscan;
+    ammarkpos_function ammarkpos;       /* can be NULL */
+    amrestrpos_function amrestrpos;     /* can be NULL */
+} IndexAmRoutine;
+</pre> <p>To be useful, an index access method must also have one or more <i class="FIRSTTERM">operator families</i> and <i class="FIRSTTERM">operator classes</i> defined in <a href="../catalog-pg-opfamily/"><code class="STRUCTNAME">pg_opfamily</code></a>, <a href="../catalog-pg-opclass/"><code class="STRUCTNAME">pg_opclass</code></a>, <a href="../catalog-pg-amop/"><code class="STRUCTNAME">pg_amop</code></a>, and <a href="../catalog-pg-amproc/"><code class="STRUCTNAME">pg_amproc</code></a>. These entries allow the planner to determine what kinds of query qualifications can be used with indexes of this access method. Operator families and classes are described in <a href="https://www.postgresql.org/docs/9.6/static/xindex.html" target="_blank">Section 36.14</a>, which is prerequisite material for reading this chapter.</p> <p>An individual index is defined by a <a href="../catalog-pg-class/"><code class="STRUCTNAME">pg_class</code></a> entry that describes it as a physical relation, plus a <a href="../catalog-pg-index/"><code class="STRUCTNAME">pg_index</code></a> entry that shows the logical content of the index — that is, the set of index columns it has and the semantics of those columns, as captured by the associated operator classes. The index columns (key values) can be either simple columns of the underlying table or expressions over the table rows. The index access method normally has no interest in where the index key values come from (it is always handed precomputed key values) but it will be very interested in the operator class information in <code class="STRUCTNAME">pg_index</code>. Both of these catalog entries can be accessed as part of the <code class="STRUCTNAME">Relation</code> data structure that is passed to all operations on the index.</p> <p>Some of the flag fields of <code class="STRUCTNAME">IndexAmRoutine</code> have nonobvious implications. The requirements of <code class="STRUCTFIELD">amcanunique</code> are discussed in <a href="../index-unique-checks/">Section 59.5</a>. The <code class="STRUCTFIELD">amcanmulticol</code> flag asserts that the access method supports multicolumn indexes, while <code class="STRUCTFIELD">amoptionalkey</code> asserts that it allows scans where no indexable restriction clause is given for the first index column. When <code class="STRUCTFIELD">amcanmulticol</code> is false, <code class="STRUCTFIELD">amoptionalkey</code> essentially says whether the access method supports full-index scans without any restriction clause. Access methods that support multiple index columns <span class="emphasis EMPHASIS c2">must</span> support scans that omit restrictions on any or all of the columns after the first; however they are permitted to require some restriction to appear for the first index column, and this is signaled by setting <code class="STRUCTFIELD">amoptionalkey</code> false. One reason that an index AM might set <code class="STRUCTFIELD">amoptionalkey</code> false is if it doesn't index null values. Since most indexable operators are strict and hence cannot return true for null inputs, it is at first sight attractive to not store index entries for null values: they could never be returned by an index scan anyway. However, this argument fails when an index scan has no restriction clause for a given index column. In practice this means that indexes that have <code class="STRUCTFIELD">amoptionalkey</code> true must index nulls, since the planner might decide to use such an index with no scan keys at all. A related restriction is that an index access method that supports multiple index columns <span class="emphasis EMPHASIS c2">must</span> support indexing null values in columns after the first, because the planner will assume the index can be used for queries that do not restrict these columns. For example, consider an index on (a,b) and a query with <code class="LITERAL">WHERE a = 4</code>. The system will assume the index can be used to scan for rows with <code class="LITERAL">a = 4</code>, which is wrong if the index omits rows where <code class="LITERAL">b</code> is null. It is, however, OK to omit rows where the first indexed column is null. An index access method that does index nulls may also set <code class="STRUCTFIELD">amsearchnulls</code>, indicating that it supports <code class="LITERAL">IS NULL</code> and <code class="LITERAL">IS NOT NULL</code> clauses as search conditions.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.6/static/indexam.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../index-functions/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Index Access Method Interface Definition</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/indexam.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Index Access Method Functions</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/index-api.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/index-api.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

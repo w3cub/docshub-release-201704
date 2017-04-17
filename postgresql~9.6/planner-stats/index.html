@@ -1,0 +1,117 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Performance Tips&#58; Statistics Used by the Planner - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="As we saw in the previous section, the query planner needs to estimate the number of rows retrieved by a query in order to make good choices of &hellip;">
+  <meta name="keywords" content="statistics, used, planner, performance, tips, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/planner-stats/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="PLANNER-STATS">14.2. Statistics Used by the Planner</h1> <p>As we saw in the previous section, the query planner needs to estimate the number of rows retrieved by a query in order to make good choices of query plans. This section provides a quick look at the statistics that the system uses for these estimates.</p> <p>One component of the statistics is the total number of entries in each table and index, as well as the number of disk blocks occupied by each table and index. This information is kept in the table <a href="../catalog-pg-class/"><code class="STRUCTNAME">pg_class</code></a>, in the columns <code class="STRUCTFIELD">reltuples</code> and <code class="STRUCTFIELD">relpages</code>. We can look at it with queries similar to this one:</p> <pre class="SCREEN">
+SELECT relname, relkind, reltuples, relpages
+FROM pg_class
+WHERE relname LIKE 'tenk1%';
+
+       relname        | relkind | reltuples | relpages
+----------------------+---------+-----------+----------
+ tenk1                | r       |     10000 |      358
+ tenk1_hundred        | i       |     10000 |       30
+ tenk1_thous_tenthous | i       |     10000 |       30
+ tenk1_unique1        | i       |     10000 |       30
+ tenk1_unique2        | i       |     10000 |       30
+(5 rows)
+</pre> <p>Here we can see that <code class="STRUCTNAME">tenk1</code> contains 10000 rows, as do its indexes, but the indexes are (unsurprisingly) much smaller than the table.</p> <p>For efficiency reasons, <code class="STRUCTFIELD">reltuples</code> and <code class="STRUCTFIELD">relpages</code> are not updated on-the-fly, and so they usually contain somewhat out-of-date values. They are updated by <code class="COMMAND">VACUUM</code>, <code class="COMMAND">ANALYZE</code>, and a few DDL commands such as <code class="COMMAND">CREATE INDEX</code>. A <code class="COMMAND">VACUUM</code> or <code class="COMMAND">ANALYZE</code> operation that does not scan the entire table (which is commonly the case) will incrementally update the <code class="STRUCTFIELD">reltuples</code> count on the basis of the part of the table it did scan, resulting in an approximate value. In any case, the planner will scale the values it finds in <code class="STRUCTNAME">pg_class</code> to match the current physical table size, thus obtaining a closer approximation.</p> <p>Most queries retrieve only a fraction of the rows in a table, due to <code class="LITERAL">WHERE</code> clauses that restrict the rows to be examined. The planner thus needs to make an estimate of the <i class="FIRSTTERM">selectivity</i> of <code class="LITERAL">WHERE</code> clauses, that is, the fraction of rows that match each condition in the <code class="LITERAL">WHERE</code> clause. The information used for this task is stored in the <a href="../catalog-pg-statistic/"><code class="STRUCTNAME">pg_statistic</code></a> system catalog. Entries in <code class="STRUCTNAME">pg_statistic</code> are updated by the <code class="COMMAND">ANALYZE</code> and <code class="COMMAND">VACUUM ANALYZE</code> commands, and are always approximate even when freshly updated.</p> <p>Rather than look at <code class="STRUCTNAME">pg_statistic</code> directly, it's better to look at its view <a href="../view-pg-stats/"><code class="STRUCTNAME">pg_stats</code></a> when examining the statistics manually. <code class="STRUCTNAME">pg_stats</code> is designed to be more easily readable. Furthermore, <code class="STRUCTNAME">pg_stats</code> is readable by all, whereas <code class="STRUCTNAME">pg_statistic</code> is only readable by a superuser. (This prevents unprivileged users from learning something about the contents of other people's tables from the statistics. The <code class="STRUCTNAME">pg_stats</code> view is restricted to show only rows about tables that the current user can read.) For example, we might do:</p> <pre class="SCREEN">
+SELECT attname, inherited, n_distinct,
+       array_to_string(most_common_vals, E'\n') as most_common_vals
+FROM pg_stats
+WHERE tablename = 'road';
+
+ attname | inherited | n_distinct |          most_common_vals
+---------+-----------+------------+------------------------------------
+ name    | f         |  -0.363388 | I- 580                        Ramp+
+         |           |            | I- 880                        Ramp+
+         |           |            | Sp Railroad                       +
+         |           |            | I- 580                            +
+         |           |            | I- 680                        Ramp
+ name    | t         |  -0.284859 | I- 880                        Ramp+
+         |           |            | I- 580                        Ramp+
+         |           |            | I- 680                        Ramp+
+         |           |            | I- 580                            +
+         |           |            | State Hwy 13                  Ramp
+(2 rows)
+</pre> <p>Note that two rows are displayed for the same column, one corresponding to the complete inheritance hierarchy starting at the <code class="LITERAL">road</code> table (<code class="LITERAL">inherited</code>=<code class="LITERAL">t</code>), and another one including only the <code class="LITERAL">road</code> table itself (<code class="LITERAL">inherited</code>=<code class="LITERAL">f</code>).</p> <p>The amount of information stored in <code class="STRUCTNAME">pg_statistic</code> by <code class="COMMAND">ANALYZE</code>, in particular the maximum number of entries in the <code class="STRUCTFIELD">most_common_vals</code> and <code class="STRUCTFIELD">histogram_bounds</code> arrays for each column, can be set on a column-by-column basis using the <code class="COMMAND">ALTER TABLE SET STATISTICS</code> command, or globally by setting the <a href="../runtime-config-query/#GUC-DEFAULT-STATISTICS-TARGET">default_statistics_target</a> configuration variable. The default limit is presently 100 entries. Raising the limit might allow more accurate planner estimates to be made, particularly for columns with irregular data distributions, at the price of consuming more space in <code class="STRUCTNAME">pg_statistic</code> and slightly more time to compute the estimates. Conversely, a lower limit might be sufficient for columns with simple data distributions.</p> <p>Further details about the planner's use of statistics can be found in <a href="https://www.postgresql.org/docs/9.6/static/planner-stats-details.html" target="_blank">Chapter 67</a>.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../using-explain/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../explicit-joins/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Using <code class="COMMAND">EXPLAIN</code>
+</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/performance-tips.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Controlling the Planner with Explicit <code class="LITERAL">JOIN</code> Clauses</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/planner-stats.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/planner-stats.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

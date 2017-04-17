@@ -1,0 +1,234 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Partitioning - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" PostgreSQL supports basic table partitioning. This section describes why and how to implement partitioning as part of your database design. ">
+  <meta name="keywords" content="partitioning, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/ddl-partitioning/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="DDL-PARTITIONING">5.10. Partitioning</h1> <p><span class="PRODUCTNAME">PostgreSQL</span> supports basic table partitioning. This section describes why and how to implement partitioning as part of your database design.</p> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-OVERVIEW">5.10.1. Overview</h2> <p>Partitioning refers to splitting what is logically one large table into smaller physical pieces. Partitioning can provide several benefits:</p> <ul> <li> <p>Query performance can be improved dramatically in certain situations, particularly when most of the heavily accessed rows of the table are in a single partition or a small number of partitions. The partitioning substitutes for leading columns of indexes, reducing index size and making it more likely that the heavily-used parts of the indexes fit in memory.</p> </li> <li> <p>When queries or updates access a large percentage of a single partition, performance can be improved by taking advantage of sequential scan of that partition instead of using an index and random access reads scattered across the whole table.</p> </li> <li> <p>Bulk loads and deletes can be accomplished by adding or removing partitions, if that requirement is planned into the partitioning design. <code class="COMMAND">ALTER TABLE NO INHERIT</code> and <code class="COMMAND">DROP TABLE</code> are both far faster than a bulk operation. These commands also entirely avoid the <code class="COMMAND">VACUUM</code> overhead caused by a bulk <code class="COMMAND">DELETE</code>.</p> </li> <li> <p>Seldom-used data can be migrated to cheaper and slower storage media.</p> </li> </ul> <p>The benefits will normally be worthwhile only when a table would otherwise be very large. The exact point at which a table will benefit from partitioning depends on the application, although a rule of thumb is that the size of the table should exceed the physical memory of the database server.</p> <p>Currently, <span class="PRODUCTNAME">PostgreSQL</span> supports partitioning via table inheritance. Each partition must be created as a child table of a single parent table. The parent table itself is normally empty; it exists just to represent the entire data set. You should be familiar with inheritance (see <a href="../ddl-inherit/">Section 5.9</a>) before attempting to set up partitioning.</p> <p>The following forms of partitioning can be implemented in <span class="PRODUCTNAME">PostgreSQL</span>:</p> <div class="VARIABLELIST"> <dl> <dt>Range Partitioning</dt> <dd> <p>The table is partitioned into <span class="QUOTE">"ranges"</span> defined by a key column or set of columns, with no overlap between the ranges of values assigned to different partitions. For example one might partition by date ranges, or by ranges of identifiers for particular business objects.</p> </dd> <dt>List Partitioning</dt> <dd> <p>The table is partitioned by explicitly listing which key values appear in each partition.</p> </dd> </dl> </div> </div> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-IMPLEMENTATION">5.10.2. Implementing Partitioning</h2> <p>To set up a partitioned table, do the following:</p> <ol compact type="1"> <li> <p>Create the <span class="QUOTE">"master"</span> table, from which all of the partitions will inherit.</p> <p>This table will contain no data. Do not define any check constraints on this table, unless you intend them to be applied equally to all partitions. There is no point in defining any indexes or unique constraints on it, either.</p> </li> <li> <p>Create several <span class="QUOTE">"child"</span> tables that each inherit from the master table. Normally, these tables will not add any columns to the set inherited from the master.</p> <p>We will refer to the child tables as partitions, though they are in every way normal <span class="PRODUCTNAME">PostgreSQL</span> tables (or, possibly, foreign tables).</p> </li> <li> <p>Add table constraints to the partition tables to define the allowed key values in each partition.</p> <p>Typical examples would be:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CHECK ( x = 1 )
+CHECK ( county IN ( 'Oxfordshire', 'Buckinghamshire', 'Warwickshire' ))
+CHECK ( outletID &gt;= 100 AND outletID &lt; 200 )
+</pre> <p>Ensure that the constraints guarantee that there is no overlap between the key values permitted in different partitions. A common mistake is to set up range constraints like:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CHECK ( outletID BETWEEN 100 AND 200 )
+CHECK ( outletID BETWEEN 200 AND 300 )
+</pre> <p>This is wrong since it is not clear which partition the key value 200 belongs in.</p> <p>Note that there is no difference in syntax between range and list partitioning; those terms are descriptive only.</p> </li> <li> <p>For each partition, create an index on the key column(s), as well as any other indexes you might want. (The key index is not strictly necessary, but in most scenarios it is helpful. If you intend the key values to be unique then you should always create a unique or primary-key constraint for each partition.)</p> </li> <li> <p>Optionally, define a trigger or rule to redirect data inserted into the master table to the appropriate partition.</p> </li> <li> <p>Ensure that the <a href="../runtime-config-query/#GUC-CONSTRAINT-EXCLUSION">constraint_exclusion</a> configuration parameter is not disabled in <code class="FILENAME">postgresql.conf</code>. If it is, queries will not be optimized as desired.</p> </li> </ol> <p>For example, suppose we are constructing a database for a large ice cream company. The company measures peak temperatures every day as well as ice cream sales in each region. Conceptually, we want a table like:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE measurement (
+    city_id         int not null,
+    logdate         date not null,
+    peaktemp        int,
+    unitsales       int
+);
+</pre> <p>We know that most queries will access just the last week's, month's or quarter's data, since the main use of this table will be to prepare online reports for management. To reduce the amount of old data that needs to be stored, we decide to only keep the most recent 3 years worth of data. At the beginning of each month we will remove the oldest month's data.</p> <p>In this situation we can use partitioning to help us meet all of our different requirements for the measurements table. Following the steps outlined above, partitioning can be set up as follows:</p> <ol compact type="1"> <li> <p>The master table is the <code class="STRUCTNAME">measurement</code> table, declared exactly as above.</p> </li> <li> <p>Next we create one partition for each active month:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE measurement_y2006m02 ( ) INHERITS (measurement);
+CREATE TABLE measurement_y2006m03 ( ) INHERITS (measurement);
+...
+CREATE TABLE measurement_y2007m11 ( ) INHERITS (measurement);
+CREATE TABLE measurement_y2007m12 ( ) INHERITS (measurement);
+CREATE TABLE measurement_y2008m01 ( ) INHERITS (measurement);
+</pre> <p>Each of the partitions are complete tables in their own right, but they inherit their definitions from the <code class="STRUCTNAME">measurement</code> table.</p> <p>This solves one of our problems: deleting old data. Each month, all we will need to do is perform a <code class="COMMAND">DROP TABLE</code> on the oldest child table and create a new child table for the new month's data.</p> </li> <li> <p>We must provide non-overlapping table constraints. Rather than just creating the partition tables as above, the table creation script should really be:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE measurement_y2006m02 (
+    CHECK ( logdate &gt;= DATE '2006-02-01' AND logdate &lt; DATE '2006-03-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_y2006m03 (
+    CHECK ( logdate &gt;= DATE '2006-03-01' AND logdate &lt; DATE '2006-04-01' )
+) INHERITS (measurement);
+...
+CREATE TABLE measurement_y2007m11 (
+    CHECK ( logdate &gt;= DATE '2007-11-01' AND logdate &lt; DATE '2007-12-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_y2007m12 (
+    CHECK ( logdate &gt;= DATE '2007-12-01' AND logdate &lt; DATE '2008-01-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_y2008m01 (
+    CHECK ( logdate &gt;= DATE '2008-01-01' AND logdate &lt; DATE '2008-02-01' )
+) INHERITS (measurement);
+</pre> </li> <li> <p>We probably need indexes on the key columns too:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE INDEX measurement_y2006m02_logdate ON measurement_y2006m02 (logdate);
+CREATE INDEX measurement_y2006m03_logdate ON measurement_y2006m03 (logdate);
+...
+CREATE INDEX measurement_y2007m11_logdate ON measurement_y2007m11 (logdate);
+CREATE INDEX measurement_y2007m12_logdate ON measurement_y2007m12 (logdate);
+CREATE INDEX measurement_y2008m01_logdate ON measurement_y2008m01 (logdate);
+</pre> <p>We choose not to add further indexes at this time.</p> </li> <li> <p>We want our application to be able to say <code class="LITERAL">INSERT INTO measurement ...</code> and have the data be redirected into the appropriate partition table. We can arrange that by attaching a suitable trigger function to the master table. If data will be added only to the latest partition, we can use a very simple trigger function:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE OR REPLACE FUNCTION measurement_insert_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO measurement_y2008m01 VALUES (NEW.*);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+</pre> <p>After creating the function, we create a trigger which calls the trigger function:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TRIGGER insert_measurement_trigger
+    BEFORE INSERT ON measurement
+    FOR EACH ROW EXECUTE PROCEDURE measurement_insert_trigger();
+</pre> <p>We must redefine the trigger function each month so that it always points to the current partition. The trigger definition does not need to be updated, however.</p> <p>We might want to insert data and have the server automatically locate the partition into which the row should be added. We could do this with a more complex trigger function, for example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE OR REPLACE FUNCTION measurement_insert_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF ( NEW.logdate &gt;= DATE '2006-02-01' AND
+         NEW.logdate &lt; DATE '2006-03-01' ) THEN
+        INSERT INTO measurement_y2006m02 VALUES (NEW.*);
+    ELSIF ( NEW.logdate &gt;= DATE '2006-03-01' AND
+            NEW.logdate &lt; DATE '2006-04-01' ) THEN
+        INSERT INTO measurement_y2006m03 VALUES (NEW.*);
+    ...
+    ELSIF ( NEW.logdate &gt;= DATE '2008-01-01' AND
+            NEW.logdate &lt; DATE '2008-02-01' ) THEN
+        INSERT INTO measurement_y2008m01 VALUES (NEW.*);
+    ELSE
+        RAISE EXCEPTION 'Date out of range.  Fix the measurement_insert_trigger() function!';
+    END IF;
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+</pre> <p>The trigger definition is the same as before. Note that each <code class="LITERAL">IF</code> test must exactly match the <code class="LITERAL">CHECK</code> constraint for its partition.</p> <p>While this function is more complex than the single-month case, it doesn't need to be updated as often, since branches can be added in advance of being needed.</p>  <blockquote class="NOTE"> <p><b>Note:</b> In practice it might be best to check the newest partition first, if most inserts go into that partition. For simplicity we have shown the trigger's tests in the same order as in other parts of this example.</p> </blockquote>  </li> </ol> <p>As we can see, a complex partitioning scheme could require a substantial amount of DDL. In the above example we would be creating a new partition each month, so it might be wise to write a script that generates the required DDL automatically.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-MANAGING-PARTITIONS">5.10.3. Managing Partitions</h2> <p>Normally the set of partitions established when initially defining the table are not intended to remain static. It is common to want to remove old partitions of data and periodically add new partitions for new data. One of the most important advantages of partitioning is precisely that it allows this otherwise painful task to be executed nearly instantaneously by manipulating the partition structure, rather than physically moving large amounts of data around.</p> <p>The simplest option for removing old data is simply to drop the partition that is no longer necessary:</p> <pre class="PROGRAMLISTING" data-language="sql">
+DROP TABLE measurement_y2006m02;
+</pre> <p>This can very quickly delete millions of records because it doesn't have to individually delete every record.</p> <p>Another option that is often preferable is to remove the partition from the partitioned table but retain access to it as a table in its own right:</p> <pre class="PROGRAMLISTING" data-language="sql">
+ALTER TABLE measurement_y2006m02 NO INHERIT measurement;
+</pre> <p>This allows further operations to be performed on the data before it is dropped. For example, this is often a useful time to back up the data using <code class="COMMAND">COPY</code>, <span class="APPLICATION">pg_dump</span>, or similar tools. It might also be a useful time to aggregate data into smaller formats, perform other data manipulations, or run reports.</p> <p>Similarly we can add a new partition to handle new data. We can create an empty partition in the partitioned table just as the original partitions were created above:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE measurement_y2008m02 (
+    CHECK ( logdate &gt;= DATE '2008-02-01' AND logdate &lt; DATE '2008-03-01' )
+) INHERITS (measurement);
+</pre> <p>As an alternative, it is sometimes more convenient to create the new table outside the partition structure, and make it a proper partition later. This allows the data to be loaded, checked, and transformed prior to it appearing in the partitioned table:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE measurement_y2008m02
+  (LIKE measurement INCLUDING DEFAULTS INCLUDING CONSTRAINTS);
+ALTER TABLE measurement_y2008m02 ADD CONSTRAINT y2008m02
+   CHECK ( logdate &gt;= DATE '2008-02-01' AND logdate &lt; DATE '2008-03-01' );
+\copy measurement_y2008m02 from 'measurement_y2008m02'
+-- possibly some other data preparation work
+ALTER TABLE measurement_y2008m02 INHERIT measurement;
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-CONSTRAINT-EXCLUSION">5.10.4. Partitioning and Constraint Exclusion</h2> <p><i class="FIRSTTERM">Constraint exclusion</i> is a query optimization technique that improves performance for partitioned tables defined in the fashion described above. As an example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SET constraint_exclusion = on;
+SELECT count(*) FROM measurement WHERE logdate &gt;= DATE '2008-01-01';
+</pre> <p>Without constraint exclusion, the above query would scan each of the partitions of the <code class="STRUCTNAME">measurement</code> table. With constraint exclusion enabled, the planner will examine the constraints of each partition and try to prove that the partition need not be scanned because it could not contain any rows meeting the query's <code class="LITERAL">WHERE</code> clause. When the planner can prove this, it excludes the partition from the query plan.</p> <p>You can use the <code class="COMMAND">EXPLAIN</code> command to show the difference between a plan with <code class="VARNAME">constraint_exclusion</code> on and a plan with it off. A typical unoptimized plan for this type of table setup is:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SET constraint_exclusion = off;
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate &gt;= DATE '2008-01-01';
+
+                                          QUERY PLAN
+-----------------------------------------------------------------------------------------------
+ Aggregate  (cost=158.66..158.68 rows=1 width=0)
+   -&gt;  Append  (cost=0.00..151.88 rows=2715 width=0)
+         -&gt;  Seq Scan on measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+         -&gt;  Seq Scan on measurement_y2006m02 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+         -&gt;  Seq Scan on measurement_y2006m03 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+...
+         -&gt;  Seq Scan on measurement_y2007m12 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+         -&gt;  Seq Scan on measurement_y2008m01 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+</pre> <p>Some or all of the partitions might use index scans instead of full-table sequential scans, but the point here is that there is no need to scan the older partitions at all to answer this query. When we enable constraint exclusion, we get a significantly cheaper plan that will deliver the same answer:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SET constraint_exclusion = on;
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate &gt;= DATE '2008-01-01';
+                                          QUERY PLAN
+-----------------------------------------------------------------------------------------------
+ Aggregate  (cost=63.47..63.48 rows=1 width=0)
+   -&gt;  Append  (cost=0.00..60.75 rows=1086 width=0)
+         -&gt;  Seq Scan on measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+         -&gt;  Seq Scan on measurement_y2008m01 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate &gt;= '2008-01-01'::date)
+</pre> <p>Note that constraint exclusion is driven only by <code class="LITERAL">CHECK</code> constraints, not by the presence of indexes. Therefore it isn't necessary to define indexes on the key columns. Whether an index needs to be created for a given partition depends on whether you expect that queries that scan the partition will generally scan a large part of the partition or just a small part. An index will be helpful in the latter case but not the former.</p> <p>The default (and recommended) setting of <a href="../runtime-config-query/#GUC-CONSTRAINT-EXCLUSION">constraint_exclusion</a> is actually neither <code class="LITERAL">on</code> nor <code class="LITERAL">off</code>, but an intermediate setting called <code class="LITERAL">partition</code>, which causes the technique to be applied only to queries that are likely to be working on partitioned tables. The <code class="LITERAL">on</code> setting causes the planner to examine <code class="LITERAL">CHECK</code> constraints in all queries, even simple ones that are unlikely to benefit.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-ALTERNATIVES">5.10.5. Alternative Partitioning Methods</h2> <p>A different approach to redirecting inserts into the appropriate partition table is to set up rules, instead of a trigger, on the master table. For example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE RULE measurement_insert_y2006m02 AS
+ON INSERT TO measurement WHERE
+    ( logdate &gt;= DATE '2006-02-01' AND logdate &lt; DATE '2006-03-01' )
+DO INSTEAD
+    INSERT INTO measurement_y2006m02 VALUES (NEW.*);
+...
+CREATE RULE measurement_insert_y2008m01 AS
+ON INSERT TO measurement WHERE
+    ( logdate &gt;= DATE '2008-01-01' AND logdate &lt; DATE '2008-02-01' )
+DO INSTEAD
+    INSERT INTO measurement_y2008m01 VALUES (NEW.*);
+</pre> <p>A rule has significantly more overhead than a trigger, but the overhead is paid once per query rather than once per row, so this method might be advantageous for bulk-insert situations. In most cases, however, the trigger method will offer better performance.</p> <p>Be aware that <code class="COMMAND">COPY</code> ignores rules. If you want to use <code class="COMMAND">COPY</code> to insert data, you'll need to copy into the correct partition table rather than into the master. <code class="COMMAND">COPY</code> does fire triggers, so you can use it normally if you use the trigger approach.</p> <p>Another disadvantage of the rule approach is that there is no simple way to force an error if the set of rules doesn't cover the insertion date; the data will silently go into the master table instead.</p> <p>Partitioning can also be arranged using a <code class="LITERAL">UNION ALL</code> view, instead of table inheritance. For example,</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE VIEW measurement AS
+          SELECT * FROM measurement_y2006m02
+UNION ALL SELECT * FROM measurement_y2006m03
+...
+UNION ALL SELECT * FROM measurement_y2007m11
+UNION ALL SELECT * FROM measurement_y2007m12
+UNION ALL SELECT * FROM measurement_y2008m01;
+</pre> <p>However, the need to recreate the view adds an extra step to adding and dropping individual partitions of the data set. In practice this method has little to recommend it compared to using inheritance.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="DDL-PARTITIONING-CAVEATS">5.10.6. Caveats</h2> <p>The following caveats apply to partitioned tables:</p> <ul> <li> <p>There is no automatic way to verify that all of the <code class="LITERAL">CHECK</code> constraints are mutually exclusive. It is safer to create code that generates partitions and creates and/or modifies associated objects than to write each by hand.</p> </li> <li> <p>The schemes shown here assume that the partition key column(s) of a row never change, or at least do not change enough to require it to move to another partition. An <code class="COMMAND">UPDATE</code> that attempts to do that will fail because of the <code class="LITERAL">CHECK</code> constraints. If you need to handle such cases, you can put suitable update triggers on the partition tables, but it makes management of the structure much more complicated.</p> </li> <li> <p>If you are using manual <code class="COMMAND">VACUUM</code> or <code class="COMMAND">ANALYZE</code> commands, don't forget that you need to run them on each partition individually. A command like:</p> <pre class="PROGRAMLISTING" data-language="sql">
+ANALYZE measurement;
+</pre> <p>will only process the master table.</p> </li> <li> <p><code class="COMMAND">INSERT</code> statements with <code class="LITERAL">ON CONFLICT</code> clauses are unlikely to work as expected, as the <code class="LITERAL">ON CONFLICT</code> action is only taken in case of unique violations on the specified target relation, not its child relations.</p> </li> </ul> <p>The following caveats apply to constraint exclusion:</p> <ul> <li> <p>Constraint exclusion only works when the query's <code class="LITERAL">WHERE</code> clause contains constants (or externally supplied parameters). For example, a comparison against a non-immutable function such as <code class="FUNCTION">CURRENT_TIMESTAMP</code> cannot be optimized, since the planner cannot know which partition the function value might fall into at run time.</p> </li> <li> <p>Keep the partitioning constraints simple, else the planner may not be able to prove that partitions don't need to be visited. Use simple equality conditions for list partitioning, or simple range tests for range partitioning, as illustrated in the preceding examples. A good rule of thumb is that partitioning constraints should contain only comparisons of the partitioning column(s) to constants using B-tree-indexable operators.</p> </li> <li> <p>All constraints on all partitions of the master table are examined during constraint exclusion, so large numbers of partitions are likely to increase query planning time considerably. Partitioning using these techniques will work well with up to perhaps a hundred partitions; don't try to use many thousands of partitions.</p> </li> </ul> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../ddl-inherit/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../ddl-foreign-data/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Inheritance</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/ddl.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Foreign Data</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/ddl-partitioning.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/ddl-partitioning.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

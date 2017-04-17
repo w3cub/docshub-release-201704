@@ -1,0 +1,93 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Tablespaces - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="Tablespaces in PostgreSQL allow database administrators to define locations in the file system where the files representing database objects can be &hellip;">
+  <meta name="keywords" content="tablespaces, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/manage-ag-tablespaces/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="MANAGE-AG-TABLESPACES">22.6. Tablespaces</h1> <p>Tablespaces in <span class="PRODUCTNAME">PostgreSQL</span> allow database administrators to define locations in the file system where the files representing database objects can be stored. Once created, a tablespace can be referred to by name when creating database objects.</p> <p>By using tablespaces, an administrator can control the disk layout of a <span class="PRODUCTNAME">PostgreSQL</span> installation. This is useful in at least two ways. First, if the partition or volume on which the cluster was initialized runs out of space and cannot be extended, a tablespace can be created on a different partition and used until the system can be reconfigured.</p> <p>Second, tablespaces allow an administrator to use knowledge of the usage pattern of database objects to optimize performance. For example, an index which is very heavily used can be placed on a very fast, highly available disk, such as an expensive solid state device. At the same time a table storing archived data which is rarely used or not performance critical could be stored on a less expensive, slower disk system.</p> <div class="WARNING"> <table class="WARNING"> <tr> <td class="c2" align="center">Warning</td> </tr> <tr> <td align="left"> <p>Even though located outside the main PostgreSQL data directory, tablespaces are an integral part of the database cluster and <span class="emphasis EMPHASIS c3">cannot</span> be treated as an autonomous collection of data files. They are dependent on metadata contained in the main data directory, and therefore cannot be attached to a different database cluster or backed up individually. Similarly, if you lose a tablespace (file deletion, disk failure, etc), the database cluster might become unreadable or unable to start. Placing a tablespace on a temporary file system like a RAM disk risks the reliability of the entire cluster.</p> </td> </tr> </table> </div> <p>To define a tablespace, use the <a href="../sql-createtablespace/">CREATE TABLESPACE</a> command, for example::</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLESPACE fastspace LOCATION '/ssd1/postgresql/data';
+</pre> <p>The location must be an existing, empty directory that is owned by the <span class="PRODUCTNAME">PostgreSQL</span> operating system user. All objects subsequently created within the tablespace will be stored in files underneath this directory. The location must not be on removable or transient storage, as the cluster might fail to function if the tablespace is missing or lost.</p>  <blockquote class="NOTE"> <p><b>Note:</b> There is usually not much point in making more than one tablespace per logical file system, since you cannot control the location of individual files within a logical file system. However, <span class="PRODUCTNAME">PostgreSQL</span> does not enforce any such limitation, and indeed it is not directly aware of the file system boundaries on your system. It just stores files in the directories you tell it to use.</p> </blockquote>  <p>Creation of the tablespace itself must be done as a database superuser, but after that you can allow ordinary database users to use it. To do that, grant them the <code class="LITERAL">CREATE</code> privilege on it.</p> <p>Tables, indexes, and entire databases can be assigned to particular tablespaces. To do so, a user with the <code class="LITERAL">CREATE</code> privilege on a given tablespace must pass the tablespace name as a parameter to the relevant command. For example, the following creates a table in the tablespace <code class="LITERAL">space1</code>:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE foo(i int) TABLESPACE space1;
+</pre> <p>Alternatively, use the <a href="../runtime-config-client/#GUC-DEFAULT-TABLESPACE">default_tablespace</a> parameter:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SET default_tablespace = space1;
+CREATE TABLE foo(i int);
+</pre> <p>When <code class="VARNAME">default_tablespace</code> is set to anything but an empty string, it supplies an implicit <code class="LITERAL">TABLESPACE</code> clause for <code class="COMMAND">CREATE TABLE</code> and <code class="COMMAND">CREATE INDEX</code> commands that do not have an explicit one.</p> <p>There is also a <a href="../runtime-config-client/#GUC-TEMP-TABLESPACES">temp_tablespaces</a> parameter, which determines the placement of temporary tables and indexes, as well as temporary files that are used for purposes such as sorting large data sets. This can be a list of tablespace names, rather than only one, so that the load associated with temporary objects can be spread over multiple tablespaces. A random member of the list is picked each time a temporary object is to be created.</p> <p>The tablespace associated with a database is used to store the system catalogs of that database. Furthermore, it is the default tablespace used for tables, indexes, and temporary files created within the database, if no <code class="LITERAL">TABLESPACE</code> clause is given and no other selection is specified by <code class="VARNAME">default_tablespace</code> or <code class="VARNAME">temp_tablespaces</code> (as appropriate). If a database is created without specifying a tablespace for it, it uses the same tablespace as the template database it is copied from.</p> <p>Two tablespaces are automatically created when the database cluster is initialized. The <code class="LITERAL">pg_global</code> tablespace is used for shared system catalogs. The <code class="LITERAL">pg_default</code> tablespace is the default tablespace of the <code class="LITERAL">template1</code> and <code class="LITERAL">template0</code> databases (and, therefore, will be the default tablespace for other databases as well, unless overridden by a <code class="LITERAL">TABLESPACE</code> clause in <code class="COMMAND">CREATE DATABASE</code>).</p> <p>Once created, a tablespace can be used from any database, provided the requesting user has sufficient privilege. This means that a tablespace cannot be dropped until all objects in all databases using the tablespace have been removed.</p> <p>To remove an empty tablespace, use the <a href="../sql-droptablespace/">DROP TABLESPACE</a> command.</p> <p>To determine the set of existing tablespaces, examine the <a href="../catalog-pg-tablespace/"><code class="STRUCTNAME">pg_tablespace</code></a> system catalog, for example</p> <pre class="SYNOPSIS" data-language="sql">
+SELECT spcname FROM pg_tablespace;
+</pre> <p>The <a href="../app-psql/"><span class="APPLICATION">psql</span></a> program's <code class="LITERAL">\db</code> meta-command is also useful for listing the existing tablespaces.</p> <p><span class="PRODUCTNAME">PostgreSQL</span> makes use of symbolic links to simplify the implementation of tablespaces. This means that tablespaces can be used <span class="emphasis EMPHASIS c3">only</span> on systems that support symbolic links.</p> <p>The directory <code class="FILENAME">$PGDATA/pg_tblspc</code> contains symbolic links that point to each of the non-built-in tablespaces defined in the cluster. Although not recommended, it is possible to adjust the tablespace layout by hand by redefining these links. Under no circumstances perform this operation while the server is running. Note that in PostgreSQL 9.1 and earlier you will also need to update the <code class="STRUCTNAME">pg_tablespace</code> catalog with the new locations. (If you do not, <code class="LITERAL">pg_dump</code> will continue to output the old tablespace locations.)</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../manage-ag-dropdb/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="https://www.postgresql.org/docs/9.6/static/charset.html" accesskey="N" target="_blank">Next</a></td> </tr> <tr> <td width="33%" align="left">Destroying a Database</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/managing-databases.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Localization</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/manage-ag-tablespaces.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/manage-ag-tablespaces.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

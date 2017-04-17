@@ -1,0 +1,94 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Type Conversion&#58; Value Storage - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" Values to be inserted into a table are converted to the destination column&#39;s data type according to the following steps. ">
+  <meta name="keywords" content="value, storage, type, conversion, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/typeconv-query/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TYPECONV-QUERY">10.4. Value Storage</h1> <p>Values to be inserted into a table are converted to the destination column's data type according to the following steps.</p> <div class="PROCEDURE"> <p class="c2">Value Storage Type Conversion</p> <ol type="1"> <li class="STEP"> <p>Check for an exact match with the target.</p> </li> <li class="STEP"> <p>Otherwise, try to convert the expression to the target type. This is possible if an <i class="FIRSTTERM">assignment cast</i> between the two types is registered in the <code class="STRUCTNAME">pg_cast</code> catalog (see <a href="../sql-createcast/">CREATE CAST</a>). Alternatively, if the expression is an unknown-type literal, the contents of the literal string will be fed to the input conversion routine for the target type.</p> </li> <li class="STEP"> <p>Check to see if there is a sizing cast for the target type. A sizing cast is a cast from that type to itself. If one is found in the <code class="STRUCTNAME">pg_cast</code> catalog, apply it to the expression before storing into the destination column. The implementation function for such a cast always takes an extra parameter of type <code class="TYPE">integer</code>, which receives the destination column's <code class="STRUCTFIELD">atttypmod</code> value (typically its declared length, although the interpretation of <code class="STRUCTFIELD">atttypmod</code> varies for different data types), and it may take a third <code class="TYPE">boolean</code> parameter that says whether the cast is explicit or implicit. The cast function is responsible for applying any length-dependent semantics such as size checking or truncation.</p> </li> </ol> </div> <div class="EXAMPLE" id="AEN25448">  <p class="c2">Example 10-8. <code class="TYPE">character</code> Storage Type Conversion</p> <p>For a target column declared as <code class="TYPE">character(20)</code> the following statement shows that the stored value is sized correctly:</p> <pre class="SCREEN">
+CREATE TABLE vv (v character(20));
+INSERT INTO vv SELECT 'abc' || 'def';
+SELECT v, octet_length(v) FROM vv;
+
+          v           | octet_length
+----------------------+--------------
+ abcdef               |           20
+(1 row)
+</pre> <p>What has really happened here is that the two unknown literals are resolved to <code class="TYPE">text</code> by default, allowing the <code class="LITERAL">||</code> operator to be resolved as <code class="TYPE">text</code> concatenation. Then the <code class="TYPE">text</code> result of the operator is converted to <code class="TYPE">bpchar</code> (<span class="QUOTE">"blank-padded char"</span>, the internal name of the <code class="TYPE">character</code> data type) to match the target column type. (Since the conversion from <code class="TYPE">text</code> to <code class="TYPE">bpchar</code> is binary-coercible, this conversion does not insert any real function call.) Finally, the sizing function <code class="LITERAL">bpchar(bpchar, integer, boolean)</code> is found in the system catalog and applied to the operator's result and the stored column length. This type-specific function performs the required length check and addition of padding spaces.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../typeconv-func/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../typeconv-union-case/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Functions</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/typeconv.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">
+<code class="LITERAL">UNION</code>, <code class="LITERAL">CASE</code>, and Related Constructs</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/typeconv-query.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/typeconv-query.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

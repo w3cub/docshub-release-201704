@@ -1,0 +1,221 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Full Text Search&#58; Testing and Debugging Text Search - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="The behavior of a custom text search configuration can easily become confusing. The functions described in this section are useful for testing text &hellip;">
+  <meta name="keywords" content="testing, and, debugging, text, search, full, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/textsearch-debugging/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TEXTSEARCH-DEBUGGING">12.8. Testing and Debugging Text Search</h1> <p>The behavior of a custom text search configuration can easily become confusing. The functions described in this section are useful for testing text search objects. You can test a complete configuration, or test parsers and dictionaries separately.</p> <div class="SECT2"> <h2 class="SECT2" id="TEXTSEARCH-CONFIGURATION-TESTING">12.8.1. Configuration Testing</h2> <p>The function <code class="FUNCTION">ts_debug</code> allows easy testing of a text search configuration.</p> <pre class="SYNOPSIS" data-language="sql">
+ts_debug([ config regconfig, ] document text,
+         OUT alias text,
+         OUT description text,
+         OUT token text,
+         OUT dictionaries regdictionary[],
+         OUT dictionary regdictionary,
+         OUT lexemes text[])
+         returns setof record
+</pre> <p><code class="FUNCTION">ts_debug</code> displays information about every token of <code class="REPLACEABLE c2">document</code> as produced by the parser and processed by the configured dictionaries. It uses the configuration specified by <code class="REPLACEABLE c2">config</code>, or <code class="VARNAME">default_text_search_config</code> if that argument is omitted.</p> <p><code class="FUNCTION">ts_debug</code> returns one row for each token identified in the text by the parser. The columns returned are</p> <ul compact> <li class="c3"> <p><code class="REPLACEABLE c2">alias</code> <code class="TYPE">text</code> — short name of the token type</p> </li> <li class="c3"> <p><code class="REPLACEABLE c2">description</code> <code class="TYPE">text</code> — description of the token type</p> </li> <li class="c3"> <p><code class="REPLACEABLE c2">token</code> <code class="TYPE">text</code> — text of the token</p> </li> <li class="c3"> <p><code class="REPLACEABLE c2">dictionaries</code> <code class="TYPE">regdictionary[]</code> — the dictionaries selected by the configuration for this token type</p> </li> <li class="c3"> <p><code class="REPLACEABLE c2">dictionary</code> <code class="TYPE">regdictionary</code> — the dictionary that recognized the token, or <code class="LITERAL">NULL</code> if none did</p> </li> <li class="c3"> <p><code class="REPLACEABLE c2">lexemes</code> <code class="TYPE">text[]</code> — the lexeme(s) produced by the dictionary that recognized the token, or <code class="LITERAL">NULL</code> if none did; an empty array (<code class="LITERAL">{}</code>) means it was recognized as a stop word</p> </li> </ul> <p>Here is a simple example:</p> <pre class="SCREEN">
+SELECT * FROM ts_debug('english','a fat  cat sat on a mat - it ate a fat rats');
+   alias   |   description   | token |  dictionaries  |  dictionary  | lexemes 
+-----------+-----------------+-------+----------------+--------------+---------
+ asciiword | Word, all ASCII | a     | {english_stem} | english_stem | {}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | fat   | {english_stem} | english_stem | {fat}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | cat   | {english_stem} | english_stem | {cat}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | sat   | {english_stem} | english_stem | {sat}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | on    | {english_stem} | english_stem | {}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | a     | {english_stem} | english_stem | {}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | mat   | {english_stem} | english_stem | {mat}
+ blank     | Space symbols   |       | {}             |              | 
+ blank     | Space symbols   | -     | {}             |              | 
+ asciiword | Word, all ASCII | it    | {english_stem} | english_stem | {}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | ate   | {english_stem} | english_stem | {ate}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | a     | {english_stem} | english_stem | {}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | fat   | {english_stem} | english_stem | {fat}
+ blank     | Space symbols   |       | {}             |              | 
+ asciiword | Word, all ASCII | rats  | {english_stem} | english_stem | {rat}
+</pre> <p>For a more extensive demonstration, we first create a <code class="LITERAL">public.english</code> configuration and Ispell dictionary for the English language:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TEXT SEARCH CONFIGURATION public.english ( COPY = pg_catalog.english );
+
+CREATE TEXT SEARCH DICTIONARY english_ispell (
+    TEMPLATE = ispell,
+    DictFile = english,
+    AffFile = english,
+    StopWords = english
+);
+
+ALTER TEXT SEARCH CONFIGURATION public.english
+   ALTER MAPPING FOR asciiword WITH english_ispell, english_stem;
+</pre> <pre class="SCREEN">
+SELECT * FROM ts_debug('public.english','The Brightest supernovaes');
+   alias   |   description   |    token    |         dictionaries          |   dictionary   |   lexemes   
+-----------+-----------------+-------------+-------------------------------+----------------+-------------
+ asciiword | Word, all ASCII | The         | {english_ispell,english_stem} | english_ispell | {}
+ blank     | Space symbols   |             | {}                            |                | 
+ asciiword | Word, all ASCII | Brightest   | {english_ispell,english_stem} | english_ispell | {bright}
+ blank     | Space symbols   |             | {}                            |                | 
+ asciiword | Word, all ASCII | supernovaes | {english_ispell,english_stem} | english_stem   | {supernova}
+</pre> <p>In this example, the word <code class="LITERAL">Brightest</code> was recognized by the parser as an <code class="LITERAL">ASCII word</code> (alias <code class="LITERAL">asciiword</code>). For this token type the dictionary list is <code class="LITERAL">english_ispell</code> and <code class="LITERAL">english_stem</code>. The word was recognized by <code class="LITERAL">english_ispell</code>, which reduced it to the noun <code class="LITERAL">bright</code>. The word <code class="LITERAL">supernovaes</code> is unknown to the <code class="LITERAL">english_ispell</code> dictionary so it was passed to the next dictionary, and, fortunately, was recognized (in fact, <code class="LITERAL">english_stem</code> is a Snowball dictionary which recognizes everything; that is why it was placed at the end of the dictionary list).</p> <p>The word <code class="LITERAL">The</code> was recognized by the <code class="LITERAL">english_ispell</code> dictionary as a stop word (<a href="../textsearch-dictionaries/#TEXTSEARCH-STOPWORDS">Section 12.6.1</a>) and will not be indexed. The spaces are discarded too, since the configuration provides no dictionaries at all for them.</p> <p>You can reduce the width of the output by explicitly specifying which columns you want to see:</p> <pre class="SCREEN">
+SELECT alias, token, dictionary, lexemes
+FROM ts_debug('public.english','The Brightest supernovaes');
+   alias   |    token    |   dictionary   |   lexemes   
+-----------+-------------+----------------+-------------
+ asciiword | The         | english_ispell | {}
+ blank     |             |                | 
+ asciiword | Brightest   | english_ispell | {bright}
+ blank     |             |                | 
+ asciiword | supernovaes | english_stem   | {supernova}
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="TEXTSEARCH-PARSER-TESTING">12.8.2. Parser Testing</h2> <p>The following functions allow direct testing of a text search parser.</p> <pre class="SYNOPSIS" data-language="sql">
+ts_parse(parser_name text, document text,
+         OUT tokid integer, OUT token text) returns setof record
+ts_parse(parser_oid oid, document text,
+         OUT tokid integer, OUT token text) returns setof record
+</pre> <p><code class="FUNCTION">ts_parse</code> parses the given <code class="REPLACEABLE c2">document</code> and returns a series of records, one for each token produced by parsing. Each record includes a <code class="VARNAME">tokid</code> showing the assigned token type and a <code class="VARNAME">token</code> which is the text of the token. For example:</p> <pre class="SCREEN">
+SELECT * FROM ts_parse('default', '123 - a number');
+ tokid | token
+-------+--------
+    22 | 123
+    12 |
+    12 | -
+     1 | a
+    12 |
+     1 | number
+</pre> <pre class="SYNOPSIS" data-language="sql">
+ts_token_type(parser_name text, OUT tokid integer,
+              OUT alias text, OUT description text) returns setof record
+ts_token_type(parser_oid oid, OUT tokid integer,
+              OUT alias text, OUT description text) returns setof record
+</pre> <p><code class="FUNCTION">ts_token_type</code> returns a table which describes each type of token the specified parser can recognize. For each token type, the table gives the integer <code class="VARNAME">tokid</code> that the parser uses to label a token of that type, the <code class="VARNAME">alias</code> that names the token type in configuration commands, and a short <code class="VARNAME">description</code>. For example:</p> <pre class="SCREEN">
+SELECT * FROM ts_token_type('default');
+ tokid |      alias      |               description                
+-------+-----------------+------------------------------------------
+     1 | asciiword       | Word, all ASCII
+     2 | word            | Word, all letters
+     3 | numword         | Word, letters and digits
+     4 | email           | Email address
+     5 | url             | URL
+     6 | host            | Host
+     7 | sfloat          | Scientific notation
+     8 | version         | Version number
+     9 | hword_numpart   | Hyphenated word part, letters and digits
+    10 | hword_part      | Hyphenated word part, all letters
+    11 | hword_asciipart | Hyphenated word part, all ASCII
+    12 | blank           | Space symbols
+    13 | tag             | XML tag
+    14 | protocol        | Protocol head
+    15 | numhword        | Hyphenated word, letters and digits
+    16 | asciihword      | Hyphenated word, all ASCII
+    17 | hword           | Hyphenated word, all letters
+    18 | url_path        | URL path
+    19 | file            | File or path name
+    20 | float           | Decimal notation
+    21 | int             | Signed integer
+    22 | uint            | Unsigned integer
+    23 | entity          | XML entity
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="TEXTSEARCH-DICTIONARY-TESTING">12.8.3. Dictionary Testing</h2> <p>The <code class="FUNCTION">ts_lexize</code> function facilitates dictionary testing.</p> <pre class="SYNOPSIS" data-language="sql">
+ts_lexize(dict regdictionary, token text) returns text[]
+</pre> <p><code class="FUNCTION">ts_lexize</code> returns an array of lexemes if the input <code class="REPLACEABLE c2">token</code> is known to the dictionary, or an empty array if the token is known to the dictionary but it is a stop word, or <code class="LITERAL">NULL</code> if it is an unknown word.</p> <p>Examples:</p> <pre class="SCREEN">
+SELECT ts_lexize('english_stem', 'stars');
+ ts_lexize
+-----------
+ {star}
+
+SELECT ts_lexize('english_stem', 'a');
+ ts_lexize
+-----------
+ {}
+</pre>  <blockquote class="NOTE"> <p><b>Note:</b> The <code class="FUNCTION">ts_lexize</code> function expects a single <span class="emphasis EMPHASIS c4">token</span>, not text. Here is a case where this can be confusing:</p> <pre class="SCREEN">
+SELECT ts_lexize('thesaurus_astro','supernovae stars') is null;
+ ?column?
+----------
+ t
+</pre> <p>The thesaurus dictionary <code class="LITERAL">thesaurus_astro</code> does know the phrase <code class="LITERAL">supernovae stars</code>, but <code class="FUNCTION">ts_lexize</code> fails since it does not parse the input text but treats it as a single token. Use <code class="FUNCTION">plainto_tsquery</code> or <code class="FUNCTION">to_tsvector</code> to test thesaurus dictionaries, for example:</p> <pre class="SCREEN">
+SELECT plainto_tsquery('supernovae stars');
+ plainto_tsquery
+-----------------
+ 'sn'
+</pre> </blockquote>  </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../textsearch-configuration/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../textsearch-indexes/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Configuration Example</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/textsearch.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">GIN and GiST Index Types</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/textsearch-debugging.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/textsearch-debugging.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

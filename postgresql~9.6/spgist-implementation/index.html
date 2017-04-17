@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>SP-GiST Indexes&#58; Implementation - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" This section covers implementation details and other tricks that are useful for implementers of SP-GiST operator classes to know. ">
+  <meta name="keywords" content="implementation, sp-gist, indexes, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/spgist-implementation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="SPGIST-IMPLEMENTATION">62.4. Implementation</h1> <p>This section covers implementation details and other tricks that are useful for implementers of <acronym class="ACRONYM">SP-GiST</acronym> operator classes to know.</p> <div class="SECT2"> <h2 class="SECT2" id="SPGIST-LIMITS">62.4.1. SP-GiST Limits</h2> <p>Individual leaf tuples and inner tuples must fit on a single index page (8kB by default). Therefore, when indexing values of variable-length data types, long values can only be supported by methods such as radix trees, in which each level of the tree includes a prefix that is short enough to fit on a page, and the final leaf level includes a suffix also short enough to fit on a page. The operator class should set <code class="STRUCTFIELD">longValuesOK</code> to TRUE only if it is prepared to arrange for this to happen. Otherwise, the <acronym class="ACRONYM">SP-GiST</acronym> core will reject any request to index a value that is too large to fit on an index page.</p> <p>Likewise, it is the operator class's responsibility that inner tuples do not grow too large to fit on an index page; this limits the number of child nodes that can be used in one inner tuple, as well as the maximum size of a prefix value.</p> <p>Another limitation is that when an inner tuple's node points to a set of leaf tuples, those tuples must all be in the same index page. (This is a design decision to reduce seeking and save space in the links that chain such tuples together.) If the set of leaf tuples grows too large for a page, a split is performed and an intermediate inner tuple is inserted. For this to fix the problem, the new inner tuple <span class="emphasis EMPHASIS c2">must</span> divide the set of leaf values into more than one node group. If the operator class's <code class="FUNCTION">picksplit</code> function fails to do that, the <acronym class="ACRONYM">SP-GiST</acronym> core resorts to extraordinary measures described in <a href="../spgist-implementation/#SPGIST-ALL-THE-SAME">Section 62.4.3</a>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="SPGIST-NULL-LABELS">62.4.2. SP-GiST Without Node Labels</h2> <p>Some tree algorithms use a fixed set of nodes for each inner tuple; for example, in a quad-tree there are always exactly four nodes corresponding to the four quadrants around the inner tuple's centroid point. In such a case the code typically works with the nodes by number, and there is no need for explicit node labels. To suppress node labels (and thereby save some space), the <code class="FUNCTION">picksplit</code> function can return NULL for the <code class="STRUCTFIELD">nodeLabels</code> array. This will in turn result in <code class="STRUCTFIELD">nodeLabels</code> being NULL during subsequent calls to <code class="FUNCTION">choose</code> and <code class="FUNCTION">inner_consistent</code>. In principle, node labels could be used for some inner tuples and omitted for others in the same index.</p> <p>When working with an inner tuple having unlabeled nodes, it is an error for <code class="FUNCTION">choose</code> to return <code class="LITERAL">spgAddNode</code>, since the set of nodes is supposed to be fixed in such cases. Also, there is no provision for generating an unlabeled node in <code class="LITERAL">spgSplitTuple</code> actions, since it is expected that an <code class="LITERAL">spgAddNode</code> action will be needed as well.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="SPGIST-ALL-THE-SAME">62.4.3. <span class="QUOTE">"All-the-same"</span> Inner Tuples</h2> <p>The <acronym class="ACRONYM">SP-GiST</acronym> core can override the results of the operator class's <code class="FUNCTION">picksplit</code> function when <code class="FUNCTION">picksplit</code> fails to divide the supplied leaf values into at least two node categories. When this happens, the new inner tuple is created with multiple nodes that each have the same label (if any) that <code class="FUNCTION">picksplit</code> gave to the one node it did use, and the leaf values are divided at random among these equivalent nodes. The <code class="LITERAL">allTheSame</code> flag is set on the inner tuple to warn the <code class="FUNCTION">choose</code> and <code class="FUNCTION">inner_consistent</code> functions that the tuple does not have the node set that they might otherwise expect.</p> <p>When dealing with an <code class="LITERAL">allTheSame</code> tuple, a <code class="FUNCTION">choose</code> result of <code class="LITERAL">spgMatchNode</code> is interpreted to mean that the new value can be assigned to any of the equivalent nodes; the core code will ignore the supplied <code class="STRUCTFIELD">nodeN</code> value and descend into one of the nodes at random (so as to keep the tree balanced). It is an error for <code class="FUNCTION">choose</code> to return <code class="LITERAL">spgAddNode</code>, since that would make the nodes not all equivalent; the <code class="LITERAL">spgSplitTuple</code> action must be used if the value to be inserted doesn't match the existing nodes.</p> <p>When dealing with an <code class="LITERAL">allTheSame</code> tuple, the <code class="FUNCTION">inner_consistent</code> function should return either all or none of the nodes as targets for continuing the index search, since they are all equivalent. This may or may not require any special-case code, depending on how much the <code class="FUNCTION">inner_consistent</code> function normally assumes about the meaning of the nodes.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../spgist-extensibility/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../spgist-examples/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Extensibility</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/spgist.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Examples</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/spgist-implementation.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/spgist-implementation.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

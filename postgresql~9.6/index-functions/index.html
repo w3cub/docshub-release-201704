@@ -1,0 +1,163 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Index Access Method&#58; Index Access Method Functions - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" The index construction and maintenance functions that an index access method must provide in IndexAmRoutine are&#58; ">
+  <meta name="keywords" content="index, access, method, functions, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/index-functions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INDEX-FUNCTIONS">59.2. Index Access Method Functions</h1> <p>The index construction and maintenance functions that an index access method must provide in <code class="STRUCTNAME">IndexAmRoutine</code> are:</p> <pre class="PROGRAMLISTING" data-language="sql">
+IndexBuildResult *
+ambuild (Relation heapRelation,
+         Relation indexRelation,
+         IndexInfo *indexInfo);
+</pre> <p>Build a new index. The index relation has been physically created, but is empty. It must be filled in with whatever fixed data the access method requires, plus entries for all tuples already existing in the table. Ordinarily the <code class="FUNCTION">ambuild</code> function will call <code class="FUNCTION">IndexBuildHeapScan()</code> to scan the table for existing tuples and compute the keys that need to be inserted into the index. The function must return a palloc'd struct containing statistics about the new index.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+ambuildempty (Relation indexRelation);
+</pre> <p>Build an empty index, and write it to the initialization fork (<code class="SYMBOL">INIT_FORKNUM</code>) of the given relation. This method is called only for unlogged indexes; the empty index written to the initialization fork will be copied over the main relation fork on each server restart.</p> <pre class="PROGRAMLISTING" data-language="sql">
+bool
+aminsert (Relation indexRelation,
+          Datum *values,
+          bool *isnull,
+          ItemPointer heap_tid,
+          Relation heapRelation,
+          IndexUniqueCheck checkUnique);
+</pre> <p>Insert a new tuple into an existing index. The <code class="LITERAL">values</code> and <code class="LITERAL">isnull</code> arrays give the key values to be indexed, and <code class="LITERAL">heap_tid</code> is the TID to be indexed. If the access method supports unique indexes (its <code class="STRUCTFIELD">amcanunique</code> flag is true) then <code class="LITERAL">checkUnique</code> indicates the type of uniqueness check to perform. This varies depending on whether the unique constraint is deferrable; see <a href="../index-unique-checks/">Section 59.5</a> for details. Normally the access method only needs the <code class="LITERAL">heapRelation</code> parameter when performing uniqueness checking (since then it will have to look into the heap to verify tuple liveness).</p> <p>The function's Boolean result value is significant only when <code class="LITERAL">checkUnique</code> is <code class="LITERAL">UNIQUE_CHECK_PARTIAL</code>. In this case a TRUE result means the new entry is known unique, whereas FALSE means it might be non-unique (and a deferred uniqueness check must be scheduled). For other cases a constant FALSE result is recommended.</p> <p>Some indexes might not index all tuples. If the tuple is not to be indexed, <code class="FUNCTION">aminsert</code> should just return without doing anything.</p> <pre class="PROGRAMLISTING" data-language="sql">
+IndexBulkDeleteResult *
+ambulkdelete (IndexVacuumInfo *info,
+              IndexBulkDeleteResult *stats,
+              IndexBulkDeleteCallback callback,
+              void *callback_state);
+</pre> <p>Delete tuple(s) from the index. This is a <span class="QUOTE">"bulk delete"</span> operation that is intended to be implemented by scanning the whole index and checking each entry to see if it should be deleted. The passed-in <code class="LITERAL">callback</code> function must be called, in the style <code class="LITERAL">callback(<code class="REPLACEABLE c2">TID</code>, callback_state) returns bool</code>, to determine whether any particular index entry, as identified by its referenced TID, is to be deleted. Must return either NULL or a palloc'd struct containing statistics about the effects of the deletion operation. It is OK to return NULL if no information needs to be passed on to <code class="FUNCTION">amvacuumcleanup</code>.</p> <p>Because of limited <code class="VARNAME">maintenance_work_mem</code>, <code class="FUNCTION">ambulkdelete</code> might need to be called more than once when many tuples are to be deleted. The <code class="LITERAL">stats</code> argument is the result of the previous call for this index (it is NULL for the first call within a <code class="COMMAND">VACUUM</code> operation). This allows the AM to accumulate statistics across the whole operation. Typically, <code class="FUNCTION">ambulkdelete</code> will modify and return the same struct if the passed <code class="LITERAL">stats</code> is not null.</p> <pre class="PROGRAMLISTING" data-language="sql">
+IndexBulkDeleteResult *
+amvacuumcleanup (IndexVacuumInfo *info,
+                 IndexBulkDeleteResult *stats);
+</pre> <p>Clean up after a <code class="COMMAND">VACUUM</code> operation (zero or more <code class="FUNCTION">ambulkdelete</code> calls). This does not have to do anything beyond returning index statistics, but it might perform bulk cleanup such as reclaiming empty index pages. <code class="LITERAL">stats</code> is whatever the last <code class="FUNCTION">ambulkdelete</code> call returned, or NULL if <code class="FUNCTION">ambulkdelete</code> was not called because no tuples needed to be deleted. If the result is not NULL it must be a palloc'd struct. The statistics it contains will be used to update <code class="STRUCTNAME">pg_class</code>, and will be reported by <code class="COMMAND">VACUUM</code> if <code class="LITERAL">VERBOSE</code> is given. It is OK to return NULL if the index was not changed at all during the <code class="COMMAND">VACUUM</code> operation, but otherwise correct stats should be returned.</p> <p>As of <span class="PRODUCTNAME">PostgreSQL</span> 8.4, <code class="FUNCTION">amvacuumcleanup</code> will also be called at completion of an <code class="COMMAND">ANALYZE</code> operation. In this case <code class="LITERAL">stats</code> is always NULL and any return value will be ignored. This case can be distinguished by checking <code class="LITERAL">info-&gt;analyze_only</code>. It is recommended that the access method do nothing except post-insert cleanup in such a call, and that only in an autovacuum worker process.</p> <pre class="PROGRAMLISTING" data-language="sql">
+bool
+amcanreturn (Relation indexRelation, int attno);
+</pre> <p>Check whether the index can support <a class="FIRSTTERM c3" href="../indexes-index-only-scans/">index-only scans</a> on the given column, by returning the indexed column values for an index entry in the form of an <code class="STRUCTNAME">IndexTuple</code>. The attribute number is 1-based, i.e. the first column's attno is 1. Returns TRUE if supported, else FALSE. If the access method does not support index-only scans at all, the <code class="STRUCTFIELD">amcanreturn</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct can be set to NULL.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+amcostestimate (PlannerInfo *root,
+                IndexPath *path,
+                double loop_count,
+                Cost *indexStartupCost,
+                Cost *indexTotalCost,
+                Selectivity *indexSelectivity,
+                double *indexCorrelation);
+</pre> <p>Estimate the costs of an index scan. This function is described fully in <a href="../index-cost-estimation/">Section 59.6</a>, below.</p> <pre class="PROGRAMLISTING" data-language="sql">
+bytea *
+amoptions (ArrayType *reloptions,
+           bool validate);
+</pre> <p>Parse and validate the reloptions array for an index. This is called only when a non-null reloptions array exists for the index. <code class="PARAMETER">reloptions</code> is a <code class="TYPE">text</code> array containing entries of the form <code class="REPLACEABLE c2">name</code><code class="LITERAL">=</code><code class="REPLACEABLE c2">value</code>. The function should construct a <code class="TYPE">bytea</code> value, which will be copied into the <code class="STRUCTFIELD">rd_options</code> field of the index's relcache entry. The data contents of the <code class="TYPE">bytea</code> value are open for the access method to define; most of the standard access methods use struct <code class="STRUCTNAME">StdRdOptions</code>. When <code class="PARAMETER">validate</code> is true, the function should report a suitable error message if any of the options are unrecognized or have invalid values; when <code class="PARAMETER">validate</code> is false, invalid entries should be silently ignored. (<code class="PARAMETER">validate</code> is false when loading options already stored in <code class="STRUCTNAME">pg_catalog</code>; an invalid entry could only be found if the access method has changed its rules for options, and in that case ignoring obsolete entries is appropriate.) It is OK to return NULL if default behavior is wanted.</p> <pre class="PROGRAMLISTING" data-language="sql">
+bool
+amproperty (Oid index_oid, int attno,
+            IndexAMProperty prop, const char *propname,
+            bool *res, bool *isnull);
+</pre> <p>The <code class="FUNCTION">amproperty</code> method allows index access methods to override the default behavior of <code class="FUNCTION">pg_index_column_has_property</code> and related functions. If the access method does not have any special behavior for index property inquiries, the <code class="STRUCTFIELD">amproperty</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct can be set to NULL. Otherwise, the <code class="FUNCTION">amproperty</code> method will be called with <code class="PARAMETER">index_oid</code> and <code class="PARAMETER">attno</code> both zero for <code class="FUNCTION">pg_indexam_has_property</code> calls, or with <code class="PARAMETER">index_oid</code> valid and <code class="PARAMETER">attno</code> zero for <code class="FUNCTION">pg_index_has_property</code> calls, or with <code class="PARAMETER">index_oid</code> valid and <code class="PARAMETER">attno</code> greater than zero for <code class="FUNCTION">pg_index_column_has_property</code> calls. <code class="PARAMETER">prop</code> is an enum value identifying the property being tested, while <code class="PARAMETER">propname</code> is the original property name string. If the core code does not recognize the property name then <code class="PARAMETER">prop</code> is <code class="LITERAL">AMPROP_UNKNOWN</code>. Access methods can define custom property names by checking <code class="PARAMETER">propname</code> for a match (use <code class="FUNCTION">pg_strcasecmp</code> to match, for consistency with the core code); for names known to the core code, it's better to inspect <code class="PARAMETER">prop</code>. If the <code class="STRUCTFIELD">amproperty</code> method returns <code class="LITERAL">true</code> then it has determined the property test result: it must set <code class="LITERAL">*res</code> to the boolean value to return, or set <code class="LITERAL">*isnull</code> to <code class="LITERAL">true</code> to return a NULL. (Both of the referenced variables are initialized to <code class="LITERAL">false</code> before the call.) If the <code class="STRUCTFIELD">amproperty</code> method returns <code class="LITERAL">false</code> then the core code will proceed with its normal logic for determining the property test result.</p> <p>Access methods that support ordering operators should implement <code class="LITERAL">AMPROP_DISTANCE_ORDERABLE</code> property testing, as the core code does not know how to do that and will return NULL. It may also be advantageous to implement <code class="LITERAL">AMPROP_RETURNABLE</code> testing, if that can be done more cheaply than by opening the index and calling <code class="STRUCTFIELD">amcanreturn</code>, which is the core code's default behavior. The default behavior should be satisfactory for all other standard properties.</p> <pre class="PROGRAMLISTING" data-language="sql">
+bool
+amvalidate (Oid opclassoid);
+</pre> <p>Validate the catalog entries for the specified operator class, so far as the access method can reasonably do that. For example, this might include testing that all required support functions are provided. The <code class="FUNCTION">amvalidate</code> function must return false if the opclass is invalid. Problems should be reported with <code class="FUNCTION">ereport</code> messages.</p> <p>The purpose of an index, of course, is to support scans for tuples matching an indexable <code class="LITERAL">WHERE</code> condition, often called a <i class="FIRSTTERM">qualifier</i> or <i class="FIRSTTERM">scan key</i>. The semantics of index scanning are described more fully in <a href="../index-scanning/">Section 59.3</a>, below. An index access method can support <span class="QUOTE">"plain"</span> index scans, <span class="QUOTE">"bitmap"</span> index scans, or both. The scan-related functions that an index access method must or may provide are:</p> <pre class="PROGRAMLISTING" data-language="sql">
+IndexScanDesc
+ambeginscan (Relation indexRelation,
+             int nkeys,
+             int norderbys);
+</pre> <p>Prepare for an index scan. The <code class="LITERAL">nkeys</code> and <code class="LITERAL">norderbys</code> parameters indicate the number of quals and ordering operators that will be used in the scan; these may be useful for space allocation purposes. Note that the actual values of the scan keys aren't provided yet. The result must be a palloc'd struct. For implementation reasons the index access method <span class="emphasis EMPHASIS c4">must</span> create this struct by calling <code class="FUNCTION">RelationGetIndexScan()</code>. In most cases <code class="FUNCTION">ambeginscan</code> does little beyond making that call and perhaps acquiring locks; the interesting parts of index-scan startup are in <code class="FUNCTION">amrescan</code>.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+amrescan (IndexScanDesc scan,
+          ScanKey keys,
+          int nkeys,
+          ScanKey orderbys,
+          int norderbys);
+</pre> <p>Start or restart an index scan, possibly with new scan keys. (To restart using previously-passed keys, NULL is passed for <code class="LITERAL">keys</code> and/or <code class="LITERAL">orderbys</code>.) Note that it is not allowed for the number of keys or order-by operators to be larger than what was passed to <code class="FUNCTION">ambeginscan</code>. In practice the restart feature is used when a new outer tuple is selected by a nested-loop join and so a new key comparison value is needed, but the scan key structure remains the same.</p> <pre class="PROGRAMLISTING" data-language="sql">
+boolean
+amgettuple (IndexScanDesc scan,
+            ScanDirection direction);
+</pre> <p>Fetch the next tuple in the given scan, moving in the given direction (forward or backward in the index). Returns TRUE if a tuple was obtained, FALSE if no matching tuples remain. In the TRUE case the tuple TID is stored into the <code class="LITERAL">scan</code> structure. Note that <span class="QUOTE">"success"</span> means only that the index contains an entry that matches the scan keys, not that the tuple necessarily still exists in the heap or will pass the caller's snapshot test. On success, <code class="FUNCTION">amgettuple</code> must also set <code class="LITERAL">scan-&gt;xs_recheck</code> to TRUE or FALSE. FALSE means it is certain that the index entry matches the scan keys. TRUE means this is not certain, and the conditions represented by the scan keys must be rechecked against the heap tuple after fetching it. This provision supports <span class="QUOTE">"lossy"</span> index operators. Note that rechecking will extend only to the scan conditions; a partial index predicate (if any) is never rechecked by <code class="FUNCTION">amgettuple</code> callers.</p> <p>If the index supports <a href="../indexes-index-only-scans/">index-only scans</a> (i.e., <code class="FUNCTION">amcanreturn</code> returns TRUE for it), then on success the AM must also check <code class="LITERAL">scan-&gt;xs_want_itup</code>, and if that is true it must return the original indexed data for the index entry, in the form of an <code class="STRUCTNAME">IndexTuple</code> pointer stored at <code class="LITERAL">scan-&gt;xs_itup</code>, with tuple descriptor <code class="LITERAL">scan-&gt;xs_itupdesc</code>. (Management of the data referenced by the pointer is the access method's responsibility. The data must remain good at least until the next <code class="FUNCTION">amgettuple</code>, <code class="FUNCTION">amrescan</code>, or <code class="FUNCTION">amendscan</code> call for the scan.)</p> <p>The <code class="FUNCTION">amgettuple</code> function need only be provided if the access method supports <span class="QUOTE">"plain"</span> index scans. If it doesn't, the <code class="STRUCTFIELD">amgettuple</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct must be set to NULL.</p> <pre class="PROGRAMLISTING" data-language="sql">
+int64
+amgetbitmap (IndexScanDesc scan,
+             TIDBitmap *tbm);
+</pre> <p>Fetch all tuples in the given scan and add them to the caller-supplied <code class="TYPE">TIDBitmap</code> (that is, OR the set of tuple IDs into whatever set is already in the bitmap). The number of tuples fetched is returned (this might be just an approximate count, for instance some AMs do not detect duplicates). While inserting tuple IDs into the bitmap, <code class="FUNCTION">amgetbitmap</code> can indicate that rechecking of the scan conditions is required for specific tuple IDs. This is analogous to the <code class="LITERAL">xs_recheck</code> output parameter of <code class="FUNCTION">amgettuple</code>. Note: in the current implementation, support for this feature is conflated with support for lossy storage of the bitmap itself, and therefore callers recheck both the scan conditions and the partial index predicate (if any) for recheckable tuples. That might not always be true, however. <code class="FUNCTION">amgetbitmap</code> and <code class="FUNCTION">amgettuple</code> cannot be used in the same index scan; there are other restrictions too when using <code class="FUNCTION">amgetbitmap</code>, as explained in <a href="../index-scanning/">Section 59.3</a>.</p> <p>The <code class="FUNCTION">amgetbitmap</code> function need only be provided if the access method supports <span class="QUOTE">"bitmap"</span> index scans. If it doesn't, the <code class="STRUCTFIELD">amgetbitmap</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct must be set to NULL.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+amendscan (IndexScanDesc scan);
+</pre> <p>End a scan and release resources. The <code class="LITERAL">scan</code> struct itself should not be freed, but any locks or pins taken internally by the access method must be released.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+ammarkpos (IndexScanDesc scan);
+</pre> <p>Mark current scan position. The access method need only support one remembered scan position per scan.</p> <p>The <code class="FUNCTION">ammarkpos</code> function need only be provided if the access method supports ordered scans. If it doesn't, the <code class="STRUCTFIELD">ammarkpos</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct may be set to NULL.</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+amrestrpos (IndexScanDesc scan);
+</pre> <p>Restore the scan to the most recently marked position.</p> <p>The <code class="FUNCTION">amrestrpos</code> function need only be provided if the access method supports ordered scans. If it doesn't, the <code class="STRUCTFIELD">amrestrpos</code> field in its <code class="STRUCTNAME">IndexAmRoutine</code> struct may be set to NULL.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../index-api/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../index-scanning/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Basic API Structure for Indexes</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/indexam.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Index Scanning</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/index-functions.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/index-functions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

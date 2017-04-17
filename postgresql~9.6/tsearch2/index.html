@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Tsearch2 - PostgreSQL 9.6 - W3cubDocs</title>
+  
+  <meta name="description" content="The tsearch2 module provides backwards-compatible text search functionality for applications that used tsearch2 before text searching was integrated &hellip;">
+  <meta name="keywords" content="f, tsearch, -, postgresql, postgresql~9.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.6/tsearch2/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.6/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TSEARCH2">F.41. tsearch2</h1> <p>The <span class="APPLICATION">tsearch2</span> module provides backwards-compatible text search functionality for applications that used <span class="APPLICATION">tsearch2</span> before text searching was integrated into core <span class="PRODUCTNAME">PostgreSQL</span> in release 8.3.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN184259">F.41.1. Portability Issues</h2> <p>Although the built-in text search features were based on <span class="APPLICATION">tsearch2</span> and are largely similar to it, there are numerous small differences that will create portability issues for existing applications:</p> <ul> <li class="c2"> <p>Some functions' names were changed, for example <code class="FUNCTION">rank</code> to <code class="FUNCTION">ts_rank</code>. The replacement <code class="LITERAL">tsearch2</code> module provides aliases having the old names.</p> </li> <li class="c2"> <p>The built-in text search data types and functions all exist within the system schema <code class="LITERAL">pg_catalog</code>. In an installation using <span class="APPLICATION">tsearch2</span>, these objects would usually have been in the <code class="LITERAL">public</code> schema, though some users chose to place them in a separate schema of their own. Explicitly schema-qualified references to the objects will therefore fail in either case. The replacement <code class="LITERAL">tsearch2</code> module provides alias objects that are stored in <code class="LITERAL">public</code> (or another schema if necessary) so that such references will still work.</p> </li> <li class="c2"> <p>There is no concept of a <span class="QUOTE">"current parser"</span> or <span class="QUOTE">"current dictionary"</span> in the built-in text search features, only of a current search configuration (set by the <code class="VARNAME">default_text_search_config</code> parameter). While the current parser and current dictionary were used only by functions intended for debugging, this might still pose a porting obstacle in some cases. The replacement <code class="LITERAL">tsearch2</code> module emulates these additional state variables and provides backwards-compatible functions for setting and retrieving them.</p> </li> </ul> <p>There are some issues that are not addressed by the replacement <code class="LITERAL">tsearch2</code> module, and will therefore require application code changes in any case:</p> <ul> <li class="c2"> <p>The old <code class="FUNCTION">tsearch2</code> trigger function allowed items in its argument list to be names of functions to be invoked on the text data before it was converted to <code class="TYPE">tsvector</code> format. This was removed as being a security hole, since it was not possible to guarantee that the function invoked was the one intended. The recommended approach if the data must be massaged before being indexed is to write a custom trigger that does the work for itself.</p> </li> <li class="c2"> <p>Text search configuration information has been moved into core system catalogs that are noticeably different from the tables used by <span class="APPLICATION">tsearch2</span>. Any applications that examined or modified those tables will need adjustment.</p> </li> <li class="c2"> <p>If an application used any custom text search configurations, those will need to be set up in the core catalogs using the new text search configuration SQL commands. The replacement <code class="LITERAL">tsearch2</code> module offers a little bit of support for this by making it possible to load an old set of <span class="APPLICATION">tsearch2</span> configuration tables into <span class="PRODUCTNAME">PostgreSQL</span> 8.3. (Without the module, it is not possible to load the configuration data because values in the <code class="TYPE">regprocedure</code> columns cannot be resolved to functions.) While those configuration tables won't actually <span class="emphasis EMPHASIS c3">do</span> anything, at least their contents will be available to be consulted while setting up an equivalent custom configuration in 8.3.</p> </li> <li class="c2"> <p>The old <code class="FUNCTION">reset_tsearch()</code> and <code class="FUNCTION">get_covers()</code> functions are not supported.</p> </li> <li class="c2"> <p>The replacement <code class="LITERAL">tsearch2</code> module does not define any alias operators, relying entirely on the built-in ones. This would only pose an issue if an application used explicitly schema-qualified operator names, which is very uncommon.</p> </li> </ul> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN184306">F.41.2. Converting a pre-8.3 Installation</h2> <p>The recommended way to update a pre-8.3 installation that uses <span class="APPLICATION">tsearch2</span> is:</p> <div class="PROCEDURE"> <ol type="1"> <li class="STEP"> <p>Make a dump from the old installation in the usual way, but be sure not to use <code class="LITERAL">-c</code> (<code class="LITERAL">--clean</code>) option of <span class="APPLICATION">pg_dump</span> or <span class="APPLICATION">pg_dumpall</span>.</p> </li> <li class="STEP"> <p>In the new installation, create empty database(s) and install the replacement <code class="LITERAL">tsearch2</code> module into each database that will use text search. This must be done <span class="emphasis EMPHASIS c3">before</span> loading the dump data! If your old installation had the <span class="APPLICATION">tsearch2</span> objects in a schema other than <code class="LITERAL">public</code>, be sure to adjust the <code class="COMMAND">CREATE EXTENSION</code> command so that the replacement objects are created in that same schema.</p> </li> <li class="STEP"> <p>Load the dump data. There will be quite a few errors reported due to failure to recreate the original <span class="APPLICATION">tsearch2</span> objects. These errors can be ignored, but this means you cannot restore the dump in a single transaction (eg, you cannot use <span class="APPLICATION">pg_restore</span>'s <code class="OPTION">-1</code> switch).</p> </li> <li class="STEP"> <p>Examine the contents of the restored <span class="APPLICATION">tsearch2</span> configuration tables (<code class="STRUCTNAME">pg_ts_cfg</code> and so on), and create equivalent built-in text search configurations as needed. You may drop the old configuration tables once you've extracted all the useful information from them.</p> </li> <li class="STEP"> <p>Test your application.</p> </li> </ol> </div> <p>At a later time you may wish to rename application references to the alias text search objects, so that you can eventually uninstall the replacement <code class="LITERAL">tsearch2</code> module.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN184337">F.41.3. References</h2> <p>Tsearch2 Development Site <a href="http://www.sai.msu.su/~megera/postgres/gist/tsearch/V2/" target="_blank">http://www.sai.msu.su/~megera/postgres/gist/tsearch/V2/</a></p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../test-decoding/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../tsm-system-rows/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">test_decoding</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.6/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right"> tsm_system_rows</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.6/static/tsearch2.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.6/static/tsearch2.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
