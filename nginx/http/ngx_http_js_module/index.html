@@ -1,0 +1,181 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ngx_http_js_module - Nginx - W3cubDocs</title>
+  
+  <meta name="description" content=" The ngx_http_js_module module is used to implement location and variable handlers in nginScript — a subset of the JavaScript language. ">
+  <meta name="keywords" content="module, ngx, http, js, -, nginx">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/nginx/http/ngx_http_js_module/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/nginx.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/nginx/" class="_nav-link" title="" style="margin-left:0;">nginx</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _nginx">
+				
+<h1>Module ngx_http_js_module</h1>
+<ul>
+<li><a href="#issues">Known Issues</a></li>
+<li><a href="#example">Example Configuration</a></li>
+<li><a href="#directives">Directives</a></li>
+<li><a href="#js_include">js_include</a></li>
+<li><a href="#js_content">js_content</a></li>
+<li><a href="#js_set">js_set</a></li>
+<li><a href="#arguments">Request and Response Arguments</a></li>
+</ul> <p id="summary"> The <code>ngx_http_js_module</code> module is used to implement location and variable handlers in <a href="../../njs_about/">nginScript</a> — a subset of the JavaScript language. </p>
+<p> This module is not built by default, it should be compiled with the nginScript module using the <code>--add_module</code> configuration parameter: </p> <pre data-language="nginx">
+./configure --add-module=<code><i>path-to-njs</i></code>/nginx
+</pre>
+<p> The <a href="http://hg.nginx.org/njs" target="_blank">repository</a> with the nginScript module can be cloned with the following command (requires <a href="https://www.mercurial-scm.org" target="_blank">Mercurial</a> client): </p> <pre data-language="nginx">
+hg clone http://hg.nginx.org/njs
+</pre>
+<p> This module can also be built as <a href="../../ngx_core_module/#load_module">dynamic</a>: </p> <pre data-language="nginx">
+./configure --add-dynamic_module=<code><i>path-to-njs</i></code>/nginx
+</pre>
+ <h4 id="issues">Known Issues</h4>
+<p> The module is experimental, caveat emptor applies. </p> <h4 id="example">Example Configuration</h4>
+ <pre data-language="nginx">
+js_include http.js;
+
+js_set $foo     foo;
+js_set $summary summary;
+
+server {
+    listen 8000;
+
+    location / {
+        add_header X-Foo $foo;
+        js_content baz;
+    }
+
+    location /summary {
+        return 200 $summary;
+    }
+}
+</pre>
+
+<p> The <code>http.js</code> file: </p> <pre data-language="nginx">
+function foo(req, res) {
+    req.log("hello from foo() handler");
+    return "foo";
+}
+
+function summary(req, res) {
+    var a, s, h;
+
+    s = "JS summary\n\n";
+
+    s += "Method: " + req.method + "\n";
+    s += "HTTP version: " + req.httpVersion + "\n";
+    s += "Host: " + req.headers.host + "\n";
+    s += "Remote Address: " + req.remoteAddress + "\n";
+    s += "URI: " + req.uri + "\n";
+
+    s += "Headers:\n";
+    for (h in req.headers) {
+        s += "  header '" + h + "' is '" + req.headers[h] + "'\n";
+    }
+
+    s += "Args:\n";
+    for (a in req.args) {
+        s += "  arg '" + a + "' is '" + req.args[a] + "'\n";
+    }
+
+    return s;
+}
+
+function baz(req, res) {
+    res.headers.foo = 1234;
+    res.status = 200;
+    res.contentType = "text/plain; charset=utf-8";
+    res.contentLength = 15;
+    res.sendHeader();
+    res.send("nginx");
+    res.send("java");
+    res.send("script");
+
+    res.finish();
+}
+</pre>
+ <h4 id="directives">Directives</h4>
+<div class="directive" id="js_include"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_include</strong> <code><i>file</i></code>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table></div>
+<p> Specifies a file that implements location and variable handlers in nginScript. </p>
+<div class="directive" id="js_content"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_content</strong> <code><i>function</i></code>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>location</code>, <code>limit_except</code><br> </td> </tr> </table></div>
+<p> Sets an nginScript function as a location content handler. </p>
+<div class="directive" id="js_set"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_set</strong> 
+<code><i>$variable</i></code> <code><i>function</i></code>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table></div>
+<p> Sets an nginScript function for the specified variable. </p> <h4 id="arguments">Request and Response Arguments</h4>
+<p> Each HTTP nginScript handler receives two arguments, request and response. </p>
+<p> The request object has the following properties: </p> <dl class="compact"> <dt><code>uri</code></dt> <dd> current URI in a request, read-only </dd> <dt><code>method</code></dt> <dd> request method, read-only </dd> <dt><code>httpVersion</code></dt> <dd> HTTP version, read-only </dd> <dt><code>remoteAddress</code></dt> <dd> client address, read-only </dd> <dt><code>headers{}</code></dt> <dd> request headers object, read-only. <p> For example, the <code>Header-Name</code> header can be accessed with the syntax <code>headers['Header-Name']</code> or <code>headers.Header_name</code> </p> </dd> <dt><code>args{}</code></dt> <dd> request arguments object, read-only </dd> <dt><code>variables{}</code></dt> <dd> nginx variables object, read-only </dd> <dt><code>log(<code><i>string</i></code>)</code></dt> <dd> writes a <code>string</code> to the error log </dd> </dl>
+
+<p> The response object has the following properties: </p> <dl class="compact"> <dt><code>status</code></dt> <dd> response status, writable </dd> <dt><code>headers{}</code></dt> <dd> response headers object </dd> <dt><code>contentType</code></dt> <dd> the response “Content-Type” header field value, writable </dd> <dt><code>contentLength</code></dt> <dd> the response “Content-Length” header field value, writable </dd> </dl>
+
+<p> The response object has the following methods: </p> <dl class="compact"> <dt><code>sendHeader()</code></dt> <dd> sends the HTTP header to the client </dd> <dt><code>send(<code><i>string</i></code>)</code></dt> <dd> sends a part of the response body to the client </dd> <dt><code>finish()</code></dt> <dd> finishes sending a response to the client </dd> </dl>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2002-2017 Igor Sysoev<br>© 2011-2017 Nginx, Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://nginx.org/en/docs/http/ngx_http_js_module.html" class="_attribution-link" target="_blank">https://nginx.org/en/docs/http/ngx_http_js_module.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

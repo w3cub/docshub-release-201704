@@ -1,0 +1,172 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Converting Rewrite Rules - Nginx - W3cubDocs</title>
+  
+  <meta name="description" content="People who during their shared hosting life used to configure everything using only Apache’s .htaccess files, usually translate the following rules &hellip;">
+  <meta name="keywords" content="converting, rewrite, rules, -, nginx">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/nginx/http/converting_rewrite_rules/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/nginx.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/nginx/" class="_nav-link" title="" style="margin-left:0;">nginx</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _nginx">
+				
+<h1>Converting rewrite rules</h1>
+<ul><li><a href="#converting_mongrel_rules">Converting Mongrel rules</a></li></ul>
+<h4>A redirect to a main site</h4>
+<p> People who during their shared hosting life used to configure <i>everything</i> using <i>only</i> Apache’s .htaccess files, usually translate the following rules: </p> <pre data-language="nginx">
+RewriteCond  %{HTTP_HOST}  example.org
+RewriteRule  (.*)          http://www.example.org$1
+</pre>
+<p> to something like this: </p> <pre data-language="nginx">
+server {
+    listen       80;
+    server_name  www.example.org  example.org;
+    if ($http_host = example.org) {
+        rewrite  (.*)  http://www.example.org$1;
+    }
+    ...
+}
+</pre>
+
+<p> This is a wrong, cumbersome, and ineffective way. The right way is to define a separate server for <code>example.org</code>: </p> <pre data-language="nginx">
+server {
+    listen       80;
+    server_name  example.org;
+    return       301 http://www.example.org$request_uri;
+}
+
+server {
+    listen       80;
+    server_name  www.example.org;
+    ...
+}
+</pre>
+ <blockquote class="note"> On versions prior to 0.9.1, redirects can be made with: <pre data-language="nginx">
+    rewrite      ^ http://www.example.org$request_uri?;
+</pre> </blockquote>
+
+<p> Another example. Instead of the “upside-down” logic “all that is not <code>example.com</code> and is not <code>www.example.com</code>”: </p> <pre data-language="nginx">
+RewriteCond  %{HTTP_HOST}  !example.com
+RewriteCond  %{HTTP_HOST}  !www.example.com
+RewriteRule  (.*)          http://www.example.com$1
+</pre>
+<p> one should simply define <code>example.com</code>, <code>www.example.com</code>, and “everything else”: </p> <pre data-language="nginx">
+server {
+    listen       80;
+    server_name  example.com www.example.com;
+    ...
+}
+
+server {
+    listen       80 default_server;
+    server_name  _;
+    return       301 http://example.com$request_uri;
+}
+</pre>
+ <blockquote class="note"> On versions prior to 0.9.1, redirects can be made with: <pre data-language="nginx">
+    rewrite      ^ http://example.com$request_uri?;
+</pre> </blockquote>
+
+<h4 id="converting_mongrel_rules">Converting Mongrel rules</h4>
+<p> Typical Mongrel rules: </p> <pre data-language="nginx">
+DocumentRoot /var/www/myapp.com/current/public
+
+RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
+RewriteCond %{SCRIPT_FILENAME} !maintenance.html
+RewriteRule ^.*$ %{DOCUMENT_ROOT}/system/maintenance.html [L]
+
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ $1 [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME}/index.html -f
+RewriteRule ^(.*)$ $1/index.html [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.*)$ $1.html [QSA,L]
+
+RewriteRule ^/(.*)$ balancer://mongrel_cluster%{REQUEST_URI} [P,QSA,L]
+</pre>
+<p> should be converted to </p> <pre data-language="nginx">
+location / {
+    root       /var/www/myapp.com/current/public;
+
+    try_files  /system/maintenance.html
+               $uri  $uri/index.html $uri.html
+               @mongrel;
+}
+
+location @mongrel {
+    proxy_pass  http://mongrel;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2002-2017 Igor Sysoev<br>© 2011-2017 Nginx, Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://nginx.org/en/docs/http/converting_rewrite_rules.html" class="_attribution-link" target="_blank">https://nginx.org/en/docs/http/converting_rewrite_rules.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
