@@ -1,0 +1,307 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Mocking - Laravel 5.4 - W3cubDocs</title>
+  
+  <meta name="description" content="When testing Laravel applications, you may wish to &#34;mock&#34; certain aspects of your application so they are not actually executed during a &hellip;">
+  <meta name="keywords" content="mocking, -, laravel, laravel~5.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/laravel~5.4/docs/5.4/mocking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/laravel~5.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/laravel~5.4/" class="_nav-link" title="" style="margin-left:0;">Laravel 5.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _laravel">
+				
+<h1>Mocking</h1> <ul> <li><a href="#introduction">Introduction</a></li> <li><a href="#bus-fake">Bus Fake</a></li> <li><a href="#event-fake">Event Fake</a></li> <li><a href="#mail-fake">Mail Fake</a></li> <li><a href="#notification-fake">Notification Fake</a></li> <li><a href="#queue-fake">Queue Fake</a></li> <li><a href="#storage-fake">Storage Fake</a></li> <li><a href="#mocking-facades">Facades</a></li> </ul>  <h2 id="introduction">Introduction</h2> <p>When testing Laravel applications, you may wish to "mock" certain aspects of your application so they are not actually executed during a given test. For example, when testing a controller that dispatches an event, you may wish to mock the event listeners so they are not actually executed during the test. This allows you to only test the controller's HTTP response without worrying about the execution of the event listeners, since the event listeners can be tested in their own test case.</p> <p>Laravel provides helpers for mocking events, jobs, and facades out of the box. These helpers primarily provide a convenience layer over Mockery so you do not have to manually make complicated Mockery method calls. Of course, you are free to use <a href="http://docs.mockery.io/en/latest/" target="_blank">Mockery</a> or PHPUnit to create your own mocks or spies.</p>  <h2 id="bus-fake">Bus Fake</h2> <p>As an alternative to mocking, you may use the <code>Bus</code> facade's <code>fake</code> method to prevent jobs from being dispatched. When using fakes, assertions are made after the code under test is executed:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Jobs\ShipOrder;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testOrderShipping()
+    {
+        Bus::fake();
+
+        // Perform order shipping...
+
+        Bus::assertDispatched(ShipOrder::class, function ($job) use ($order) {
+            return $job-&gt;order-&gt;id === $order-&gt;id;
+        });
+
+        // Assert a job was not dispatched...
+        Bus::assertNotDispatched(AnotherJob::class);
+    }
+}</pre>  <h2 id="event-fake">Event Fake</h2> <p>As an alternative to mocking, you may use the <code>Event</code> facade's <code>fake</code> method to prevent all event listeners from executing. You may then assert that events were dispatched and even inspect the data they received. When using fakes, assertions are made after the code under test is executed:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Events\OrderShipped;
+use App\Events\OrderFailedToShip;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    /**
+     * Test order shipping.
+     */
+    public function testOrderShipping()
+    {
+        Event::fake();
+
+        // Perform order shipping...
+
+        Event::assertDispatched(OrderShipped::class, function ($e) use ($order) {
+            return $e-&gt;order-&gt;id === $order-&gt;id;
+        });
+
+        Event::assertNotDispatched(OrderFailedToShip::class);
+    }
+}</pre>  <h2 id="mail-fake">Mail Fake</h2> <p>You may use the <code>Mail</code> facade's <code>fake</code> method to prevent mail from being sent. You may then assert that <a href="../mail/">mailables</a> were sent to users and even inspect the data they received. When using fakes, assertions are made after the code under test is executed:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Mail\OrderShipped;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testOrderShipping()
+    {
+        Mail::fake();
+
+        // Perform order shipping...
+
+        Mail::assertSent(OrderShipped::class, function ($mail) use ($order) {
+            return $mail-&gt;order-&gt;id === $order-&gt;id;
+        });
+
+        // Assert a message was sent to the given users...
+        Mail::assertSent(OrderShipped::class, function ($mail) use ($user) {
+            return $mail-&gt;hasTo($user-&gt;email) &amp;&amp;
+                   $mail-&gt;hasCc('...') &amp;&amp;
+                   $mail-&gt;hasBcc('...');
+        });
+
+        // Assert a mailable was not sent...
+        Mail::assertNotSent(AnotherMailable::class);
+    }
+}</pre>  <h2 id="notification-fake">Notification Fake</h2> <p>You may use the <code>Notification</code> facade's <code>fake</code> method to prevent notifications from being sent. You may then assert that <a href="../notifications/">notifications</a> were sent to users and even inspect the data they received. When using fakes, assertions are made after the code under test is executed:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Notifications\OrderShipped;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testOrderShipping()
+    {
+        Notification::fake();
+
+        // Perform order shipping...
+
+        Notification::assertSentTo(
+            $user,
+            OrderShipped::class,
+            function ($notification, $channels) use ($order) {
+                return $notification-&gt;order-&gt;id === $order-&gt;id;
+            }
+        );
+
+        // Assert a notification was sent to the given users...
+        Notification::assertSentTo(
+            [$user], OrderShipped::class
+        );
+
+        // Assert a notification was not sent...
+        Notification::assertNotSentTo(
+            [$user], AnotherNotification::class
+        );
+    }
+}</pre>  <h2 id="queue-fake">Queue Fake</h2> <p>As an alternative to mocking, you may use the <code>Queue</code> facade's <code>fake</code> method to prevent jobs from being queued. You may then assert that jobs were pushed to the queue and even inspect the data they received. When using fakes, assertions are made after the code under test is executed:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Jobs\ShipOrder;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testOrderShipping()
+    {
+        Queue::fake();
+
+        // Perform order shipping...
+
+        Queue::assertPushed(ShipOrder::class, function ($job) use ($order) {
+            return $job-&gt;order-&gt;id === $order-&gt;id;
+        });
+
+        // Assert a job was pushed to a given queue...
+        Queue::assertPushedOn('queue-name', ShipOrder::class);
+
+        // Assert a job was not pushed...
+        Queue::assertNotPushed(AnotherJob::class);
+    }
+}</pre>  <h2 id="storage-fake">Storage Fake</h2> <p>The <code>Storage</code> facade's <code>fake</code> method allows you to easily generate a fake disk that, combined with the file generation utilities of the <code>UploadedFile</code> class, greatly simplifies the testing of file uploads. For example:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testAvatarUpload()
+    {
+        Storage::fake('avatars');
+
+        $response = $this-&gt;json('POST', '/avatar', [
+            'avatar' =&gt; UploadedFile::fake()-&gt;image('avatar.jpg')
+        ]);
+
+        // Assert the file was stored...
+        Storage::disk('avatars')-&gt;assertExists('avatar.jpg');
+
+        // Assert a file does not exist...
+        Storage::disk('avatars')-&gt;assertMissing('missing.jpg');
+    }
+}</pre>  <h2 id="mocking-facades">Facades</h2> <p>Unlike traditional static method calls, <a href="../facades/">facades</a> may be mocked. This provides a great advantage over traditional static methods and grants you the same testability you would have if you were using dependency injection. When testing, you may often want to mock a call to a Laravel facade in one of your controllers. For example, consider the following controller action:</p> <pre data-language="php">&lt;?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Support\Facades\Cache;
+
+class UserController extends Controller
+{
+    /**
+     * Show a list of all users of the application.
+     *
+     * @return Response
+     */
+    public function index()
+    {
+        $value = Cache::get('key');
+
+        //
+    }
+}</pre> <p>We can mock the call to the <code>Cache</code> facade by using the <code>shouldReceive</code> method, which will return an instance of a <a href="https://github.com/padraic/mockery" target="_blank">Mockery</a> mock. Since facades are actually resolved and managed by the Laravel <a href="../container/">service container</a>, they have much more testability than a typical static class. For example, let's mock our call to the <code>Cache</code> facade's <code>get</code> method:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class UserControllerTest extends TestCase
+{
+    public function testGetIndex()
+    {
+        Cache::shouldReceive('get')
+                    -&gt;once()
+                    -&gt;with('key')
+                    -&gt;andReturn('value');
+
+        $response = $this-&gt;get('/users');
+
+        // ...
+    }
+}</pre> <blockquote> <p>You should not mock the <code>Request</code> facade. Instead, pass the input you desire into the HTTP helper methods such as <code>get</code> and <code>post</code> when running your test. Likewise, instead of mocking the <code>Config</code> facade, simply call the <code>Config::set</code> method in your tests.</p> </blockquote>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Taylor Otwell<br>Licensed under the MIT License.<br>Laravel is a trademark of Taylor Otwell.<br>
+    <a href="https://laravel.com/docs/5.4/mocking" class="_attribution-link" target="_blank">https://laravel.com/docs/5.4/mocking</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

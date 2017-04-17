@@ -1,0 +1,194 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>HTTP Tests - Laravel 5.4 - W3cubDocs</title>
+  
+  <meta name="description" content="Laravel provides a very fluent API for making HTTP requests to your application and examining the output. For example, take a look at the test &hellip;">
+  <meta name="keywords" content="http, tests, -, laravel, laravel~5.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/laravel~5.4/docs/5.4/http-tests/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/laravel~5.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/laravel~5.4/" class="_nav-link" title="" style="margin-left:0;">Laravel 5.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _laravel">
+				
+<h1>HTTP Tests</h1> <ul> <li><a href="#introduction">Introduction</a></li> <li><a href="#session-and-authentication">Session / Authentication</a></li> <li><a href="#testing-json-apis">Testing JSON APIs</a></li> <li><a href="#testing-file-uploads">Testing File Uploads</a></li> <li><a href="#available-assertions">Available Assertions</a></li> </ul>  <h2 id="introduction">Introduction</h2> <p>Laravel provides a very fluent API for making HTTP requests to your application and examining the output. For example, take a look at the test defined below:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    /**
+     * A basic test example.
+     *
+     * @return void
+     */
+    public function testBasicTest()
+    {
+        $response = $this-&gt;get('/');
+
+        $response-&gt;assertStatus(200);
+    }
+}</pre> <p>The <code>get</code> method makes a <code>GET</code> request into the application, while the <code>assertStatus</code> method asserts that the returned response should have the given HTTP status code. In addition to this simple assertion, Laravel also contains a variety of assertions for inspecting the response headers, content, JSON structure, and more.</p>  <h2 id="session-and-authentication">Session / Authentication</h2> <p>Laravel provides several helpers for working with the session during HTTP testing. First, you may set the session data to a given array using the <code>withSession</code> method. This is useful for loading the session with data before issuing a request to your application:</p> <pre data-language="php">&lt;?php
+
+class ExampleTest extends TestCase
+{
+    public function testApplication()
+    {
+        $response = $this-&gt;withSession(['foo' =&gt; 'bar'])
+                         -&gt;get('/');
+    }
+}</pre> <p>Of course, one common use of the session is for maintaining state for the authenticated user. The <code>actingAs</code> helper method provides a simple way to authenticate a given user as the current user. For example, we may use a <a href="../database-testing/#writing-factories">model factory</a> to generate and authenticate a user:</p> <pre data-language="php">&lt;?php
+
+use App\User;
+
+class ExampleTest extends TestCase
+{
+    public function testApplication()
+    {
+        $user = factory(User::class)-&gt;create();
+
+        $response = $this-&gt;actingAs($user)
+                         -&gt;withSession(['foo' =&gt; 'bar'])
+                         -&gt;get('/');
+    }
+}</pre> <p>You may also specify which guard should be used to authenticate the given user by passing the guard name as the second argument to the <code>actingAs</code> method:</p> <pre data-language="php">$this-&gt;actingAs($user, 'api')</pre>  <h2 id="testing-json-apis">Testing JSON APIs</h2> <p>Laravel also provides several helpers for testing JSON APIs and their responses. For example, the <code>json</code>, <code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code>, and <code>delete</code> methods may be used to issue requests with various HTTP verbs. You may also easily pass data and headers to these methods. To get started, let's write a test to make a <code>POST</code> request to <code>/user</code> and assert that the expected data was returned:</p> <pre data-language="php">&lt;?php
+
+class ExampleTest extends TestCase
+{
+    /**
+     * A basic functional test example.
+     *
+     * @return void
+     */
+    public function testBasicExample()
+    {
+        $response = $this-&gt;json('POST', '/user', ['name' =&gt; 'Sally']);
+
+        $response
+            -&gt;assertStatus(200)
+            -&gt;assertJson([
+                'created' =&gt; true,
+            ]);
+    }
+}</pre> <blockquote class="tip"> <p>The <code>assertJson</code> method converts the response to an array and utilizes <code>PHPUnit::assertArraySubset</code> to verify that the given array exists within the JSON response returned by the application. So, if there are other properties in the JSON response, this test will still pass as long as the given fragment is present.</p> </blockquote>  <h3 id="verifying-exact-match">Verifying Exact Match</h3> <p>If you would like to verify that the given array is an <strong>exact</strong> match for the JSON returned by the application, you should use the <code>assertExactJson</code> method:</p> <pre data-language="php">&lt;?php
+
+class ExampleTest extends TestCase
+{
+    /**
+     * A basic functional test example.
+     *
+     * @return void
+     */
+    public function testBasicExample()
+    {
+        $response = $this-&gt;json('POST', '/user', ['name' =&gt; 'Sally']);
+
+        $response
+            -&gt;assertStatus(200)
+            -&gt;assertExactJson([
+                'created' =&gt; true,
+            ]);
+    }
+}</pre>  <h2 id="testing-file-uploads">Testing File Uploads</h2> <p>The <code>Illuminate\Http\UploadedFile</code> class provides a <code>fake</code> method which may be used to generate dummy files or images for testing. This, combined with the <code>Storage</code> facade's <code>fake</code> method greatly simplifies the testing of file uploads. For example, you may combine these two features to easily test an avatar upload form:</p> <pre data-language="php">&lt;?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+class ExampleTest extends TestCase
+{
+    public function testAvatarUpload()
+    {
+        Storage::fake('avatars');
+
+        $response = $this-&gt;json('POST', '/avatar', [
+            'avatar' =&gt; UploadedFile::fake()-&gt;image('avatar.jpg')
+        ]);
+
+        // Assert the file was stored...
+        Storage::disk('avatars')-&gt;assertExists('avatar.jpg');
+
+        // Assert a file does not exist...
+        Storage::disk('avatars')-&gt;assertMissing('missing.jpg');
+    }
+}</pre> <h4>Fake File Customization</h4> <p>When creating files using the <code>fake</code> method, you may specify the width, height, and size of the image in order to better test your validation rules:</p> <pre data-language="php">UploadedFile::fake()-&gt;image('avatar.jpg', $width, $height)-&gt;size(100);</pre> <p>In addition to creating images, you may create files of any other type using the <code>create</code> method:</p> <pre data-language="php">UploadedFile::fake()-&gt;create('document.pdf', $sizeInKilobytes);</pre>  <h2 id="available-assertions">Available Assertions</h2> <p>Laravel provides a variety of custom assertion methods for your <a href="https://phpunit.de/" target="_blank">PHPUnit</a> tests. These assertions may be accessed on the response that is returned from the <code>json</code>, <code>get</code>, <code>post</code>, <code>put</code>, and <code>delete</code> test methods:</p> <table> <thead> <tr> <th>Method</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td><code>$response-&gt;assertStatus($code);</code></td> <td>Assert that the response has a given code.</td> </tr> <tr> <td><code>$response-&gt;assertRedirect($uri);</code></td> <td>Assert that the response is a redirect to a given URI.</td> </tr> <tr> <td><code>$response-&gt;assertHeader($headerName, $value = null);</code></td> <td>Assert that the given header is present on the response.</td> </tr> <tr> <td><code>$response-&gt;assertCookie($cookieName, $value = null);</code></td> <td>Assert that the response contains the given cookie.</td> </tr> <tr> <td><code>$response-&gt;assertPlainCookie($cookieName, $value = null);</code></td> <td>Assert that the response contains the given cookie (unencrypted).</td> </tr> <tr> <td><code>$response-&gt;assertSessionHas($key, $value = null);</code></td> <td>Assert that the session contains the given piece of data.</td> </tr> <tr> <td><code>$response-&gt;assertSessionHasErrors(array $keys);</code></td> <td>Assert that the session contains an error for the given field.</td> </tr> <tr> <td><code>$response-&gt;assertSessionMissing($key);</code></td> <td>Assert that the session does not contain the given key.</td> </tr> <tr> <td><code>$response-&gt;assertJson(array $data);</code></td> <td>Assert that the response contains the given JSON data.</td> </tr> <tr> <td><code>$response-&gt;assertJsonFragment(array $data);</code></td> <td>Assert that the response contains the given JSON fragment.</td> </tr> <tr> <td><code>$response-&gt;assertExactJson(array $data);</code></td> <td>Assert that the response contains an exact match of the given JSON data.</td> </tr> <tr> <td><code>$response-&gt;assertJsonStructure(array $structure);</code></td> <td>Assert that the response has a given JSON structure.</td> </tr> <tr> <td><code>$response-&gt;assertViewHas($key, $value = null);</code></td> <td>Assert that the response view was given a piece of data.</td> </tr> </tbody> </table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Taylor Otwell<br>Licensed under the MIT License.<br>Laravel is a trademark of Taylor Otwell.<br>
+    <a href="https://laravel.com/docs/5.4/http-tests" class="_attribution-link" target="_blank">https://laravel.com/docs/5.4/http-tests</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
