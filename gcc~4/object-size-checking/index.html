@@ -1,0 +1,133 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Object Size Checking Built-in Functions - GCC 4 - W3cubDocs</title>
+  
+  <meta name="description" content=" GCC implements a limited buffer overflow protection mechanism that can prevent some buffer overflow attacks. ">
+  <meta name="keywords" content="object, size, checking, built-in, functions, -, gcc, gcc~4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/gcc~4/object-size-checking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/gcc~4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/gcc~4/" class="_nav-link" title="" style="margin-left:0;">GCC 4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _gnu">
+				
+<h1 class="section" id="Object-Size-Checking">6.54 Object Size Checking Built-in Functions</h1> <p> GCC implements a limited buffer overflow protection mechanism that can prevent some buffer overflow attacks. </p>
+<div class="defun"> — Built-in Function: size_t <b>__builtin_object_size</b> (<var>void * ptr, int type</var>) <blockquote>
+<p>is a built-in construct that returns a constant number of bytes from <var>ptr</var> to the end of the object <var>ptr</var> pointer points to (if known at compile time). <code>__builtin_object_size</code> never evaluates its arguments for side-effects. If there are any side-effects in them, it returns <code>(size_t) -1</code> for <var>type</var> 0 or 1 and <code>(size_t) 0</code> for <var>type</var> 2 or 3. If there are multiple objects <var>ptr</var> can point to and all of them are known at compile time, the returned number is the maximum of remaining byte counts in those objects if <var>type</var> &amp; 2 is 0 and minimum if nonzero. If it is not possible to determine which objects <var>ptr</var> points to at compile time, <code>__builtin_object_size</code> should return <code>(size_t) -1</code> for <var>type</var> 0 or 1 and <code>(size_t) 0</code> for <var>type</var> 2 or 3. </p>
+<p><var>type</var> is an integer constant from 0 to 3. If the least significant bit is clear, objects are whole variables, if it is set, a closest surrounding subobject is considered the object a pointer points to. The second bit determines if maximum or minimum of remaining bytes is computed. </p>
+<pre class="smallexample">struct V { char buf1[10]; int b; char buf2[10]; } var;
+char *p = &amp;var.buf1[1], *q = &amp;var.b;
+
+/* Here the object p points to is var.  */
+assert (__builtin_object_size (p, 0) == sizeof (var) - 1);
+/* The subobject p points to is var.buf1.  */
+assert (__builtin_object_size (p, 1) == sizeof (var.buf1) - 1);
+/* The object q points to is var.  */
+assert (__builtin_object_size (q, 0)
+        == (char *) (&amp;var + 1) - (char *) &amp;var.b);
+/* The subobject q points to is var.b.  */
+assert (__builtin_object_size (q, 1) == sizeof (var.b));</pre> </blockquote>
+</div> <p>There are built-in functions added for many common string operation functions, e.g., for <code>memcpy</code> <code>__builtin___memcpy_chk</code> built-in is provided. This built-in has an additional last argument, which is the number of bytes remaining in object the <var>dest</var> argument points to or <code>(size_t) -1</code> if the size is not known. </p>
+<p>The built-in functions are optimized into the normal string functions like <code>memcpy</code> if the last argument is <code>(size_t) -1</code> or if it is known at compile time that the destination object will not be overflown. If the compiler can determine at compile time the object will be always overflown, it issues a warning. </p>
+<p>The intended use can be e.g. </p>
+<pre class="smallexample">#undef memcpy
+#define bos0(dest) __builtin_object_size (dest, 0)
+#define memcpy(dest, src, n) \
+  __builtin___memcpy_chk (dest, src, n, bos0 (dest))
+
+char *volatile p;
+char buf[10];
+/* It is unknown what object p points to, so this is optimized
+   into plain memcpy - no checking is possible.  */
+memcpy (p, "abcde", n);
+/* Destination is known and length too.  It is known at compile
+   time there will be no overflow.  */
+memcpy (&amp;buf[5], "abcde", 5);
+/* Destination is known, but the length is not known at compile time.
+   This will result in __memcpy_chk call that can check for overflow
+   at run time.  */
+memcpy (&amp;buf[5], "abcde", n);
+/* Destination is known and it is known at compile time there will
+   be overflow.  There will be a warning and __memcpy_chk call that
+   will abort the program at run time.  */
+memcpy (&amp;buf[6], "abcde", 5);</pre> <p>Such built-in functions are provided for <code>memcpy</code>, <code>mempcpy</code>, <code>memmove</code>, <code>memset</code>, <code>strcpy</code>, <code>stpcpy</code>, <code>strncpy</code>, <code>strcat</code> and <code>strncat</code>. </p>
+<p>There are also checking built-in functions for formatted output functions. </p>
+<pre class="smallexample">int __builtin___sprintf_chk (char *s, int flag, size_t os, const char *fmt, ...);
+int __builtin___snprintf_chk (char *s, size_t maxlen, int flag, size_t os,
+                              const char *fmt, ...);
+int __builtin___vsprintf_chk (char *s, int flag, size_t os, const char *fmt,
+                              va_list ap);
+int __builtin___vsnprintf_chk (char *s, size_t maxlen, int flag, size_t os,
+                               const char *fmt, va_list ap);</pre> <p>The added <var>flag</var> argument is passed unchanged to <code>__sprintf_chk</code> etc. functions and can contain implementation specific flags on what additional security measures the checking function might take, such as handling <code>%n</code> differently. </p>
+<p>The <var>os</var> argument is the object size <var>s</var> points to, like in the other built-in functions. There is a small difference in the behavior though, if <var>os</var> is <code>(size_t) -1</code>, the built-in functions are optimized into the non-checking functions only if <var>flag</var> is 0, otherwise the checking function is called with <var>os</var> argument set to <code>(size_t) -1</code>. </p>
+<p>In addition to this, there are checking built-in functions <code>__builtin___printf_chk</code>, <code>__builtin___vprintf_chk</code>, <code>__builtin___fprintf_chk</code> and <code>__builtin___vfprintf_chk</code>. These have just one additional argument, <var>flag</var>, right before format string <var>fmt</var>. If the compiler is able to optimize them to <code>fputc</code> etc. functions, it does, otherwise the checking function is called and the <var>flag</var> argument passed to it. </p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Free Software Foundation<br>Licensed under the GNU Free Documentation License, Version 1.3.<br>
+    <a href="https://gcc.gnu.org/onlinedocs/gcc-4.9.3/gcc/Object-Size-Checking.html" class="_attribution-link" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-4.9.3/gcc/Object-Size-Checking.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
