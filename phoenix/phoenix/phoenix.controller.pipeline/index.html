@@ -1,0 +1,107 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.Controller.Pipeline - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" This module implements the controller pipeline responsible for handling requests. ">
+  <meta name="keywords" content="phoenix, controller, pipeline, summary, macros, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix/phoenix.controller.pipeline/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.Controller.Pipeline  </h1>  <p>This module implements the controller pipeline responsible for handling requests.</p> <h2>The pipeline</h2> <p>The goal of a controller is to receive a request and invoke the desired action. The whole flow of the controller is managed by a single pipeline:</p> <pre data-language="elixir"><code class="elixir">defmodule UserController do
+  use Phoenix.Controller
+  require Logger
+
+  plug :log_message, "before action"
+
+  def show(conn, _params) do
+    Logger.debug "show/2"
+    send_resp(conn, 200, "OK")
+  end
+
+  defp log_message(conn, msg) do
+    Logger.debug msg
+    conn
+  end
+end</code></pre> <p>When invoked, this pipeline will print:</p> <pre data-language="elixir"><code class="elixir">before action
+show/2</code></pre> <p>As any other Plug pipeline, we can halt at any step by calling <code class="inline">Plug.Conn.halt/1</code> (which is by default imported into controllers). If we change <code class="inline">log_message/2</code> to:</p> <pre data-language="elixir"><code class="elixir">def log_message(conn, msg) do
+  Logger.debug msg
+  halt(conn)
+end</code></pre> <p>it will print only:</p> <pre data-language="elixir"><code class="elixir">before action</code></pre> <p>As the rest of the pipeline (the action and the after action plug) will never be invoked.</p> <h2>Guards</h2> <p><a href="#plug/2"><code class="inline">plug/2</code></a> supports guards, allowing a developer to configure a plug to only run in some particular action:</p> <pre data-language="elixir"><code class="elixir">plug :log_message, "before show and edit" when action in [:show, :edit]
+plug :log_message, "before all but index" when not action in [:index]</code></pre> <p>The first plug will run only when action is show or edit. The second plug will always run, except for the index action.</p> <p>Those guards work like regular Elixir guards and the only variables accessible in the guard are <code class="inline">conn</code>, the <code class="inline">action</code> as an atom and the <code class="inline">controller</code> as an alias.</p> <h2>Controllers are plugs</h2> <p>Like routers, controllers are plugs, but they are wired to dispatch to a particular function which is called an action.</p> <p>For example, the route:</p> <pre data-language="elixir"><code class="elixir">get "/users/:id", UserController, :show</code></pre> <p>will invoke <code class="inline">UserController</code> as a plug:</p> <pre data-language="elixir"><code class="elixir">UserController.call(conn, :show)</code></pre> <p>which will trigger the plug pipeline and which will eventually invoke the inner action plug that dispatches to the <code class="inline">show/2</code> function in the <code class="inline">UserController</code>.</p> <p>As controllers are plugs, they implement both <code class="inline">init/1</code> and <code class="inline">call/2</code>, and it also provides a function named <code class="inline">action/2</code> which is responsible for dispatching the appropriate action after the plug stack (and is also overridable).</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Macros </h2>
+<dl class="summary-macros summary">   <dt class="summary-signature"> <a href="#plug/1">plug(plug)</a> </dt> <dd class="summary-synopsis">
+<p>Stores a plug to be executed as part of the plug pipeline</p> </dd>   <dt class="summary-signature"> <a href="#plug/2">plug(plug, opts)</a> </dt> <dd class="summary-synopsis">
+<p>Stores a plug with the given options to be executed as part of the plug pipeline</p> </dd>  </dl>   <h1 class="section-heading" id="macros">  Macros </h1>  <h3 class="detail-header macro" id="plug/1">  <span class="signature">plug(plug)</span>  </h3>  <p>Stores a plug to be executed as part of the plug pipeline.</p>    <h3 class="detail-header macro" id="plug/2">  <span class="signature">plug(plug, opts)</span>  </h3>  <p>Stores a plug with the given options to be executed as part of the plug pipeline.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix/Phoenix.Controller.Pipeline.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/Phoenix.Controller.Pipeline.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

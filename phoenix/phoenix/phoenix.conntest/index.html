@@ -1,0 +1,180 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.ConnTest - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Conveniences for testing Phoenix endpoints and connection related helpers. ">
+  <meta name="keywords" content="phoenix, conntest, summary, functions, macros, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix/phoenix.conntest/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.ConnTest  </h1>  <p>Conveniences for testing Phoenix endpoints and connection related helpers.</p> <p>You likely want to use this module or make it part of your <code class="inline">ExUnit.CaseTemplate</code>. Once used, this module automatically imports all functions defined here as well as the functions in <code class="inline">Plug.Conn</code>.</p> <h2>Endpoint testing</h2> <p><a href="../phoenix.conntest/#content"><code class="inline">Phoenix.ConnTest</code></a> typically works against endpoints. That’s the preferred way to test anything that your router dispatches to.</p> <pre data-language="elixir"><code class="elixir">conn = get build_conn(), "/"
+assert conn.resp_body =~ "Welcome!"
+
+conn = post build_conn(), "/login", [username: "john", password: "doe"]
+assert conn.resp_body =~ "Logged in!"</code></pre> <p>As in your application, the connection is also the main abstraction in testing. <code class="inline">build_conn()</code> returns a new connection and functions in this module can be used to manipulate the connection before dispatching to the endpoint.</p> <p>For example, one could set the accepts header for json requests as follows:</p> <pre data-language="elixir"><code class="elixir">build_conn()
+|&gt; put_req_header("accept", "application/json")
+|&gt; get("/")</code></pre> <p>The endpoint being tested is accessed via the <code class="inline">@endpoint</code> module attribute.</p> <h2>Controller testing</h2> <p>The functions in this module can also be used for controller testing. While endpoint testing is preferred over controller testing as a controller often depends on the pipelines invoked in the router and before, unit testing controllers may be helpful in some situations.</p> <p>For such cases, just pass an atom representing the action to dispatch:</p> <pre data-language="elixir"><code class="elixir">conn = get build_conn(), :index
+assert conn.resp_body =~ "Welcome!"</code></pre> <h2>Views testing</h2> <p>Under other circumstances, you may be testing a view or another layer that requires a connection for processing. For such cases, a connection can be created using the <a href="#conn/3"><code class="inline">conn/3</code></a> helper:</p> <pre data-language="elixir"><code class="elixir">MyApp.UserView.render "hello.html",
+                       conn: conn(:get, "/")</code></pre> <h2>Recycling</h2> <p>Browsers implement a storage by using cookies. When a cookie is set in the response, the browser stores it and sends it in the next request.</p> <p>To emulate this behaviour, this module provides the idea of recycling. The <a href="#recycle/1"><code class="inline">recycle/1</code></a> function receives a connection and returns a new connection, similar to the one returned by <a href="#conn/0"><code class="inline">conn/0</code></a> with all the response cookies from the previous connection defined as request headers. This is useful when testing multiple routes that require cookies or session to work.</p> <p>Keep in mind Phoenix will automatically recycle the connection between dispatches. This usually works out well most times but it may discard information if you are modifying the connection before the next dispatch:</p> <pre data-language="elixir"><code class="elixir"># No recycling as the connection is fresh
+conn = get build_conn(), "/"
+
+# The connection is recycled, creating a new one behind the scenes
+conn = post conn, "/login"
+
+# We can also recycle manually in case we want custom headers
+conn = 
+  conn
+  |&gt; recycle()
+  |&gt; put_req_header("x-special", "nice")
+
+# No recycling as we did it explicitly
+conn = delete conn, "/logout"</code></pre> <p>Recycling also recycles the “accept” header.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#assert_error_sent/2">assert_error_sent(status_int_or_atom, func)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts an error was wrapped and sent with the given status</p> </dd>   <dt class="summary-signature"> <a href="#build_conn/0">build_conn()</a> </dt> <dd class="summary-synopsis">
+<p>Creates a connection to be used in upcoming requests</p> </dd>   <dt class="summary-signature"> <a href="#build_conn/3">build_conn(method, path, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Creates a connection to be used in upcoming requests with a preset method, path and body</p> </dd>   <dt class="summary-signature"> <a href="#bypass_through/1">bypass_through(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Calls the Endpoint and bypasses Router match</p> </dd>   <dt class="summary-signature"> <a href="#bypass_through/3">bypass_through(conn, router, pipelines \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Calls the Endpoint and bypasses Router match</p> </dd>   <dt class="summary-signature"> <a href="#clear_flash/1">clear_flash(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Clears up the flash storage</p> </dd>   <dt class="summary-signature"> <a href="#conn/0">conn()</a> </dt> <dd class="summary-synopsis">
+<p>Deprecated version of conn/0. Use build_conn/0 instead</p> </dd>   <dt class="summary-signature"> <a href="#conn/3">conn(method, path, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Deprecated version of conn/3. Use build_conn/3 instead</p> </dd>   <dt class="summary-signature"> <a href="#delete_req_cookie/2">delete_req_cookie(conn, key)</a> </dt> <dd class="summary-synopsis">
+<p>Deletes a request cookie</p> </dd>   <dt class="summary-signature"> <a href="#dispatch/5">dispatch(conn, endpoint, method, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches the connection to the given endpoint</p> </dd>   <dt class="summary-signature"> <a href="#ensure_recycled/1">ensure_recycled(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Ensures the connection is recycled if it wasn’t already</p> </dd>   <dt class="summary-signature"> <a href="#fetch_flash/1">fetch_flash(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Fetches the flash storage</p> </dd>   <dt class="summary-signature"> <a href="#get_flash/1">get_flash(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Gets the whole flash storage</p> </dd>   <dt class="summary-signature"> <a href="#get_flash/2">get_flash(conn, key)</a> </dt> <dd class="summary-synopsis">
+<p>Gets the given key from the flash storage</p> </dd>   <dt class="summary-signature"> <a href="#html_response/2">html_response(conn, status)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the given status code, that we have an html response and returns the response body if one was set or sent</p> </dd>   <dt class="summary-signature"> <a href="#json_response/2">json_response(conn, status)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the given status code, that we have an json response and returns the decoded JSON response if one was set or sent</p> </dd>   <dt class="summary-signature"> <a href="#put_flash/3">put_flash(conn, key, value)</a> </dt> <dd class="summary-synopsis">
+<p>Puts the given value under key in the flash storage</p> </dd>   <dt class="summary-signature"> <a href="#put_req_cookie/3">put_req_cookie(conn, key, value)</a> </dt> <dd class="summary-synopsis">
+<p>Puts a request cookie</p> </dd>   <dt class="summary-signature"> <a href="#recycle/1">recycle(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Recycles the connection</p> </dd>   <dt class="summary-signature"> <a href="#redirected_to/2">redirected_to(conn, status \\ 302)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the location header from the given redirect response</p> </dd>   <dt class="summary-signature"> <a href="#response/2">response(conn, given)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the given status code and returns the response body if one was set or sent</p> </dd>   <dt class="summary-signature"> <a href="#response_content_type/2">response_content_type(conn, format)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the content type as long as it matches the given format</p> </dd>   <dt class="summary-signature"> <a href="#text_response/2">text_response(conn, status)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the given status code, that we have an text response and returns the response body if one was set or sent</p> </dd>  </dl> <h2> Macros </h2>
+<dl class="summary-macros summary">   <dt class="summary-signature"> <a href="#connect/3">connect(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#delete/3">delete(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#get/3">get(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#head/3">head(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#options/3">options(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#patch/3">patch(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#post/3">post(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#put/3">put(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>   <dt class="summary-signature"> <a href="#trace/3">trace(conn, path_or_action, params_or_body \\ nil)</a> </dt> <dd class="summary-synopsis">
+<p>Dispatches to the current endpoint</p> </dd>  </dl>   <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="assert_error_sent/2">  <span class="signature">assert_error_sent(status_int_or_atom, func)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">assert_error_sent(integer | atom, function) :: {integer, list, term}</code></pre>    <p>Asserts an error was wrapped and sent with the given status.</p> <p>Useful for testing actions that you expect raise an error and have the response wrapped in an HTTP status, with content usually rendered by your MyApp.ErrorView.</p> <p>The function accepts a status either as an integer HTTP status or atom, such as <code class="inline">404</code> or <code class="inline">:not_found</code>. If an error is raised, a 3-tuple of the wrapped response is returned matching the status, headers, and body of the response:</p> <pre data-language="elixir"><code class="elixir">{404, [{"content-type", "text/html"} | _], "Page not found"}</code></pre> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">assert_error_sent :not_found, fn -&gt;
+  get build_conn(), "/users/not-found"
+end
+
+response = assert_error_sent 404, fn -&gt;
+  get build_conn(), "/users/not-found"
+end
+assert {404, [_h | _t], "Page not found"} = response</code></pre>    <h3 class="detail-header function" id="build_conn/0">  <span class="signature">build_conn()</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">build_conn :: Plug.Conn.t</code></pre>    <p>Creates a connection to be used in upcoming requests.</p>    <h3 class="detail-header function" id="build_conn/3">  <span class="signature">build_conn(method, path, params_or_body \\ nil)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">build_conn(atom | binary, binary, binary | list | map) :: Plug.Conn.t</code></pre>    <p>Creates a connection to be used in upcoming requests with a preset method, path and body.</p> <p>This is useful when a specific connection is required for testing a plug or a particular function.</p>    <h3 class="detail-header function" id="bypass_through/1">  <span class="signature">bypass_through(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">bypass_through(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Calls the Endpoint and bypasses Router match.</p> <p>Useful for unit testing Plugs where Endpoint and/or router pipline plugs are required for proper setup.</p> <h4>Examples</h4> <p>For example, imagine you are testing an authentication plug in isolation, but you need to invoke the Endpoint plugs and <code class="inline">:browser</code> pipeline of your Router for session and flash related dependencies:</p> <pre data-language="elixir"><code class="elixir">conn =
+  conn
+  |&gt; bypass_through(MyApp.Router, [:browser])
+  |&gt; get("/")
+  |&gt; MyApp.RequireAuthentication.call([])
+assert conn.halted</code></pre> <p>Alternatively, you could invoke only the Endpoint, and Router:</p> <pre data-language="elixir"><code class="elixir">conn =
+  conn
+  |&gt; bypass_through(MyApp.Router, [])
+  |&gt; get("/")
+  |&gt; MyApp.RequireAuthentication.call([])
+assert conn.halted</code></pre> <p>Or only invoke the Endpoint’s plugs:</p> <pre data-language="elixir"><code class="elixir">conn =
+  conn
+  |&gt; bypass_through()
+  |&gt; get("/")
+  |&gt; MyApp.RequireAuthentication.call([])
+assert conn.halted</code></pre>    <h3 class="detail-header function" id="bypass_through/3">  <span class="signature">bypass_through(conn, router, pipelines \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">bypass_through(Plug.Conn.t, module, :atom | list) :: Plug.Conn.t</code></pre>    <p>Calls the Endpoint and bypasses Router match.</p> <p>See <a href="#bypass_through/1"><code class="inline">bypass_through/1</code></a>.</p>    <h3 class="detail-header function" id="clear_flash/1">  <span class="signature">clear_flash(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">clear_flash(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Clears up the flash storage.</p>    <h3 class="detail-header function" id="conn/0">  <span class="signature">conn()</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">conn :: Plug.Conn.t</code></pre>    <p>Deprecated version of conn/0. Use build_conn/0 instead</p>    <h3 class="detail-header function" id="conn/3">  <span class="signature">conn(method, path, params_or_body \\ nil)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">conn(atom | binary, binary, binary | list | map) :: Plug.Conn.t</code></pre>    <p>Deprecated version of conn/3. Use build_conn/3 instead</p>    <h3 class="detail-header function" id="delete_req_cookie/2">  <span class="signature">delete_req_cookie(conn, key)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">delete_req_cookie(Plug.Conn.t, binary) :: Plug.Conn.t</code></pre>    <p>Deletes a request cookie.</p>    <h3 class="detail-header function" id="dispatch/5">  <span class="signature">dispatch(conn, endpoint, method, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches the connection to the given endpoint.</p> <p>When invoked via <a href="#get/3"><code class="inline">get/3</code></a>, <a href="#post/3"><code class="inline">post/3</code></a> and friends, the endpoint is automatically retrieved from the <code class="inline">@endpoint</code> module attribute, otherwise it must be given as an argument.</p> <p>The connection will be configured with the given <code class="inline">method</code>, <code class="inline">path_or_action</code> and <code class="inline">params_or_body</code>.</p> <p>If <code class="inline">path_or_action</code> is a string, it is considered to be the request path and stored as so in the connection. If an atom, it is assumed to be an action and the connection is dispatched to the given action.</p> <h4>Parameters and body</h4> <p>This function, as well as <a href="#get/3"><code class="inline">get/3</code></a>, <a href="#post/3"><code class="inline">post/3</code></a> and friends, accepts the request body or parameters as last argument:</p> <pre data-language="elixir"><code class="elixir">  get build_conn(), "/", some: "param"
+  get build_conn(), "/", "some=param&amp;url=encoded"</code></pre> <p>The allowed values are:</p> <ul> <li>
+<p><code class="inline">nil</code> - meaning there is no body</p> </li> <li>
+<p>a binary - containing a request body. For such cases, <code class="inline">:headers</code> must be given as option with a content-type</p> </li> <li>
+<p>a map or list - containing the parameters which will automatically set the content-type to multipart. The map or list may contain other lists or maps and all entries will be normalized to string keys</p> </li> <li>a struct - unlike other maps, a struct will be passed through as-is without normalizing its entries </li> </ul>    <h3 class="detail-header function" id="ensure_recycled/1">  <span class="signature">ensure_recycled(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">ensure_recycled(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Ensures the connection is recycled if it wasn’t already.</p> <p>See <a href="#recycle/1"><code class="inline">recycle/1</code></a> for more information.</p>    <h3 class="detail-header function" id="fetch_flash/1">  <span class="signature">fetch_flash(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">fetch_flash(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Fetches the flash storage.</p>    <h3 class="detail-header function" id="get_flash/1">  <span class="signature">get_flash(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">get_flash(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Gets the whole flash storage.</p>    <h3 class="detail-header function" id="get_flash/2">  <span class="signature">get_flash(conn, key)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">get_flash(Plug.Conn.t, term) :: Plug.Conn.t</code></pre>    <p>Gets the given key from the flash storage.</p>    <h3 class="detail-header function" id="html_response/2">  <span class="signature">html_response(conn, status)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">html_response(Plug.Conn.t, status :: integer | atom) ::
+  <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a> |
+  no_return</code></pre>    <p>Asserts the given status code, that we have an html response and returns the response body if one was set or sent.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">assert html_response(conn, 200) =~ "&lt;html&gt;"</code></pre>    <h3 class="detail-header function" id="json_response/2">  <span class="signature">json_response(conn, status)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">json_response(Plug.Conn.t, status :: integer | atom) ::
+  map |
+  no_return</code></pre>    <p>Asserts the given status code, that we have an json response and returns the decoded JSON response if one was set or sent.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">body = json_response(conn, 200)
+assert "can't be blank" in body["errors"]</code></pre>    <h3 class="detail-header function" id="put_flash/3">  <span class="signature">put_flash(conn, key, value)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_flash(Plug.Conn.t, term, term) :: Plug.Conn.t</code></pre>    <p>Puts the given value under key in the flash storage.</p>    <h3 class="detail-header function" id="put_req_cookie/3">  <span class="signature">put_req_cookie(conn, key, value)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_req_cookie(Plug.Conn.t, binary, binary) :: Plug.Conn.t</code></pre>    <p>Puts a request cookie.</p>    <h3 class="detail-header function" id="recycle/1">  <span class="signature">recycle(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">recycle(Plug.Conn.t) :: Plug.Conn.t</code></pre>    <p>Recycles the connection.</p> <p>Recycling receives a connection and returns a new connection, containing cookies and relevant information from the given one.</p> <p>This emulates behaviour performed by browsers where cookies returned in the response are available in following requests.</p> <p>Note <a href="#recycle/1"><code class="inline">recycle/1</code></a> is automatically invoked when dispatching to the endpoint, unless the connection has already been recycled.</p>    <h3 class="detail-header function" id="redirected_to/2">  <span class="signature">redirected_to(conn, status \\ 302)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">redirected_to(Plug.Conn.t, status :: non_neg_integer) :: Plug.Conn.t</code></pre>    <p>Returns the location header from the given redirect response.</p> <p>Raises if the response does not match the redirect status code (defaults to 302).</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">assert redirected_to(conn) =~ "/foo/bar"
+assert redirected_to(conn, 301) =~ "/foo/bar"
+assert redirected_to(conn, :moved_permanently) =~ "/foo/bar"</code></pre>    <h3 class="detail-header function" id="response/2">  <span class="signature">response(conn, given)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">response(Plug.Conn.t, status :: integer | atom) ::
+  binary |
+  no_return</code></pre>    <p>Asserts the given status code and returns the response body if one was set or sent.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">conn = get build_conn(), "/"
+assert response(conn, 200) =~ "hello world"</code></pre>    <h3 class="detail-header function" id="response_content_type/2">  <span class="signature">response_content_type(conn, format)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">response_content_type(Plug.Conn.t, atom) ::
+  <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a> |
+  no_return</code></pre>    <p>Returns the content type as long as it matches the given format.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir"># Assert we have an html repsonse with utf-8 charset
+assert response_content_type(conn, :html) =~ "charset=utf-8"</code></pre>    <h3 class="detail-header function" id="text_response/2">  <span class="signature">text_response(conn, status)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">text_response(Plug.Conn.t, status :: integer | atom) ::
+  <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a> |
+  no_return</code></pre>    <p>Asserts the given status code, that we have an text response and returns the response body if one was set or sent.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">assert text_response(conn, 200) =~ "hello"</code></pre>     <h1 class="section-heading" id="macros">  Macros </h1>  <h3 class="detail-header macro" id="connect/3">  <span class="signature">connect(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="delete/3">  <span class="signature">delete(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="get/3">  <span class="signature">get(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="head/3">  <span class="signature">head(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="options/3">  <span class="signature">options(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="patch/3">  <span class="signature">patch(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="post/3">  <span class="signature">post(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="put/3">  <span class="signature">put(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>    <h3 class="detail-header macro" id="trace/3">  <span class="signature">trace(conn, path_or_action, params_or_body \\ nil)</span>  </h3>  <p>Dispatches to the current endpoint.</p> <p>See <a href="#dispatch/5"><code class="inline">dispatch/5</code></a> for more information.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix/Phoenix.ConnTest.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/Phoenix.ConnTest.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

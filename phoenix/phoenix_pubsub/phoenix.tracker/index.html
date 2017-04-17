@@ -1,0 +1,170 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.Tracker - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Provides distributed Presence tracking to processes. ">
+  <meta name="keywords" content="phoenix, tracker, summary, types, functions, callbacks, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix_pubsub/phoenix.tracker/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.Tracker <small>behaviour</small> </h1>  <p>Provides distributed Presence tracking to processes.</p> <p>Tracker servers use a heartbeat protocol and CRDT to replicate presence information across a cluster in an eventually consistent, conflict-free manner. Under this design, there is no single source of truth or global process. Instead, each node runs one or more <a href="../phoenix.tracker/#content"><code>Phoenix.Tracker</code></a> servers and node-local changes are replicated across the cluster and handled locally as a diff of changes.</p> <ul> <li>
+<code>tracker</code> - The name of the tracker handler module implementing the <a href="../phoenix.tracker/#content"><code>Phoenix.Tracker</code></a> behaviour</li> <li>
+<code>tracker_opts</code> - The list of options to pass to the tracker handler</li> <li>
+<code>server_opts</code> - The list of options to pass to the tracker server</li> </ul> <h2 id="required-server_opts">Required <code>server_opts</code>:</h2> <ul> <li>
+<code>:name</code> - The name of the server, such as: <code>MyApp.Tracker</code>
+</li> <li>
+<code>:pubsub_server</code> - The name of the PubSub server, such as: <code>MyApp.PubSub</code>
+</li> </ul> <h2 id="optional-server_opts">Optional <code>server_opts</code>:</h2> <ul> <li>
+<code>broadcast_period</code> - The interval in milliseconds to send delta broadcats across the cluster. Default <code>1500</code>
+</li> <li>
+<code>max_silent_periods</code> - The max integer of broadcast periods for which no delta broadcasts have been sent. Defaults <code>10</code> (15s heartbeat)</li> <li>
+<code>down_period</code> - The interval in milliseconds to flag a replica as down temporarily down. Default <code>broadcast_period * max_silent_periods * 2</code> (30s down detection). Note: This must be at least 2x the <code>broadcast_period</code>.</li> <li>
+<code>permdown_period</code> - The interval in milliseconds to flag a replica as permanently down, and discard its state. Note: This must be at least greater than the <code>down_period</code>. Default <code>1_200_000</code> (20 minutes)</li> <li>
+<code>clock_sample_periods</code> - The numbers of heartbeat windows to sample remote clocks before collapsing and requesting transfer. Default <code>2</code>
+</li> <li>
+<code>max_delta_sizes</code> - The list of delta generation sizes to keep before falling back to sending entire state. Defaults <code>[100, 1000, 10_000]</code>.</li> <li>log_level - The log level to log events, defaults <code>:debug</code> and can be disabled with <code>false</code>
+</li> </ul> <h2 id="implementing-a-tracker">Implementing a Tracker</h2> <p>To start a tracker, first add the tracker to your supervision tree:</p> <pre data-language="elixir"><code class="elixir">worker(MyTracker, [[name: MyTracker, pubsub_server: MyPubSub]])</code></pre> <p>Next, implement <code>MyTracker</code> with support for the <a href="../phoenix.tracker/#content"><code>Phoenix.Tracker</code></a> behaviour callbacks. An example of a minimal tracker could include:</p> <pre data-language="elixir"><code class="elixir">defmodule MyTracker do
+  @behaviour Phoenix.Tracker
+
+  def start_link(opts) do
+    opts = Keyword.merge([name: __MODULE__], opts)
+    GenServer.start_link(Phoenix.Tracker, [__MODULE__, opts, opts], name: __MODULE__)
+  end
+
+  def init(opts) do
+    server = Keyword.fetch!(opts, :pubsub_server)
+    {:ok, %{pubsub_server: server, node_name: Phoenix.PubSub.node_name(server)}}
+  end
+
+  def handle_diff(diff, state) do
+    for {topic, {joins, leaves}} &lt;- diff do
+      for {key, meta} &lt;- joins do
+        IO.puts "presence join: key \"#{key}\" with meta #{inspect meta}"
+        msg = {:join, key, meta}
+        Phoenix.PubSub.direct_broadcast!(state.node_name, state.pubsub_server, topic, msg)
+      end
+      for {key, meta} &lt;- leaves do
+        IO.puts "presence leave: key \"#{key}\" with meta #{inspect meta}"
+        msg = {:leave, key, meta}
+        Phoenix.PubSub.direct_broadcast!(state.node_name, state.pubsub_server, topic, msg)
+      end
+    end
+    {:ok, state}
+  end
+end</code></pre> <p>Trackers must implement <code>start_link/1</code>, <code>init/1</code>, and <code>handle_diff/2</code>. The <code>init/1</code> callback allows the tracker to manage its own state when running within the <a href="../phoenix.tracker/#content"><code>Phoenix.Tracker</code></a> server. The <code>handle_diff</code> callback is invoked with a diff of presence join and leave events, grouped by topic. As replicas heartbeat and replicate data, the local tracker state is merged with the remote data, and the diff is sent to the callback. The handler can use this information to notify subscribers of events, as done above.</p> <h2 id="special-considerations">Special Considerations</h2> <p>Operations within <code>handle_diff/2</code> happen <em>in the tracker server's context</em>. Therefore, blocking operations should be avoided when possible, and offloaded to a supervised task when required. Also, a crash in the <code>handle_diff/2</code> will crash the tracker server, so operations that may crash the server should be offloaded with a <code>Task.Supervisor</code> spawned process.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:presence/0">presence()</a> </dt>   <dt class="summary-signature"> <a href="#t:topic/0">topic()</a> </dt>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#graceful_permdown/1">graceful_permdown(server_name)</a> </dt> <dd class="summary-synopsis">
+<p>Gracefully shuts down by broadcasting permdown to all replicas</p> </dd>   <dt class="summary-signature"> <a href="#list/2">list(server_name, topic)</a> </dt> <dd class="summary-synopsis">
+<p>Lists all presences tracked under a given topic</p> </dd>   <dt class="summary-signature"> <a href="#start_link/3">start_link(tracker, tracker_opts, server_opts)</a> </dt>   <dt class="summary-signature"> <a href="#track/5">track(server_name, pid, topic, key, meta)</a> </dt> <dd class="summary-synopsis">
+<p>Tracks a presence</p> </dd>   <dt class="summary-signature"> <a href="#untrack/2">untrack(server_name, pid)</a> </dt>   <dt class="summary-signature"> <a href="#untrack/4">untrack(server_name, pid, topic, key)</a> </dt> <dd class="summary-synopsis">
+<p>Untracks a presence</p> </dd>   <dt class="summary-signature"> <a href="#update/5">update(server_name, pid, topic, key, meta)</a> </dt> <dd class="summary-synopsis">
+<p>Updates a presence's metadata</p> </dd>   <dt class="summary-signature"> <a href="#validate_down_period/2">validate_down_period(d_period, b_period)</a> </dt>   <dt class="summary-signature"> <a href="#validate_permdown_period/2">validate_permdown_period(p_period, d_period)</a> </dt>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:handle_diff/2">handle_diff(%{}, state)</a> </dt>   <dt class="summary-signature"> <a href="#c:init/1">init(arg0)</a> </dt>  </dl>   <h1 class="section-heading" id="types">  Types </h1>  <div id="t:presence/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:presence/0">presence</a> :: {key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta :: <a href="http://elixir-lang.org/docs/stable/elixir/Map.html#t:t/0" target="_blank">Map.t</a>}</code></pre> </div> <div id="t:topic/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:topic/0">topic</a> :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a></code></pre> </div>    <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="graceful_permdown/1">  <span class="signature">graceful_permdown(server_name)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">graceful_permdown(atom) :: :ok</code></pre>    <p>Gracefully shuts down by broadcasting permdown to all replicas.</p> <h4 id="examples">Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Phoenix.Tracker.graceful_permdown(MyTracker)
+:ok</code></pre>    <h3 class="detail-header function" id="list/2">  <span class="signature">list(server_name, topic)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">list(atom, <a href="#t:topic/0">topic</a>) :: [<a href="#t:presence/0">presence</a>]</code></pre>    <p>Lists all presences tracked under a given topic.</p> <ul> <li>
+<code>server_name</code> - The registered name of the tracker server</li> <li>
+<code>topic</code> - The <a href="../phoenix.pubsub/"><code>Phoenix.PubSub</code></a> topic to update for this presence</li> </ul> <p>Returns a lists of presences in key/metadata tuple pairs.</p> <h4 id="examples">Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Phoenix.Tracker.list(MyTracker, "lobby")
+[{123, %{name: "user 123"}}, {456, %{name: "user 456"}}]</code></pre>    <h3 class="detail-header function" id="start_link/3">  <span class="signature">start_link(tracker, tracker_opts, server_opts)</span> </h3>     <h3 class="detail-header function" id="track/5">  <span class="signature">track(server_name, pid, topic, key, meta)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">track(atom, pid, <a href="#t:topic/0">topic</a>, term, <a href="http://elixir-lang.org/docs/stable/elixir/Map.html#t:t/0" target="_blank">Map.t</a>) ::
+  {:ok, ref :: binary} |
+  {:error, reason :: term}</code></pre>    <p>Tracks a presence.</p> <ul> <li>
+<code>server_name</code> - The registered name of the tracker server</li> <li>
+<code>pid</code> - The Pid to track</li> <li>
+<code>topic</code> - The <a href="../phoenix.pubsub/"><code>Phoenix.PubSub</code></a> topic for this presence</li> <li>
+<code>key</code> - The key identifying this presence</li> <li>
+<code>meta</code> - The map of metadata to attach to this presence</li> </ul> <p>A process may be tracked multipled times, provided the topic and key pair are unique for any prior calls for the given process.</p> <h4 id="examples">Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Phoenix.Tracker.track(MyTracker, self(), "lobby", u.id, %{stat: "away"})
+{:ok, "1WpAofWYIAA="}
+
+iex&gt; Phoenix.Tracker.track(MyTracker, self(), "lobby", u.id, %{stat: "away"})
+{:error, {:already_tracked, #PID&lt;0.56.0&gt;, "lobby", "123"}}</code></pre>    <h3 class="detail-header function" id="untrack/2">  <span class="signature">untrack(server_name, pid)</span> </h3>     <h3 class="detail-header function" id="untrack/4">  <span class="signature">untrack(server_name, pid, topic, key)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">untrack(atom, pid, <a href="#t:topic/0">topic</a>, term) :: :ok</code></pre>    <p>Untracks a presence.</p> <ul> <li>
+<code>server_name</code> - The registered name of the tracker server</li> <li>
+<code>pid</code> - The Pid to untrack</li> <li>
+<code>topic</code> - The <a href="../phoenix.pubsub/"><code>Phoenix.PubSub</code></a> topic to untrack for this presence</li> <li>
+<code>key</code> - The key identifying this presence</li> </ul> <p>All presences for a given Pid can be untracked by calling the <a href="../phoenix.tracker/#untrack/2"><code>Phoenix.Tracker.untrack/2</code></a> signature of this function.</p> <h4 id="examples">Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Phoenix.Tracker.untrack(MyTracker, self, "lobby", u.id)
+:ok
+iex&gt; Phoenix.Tracker.untrack(MyTracker, self)
+:ok</code></pre>    <h3 class="detail-header function" id="update/5">  <span class="signature">update(server_name, pid, topic, key, meta)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">update(atom, pid, <a href="#t:topic/0">topic</a>, term, <a href="http://elixir-lang.org/docs/stable/elixir/Map.html#t:t/0" target="_blank">Map.t</a> | (<a href="http://elixir-lang.org/docs/stable/elixir/Map.html#t:t/0" target="_blank">Map.t</a> -&gt; <a href="http://elixir-lang.org/docs/stable/elixir/Map.html#t:t/0" target="_blank">Map.t</a>)) ::
+  {:ok, ref :: binary} |
+  {:error, reason :: term}</code></pre>    <p>Updates a presence's metadata.</p> <ul> <li>
+<code>server_name</code> - The registered name of the tracker server</li> <li>
+<code>pid</code> - The Pid being tracked</li> <li>
+<code>topic</code> - The <a href="../phoenix.pubsub/"><code>Phoenix.PubSub</code></a> topic to update for this presence</li> <li>
+<code>key</code> - The key identifying this presence</li> </ul> <h4 id="examples">Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Phoenix.Tracker.update(MyTracker, self, "lobby", u.id, %{stat: "zzz"})
+{:ok, "1WpAofWYIAA="}
+
+iex&gt; Phoenix.Tracker.update(MyTracker, self, "lobby", u.id, fn meta -&gt; Map.put(meta, :away, true) end)
+{:ok, "1WpAofWYIAA="}</code></pre>    <h3 class="detail-header function" id="validate_down_period/2">  <span class="signature">validate_down_period(d_period, b_period)</span> </h3>     <h3 class="detail-header function" id="validate_permdown_period/2">  <span class="signature">validate_permdown_period(p_period, d_period)</span> </h3>      <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:handle_diff/2">  <span class="signature">handle_diff(%{}, state)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">handle_diff(%{optional(<a href="#t:topic/0">topic</a>) =&gt; {joins :: [<a href="#t:presence/0">presence</a>], leaves :: [<a href="#t:presence/0">presence</a>]}}, state :: term) :: {:ok, state :: term}</code></pre>       <h3 class="detail-header callback" id="c:init/1">  <span class="signature">init(arg0)</span> </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">init(<a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) ::
+  {:ok, pid} |
+  {:error, reason :: term}</code></pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix_pubsub/Phoenix.Tracker.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix_pubsub/Phoenix.Tracker.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

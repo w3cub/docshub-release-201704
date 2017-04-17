@@ -1,0 +1,275 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ecto.Type - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Defines functions and the Ecto.Type behaviour for implementing custom types. ">
+  <meta name="keywords" content="ecto, type, summary, types, functions, callbacks, -, phoenix">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/ecto/ecto.type/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Ecto.Type <small>behaviour</small>  </h1>  <p>Defines functions and the <a href="../ecto.type/#content"><code class="inline">Ecto.Type</code></a> behaviour for implementing custom types.</p> <p>A custom type expects 4 functions to be implemented, all documented and described below. We also provide two examples of how custom types can be used in Ecto to augment existing types or providing your own types.</p> <h2 id="module-augmenting-types" class="section-heading">  Augmenting types </h2> <p>Imagine you want to support your id field to be looked up as a permalink. For example, you want the following query to work:</p> <pre data-language="elixir"><code class="elixir">permalink = "10-how-to-be-productive-with-elixir"
+from p in Post, where: p.id == ^permalink</code></pre> <p>If <code class="inline">id</code> is an integer field, Ecto will fail in the query above because it cannot cast the string to an integer. By using a custom type, we can provide special casting behaviour while still keeping the underlying Ecto type the same:</p> <pre data-language="elixir"><code class="elixir">defmodule Permalink do
+  @behaviour Ecto.Type
+  def type, do: :integer
+
+  # Provide our own casting rules.
+  def cast(string) when is_binary(string) do
+    case Integer.parse(string) do
+      {int, _} -&gt; {:ok, int}
+      :error   -&gt; :error
+    end
+  end
+
+  # We should still accept integers
+  def cast(integer) when is_integer(integer), do: {:ok, integer}
+
+  # Everything else is a failure though
+  def cast(_), do: :error
+
+  # When loading data from the database, we are guaranteed to
+  # receive an integer (as databases are strict) and we will
+  # just return it to be stored in the schema struct.
+  def load(integer) when is_integer(integer), do: {:ok, integer}
+
+  # When dumping data to the database, we *expect* an integer
+  # but any value could be inserted into the struct, so we need
+  # guard against them.
+  def dump(integer) when is_integer(integer), do: {:ok, integer}
+  def dump(_), do: :error
+end</code></pre> <p>Now we can use our new field above as our primary key type in schemas:</p> <pre data-language="elixir"><code class="elixir">defmodule Post do
+  use Ecto.Schema
+
+  @primary_key {:id, Permalink, autogenerate: true}
+  schema "posts" do
+    ...
+  end
+end</code></pre> <h2 id="module-new-types" class="section-heading">  New types </h2> <p>In the previous example, we say we were augmenting an existing type because we were keeping the underlying representation the same, the value stored in the struct and the database was always an integer.</p> <p>Ecto types also allow developers to dump and load new types. In order for this to work, callbacks should take care of encoding your custom Ecto type into its DB representation, as well as decoding it from the DB back into the Ecto type. Each callback should behave as follows:</p> <ul> <li>
+<code class="inline">type</code> should output the name of the DB type </li> <li>
+<code class="inline">cast</code> should receive any type and output your custom Ecto type </li> <li>
+<code class="inline">load</code> should receive the DB type and output your custom Ecto type </li> <li>
+<code class="inline">dump</code> should receive your custom Ecto type and output the DB type </li> </ul> <p><a href="../ecto.datetime/"><code class="inline">Ecto.DateTime</code></a> is an example of a custom type. Developers often use <a href="../ecto.datetime/"><code class="inline">Ecto.DateTime</code></a> in their schemas and Ecto takes care of converting between types whenever the schema information is available. Developers may also implement <a href="../ecto.datatype/"><code class="inline">Ecto.DataType</code></a> for <a href="../ecto.datetime/"><code class="inline">Ecto.DateTime</code></a>, allowing <a href="../ecto.datetime/"><code class="inline">Ecto.DateTime</code></a> to behave as the database <code class="inline">:datetime</code> even in the absence of schema information.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:custom/0">custom()</a> </dt> <dd class="summary-synopsis">
+<p>Custom types are represented by user-defined modules</p> </dd>   <dt class="summary-signature"> <a href="#t:primitive/0">primitive()</a> </dt> <dd class="summary-synopsis">
+<p>Primitive Ecto types (handled by Ecto)</p> </dd>   <dt class="summary-signature"> <a href="#t:t/0">t()</a> </dt> <dd class="summary-synopsis">
+<p>An Ecto type, primitive or custom</p> </dd>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#base?/1">base?(atom)</a> </dt> <dd class="summary-synopsis">
+<p>Checks if the given atom can be used as base type</p> </dd>   <dt class="summary-signature"> <a href="#cast/2">cast(type, value)</a> </dt> <dd class="summary-synopsis">
+<p>Casts a value to the given type</p> </dd>   <dt class="summary-signature"> <a href="#composite?/1">composite?(atom)</a> </dt> <dd class="summary-synopsis">
+<p>Checks if the given atom can be used as composite type</p> </dd>   <dt class="summary-signature"> <a href="#dump/3">dump(type, value, dumper \\ &amp;dump/2)</a> </dt> <dd class="summary-synopsis">
+<p>Dumps a value to the given type</p> </dd>   <dt class="summary-signature"> <a href="#load/3">load(type, value, loader \\ &amp;load/2)</a> </dt> <dd class="summary-synopsis">
+<p>Loads a value with the given type</p> </dd>   <dt class="summary-signature"> <a href="#match?/2">match?(schema_type, query_type)</a> </dt> <dd class="summary-synopsis">
+<p>Checks if a given type matches with a primitive type that can be found in queries</p> </dd>   <dt class="summary-signature"> <a href="#primitive?/1">primitive?(base)</a> </dt> <dd class="summary-synopsis">
+<p>Checks if we have a primitive type</p> </dd>   <dt class="summary-signature"> <a href="#type/1">type(type)</a> </dt> <dd class="summary-synopsis">
+<p>Retrieves the underlying schema type for the given, possibly custom, type</p> </dd>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:cast/1">cast(term)</a> </dt> <dd class="summary-synopsis">
+<p>Casts the given input to the custom type</p> </dd>   <dt class="summary-signature"> <a href="#c:dump/1">dump(term)</a> </dt> <dd class="summary-synopsis">
+<p>Dumps the given term into an Ecto native type</p> </dd>   <dt class="summary-signature"> <a href="#c:load/1">load(term)</a> </dt> <dd class="summary-synopsis">
+<p>Loads the given term into a custom type</p> </dd>   <dt class="summary-signature"> <a href="#c:type/0">type()</a> </dt> <dd class="summary-synopsis">
+<p>Returns the underlying schema type for the custom type</p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>  <div id="t:custom/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:custom/0">custom</a> :: atom</code></pre> <p>Custom types are represented by user-defined modules.</p>  </div> <div id="t:primitive/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:primitive/0">primitive</a> :: base | composite</code></pre> <p>Primitive Ecto types (handled by Ecto).</p>  </div> <div id="t:t/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:t/0">t</a> :: <a href="#t:primitive/0">primitive</a> | <a href="#t:custom/0">custom</a></code></pre> <p>An Ecto type, primitive or custom.</p>  </div>    <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="base?/1">  <span class="signature">base?(atom)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">base?(atom) :: boolean</code></pre>    <p>Checks if the given atom can be used as base type.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; base?(:string)
+true
+iex&gt; base?(:array)
+false
+iex&gt; base?(Custom)
+false</code></pre>    <h3 class="detail-header function" id="cast/2">  <span class="signature">cast(type, value)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">cast(<a href="#t:t/0">t</a>, term) :: {:ok, term} | :error</code></pre>    <p>Casts a value to the given type.</p> <p><a href="#cast/2"><code class="inline">cast/2</code></a> is used by the finder queries and changesets to cast outside values to specific types.</p> <p>Note that nil can be cast to all primitive types as data stores allow nil to be set on any column.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; cast(:any, "whatever")
+{:ok, "whatever"}
+
+iex&gt; cast(:any, nil)
+{:ok, nil}
+iex&gt; cast(:string, nil)
+{:ok, nil}
+
+iex&gt; cast(:integer, 1)
+{:ok, 1}
+iex&gt; cast(:integer, "1")
+{:ok, 1}
+iex&gt; cast(:integer, "1.0")
+:error
+
+iex&gt; cast(:id, 1)
+{:ok, 1}
+iex&gt; cast(:id, "1")
+{:ok, 1}
+iex&gt; cast(:id, "1.0")
+:error
+
+iex&gt; cast(:float, 1.0)
+{:ok, 1.0}
+iex&gt; cast(:float, 1)
+{:ok, 1.0}
+iex&gt; cast(:float, "1")
+{:ok, 1.0}
+iex&gt; cast(:float, "1.0")
+{:ok, 1.0}
+iex&gt; cast(:float, "1-foo")
+:error
+
+iex&gt; cast(:boolean, true)
+{:ok, true}
+iex&gt; cast(:boolean, false)
+{:ok, false}
+iex&gt; cast(:boolean, "1")
+{:ok, true}
+iex&gt; cast(:boolean, "0")
+{:ok, false}
+iex&gt; cast(:boolean, "whatever")
+:error
+
+iex&gt; cast(:string, "beef")
+{:ok, "beef"}
+iex&gt; cast(:binary, "beef")
+{:ok, "beef"}
+
+iex&gt; cast(:decimal, Decimal.new(1.0))
+{:ok, Decimal.new(1.0)}
+iex&gt; cast(:decimal, Decimal.new("1.0"))
+{:ok, Decimal.new(1.0)}
+
+iex&gt; cast({:array, :integer}, [1, 2, 3])
+{:ok, [1, 2, 3]}
+iex&gt; cast({:array, :integer}, ["1", "2", "3"])
+{:ok, [1, 2, 3]}
+iex&gt; cast({:array, :string}, [1, 2, 3])
+:error
+iex&gt; cast(:string, [1, 2, 3])
+:error</code></pre>    <h3 class="detail-header function" id="composite?/1">  <span class="signature">composite?(atom)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">composite?(atom) :: boolean</code></pre>    <p>Checks if the given atom can be used as composite type.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; composite?(:array)
+true
+iex&gt; composite?(:string)
+false</code></pre>    <h3 class="detail-header function" id="dump/3">  <span class="signature">dump(type, value, dumper \\ &amp;dump/2)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">dump(<a href="#t:t/0">t</a>, term, (<a href="#t:t/0">t</a>, term -&gt; {:ok, term} | :error)) ::
+  {:ok, term} |
+  :error</code></pre>    <p>Dumps a value to the given type.</p> <p>Opposite to casting, dumping requires the returned value to be a valid Ecto type, as it will be sent to the underlying data store.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; dump(:string, nil)
+{:ok, nil}
+iex&gt; dump(:string, "foo")
+{:ok, "foo"}
+
+iex&gt; dump(:integer, 1)
+{:ok, 1}
+iex&gt; dump(:integer, "10")
+:error
+
+iex&gt; dump(:binary, "foo")
+{:ok, "foo"}
+iex&gt; dump(:binary, 1)
+:error
+
+iex&gt; dump({:array, :integer}, [1, 2, 3])
+{:ok, [1, 2, 3]}
+iex&gt; dump({:array, :integer}, [1, "2", 3])
+:error
+iex&gt; dump({:array, :binary}, ["1", "2", "3"])
+{:ok, ["1", "2", "3"]}</code></pre> <p>A <code class="inline">dumper</code> function may be given for handling recursive types.</p>    <h3 class="detail-header function" id="load/3">  <span class="signature">load(type, value, loader \\ &amp;load/2)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">load(<a href="#t:t/0">t</a>, term, (<a href="#t:t/0">t</a>, term -&gt; {:ok, term} | :error)) ::
+  {:ok, term} |
+  :error</code></pre>    <p>Loads a value with the given type.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; load(:string, nil)
+{:ok, nil}
+iex&gt; load(:string, "foo")
+{:ok, "foo"}
+
+iex&gt; load(:integer, 1)
+{:ok, 1}
+iex&gt; load(:integer, "10")
+:error</code></pre> <p>A <code class="inline">loader</code> function may be given for handling recursive types.</p>    <h3 class="detail-header function" id="match?/2">  <span class="signature">match?(schema_type, query_type)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">match?(<a href="#t:t/0">t</a>, <a href="#t:primitive/0">primitive</a>) :: boolean</code></pre>    <p>Checks if a given type matches with a primitive type that can be found in queries.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; match?(:string, :any)
+true
+iex&gt; match?(:any, :string)
+true
+iex&gt; match?(:string, :string)
+true
+
+iex&gt; match?({:array, :string}, {:array, :any})
+true
+
+iex&gt; match?(Ecto.DateTime, :datetime)
+true
+iex&gt; match?(Ecto.DateTime, :string)
+false</code></pre>    <h3 class="detail-header function" id="primitive?/1">  <span class="signature">primitive?(base)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">primitive?(<a href="#t:t/0">t</a>) :: boolean</code></pre>    <p>Checks if we have a primitive type.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; primitive?(:string)
+true
+iex&gt; primitive?(Another)
+false
+
+iex&gt; primitive?({:array, :string})
+true
+iex&gt; primitive?({:array, Another})
+true</code></pre>    <h3 class="detail-header function" id="type/1">  <span class="signature">type(type)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">type(<a href="#t:t/0">t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Retrieves the underlying schema type for the given, possibly custom, type.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; type(:string)
+:string
+iex&gt; type(Ecto.DateTime)
+:datetime
+
+iex&gt; type({:array, :string})
+{:array, :string}
+iex&gt; type({:array, Ecto.DateTime})
+{:array, :datetime}
+
+iex&gt; type({:map, Ecto.DateTime})
+{:map, :datetime}</code></pre>     <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:cast/1">  <span class="signature">cast(term)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">cast(term) :: {:ok, term} | :error</code></pre>    <p>Casts the given input to the custom type.</p> <p>This callback is called on external input and can return any type, as long as the <code class="inline">dump/1</code> function is able to convert the returned value back into an Ecto native type. There are two situations where this callback is called:</p> <ol> <li>When casting values by <a href="../ecto.changeset/"><code class="inline">Ecto.Changeset</code></a> </li> <li>When passing arguments to <a href="../ecto.query/"><code class="inline">Ecto.Query</code></a> </li> </ol>    <h3 class="detail-header callback" id="c:dump/1">  <span class="signature">dump(term)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">dump(term) :: {:ok, term} | :error</code></pre>    <p>Dumps the given term into an Ecto native type.</p> <p>This callback is called with any term that was stored in the struct and it needs to validate them and convert it to an Ecto native type.</p>    <h3 class="detail-header callback" id="c:load/1">  <span class="signature">load(term)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">load(term) :: {:ok, term} | :error</code></pre>    <p>Loads the given term into a custom type.</p> <p>This callback is called when loading data from the database and receive an Ecto native type. It can return any type, as long as the <code class="inline">dump/1</code> function is able to convert the returned value back into an Ecto native type.</p>    <h3 class="detail-header callback" id="c:type/0">  <span class="signature">type()</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">type :: <a href="#t:t/0">t</a></code></pre>    <p>Returns the underlying schema type for the custom type.</p> <p>For example, if you want to provide your own datetime structures, the type function should return <code class="inline">:datetime</code>.</p> <p>Note this function is not required to return Ecto primitive types, the type is only required to be known by the adapter.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/ecto/Ecto.Type.html" class="_attribution-link" target="_blank">https://hexdocs.pm/ecto/Ecto.Type.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

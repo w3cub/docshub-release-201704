@@ -1,0 +1,239 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.Controller - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Controllers are used to group common functionality in the same (pluggable) module. ">
+  <meta name="keywords" content="phoenix, controller, summary, functions, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix/phoenix.controller/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.Controller  </h1>  <p>Controllers are used to group common functionality in the same (pluggable) module.</p> <p>For example, the route:</p> <pre data-language="elixir"><code class="elixir">get "/users/:id", MyApp.UserController, :show</code></pre> <p>will invoke the <code class="inline">show/2</code> action in the <code class="inline">MyApp.UserController</code>:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.UserController do
+  use MyApp.Web, :controller
+
+  def show(conn, %{"id" =&gt; id}) do
+    user = Repo.get(User, id)
+    render conn, "show.html", user: user
+  end
+end</code></pre> <p>An action is just a regular function that receives the connection and the request parameters as arguments. The connection is a <code class="inline">Plug.Conn</code> struct, as specified by the Plug library.</p> <h2>Connection</h2> <p>A controller by default provides many convenience functions for manipulating the connection, rendering templates, and more.</p> <p>Those functions are imported from two modules:</p> <ul> <li>
+<p><code class="inline">Plug.Conn</code> - a bunch of low-level functions to work with the connection</p> </li> <li>
+<a href="../phoenix.controller/#content"><code class="inline">Phoenix.Controller</code></a> - functions provided by Phoenix to support rendering, and other Phoenix specific behaviour </li> </ul> <h2>Rendering and layouts</h2> <p>One of the main features provided by controllers is the ability to do content negotiation and render templates based on information sent by the client. Read <a href="#render/3"><code class="inline">render/3</code></a> to learn more.</p> <p>It is also important to not confuse <a href="../phoenix.controller/#render/3"><code class="inline">Phoenix.Controller.render/3</code></a> with <a href="../phoenix.view/#render/3"><code class="inline">Phoenix.View.render/3</code></a> in the long term. The former expects a connection and relies on content negotiation while the latter is connection-agnostic and typically invoked from your views.</p> <h2>Plug pipeline</h2> <p>As with routers, controllers also have their own plug pipeline. However, different from routers, controllers have a single pipeline:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.UserController do
+  use MyApp.Web, :controller
+
+  plug :authenticate, usernames: ["jose", "eric", "sonny"]
+
+  def show(conn, params) do
+    # authenticated users only
+  end
+
+  defp authenticate(conn, options) do
+    if get_session(conn, :username) in options[:usernames] do
+      conn
+    else
+      conn |&gt; redirect(to: "/") |&gt; halt()
+    end
+  end
+end</code></pre> <p>Check <a href="../phoenix.controller.pipeline/"><code class="inline">Phoenix.Controller.Pipeline</code></a> for more information on <code class="inline">plug/2</code> and how to customize the plug pipeline.</p> <h2>Options</h2> <p>When used, the controller supports the following options:</p> <ul> <li>
+<p><code class="inline">:namespace</code> - sets the namespace to properly inflect the layout view. By default it uses the base alias in your controller name</p> </li> <li>
+<code class="inline">:log</code> - the level to log. When false, disables controller logging </li> </ul> <h2>Overriding <code class="inline">action/2</code> for custom arguments</h2> <p>Phoenix injects an <code class="inline">action/2</code> plug in your controller which calls the function matched from the router. By default, it passes the conn and params. In some cases, overriding the <code class="inline">action/2</code> plug in your controller is a useful way to inject certain argument to your actions that you would otherwise need to fetch off the connection repeatedly. For example, imagine if you stored a <code class="inline">conn.assigns.current_user</code> in the connection and wanted quick access to the user for every action in your controller:</p> <pre data-language="elixir"><code class="elixir">def action(conn, _) do
+  apply(__MODULE__, action_name(conn), [conn,
+                                        conn.params,
+                                        conn.assigns.current_user])
+end
+
+def index(conn, _params, user) do
+  videos = Repo.all(user_videos(user))
+  # ...
+end
+
+def delete(conn, %{"id" =&gt; id}, user) do
+  video = Repo.get!(user_videos(user), id)
+  # ...
+end</code></pre>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#accepts/2">accepts(conn, accepted)</a> </dt> <dd class="summary-synopsis">
+<p>Performs content negotiation based on the available formats</p> </dd>   <dt class="summary-signature"> <a href="#action_name/1">action_name(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the action name as an atom, raises if unavailable</p> </dd>   <dt class="summary-signature"> <a href="#allow_jsonp/2">allow_jsonp(conn, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>A plug that may convert a JSON response into a JSONP one</p> </dd>   <dt class="summary-signature"> <a href="#clear_flash/1">clear_flash(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Clears all flash messages</p> </dd>   <dt class="summary-signature"> <a href="#controller_module/1">controller_module(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the controller module as an atom, raises if unavailable</p> </dd>   <dt class="summary-signature"> <a href="#delete_csrf_token/0">delete_csrf_token()</a> </dt> <dd class="summary-synopsis">
+<p>Deletes any CSRF token set</p> </dd>   <dt class="summary-signature"> <a href="#endpoint_module/1">endpoint_module(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the endpoint module as an atom, raises if unavailable</p> </dd>   <dt class="summary-signature"> <a href="#fetch_flash/2">fetch_flash(conn, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Fetches the flash storage</p> </dd>   <dt class="summary-signature"> <a href="#get_csrf_token/0">get_csrf_token()</a> </dt> <dd class="summary-synopsis">
+<p>Gets the CSRF token</p> </dd>   <dt class="summary-signature"> <a href="#get_flash/1">get_flash(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns a previously set flash message or nil</p> </dd>   <dt class="summary-signature"> <a href="#get_flash/2">get_flash(conn, key)</a> </dt> <dd class="summary-synopsis">
+<p>Returns a message from flash by key</p> </dd>   <dt class="summary-signature"> <a href="#get_format/1">get_format(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the request format, such as “json”, “html”</p> </dd>   <dt class="summary-signature"> <a href="#html/2">html(conn, data)</a> </dt> <dd class="summary-synopsis">
+<p>Sends html response</p> </dd>   <dt class="summary-signature"> <a href="#json/2">json(conn, data)</a> </dt> <dd class="summary-synopsis">
+<p>Sends JSON response</p> </dd>   <dt class="summary-signature"> <a href="#layout/1">layout(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Retrieves the current layout</p> </dd>   <dt class="summary-signature"> <a href="#layout_formats/1">layout_formats(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Retrieves current layout formats</p> </dd>   <dt class="summary-signature"> <a href="#protect_from_forgery/2">protect_from_forgery(conn, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Enables CSRF protection</p> </dd>   <dt class="summary-signature"> <a href="#put_flash/3">put_flash(conn, key, message)</a> </dt> <dd class="summary-synopsis">
+<p>Persists a value in flash</p> </dd>   <dt class="summary-signature"> <a href="#put_format/2">put_format(conn, format)</a> </dt> <dd class="summary-synopsis">
+<p>Puts the format in the connection</p> </dd>   <dt class="summary-signature"> <a href="#put_layout/2">put_layout(conn, layout)</a> </dt> <dd class="summary-synopsis">
+<p>Stores the layout for rendering</p> </dd>   <dt class="summary-signature"> <a href="#put_layout_formats/2">put_layout_formats(conn, formats)</a> </dt> <dd class="summary-synopsis">
+<p>Sets which formats have a layout when rendering</p> </dd>   <dt class="summary-signature"> <a href="#put_new_layout/2">put_new_layout(conn, layout)</a> </dt> <dd class="summary-synopsis">
+<p>Stores the layout for rendering if one was not stored yet</p> </dd>   <dt class="summary-signature"> <a href="#put_new_view/2">put_new_view(conn, module)</a> </dt> <dd class="summary-synopsis">
+<p>Stores the view for rendering if one was not stored yet</p> </dd>   <dt class="summary-signature"> <a href="#put_secure_browser_headers/2">put_secure_browser_headers(conn, headers \\ %{})</a> </dt> <dd class="summary-synopsis">
+<p>Put headers that improve browser security</p> </dd>   <dt class="summary-signature"> <a href="#put_view/2">put_view(conn, module)</a> </dt> <dd class="summary-synopsis">
+<p>Stores the view for rendering</p> </dd>   <dt class="summary-signature"> <a href="#redirect/2">redirect(conn, opts)</a> </dt> <dd class="summary-synopsis">
+<p>Sends redirect response to the given url</p> </dd>   <dt class="summary-signature"> <a href="#render/2">render(conn, template_or_assigns \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Render the given template or the default template specified by the current action with the given assigns</p> </dd>   <dt class="summary-signature"> <a href="#render/3">render(conn, template, assigns)</a> </dt> <dd class="summary-synopsis">
+<p>Renders the given <code class="inline">template</code> and <code class="inline">assigns</code> based on the <code class="inline">conn</code> information</p> </dd>   <dt class="summary-signature"> <a href="#render/4">render(conn, view, template, assigns)</a> </dt> <dd class="summary-synopsis">
+<p>A shortcut that renders the given template in the given view</p> </dd>   <dt class="summary-signature"> <a href="#router_module/1">router_module(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the router module as an atom, raises if unavailable</p> </dd>   <dt class="summary-signature"> <a href="#scrub_params/2">scrub_params(conn, required_key)</a> </dt> <dd class="summary-synopsis">
+<p>Scrubs the parameters from the request</p> </dd>   <dt class="summary-signature"> <a href="#text/2">text(conn, data)</a> </dt> <dd class="summary-synopsis">
+<p>Sends text response</p> </dd>   <dt class="summary-signature"> <a href="#view_module/1">view_module(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Retrieves the current view</p> </dd>   <dt class="summary-signature"> <a href="#view_template/1">view_template(conn)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the template name rendered in the view as a string (or nil if no template was rendered)</p> </dd>  </dl>   <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="accepts/2">  <span class="signature">accepts(conn, accepted)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">accepts(Plug.Conn.t, [binary]) ::
+  Plug.Conn.t |
+  no_return</code></pre>    <p>Performs content negotiation based on the available formats.</p> <p>It receives a connection, a list of formats that the server is capable of rendering and then proceeds to perform content negotiation based on the request information. If the client accepts any of the given formats, the request proceeds.</p> <p>If the request contains a “_format” parameter, it is considered to be the format desired by the client. If no “_format” parameter is available, this function will parse the “accept” header and find a matching format accordingly.</p> <p>It is important to notice that browsers have historically sent bad accept headers. For this reason, this function will default to “html” format whenever:</p> <ul> <li>
+<p>the accepted list of arguments contains the “html” format</p> </li> <li>the accept header specified more than one media type preceeded or followed by the wildcard media type “<code class="inline">*/*</code>” </li> </ul> <p>This function raises <a href="../phoenix.notacceptableerror/"><code class="inline">Phoenix.NotAcceptableError</code></a>, which is rendered with status 406, whenever the server cannot serve a response in any of the formats expected by the client.</p> <h4>Examples</h4> <p><a href="#accepts/2"><code class="inline">accepts/2</code></a> can be invoked as a function:</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; accepts(conn, ["html", "json"])</code></pre> <p>or used as a plug:</p> <pre data-language="elixir"><code class="elixir">plug :accepts, ["html", "json"]
+plug :accepts, ~w(html json)</code></pre> <h4>Custom media types</h4> <p>It is possible to add custom media types to your Phoenix application. The first step is to teach Plug about those new media types in your <code class="inline">config/config.exs</code> file:</p> <pre data-language="elixir"><code class="elixir">config :plug, :mimes, %{
+  "application/vnd.api+json" =&gt; ["json-api"]
+}</code></pre> <p>The key is the media type, the value is a list of formats the media type can be identified with. For example, by using “json-api”, you will be able to use templates with extension “index.json-api” or to force a particular format in a given URL by sending “?_format=json-api”.</p> <p>After this change, you must recompile plug:</p> <pre data-language="elixir"><code class="elixir">$ touch deps/plug/mix.exs
+$ mix deps.compile plug</code></pre> <p>And now you can use it in accepts too:</p> <pre data-language="elixir"><code class="elixir">plug :accepts, ["html", "json-api"]</code></pre>    <h3 class="detail-header function" id="action_name/1">  <span class="signature">action_name(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">action_name(Plug.Conn.t) :: atom</code></pre>    <p>Returns the action name as an atom, raises if unavailable.</p>    <h3 class="detail-header function" id="allow_jsonp/2">  <span class="signature">allow_jsonp(conn, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">allow_jsonp(Plug.Conn.t, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: Plug.Conn.t</code></pre>    <p>A plug that may convert a JSON response into a JSONP one.</p> <p>In case a JSON response is returned, it will be converted to a JSONP as long as the callback field is present in the query string. The callback field itself defaults to “callback” but may be configured with the callback option.</p> <p>In case there is no callback or the response is not encoded in JSON format, it is a no-op.</p> <p>Only alphanumeric characters and underscore are allowed in the callback name. Otherwise an exception is raised.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir"># Will convert JSON to JSONP if callback=someFunction is given
+plug :allow_jsonp
+
+# Will convert JSON to JSONP if cb=someFunction is given
+plug :allow_jsonp, callback: "cb"</code></pre>    <h3 class="detail-header function" id="clear_flash/1">  <span class="signature">clear_flash(conn)</span>  </h3>  <p>Clears all flash messages.</p>    <h3 class="detail-header function" id="controller_module/1">  <span class="signature">controller_module(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">controller_module(Plug.Conn.t) :: atom</code></pre>    <p>Returns the controller module as an atom, raises if unavailable.</p>    <h3 class="detail-header function" id="delete_csrf_token/0">  <span class="signature">delete_csrf_token()</span>  </h3>  <p>Deletes any CSRF token set.</p>    <h3 class="detail-header function" id="endpoint_module/1">  <span class="signature">endpoint_module(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">endpoint_module(Plug.Conn.t) :: atom</code></pre>    <p>Returns the endpoint module as an atom, raises if unavailable.</p>    <h3 class="detail-header function" id="fetch_flash/2">  <span class="signature">fetch_flash(conn, opts \\ [])</span>  </h3>  <p>Fetches the flash storage.</p>    <h3 class="detail-header function" id="get_csrf_token/0">  <span class="signature">get_csrf_token()</span>  </h3>  <p>Gets the CSRF token.</p>    <h3 class="detail-header function" id="get_flash/1">  <span class="signature">get_flash(conn)</span>  </h3>  <p>Returns a previously set flash message or nil.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; conn = put_flash(conn, :info, "Welcome Back!")
+iex&gt; get_flash(conn)
+%{"info" =&gt; "Welcome Back!"}</code></pre>    <h3 class="detail-header function" id="get_flash/2">  <span class="signature">get_flash(conn, key)</span>  </h3>  <p>Returns a message from flash by key.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; conn = put_flash(conn, :info, "Welcome Back!")
+iex&gt; get_flash(conn, :info)
+"Welcome Back!"</code></pre>    <h3 class="detail-header function" id="get_format/1">  <span class="signature">get_format(conn)</span>  </h3>  <p>Returns the request format, such as “json”, “html”.</p>    <h3 class="detail-header function" id="html/2">  <span class="signature">html(conn, data)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">html(Plug.Conn.t, iodata) :: Plug.Conn.t</code></pre>    <p>Sends html response.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; html conn, "&lt;html&gt;&lt;head&gt;..."</code></pre>    <h3 class="detail-header function" id="json/2">  <span class="signature">json(conn, data)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">json(Plug.Conn.t, term) :: Plug.Conn.t</code></pre>    <p>Sends JSON response.</p> <p>It uses the configured <code class="inline">:format_encoders</code> under the <code class="inline">:phoenix</code> application for <code class="inline">:json</code> to pick up the encoder module.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; json conn, %{id: 123}</code></pre>    <h3 class="detail-header function" id="layout/1">  <span class="signature">layout(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">layout(Plug.Conn.t) :: {atom, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>} | false</code></pre>    <p>Retrieves the current layout.</p>    <h3 class="detail-header function" id="layout_formats/1">  <span class="signature">layout_formats(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">layout_formats(Plug.Conn.t) :: [<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>]</code></pre>    <p>Retrieves current layout formats.</p>    <h3 class="detail-header function" id="protect_from_forgery/2">  <span class="signature">protect_from_forgery(conn, opts \\ [])</span>  </h3>  <p>Enables CSRF protection.</p> <p>Currently used as a wrapper function for <code class="inline">Plug.CSRFProtection</code> and mainly serves as a function plug in <code class="inline">YourApp.Router</code>.</p> <p>Check <a href="#get_csrf_token/0"><code class="inline">get_csrf_token/0</code></a> and <a href="#delete_csrf_token/0"><code class="inline">delete_csrf_token/0</code></a> for retrieving and deleting CSRF tokens.</p>    <h3 class="detail-header function" id="put_flash/3">  <span class="signature">put_flash(conn, key, message)</span>  </h3>  <p>Persists a value in flash.</p> <p>Returns the updated connection.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; conn = put_flash(conn, :info, "Welcome Back!")
+iex&gt; get_flash(conn, :info)
+"Welcome Back!"</code></pre>    <h3 class="detail-header function" id="put_format/2">  <span class="signature">put_format(conn, format)</span>  </h3>  <p>Puts the format in the connection.</p> <p>See <a href="#get_format/1"><code class="inline">get_format/1</code></a> for retrieval.</p>    <h3 class="detail-header function" id="put_layout/2">  <span class="signature">put_layout(conn, layout)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_layout(Plug.Conn.t, {atom, binary | atom} | binary | false) :: Plug.Conn.t</code></pre>    <p>Stores the layout for rendering.</p> <p>The layout must be a tuple, specifying the layout view and the layout name, or false. In case a previous layout is set, <code class="inline">put_layout</code> also accepts the layout name to be given as a string or as an atom. If a string, it must contain the format. Passing an atom means the layout format will be found at rendering time, similar to the template in <a href="#render/3"><code class="inline">render/3</code></a>. It can also be set to <code class="inline">false</code>. In this case, no layout would be used.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; layout(conn)
+false
+
+iex&gt; conn = put_layout conn, {AppView, "application.html"}
+iex&gt; layout(conn)
+{AppView, "application.html"}
+
+iex&gt; conn = put_layout conn, "print.html"
+iex&gt; layout(conn)
+{AppView, "print.html"}
+
+iex&gt; conn = put_layout conn, :print
+iex&gt; layout(conn)
+{AppView, :print}</code></pre> <p>Raises <code class="inline">Plug.Conn.AlreadySentError</code> if the conn was already sent.</p>    <h3 class="detail-header function" id="put_layout_formats/2">  <span class="signature">put_layout_formats(conn, formats)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_layout_formats(Plug.Conn.t, [<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>]) :: Plug.Conn.t</code></pre>    <p>Sets which formats have a layout when rendering.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; layout_formats conn
+["html"]
+
+iex&gt; put_layout_formats conn, ["html", "mobile"]
+iex&gt; layout_formats conn
+["html", "mobile"]</code></pre> <p>Raises <code class="inline">Plug.Conn.AlreadySentError</code> if the conn was already sent.</p>    <h3 class="detail-header function" id="put_new_layout/2">  <span class="signature">put_new_layout(conn, layout)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_new_layout(Plug.Conn.t, {atom, binary | atom} | false) :: Plug.Conn.t</code></pre>    <p>Stores the layout for rendering if one was not stored yet.</p> <p>Raises <code class="inline">Plug.Conn.AlreadySentError</code> if the conn was already sent.</p>    <h3 class="detail-header function" id="put_new_view/2">  <span class="signature">put_new_view(conn, module)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_new_view(Plug.Conn.t, atom) :: Plug.Conn.t</code></pre>    <p>Stores the view for rendering if one was not stored yet.</p> <p>Raises <code class="inline">Plug.Conn.AlreadySentError</code> if the conn was already sent.</p>    <h3 class="detail-header function" id="put_secure_browser_headers/2">  <span class="signature">put_secure_browser_headers(conn, headers \\ %{})</span>  </h3>  <p>Put headers that improve browser security.</p> <p>It sets the following headers:</p> <pre data-language="elixir"><code class="elixir">* x-frame-options - set to SAMEORIGIN to avoid clickjacking
+  through iframes unless in the same origin
+* x-content-type-options - set to nosniff. This requires
+  script and style tags to be sent with proper content type
+* x-xss-protection - set to "1; mode=block" to improve XSS
+  protection on both Chrome and IE</code></pre> <p>A custom headers map may also be given to be merged with defaults.</p>    <h3 class="detail-header function" id="put_view/2">  <span class="signature">put_view(conn, module)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">put_view(Plug.Conn.t, atom) :: Plug.Conn.t</code></pre>    <p>Stores the view for rendering.</p> <p>Raises <code class="inline">Plug.Conn.AlreadySentError</code> if the conn was already sent.</p>    <h3 class="detail-header function" id="redirect/2">  <span class="signature">redirect(conn, opts)</span>  </h3>  <p>Sends redirect response to the given url.</p> <p>For security, <code class="inline">:to</code> only accepts paths. Use the <code class="inline">:external</code> option to redirect to any URL.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; redirect conn, to: "/login"
+
+iex&gt; redirect conn, external: "http://elixir-lang.org"</code></pre>    <h3 class="detail-header function" id="render/2">  <span class="signature">render(conn, template_or_assigns \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">render(Plug.Conn.t, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a> | map | binary | atom) :: Plug.Conn.t</code></pre>    <p>Render the given template or the default template specified by the current action with the given assigns.</p> <p>See <a href="#render/3"><code class="inline">render/3</code></a> for more information.</p>    <h3 class="detail-header function" id="render/3">  <span class="signature">render(conn, template, assigns)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">render(Plug.Conn.t, binary | atom, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a> | map) :: Plug.Conn.t</code></pre> <pre data-language="elixir"><code class="elixir">render(Plug.Conn.t, module, binary | atom) :: Plug.Conn.t</code></pre>    <p>Renders the given <code class="inline">template</code> and <code class="inline">assigns</code> based on the <code class="inline">conn</code> information.</p> <p>Once the template is rendered, the template format is set as the response content type (for example, an HTML template will set “text/html” as response content type) and the data is sent to the client with default status of 200.</p> <h4>Arguments</h4> <ul> <li>
+<p><code class="inline">conn</code> - the <code class="inline">Plug.Conn</code> struct</p> </li> <li>
+<p><code class="inline">template</code> - which may be an atom or a string. If an atom, like <code class="inline">:index</code>, it will render a template with the same format as the one returned by <a href="#get_format/1"><code class="inline">get_format/1</code></a>. For example, for an HTML request, it will render the “index.html” template. If the template is a string, it must contain the extension too, like “index.json”</p> </li> <li>
+<code class="inline">assigns</code> - a dictionary with the assigns to be used in the view. Those assigns are merged and have higher precedence than the connection assigns (<code class="inline">conn.assigns</code>) </li> </ul> <h4>Examples</h4> <pre data-language="elixir"><code class="elixir">defmodule MyApp.UserController do
+  use Phoenix.Controller
+
+  def show(conn, _params) do
+    render conn, "show.html", message: "Hello"
+  end
+end</code></pre> <p>The example above renders a template “show.html” from the <code class="inline">MyApp.UserView</code> and sets the response content type to “text/html”.</p> <p>In many cases, you may want the template format to be set dynamically based on the request. To do so, you can pass the template name as an atom (without the extension):</p> <pre data-language="elixir"><code class="elixir">def show(conn, _params) do
+  render conn, :show, message: "Hello"
+end</code></pre> <p>In order for the example above to work, we need to do content negotiation with the accepts plug before rendering. You can do so by adding the following to your pipeline (in the router):</p> <pre data-language="elixir"><code class="elixir">plug :accepts, ["html"]</code></pre> <h4>Views</h4> <p>By default, Controllers render templates in a view with a similar name to the controller. For example, <code class="inline">MyApp.UserController</code> will render templates inside the <code class="inline">MyApp.UserView</code>. This information can be changed any time by using <a href="#render/3"><code class="inline">render/3</code></a>, <a href="#render/4"><code class="inline">render/4</code></a> or the <a href="#put_view/2"><code class="inline">put_view/2</code></a> function:</p> <pre data-language="elixir"><code class="elixir">def show(conn, _params) do
+  render(conn, MyApp.SpecialView, :show, message: "Hello")
+end
+
+def show(conn, _params) do
+  conn
+  |&gt; put_view(MyApp.SpecialView)
+  |&gt; render(:show, message: "Hello")
+end</code></pre> <p><a href="#put_view/2"><code class="inline">put_view/2</code></a> can also be used as a plug:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.UserController do
+  use Phoenix.Controller
+
+  plug :put_view, MyApp.SpecialView
+
+  def show(conn, _params) do
+    render conn, :show, message: "Hello"
+  end
+end</code></pre> <h4>Layouts</h4> <p>Templates are often rendered inside layouts. By default, Phoenix will render layouts for html requests. For example:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.UserController do
+  use Phoenix.Controller
+
+  def show(conn, _params) do
+    render conn, "show.html", message: "Hello"
+  end
+end</code></pre> <p>will render the “show.html” template inside an “app.html” template specified in <code class="inline">MyApp.LayoutView</code>. <a href="#put_layout/2"><code class="inline">put_layout/2</code></a> can be used to change the layout, similar to how <a href="#put_view/2"><code class="inline">put_view/2</code></a> can be used to change the view.</p> <p><code class="inline">layout_formats/2</code> and <a href="#put_layout_formats/2"><code class="inline">put_layout_formats/2</code></a> can be used to configure which formats support/require layout rendering (defaults to “html” only).</p>    <h3 class="detail-header function" id="render/4">  <span class="signature">render(conn, view, template, assigns)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">render(Plug.Conn.t, atom, atom | binary, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a> | map) :: Plug.Conn.t</code></pre>    <p>A shortcut that renders the given template in the given view.</p> <p>Equivalent to:</p> <pre data-language="elixir"><code class="elixir">conn
+|&gt; put_view(view)
+|&gt; render(template, assigns)</code></pre>    <h3 class="detail-header function" id="router_module/1">  <span class="signature">router_module(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">router_module(Plug.Conn.t) :: atom</code></pre>    <p>Returns the router module as an atom, raises if unavailable.</p>    <h3 class="detail-header function" id="scrub_params/2">  <span class="signature">scrub_params(conn, required_key)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">scrub_params(Plug.Conn.t, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>) :: Plug.Conn.t</code></pre>    <p>Scrubs the parameters from the request.</p> <p>This process is two-fold:</p> <ul> <li>Checks to see if the <code class="inline">required_key</code> is present </li> <li>Changes empty parameters of <code class="inline">required_key</code> (recursively) to nils </li> </ul> <p>This function is useful to remove empty strings sent via HTML forms. If you are providing an API, there is likely no need to invoke <a href="#scrub_params/2"><code class="inline">scrub_params/2</code></a>.</p> <p>If the <code class="inline">required_key</code> is not present, it will raise <a href="../phoenix.missingparamerror/"><code class="inline">Phoenix.MissingParamError</code></a>.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; scrub_params(conn, "user")</code></pre>    <h3 class="detail-header function" id="text/2">  <span class="signature">text(conn, data)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">text(Plug.Conn.t, <a href="http://elixir-lang.org/docs/stable/elixir/String.Chars.html#t:t/0" target="_blank">String.Chars.t</a>) :: Plug.Conn.t</code></pre>    <p>Sends text response.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; text conn, "hello"
+
+iex&gt; text conn, :implements_to_string</code></pre>    <h3 class="detail-header function" id="view_module/1">  <span class="signature">view_module(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">view_module(Plug.Conn.t) :: atom</code></pre>    <p>Retrieves the current view.</p>    <h3 class="detail-header function" id="view_template/1">  <span class="signature">view_template(conn)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">view_template(Plug.Conn.t) :: binary | nil</code></pre>    <p>Returns the template name rendered in the view as a string (or nil if no template was rendered).</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix/Phoenix.Controller.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/Phoenix.Controller.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.ChannelTest - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Conveniences for testing Phoenix channels. ">
+  <meta name="keywords" content="phoenix, channeltest, summary, functions, macros, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix/phoenix.channeltest/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.ChannelTest  </h1>  <p>Conveniences for testing Phoenix channels.</p> <p>In channel tests, we interact with channels via process communication, sending and receiving messages. It is also common to subscribe to the same topic the channel subscribes to, allowing us to assert if a given message was broadcast or not.</p> <h2>Channel testing</h2> <p>To get started, define the module attribute <code class="inline">@endpoint</code> in your test case pointing to your application endpoint.</p> <p>Then you can directly create a socket and <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a> topics and channels:</p> <pre data-language="elixir"><code class="elixir">{:ok, _, socket} =
+  socket("user:id", %{some_assigns: 1})
+  |&gt; subscribe_and_join(RoomChannel, "room:lobby", %{"id" =&gt; 3})</code></pre> <p>You usually want to set the same ID and assigns your <code class="inline">UserSocket.connect/2</code> callback would set. Alternatively, you can use the <a href="#connect/2"><code class="inline">connect/2</code></a> helper to call your <code class="inline">UserSocket.connect/2</code> callback and initialize the socket with the socket id:</p> <pre data-language="elixir"><code class="elixir">{:ok, socket} = connect(UserSocket, %{"some" =&gt; "params"})
+{:ok, _, socket} = subscribe_and_join(socket, "room:lobby", %{"id" =&gt; 3})</code></pre> <p>Once called, <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a> will subscribe the current test process to the “room:lobby” topic and start a channel in another process. It returns <code class="inline">{:ok, reply, socket}</code> or <code class="inline">{:error, reply}</code>.</p> <p>Now, in the same way the channel has a socket representing communication it will push to the client. Our test has a socket representing communication to be pushed to the server.</p> <p>For example, we can use the <a href="#push/3"><code class="inline">push/3</code></a> function in the test to push messages to the channel (it will invoke <code class="inline">handle_in/3</code>):</p> <pre data-language="elixir"><code class="elixir">push socket, "my_event", %{"some" =&gt; "data"}</code></pre> <p>Similarly, we can broadcast messages from the test itself on the topic that both test and channel are subscribed to, triggering <code class="inline">handle_out/3</code> on the channel:</p> <pre data-language="elixir"><code class="elixir">broadcast_from socket, "my_event", %{"some" =&gt; "data"}</code></pre> <blockquote>
+<p>Note only <a href="#broadcast_from/3"><code class="inline">broadcast_from/3</code></a> and <a href="#broadcast_from!/3"><code class="inline">broadcast_from!/3</code></a> are available in tests to avoid broadcast messages to be resent to the test process.</p> </blockquote> <p>While the functions above are pushing data to the channel (server) we can use <a href="#assert_push/3"><code class="inline">assert_push/3</code></a> to verify the channel pushed a message to the client:</p> <pre data-language="elixir"><code class="elixir">assert_push "my_event", %{"some" =&gt; "data"}</code></pre> <p>Or even assert something was broadcast into pubsub:</p> <pre data-language="elixir"><code class="elixir">assert_broadcast "my_event", %{"some" =&gt; "data"}</code></pre> <p>Finally, every time a message is pushed to the channel, a reference is returned. We can use this reference to assert a particular reply was sent from the server:</p> <pre data-language="elixir"><code class="elixir">ref = push socket, "counter", %{}
+assert_reply ref, :ok, %{"counter" =&gt; 1}</code></pre> <h2>Checking side-effects</h2> <p>Often one may want to do side-effects inside channels, like writing to the database, and verify those side-effects during their tests.</p> <p>Imagine the following <code class="inline">handle_in/3</code> inside a channel:</p> <pre data-language="elixir"><code class="elixir">def handle_in("publish", %{"id" =&gt; id}, socket) do
+  Repo.get!(Post, id) |&gt; Post.publish() |&gt; Repo.update!()
+  {:noreply, socket}
+end</code></pre> <p>Because the whole communication is asynchronous, the following test would be very brittle:</p> <pre data-language="elixir"><code class="elixir">push socket, "publish", %{"id" =&gt; 3}
+assert Repo.get_by(Post, id: 3, published: true)</code></pre> <p>The issue is that we have no guarantees the channel has done processing our message after calling <a href="#push/3"><code class="inline">push/3</code></a>. The best solution is to assert the channel sent us a reply before doing any other assertion. First change the channel to send replies:</p> <pre data-language="elixir"><code class="elixir">def handle_in("publish", %{"id" =&gt; id}, socket) do
+  Repo.get!(Post, id) |&gt; Post.publish() |&gt; Repo.update!()
+  {:reply, :ok, socket}
+end</code></pre> <p>Then expect them in the test:</p> <pre data-language="elixir"><code class="elixir">ref = push socket, "publish", %{"id" =&gt; 3}
+assert_reply ref, :ok
+assert Repo.get_by(Post, id: 3, published: true)</code></pre> <h2>Leave and close</h2> <p>This module also provides functions to simulate leaving and closing a channel. Once you leave or close a channel, because the channel is linked to the test process on join, it will crash the test process:</p> <pre data-language="elixir"><code class="elixir">leave(socket)
+** (EXIT from #PID&lt;...&gt;) {:shutdown, :leave}</code></pre> <p>You can avoid this by unlinking the channel process in the test:</p> <pre data-language="elixir"><code class="elixir">Process.unlink(socket.channel_pid)</code></pre> <p>Notice <a href="#leave/1"><code class="inline">leave/1</code></a> is async, so it will also return a reference which you can use to check for a reply:</p> <pre data-language="elixir"><code class="elixir">ref = leave(socket)
+assert_reply ref, :ok</code></pre> <p>On the other hand, close is always sync and it will return only after the channel process is guaranteed to have been terminated:</p> <pre data-language="elixir"><code class="elixir">:ok = close(socket)</code></pre> <p>This mimics the behaviour existing in clients.</p> <p>To assert that your channel closes or errors asynchronously, you can monitor the channel process with the tools provided by Elixir, and wait for the <code class="inline">:DOWN</code> message. Imagine an implementation of the <code class="inline">handle_info/2</code> function that closes the channel when it receives <code class="inline">:some_message</code>:</p> <pre data-language="elixir"><code class="elixir">def handle_info(:some_message, socket) do
+  {:stop, :normal, socket}
+end</code></pre> <p>In your test, you can assert that the close happened by:</p> <pre data-language="elixir"><code class="elixir">Process.monitor(socket.channel_pid)
+send(socket.channel_pid, :some_message)
+assert_receive {:DOWN, _, _, _, :normal}</code></pre>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#broadcast_from/3">broadcast_from(socket, event, message)</a> </dt> <dd class="summary-synopsis">
+<p>Broadcast event from pid to all subscribers of the socket topic</p> </dd>   <dt class="summary-signature"> <a href="#broadcast_from!/3">broadcast_from!(socket, event, message)</a> </dt> <dd class="summary-synopsis">
+<p>Same as <a href="#broadcast_from/3"><code class="inline">broadcast_from/3</code></a> but raises if broadcast fails</p> </dd>   <dt class="summary-signature"> <a href="#close/2">close(socket, timeout \\ 5000)</a> </dt> <dd class="summary-synopsis">
+<p>Emulates the client closing the channel</p> </dd>   <dt class="summary-signature"> <a href="#join/2">join(socket, topic)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#join/4"><code class="inline">join/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#join/3">join(socket, topic, payload)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#join/4"><code class="inline">join/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#join/4">join(socket, channel, topic, payload \\ %{})</a> </dt> <dd class="summary-synopsis">
+<p>Joins the channel under the given topic and payload</p> </dd>   <dt class="summary-signature"> <a href="#leave/1">leave(socket)</a> </dt> <dd class="summary-synopsis">
+<p>Emulates the client leaving the channel</p> </dd>   <dt class="summary-signature"> <a href="#push/3">push(socket, event, payload \\ %{})</a> </dt> <dd class="summary-synopsis">
+<p>Pushes a message into the channel</p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join/2">subscribe_and_join(socket, topic)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join/3">subscribe_and_join(socket, topic, payload)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join/4">subscribe_and_join(socket, channel, topic, payload \\ %{})</a> </dt> <dd class="summary-synopsis">
+<p>Subscribes to the given topic and joins the channel under the given topic and payload</p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join!/2">subscribe_and_join!(socket, topic)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#subscribe_and_join!/4"><code class="inline">subscribe_and_join!/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join!/3">subscribe_and_join!(socket, topic, payload)</a> </dt> <dd class="summary-synopsis">
+<p>See <a href="#subscribe_and_join!/4"><code class="inline">subscribe_and_join!/4</code></a></p> </dd>   <dt class="summary-signature"> <a href="#subscribe_and_join!/4">subscribe_and_join!(socket, channel, topic, payload \\ %{})</a> </dt> <dd class="summary-synopsis">
+<p>Same as <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a> but returns either the socket or throws an error</p> </dd>  </dl> <h2> Macros </h2>
+<dl class="summary-macros summary">   <dt class="summary-signature"> <a href="#assert_broadcast/3">assert_broadcast(event, payload, timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has broadcast a message within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#assert_push/3">assert_push(event, payload, timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has pushed a message back to the client with the given event and payload within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#assert_reply/4">assert_reply(ref, status, payload \\ Macro.escape(%{}), timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has replied to the given message within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#connect/2">connect(handler, params)</a> </dt> <dd class="summary-synopsis">
+<p>Initiates a transport connection for the socket handler</p> </dd>   <dt class="summary-signature"> <a href="#refute_broadcast/3">refute_broadcast(event, payload, timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has not broadcast a message within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#refute_push/3">refute_push(event, payload, timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has not pushed a message to the client matching the given event and payload within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#refute_reply/4">refute_reply(ref, status, payload \\ Macro.escape(%{}), timeout \\ 100)</a> </dt> <dd class="summary-synopsis">
+<p>Asserts the channel has not replied with a matching payload within <code class="inline">timeout</code></p> </dd>   <dt class="summary-signature"> <a href="#socket/0">socket()</a> </dt> <dd class="summary-synopsis">
+<p>Builds a socket</p> </dd>   <dt class="summary-signature"> <a href="#socket/2">socket(id, assigns)</a> </dt> <dd class="summary-synopsis">
+<p>Builds a socket with given id and assigns</p> </dd>  </dl>   <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="broadcast_from/3">  <span class="signature">broadcast_from(socket, event, message)</span>  </h3>  <p>Broadcast event from pid to all subscribers of the socket topic.</p> <p>The test process will not receive the published message. This triggers the <code class="inline">handle_out/3</code> callback in the channel.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; broadcast_from socket, "new_message", %{id: 1, content: "hello"}
+:ok</code></pre>    <h3 class="detail-header function" id="broadcast_from!/3">  <span class="signature">broadcast_from!(socket, event, message)</span>  </h3>  <p>Same as <a href="#broadcast_from/3"><code class="inline">broadcast_from/3</code></a> but raises if broadcast fails.</p>    <h3 class="detail-header function" id="close/2">  <span class="signature">close(socket, timeout \\ 5000)</span>  </h3>  <p>Emulates the client closing the channel.</p> <p>Closing channels is synchronous and has a default timeout of 5000 milliseconds.</p>    <h3 class="detail-header function" id="join/2">  <span class="signature">join(socket, topic)</span>  </h3>  <p>See <a href="#join/4"><code class="inline">join/4</code></a>.</p>    <h3 class="detail-header function" id="join/3">  <span class="signature">join(socket, topic, payload)</span>  </h3>  <p>See <a href="#join/4"><code class="inline">join/4</code></a>.</p>    <h3 class="detail-header function" id="join/4">  <span class="signature">join(socket, channel, topic, payload \\ %{})</span>  </h3>  <p>Joins the channel under the given topic and payload.</p> <p>The given channel is joined in a separate process which is linked to the test process.</p> <p>It returns <code class="inline">{:ok, reply, socket}</code> or <code class="inline">{:error, reply}</code>.</p>    <h3 class="detail-header function" id="leave/1">  <span class="signature">leave(socket)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">leave(<a href="../phoenix.socket/#t:t/0">Phoenix.Socket.t</a>) :: reference</code></pre>    <p>Emulates the client leaving the channel.</p>    <h3 class="detail-header function" id="push/3">  <span class="signature">push(socket, event, payload \\ %{})</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">push(<a href="../phoenix.socket/#t:t/0">Phoenix.Socket.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, map) :: reference</code></pre>    <p>Pushes a message into the channel.</p> <p>The triggers the <code class="inline">handle_in/3</code> callback in the channel.</p> <h4>Examples</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; push socket, "new_message", %{id: 1, content: "hello"}
+reference</code></pre>    <h3 class="detail-header function" id="subscribe_and_join/2">  <span class="signature">subscribe_and_join(socket, topic)</span>  </h3>  <p>See <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a>.</p>    <h3 class="detail-header function" id="subscribe_and_join/3">  <span class="signature">subscribe_and_join(socket, topic, payload)</span>  </h3>  <p>See <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a>.</p>    <h3 class="detail-header function" id="subscribe_and_join/4">  <span class="signature">subscribe_and_join(socket, channel, topic, payload \\ %{})</span>  </h3>  <p>Subscribes to the given topic and joins the channel under the given topic and payload.</p> <p>By subscribing to the topic, we can use <a href="#assert_broadcast/3"><code class="inline">assert_broadcast/3</code></a> to verify a message has been sent through the pubsub layer.</p> <p>By joining the channel, we can interact with it directly. The given channel is joined in a separate process which is linked to the test process.</p> <p>If no channel module is provided, the socket’s handler is used to lookup the matching channel for the given topic.</p> <p>It returns <code class="inline">{:ok, reply, socket}</code> or <code class="inline">{:error, reply}</code>.</p>    <h3 class="detail-header function" id="subscribe_and_join!/2">  <span class="signature">subscribe_and_join!(socket, topic)</span>  </h3>  <p>See <a href="#subscribe_and_join!/4"><code class="inline">subscribe_and_join!/4</code></a>.</p>    <h3 class="detail-header function" id="subscribe_and_join!/3">  <span class="signature">subscribe_and_join!(socket, topic, payload)</span>  </h3>  <p>See <a href="#subscribe_and_join!/4"><code class="inline">subscribe_and_join!/4</code></a>.</p>    <h3 class="detail-header function" id="subscribe_and_join!/4">  <span class="signature">subscribe_and_join!(socket, channel, topic, payload \\ %{})</span>  </h3>  <p>Same as <a href="#subscribe_and_join/4"><code class="inline">subscribe_and_join/4</code></a> but returns either the socket or throws an error.</p> <p>This is helpful when you are not testing joining the channel and just need the socket.</p>     <h1 class="section-heading" id="macros">  Macros </h1>  <h3 class="detail-header macro" id="assert_broadcast/3">  <span class="signature">assert_broadcast(event, payload, timeout \\ 100)</span>  </h3>  <p>Asserts the channel has broadcast a message within <code class="inline">timeout</code>.</p> <p>Before asserting anything was broadcast, we must first subscribe to the topic of the channel in the test process:</p> <pre data-language="elixir"><code class="elixir">@endpoint.subscribe("foo:ok")</code></pre> <p>Now we can match on event and payload as patterns:</p> <pre data-language="elixir"><code class="elixir">assert_broadcast "some_event", %{"data" =&gt; _}</code></pre> <p>In the assertion above, we don’t particularly care about the data being sent, as long as something was sent.</p> <p>The timeout is in milliseconds and defaults to 100ms.</p>    <h3 class="detail-header macro" id="assert_push/3">  <span class="signature">assert_push(event, payload, timeout \\ 100)</span>  </h3>  <p>Asserts the channel has pushed a message back to the client with the given event and payload within <code class="inline">timeout</code>.</p> <p>Notice event and payload are patterns. This means one can write:</p> <pre data-language="elixir"><code class="elixir">assert_push "some_event", %{"data" =&gt; _}</code></pre> <p>In the assertion above, we don’t particularly care about the data being sent, as long as something was sent.</p> <p>The timeout is in milliseconds and defaults to 100ms.</p>    <h3 class="detail-header macro" id="assert_reply/4">  <span class="signature">assert_reply(ref, status, payload \\ Macro.escape(%{}), timeout \\ 100)</span>  </h3>  <p>Asserts the channel has replied to the given message within <code class="inline">timeout</code>.</p> <p>Notice status and payload are patterns. This means one can write:</p> <pre data-language="elixir"><code class="elixir">ref = push channel, "some_event"
+assert_reply ref, :ok, %{"data" =&gt; _}</code></pre> <p>In the assertion above, we don’t particularly care about the data being sent, as long as something was replied.</p> <p>The timeout is in milliseconds and defaults to 100ms.</p>    <h3 class="detail-header macro" id="connect/2">  <span class="signature">connect(handler, params)</span>  </h3>  <p>Initiates a transport connection for the socket handler.</p> <p>Useful for testing UserSocket authentication. Returns the result of the handler’s <a href="#connect/2"><code class="inline">connect/2</code></a> callback.</p>    <h3 class="detail-header macro" id="refute_broadcast/3">  <span class="signature">refute_broadcast(event, payload, timeout \\ 100)</span>  </h3>  <p>Asserts the channel has not broadcast a message within <code class="inline">timeout</code>.</p> <p>Like <code class="inline">assert_broadcast</code>, the event and payload are patterns.</p> <p>The timeout is in milliseconds and defaults to 100ms. Keep in mind this macro will block the test by the timeout value, so use it only when necessary as overuse will certainly slow down your test suite.</p>    <h3 class="detail-header macro" id="refute_push/3">  <span class="signature">refute_push(event, payload, timeout \\ 100)</span>  </h3>  <p>Asserts the channel has not pushed a message to the client matching the given event and payload within <code class="inline">timeout</code>.</p> <p>Like <code class="inline">assert_push</code>, the event and payload are patterns.</p> <p>The timeout is in milliseconds and defaults to 100ms. Keep in mind this macro will block the test by the timeout value, so use it only when necessary as overuse will certainly slow down your test suite.</p>    <h3 class="detail-header macro" id="refute_reply/4">  <span class="signature">refute_reply(ref, status, payload \\ Macro.escape(%{}), timeout \\ 100)</span>  </h3>  <p>Asserts the channel has not replied with a matching payload within <code class="inline">timeout</code>.</p> <p>Like <code class="inline">assert_reply</code>, the event and payload are patterns.</p> <p>The timeout is in milliseconds and defaults to 100ms. Keep in mind this macro will block the test by the timeout value, so use it only when necessary as overuse will certainly slow down your test suite.</p>    <h3 class="detail-header macro" id="socket/0">  <span class="signature">socket()</span>  </h3>  <p>Builds a socket.</p> <p>The socket is then used to subscribe and join channels. Use this function when you want to create a blank socket to pass to functions like <code class="inline">UserSocket.connect/2</code>.</p> <p>Otherwise, use <a href="#socket/2"><code class="inline">socket/2</code></a> if you want to build a socket with id and assigns.</p> <p>The socket endpoint is read from the <code class="inline">@endpoint</code> variable.</p>    <h3 class="detail-header macro" id="socket/2">  <span class="signature">socket(id, assigns)</span>  </h3>  <p>Builds a socket with given id and assigns.</p> <p>The socket endpoint is read from the <code class="inline">@endpoint</code> variable.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix/Phoenix.ChannelTest.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/Phoenix.ChannelTest.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

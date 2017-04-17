@@ -1,0 +1,145 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ecto.Multi - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Ecto.Multi is a data structure that allows grouping multiple Repo operations together. ">
+  <meta name="keywords" content="ecto, multi, summary, types, functions, -, phoenix">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/ecto/ecto.multi/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Ecto.Multi  </h1>  <p>Ecto.Multi is a data structure that allows grouping multiple Repo operations together.</p> <p>Ecto.Multi makes it possible to pack operations that should be performed together (in a single database transaction) and gives a way to introspect the queued operations without actually performing them. Each operation is given a name that is unique and will identify its result or will help to identify the place of failure in case it occurs.</p> <p>All operations will be executed in the order they were added.</p> <p>The <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> structure should be considered opaque. You can use <code class="inline">%Ecto.Multi{}</code> to pattern match the type, but accessing fields or directly modifying them is not advised. <a href="../ecto.multi/#to_list/1"><code class="inline">Ecto.Multi.to_list/1</code></a> returns a canonical representation of the structure that can be used for introspection.</p> <h2 id="module-changesets" class="section-heading">  Changesets </h2> <p>If Multi contains operations that accept changesets (like <a href="#insert/4"><code class="inline">insert/4</code></a>, <a href="#update/4"><code class="inline">update/4</code></a> or <a href="#delete/4)"><code class="inline">delete/4</code></a> they will be checked before starting the transaction. If any changeset has errors, the transaction won’t even be started and the error will be immediately returned.</p> <h2 id="module-run" class="section-heading">  Run </h2> <p>Multi allows you to run arbitrary functions as part of your transaction via the <a href="#run/3"><code class="inline">run/3</code></a> and <a href="#run/5"><code class="inline">run/5</code></a>. Those functions will receive changes so far as the first argument and have to return <code class="inline">{:ok, value}</code> or <code class="inline">{:error, value}</code> as their result. Returning an error will abort any further operations and make the whole multi fail.</p> <h2 id="module-example" class="section-heading">  Example </h2> <p>Let’s look at an example definition and usage. The use case we’ll be looking into is resetting a password. We need to update the account with proper information, log the request and remove all current sessions. We define a function creating the Multi structure probably in some sort of service layer:</p> <pre data-language="elixir"><code class="elixir">defmodule Service do
+  alias Ecto.Multi
+  import Ecto
+
+  def password_reset(account, params) do
+    Multi.new
+    |&gt; Multi.update(:account, Account.password_reset_changeset(account, params))
+    |&gt; Multi.insert(:log, Log.password_reset_changeset(account, params))
+    |&gt; Multi.delete_all(:sessions, assoc(account, :sessions))
+  end
+end</code></pre> <p>We can later execute it in the integration layer using Repo:</p> <pre data-language="elixir"><code class="elixir">Repo.transaction(Service.password_reset(account, params))</code></pre> <p>By pattern matching on the result we can differentiate different conditions:</p> <pre data-language="elixir"><code class="elixir">case result do
+  {:ok, %{account: account, log: log, sessions: sessions}} -&gt;
+    # Operation was successful, we can access results (exactly the same
+    # we would get from running corresponding Repo functions)
+    # under keys we used for naming the operations.
+  {:error, failed_operation, failed_value, changes_so_far} -&gt;
+    # One of the operations failed. We can access the operation's failure
+    # value (like changeset for operations on changesets) to prepare a
+    # proper response. We also get access to the results of any operations
+    # that succeeded before the indicated operation failed. However, any
+    # successful operations would have been rolled back.
+end</code></pre> <p>We can also easily unit test our transaction without actually running it. Since changesets can use in-memory-data, we can use an account that is constructed in memory as well (without persisting it to the database):</p> <pre data-language="elixir"><code class="elixir">test "dry run password_reset" do
+  account = %Account{password: "letmein"}
+  multi = Service.password_reset(account, params)
+
+  assert [
+    {:account, {:update, account_changeset, []}},
+    {:log, {:insert, log_changeset, []}},
+    {:sessions, {:delete_all, query, []}}
+  ] = Ecto.Multi.to_list(multi)
+
+  # We can introspect changesets and query to see if everything
+  # is as expected, for example:
+  assert account_changeset.valid?
+  assert log_changeset.valid?
+  assert inspect(query) == "#Ecto.Query&lt;from a in Session&gt;"
+end</code></pre>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:merge/0">merge()</a> </dt>   <dt class="summary-signature"> <a href="#t:name/0">name()</a> </dt>   <dt class="summary-signature"> <a href="#t:run/0">run()</a> </dt>   <dt class="summary-signature"> <a href="#t/0">t()</a> </dt>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#append/2">append(lhs, rhs)</a> </dt> <dd class="summary-synopsis">
+<p>Appends the second multi to the first one</p> </dd>   <dt class="summary-signature"> <a href="#delete/4">delete(multi, name, changeset_or_struct, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds a delete operation to the multi</p> </dd>   <dt class="summary-signature"> <a href="#delete_all/4">delete_all(multi, name, queryable, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds a delete_all operation to the multi</p> </dd>   <dt class="summary-signature"> <a href="#insert/4">insert(multi, name, changeset_or_struct, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds an insert operation to the multi</p> </dd>   <dt class="summary-signature"> <a href="#insert_all/5">insert_all(multi, name, schema_or_source, entries, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds an insert_all operation to the multi</p> </dd>   <dt class="summary-signature"> <a href="#merge/2">merge(multi, merge)</a> </dt> <dd class="summary-synopsis">
+<p>Merges a dynamically created multi</p> </dd>   <dt class="summary-signature"> <a href="#merge/4">merge(multi, mod, fun, args)</a> </dt> <dd class="summary-synopsis">
+<p>Merges a dynamically created multi</p> </dd>   <dt class="summary-signature"> <a href="#new/0">new()</a> </dt> <dd class="summary-synopsis">
+<p>Returns an empty <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> struct</p> </dd>   <dt class="summary-signature"> <a href="#prepend/2">prepend(lhs, rhs)</a> </dt> <dd class="summary-synopsis">
+<p>Prepends the second multi to the first one</p> </dd>   <dt class="summary-signature"> <a href="#run/3">run(multi, name, run)</a> </dt> <dd class="summary-synopsis">
+<p>Adds a function to run as part of the multi</p> </dd>   <dt class="summary-signature"> <a href="#run/5">run(multi, name, mod, fun, args)</a> </dt> <dd class="summary-synopsis">
+<p>Adds a function to run as part of the multi</p> </dd>   <dt class="summary-signature"> <a href="#to_list/1">to_list(multi)</a> </dt> <dd class="summary-synopsis">
+<p>Transforms the <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> into a list of operations to be performed. Inspecting the <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> struct internals directly is discouraged</p> </dd>   <dt class="summary-signature"> <a href="#update/4">update(multi, name, changeset, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds an update operation to the multi</p> </dd>   <dt class="summary-signature"> <a href="#update_all/5">update_all(multi, name, queryable, updates, opts \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Adds an update_all operation to the multi</p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>  <div id="t:merge/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:merge/0">merge</a> :: (map -&gt; <a href="#t:t/0">t</a>) | {module, atom, [any]}</code></pre> </div> <div id="t:name/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:name/0">name</a> :: any</code></pre> </div> <div id="t:run/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:run/0">run</a> ::
+  (<a href="#t:t/0">t</a> -&gt; {:ok | :error, any}) |
+  {module, atom, [any]}</code></pre> </div> <div id="t/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:t/0">t</a></code></pre> </div>    <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="append/2">  <span class="signature">append(lhs, rhs)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">append(<a href="#t:t/0">t</a>, <a href="#t:t/0">t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Appends the second multi to the first one.</p> <p>All names must be unique between both structures.</p> <h4>Example</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; lhs = Ecto.Multi.new |&gt; Ecto.Multi.run(:left, &amp;{:ok, &amp;1})
+iex&gt; rhs = Ecto.Multi.new |&gt; Ecto.Multi.run(:right, &amp;{:error, &amp;1})
+iex&gt; Ecto.Multi.append(lhs, rhs) |&gt; Ecto.Multi.to_list |&gt; Keyword.keys
+[:left, :right]</code></pre>    <h3 class="detail-header function" id="delete/4">  <span class="signature">delete(multi, name, changeset_or_struct, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">delete(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="../ecto.changeset/#t:t/0">Ecto.Changeset.t</a> | <a href="../ecto.schema/#t:t/0">Ecto.Schema.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds a delete operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.delete/3</code> does.</p>    <h3 class="detail-header function" id="delete_all/4">  <span class="signature">delete_all(multi, name, queryable, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">delete_all(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="../ecto.queryable/#t:t/0">Ecto.Queryable.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds a delete_all operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.delete_all/4</code> does.</p>    <h3 class="detail-header function" id="insert/4">  <span class="signature">insert(multi, name, changeset_or_struct, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">insert(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="../ecto.changeset/#t:t/0">Ecto.Changeset.t</a> | <a href="../ecto.schema/#t:t/0">Ecto.Schema.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds an insert operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.insert/3</code> does.</p>    <h3 class="detail-header function" id="insert_all/5">  <span class="signature">insert_all(multi, name, schema_or_source, entries, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">insert_all(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, schema_or_source, [entry], <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a> when schema_or_source: binary | {binary | nil, binary} | <a href="../ecto.schema/#t:t/0">Ecto.Schema.t</a>, entry: map | <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a></code></pre>    <p>Adds an insert_all operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.insert_all/4</code> does.</p>    <h3 class="detail-header function" id="merge/2">  <span class="signature">merge(multi, merge)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">merge(<a href="#t:t/0">t</a>, <a href="#t:merge/0">merge</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Merges a dynamically created multi</p> <p>The function should return an Ecto.Multi, and receives changes so far as an argument.</p> <p>Duplicated operations are not allowed.</p>    <h3 class="detail-header function" id="merge/4">  <span class="signature">merge(multi, mod, fun, args)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">merge(<a href="#t:t/0">t</a>, module, function, args) :: <a href="#t:t/0">t</a> when function: atom, args: [any]</code></pre>    <p>Merges a dynamically created multi</p> <p>Similar to <a href="#merge/2"><code class="inline">merge/2</code></a>, but allows to pass module name, function and arguments. The function should return an Ecto.Multi, and receives changes so far as the first argument (prepened to those passed in the call to the function).</p> <p>Duplicated operations are not allowed.</p>    <h3 class="detail-header function" id="new/0">  <span class="signature">new()</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">new :: <a href="#t:t/0">t</a></code></pre>    <p>Returns an empty <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> struct.</p> <h4>Example</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; Ecto.Multi.new |&gt; Ecto.Multi.to_list
+[]</code></pre>    <h3 class="detail-header function" id="prepend/2">  <span class="signature">prepend(lhs, rhs)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">prepend(<a href="#t:t/0">t</a>, <a href="#t:t/0">t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Prepends the second multi to the first one.</p> <p>All names must be unique between both structures.</p> <h4>Example</h4> <pre data-language="elixir"><code class="iex elixir">iex&gt; lhs = Ecto.Multi.new |&gt; Ecto.Multi.run(:left, &amp;{:ok, &amp;1})
+iex&gt; rhs = Ecto.Multi.new |&gt; Ecto.Multi.run(:right, &amp;{:error, &amp;1})
+iex&gt; Ecto.Multi.prepend(lhs, rhs) |&gt; Ecto.Multi.to_list |&gt; Keyword.keys
+[:right, :left]</code></pre>    <h3 class="detail-header function" id="run/3">  <span class="signature">run(multi, name, run)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">run(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="#t:run/0">run</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds a function to run as part of the multi</p> <p>The function should return either <code class="inline">{:ok, value}</code> or <code class="inline">{:error, value}</code>, and receives changes so far as an argument.</p>    <h3 class="detail-header function" id="run/5">  <span class="signature">run(multi, name, mod, fun, args)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">run(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, module, function, args) :: <a href="#t:t/0">t</a> when function: atom, args: [any]</code></pre>    <p>Adds a function to run as part of the multi</p> <p>Similar to <a href="#run/3"><code class="inline">run/3</code></a>, but allows to pass module name, function and arguments. The function should return either <code class="inline">{:ok, value}</code> or <code class="inline">{:error, value}</code>, and will receive changes so far as the first argument (prepened to those passed in the call to the function).</p>    <h3 class="detail-header function" id="to_list/1">  <span class="signature">to_list(multi)</span>  </h3>  <p>Transforms the <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> into a list of operations to be performed. Inspecting the <a href="../ecto.multi/#content"><code class="inline">Ecto.Multi</code></a> struct internals directly is discouraged.</p>    <h3 class="detail-header function" id="update/4">  <span class="signature">update(multi, name, changeset, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">update(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="../ecto.changeset/#t:t/0">Ecto.Changeset.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds an update operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.update/2</code> does.</p>    <h3 class="detail-header function" id="update_all/5">  <span class="signature">update_all(multi, name, queryable, updates, opts \\ [])</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">update_all(<a href="#t:t/0">t</a>, <a href="#t:name/0">name</a>, <a href="../ecto.queryable/#t:t/0">Ecto.Queryable.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: <a href="#t:t/0">t</a></code></pre>    <p>Adds an update_all operation to the multi.</p> <p>Accepts the same arguments and options as <code class="inline">Ecto.Repo.update_all/4</code> does.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/ecto/Ecto.Multi.html" class="_attribution-link" target="_blank">https://hexdocs.pm/ecto/Ecto.Multi.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

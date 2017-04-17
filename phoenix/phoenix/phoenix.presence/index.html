@@ -1,0 +1,134 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Phoenix.Presence - Phoenix - W3cubDocs</title>
+  
+  <meta name="description" content=" Provides Presence tracking to processes and channels. ">
+  <meta name="keywords" content="phoenix, presence, summary, types, functions, callbacks, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phoenix/phoenix/phoenix.presence/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phoenix.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phoenix/" class="_nav-link" title="" style="margin-left:0;">Phoenix</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Phoenix.Presence <small>behaviour</small>  </h1>  <p>Provides Presence tracking to processes and channels.</p> <p>This behaviour provides presence features such as fetching presences for a given topic, as well as handling diffs of join and leave events as they occur in real-time. Using this module defines a supervisor and allows the calling module to implement the <code class="inline">Phoenix.Tracker</code> behaviour which starts a tracker process to handle presence information.</p> <h2>Example Usage</h2> <p>Start by defining a presence module within your application which uses <a href="../phoenix.presence/#content"><code class="inline">Phoenix.Presence</code></a> and provide the <code class="inline">:otp_app</code> which holds your configuration, as well as the <code class="inline">:pubsub_server</code>.</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.Presence do
+  use Phoenix.Presence, otp_app: :my_app,
+                        pubsub_server: MyApp.PubSub
+end</code></pre> <p>The <code class="inline">:pubsub_server</code> must point to an existing pubsub server running in your application, which is included by default as <code class="inline">MyApp.PubSub</code> for new applications.</p> <p>Next, add the new supervisor to your supervision tree in <code class="inline">lib/my_app.ex</code>:</p> <pre data-language="elixir"><code class="elixir">children = [
+  ...
+  supervisor(MyApp.Presence, []),
+]</code></pre> <p>Once added, presences can be tracked in your channel after joining:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.MyChannel do
+  use MyApp.Web, :channel
+  alias MyApp.Presence
+
+  def join("some:topic", _params, socket) do
+    send(self, :after_join)
+    {:ok, assign(socket, :user_id, ...)}
+  end
+
+  def handle_info(:after_join, socket) do
+    push socket, "presence_state", Presence.list(socket)
+    {:ok, _} = Presence.track(socket, socket.assigns.user_id, %{
+      online_at: inspect(System.system_time(:seconds))
+    })
+    {:noreply, socket}
+  end
+end</code></pre> <p>In the example above, <code class="inline">Presence.track</code> is used to register this channel’s process as a presence for the socket’s user ID, with a map of metadata. Next, the current presence information for the socket’s topic is pushed to the client as a <code class="inline">"presence_state"</code> event.</p> <p>Finally, a diff of presence join and leave events will be sent to the client as they happen in real-time with the “presence_diff” event. The diff structure will be a map of <code class="inline">:joins</code> and <code class="inline">:leaves</code> of the form:</p> <pre data-language="elixir"><code class="elixir">%{joins: %{"123" =&gt; %{metas: [%{status: "away", phx_ref: ...}]},
+  leaves: %{"456" =&gt; %{metas: [%{status: "online", phx_ref: ...}]},</code></pre> <p>See <a href="../phoenix.presence/#list/2"><code class="inline">Phoenix.Presence.list/2</code></a> for more information on the presence datastructure.</p> <h2>Fetching Presence Information</h2> <p>Presence metadata should be minimized and used to store small, ephemeral state, such as a user’s “online” or “away” status. More detailed information, such as user details that need to be fetched from the database, can be achieved by overriding the <code class="inline">fetch/2</code> function. The <code class="inline">fetch/2</code> callback is triggered when using <code class="inline">list/1</code> and serves as a mechanism to fetch presence information a single time, before broadcasting the information to all channel subscribers. This prevents N query problems and gives you a single place to group isolated data fetching to extend presence metadata. The function must return a map of data matching the outlined Presence datastructure, including the <code class="inline">:metas</code> key, but can extend the map of information to include any additional information. For example:</p> <pre data-language="elixir"><code class="elixir">def fetch(_topic, entries) do
+  query =
+    from u in User,
+      where: u.id in ^Map.keys(entries),
+      select: {u.id, u}
+
+  users = query |&gt; Repo.all |&gt; Enum.into(%{})
+
+  for {key, %{metas: metas}} &lt;- entries, into: %{} do
+    {key, %{metas: metas, user: users[key]}}
+  end
+end</code></pre> <p>The function above fetches all users from the database who have registered presences for the given topic. The fetched information is then extended with a <code class="inline">:user</code> key of the user’s information, while maintaining the required <code class="inline">:metas</code> field from the original presence data.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:presence/0">presence()</a> </dt>   <dt class="summary-signature"> <a href="#t:presences/0">presences()</a> </dt>   <dt class="summary-signature"> <a href="#t:topic/0">topic()</a> </dt>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#list/2">list(module, topic)</a> </dt> <dd class="summary-synopsis">
+<p>Returns presences for a topic</p> </dd>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:fetch/2">fetch(topic, presences)</a> </dt>   <dt class="summary-signature"> <a href="#c:handle_diff/2">handle_diff(%{}, state)</a> </dt>   <dt class="summary-signature"> <a href="#c:init/1">init(arg0)</a> </dt>   <dt class="summary-signature"> <a href="#c:list/1">list(topic)</a> </dt>   <dt class="summary-signature"> <a href="#c:start_link/1">start_link(arg0)</a> </dt>   <dt class="summary-signature"> <a href="#c:track/3">track(arg0, key, meta)</a> </dt>   <dt class="summary-signature"> <a href="#c:track/4">track(pid, topic, key, meta)</a> </dt>   <dt class="summary-signature"> <a href="#c:untrack/2">untrack(arg0, key)</a> </dt>   <dt class="summary-signature"> <a href="#c:untrack/3">untrack(pid, topic, key)</a> </dt>   <dt class="summary-signature"> <a href="#c:update/3">update(arg0, key, meta)</a> </dt>   <dt class="summary-signature"> <a href="#c:update/4">update(pid, topic, key, meta)</a> </dt>  </dl>   <h1 class="section-heading" id="types">  Types </h1>  <div id="t:presence/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:presence/0">presence</a> :: %{key: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta: map}</code></pre> </div> <div id="t:presences/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:presences/0">presences</a> :: %{optional(<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>) =&gt; %{metas: [map]}}</code></pre> </div> <div id="t:topic/0" class="type-detail"> <pre data-language="elixir"><code class="elixir"><a href="#t:topic/0">topic</a> :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a></code></pre> </div>    <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="list/2">  <span class="signature">list(module, topic)</span>  </h3>  <p>Returns presences for a topic.</p> <h4>Presence datastructure</h4> <p>The presence information is returned as map with presences grouped by key, cast as a string, and accumulated metadata, with the following form:</p> <pre data-language="elixir"><code class="elixir">%{key =&gt; %{metas: [%{phx_ref: ..., ...}, ...]}}</code></pre> <p>For example, imagine a user with id <code class="inline">123</code> online from two different devices, as well as a user with id <code class="inline">456</code> online from just one device. The following presence information might be returned:</p> <pre data-language="elixir"><code class="elixir">%{"123" =&gt; %{metas: [%{status: "away", phx_ref: ...},
+                     %{status: "online", phx_ref: ...}]},
+  "456" =&gt; %{metas: [%{status: "online", phx_ref: ...}]}}</code></pre> <p>The keys of the map will usually point to a resource ID. The value will contain a map with a <code class="inline">:metas</code> key containing a list of metadata for each resource. Additionally, every metadata entry will contain a <code class="inline">:phx_ref</code> key which can be used to uniquely identify metadata for a given key. In the event that the metadata was previously updated, a <code class="inline">:phx_ref_prev</code> key will be present containing the previous <code class="inline">:phx_ref</code> value.</p>     <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:fetch/2">  <span class="signature">fetch(topic, presences)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">fetch(<a href="#t:topic/0">topic</a>, <a href="#t:presences/0">presences</a>) :: <a href="#t:presences/0">presences</a></code></pre>       <h3 class="detail-header callback" id="c:handle_diff/2">  <span class="signature">handle_diff(%{}, state)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">handle_diff(%{optional(<a href="#t:topic/0">topic</a>) =&gt; {joins :: <a href="#t:presences/0">presences</a>, leaves :: <a href="#t:presences/0">presences</a>}}, state :: term) :: {:ok, state :: term}</code></pre>       <h3 class="detail-header callback" id="c:init/1">  <span class="signature">init(arg0)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">init(<a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) ::
+  {:ok, pid} |
+  {:error, reason :: term}</code></pre>       <h3 class="detail-header callback" id="c:list/1">  <span class="signature">list(topic)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">list(<a href="#t:topic/0">topic</a>) :: <a href="#t:presences/0">presences</a></code></pre>       <h3 class="detail-header callback" id="c:start_link/1">  <span class="signature">start_link(arg0)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">start_link(<a href="http://elixir-lang.org/docs/stable/elixir/Keyword.html#t:t/0" target="_blank">Keyword.t</a>) :: {:ok, pid} | {:error, reason :: term} :: :ignore</code></pre>       <h3 class="detail-header callback" id="c:track/3">  <span class="signature">track(arg0, key, meta)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">track(<a href="../phoenix.socket/#t:t/0">Phoenix.Socket.t</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta :: map) ::
+  {:ok, binary} |
+  {:error, reason :: term}</code></pre>       <h3 class="detail-header callback" id="c:track/4">  <span class="signature">track(pid, topic, key, meta)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">track(pid, <a href="#t:topic/0">topic</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta :: map) ::
+  {:ok, binary} |
+  {:error, reason :: term}</code></pre>       <h3 class="detail-header callback" id="c:untrack/2">  <span class="signature">untrack(arg0, key)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">untrack(<a href="../phoenix.socket/#t:t/0">Phoenix.Socket.t</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>) :: :ok</code></pre>       <h3 class="detail-header callback" id="c:untrack/3">  <span class="signature">untrack(pid, topic, key)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">untrack(pid, <a href="#t:topic/0">topic</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>) :: :ok</code></pre>       <h3 class="detail-header callback" id="c:update/3">  <span class="signature">update(arg0, key, meta)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">update(<a href="../phoenix.socket/#t:t/0">Phoenix.Socket.t</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta :: map) ::
+  {:ok, binary} |
+  {:error, reason :: term}</code></pre>       <h3 class="detail-header callback" id="c:update/4">  <span class="signature">update(pid, topic, key, meta)</span>  </h3>  <h4 class="specs-title">Specs</h4>  <pre data-language="elixir"><code class="elixir">update(pid, <a href="#t:topic/0">topic</a>, key :: <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0" target="_blank">String.t</a>, meta :: map) ::
+  {:ok, binary} |
+  {:error, reason :: term}</code></pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014 Chris McCord<br>Licensed under the MIT License.<br>
+    <a href="https://hexdocs.pm/phoenix/Phoenix.Presence.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/Phoenix.Presence.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
