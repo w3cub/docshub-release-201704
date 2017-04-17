@@ -1,0 +1,172 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Comparison of the K-Means and MiniBatchKMeans Clustering Algorithms - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="We want to compare the performance of the MiniBatchKMeans and KMeans&#58; the MiniBatchKMeans is faster, but gives slightly different results (see &hellip;">
+  <meta name="keywords" content="comparison, k-means, and, minibatchkmeans, clustering, algorithms, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/cluster/plot_mini_batch_kmeans/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-cluster-plot-mini-batch-kmeans-py">Comparison of the K-Means and MiniBatchKMeans clustering algorithms</h1> <p id="comparison-of-the-k-means-and-minibatchkmeans-clustering-algorithms">We want to compare the performance of the MiniBatchKMeans and KMeans: the MiniBatchKMeans is faster, but gives slightly different results (see <a class="reference internal" href="../../../modules/clustering/#mini-batch-kmeans"><span class="std std-ref">Mini Batch K-Means</span></a>).</p> <p>We will cluster a set of data, first with KMeans and then with MiniBatchKMeans, and plot the results. We will also plot the points that are labelled differently between the two algorithms.</p> <pre data-language="python">print(__doc__)
+
+import time
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.cluster import MiniBatchKMeans, KMeans
+from sklearn.metrics.pairwise import pairwise_distances_argmin
+from sklearn.datasets.samples_generator import make_blobs
+</pre> <p>Generate sample data</p> <pre data-language="python">np.random.seed(0)
+
+batch_size = 45
+centers = [[1, 1], [-1, -1], [1, -1]]
+n_clusters = len(centers)
+X, labels_true = make_blobs(n_samples=3000, centers=centers, cluster_std=0.7)
+</pre> <p>Compute clustering with Means</p> <pre data-language="python">k_means = KMeans(init='k-means++', n_clusters=3, n_init=10)
+t0 = time.time()
+k_means.fit(X)
+t_batch = time.time() - t0
+</pre> <p>Compute clustering with MiniBatchKMeans</p> <pre data-language="python">mbk = MiniBatchKMeans(init='k-means++', n_clusters=3, batch_size=batch_size,
+                      n_init=10, max_no_improvement=10, verbose=0)
+t0 = time.time()
+mbk.fit(X)
+t_mini_batch = time.time() - t0
+</pre> <p>Plot result</p> <pre data-language="python">fig = plt.figure(figsize=(8, 3))
+fig.subplots_adjust(left=0.02, right=0.98, bottom=0.05, top=0.9)
+colors = ['#4EACC5', '#FF9C34', '#4E9A06']
+
+# We want to have the same colors for the same cluster from the
+# MiniBatchKMeans and the KMeans algorithm. Let's pair the cluster centers per
+# closest one.
+k_means_cluster_centers = np.sort(k_means.cluster_centers_, axis=0)
+mbk_means_cluster_centers = np.sort(mbk.cluster_centers_, axis=0)
+k_means_labels = pairwise_distances_argmin(X, k_means_cluster_centers)
+mbk_means_labels = pairwise_distances_argmin(X, mbk_means_cluster_centers)
+order = pairwise_distances_argmin(k_means_cluster_centers,
+                                  mbk_means_cluster_centers)
+
+# KMeans
+ax = fig.add_subplot(1, 3, 1)
+for k, col in zip(range(n_clusters), colors):
+    my_members = k_means_labels == k
+    cluster_center = k_means_cluster_centers[k]
+    ax.plot(X[my_members, 0], X[my_members, 1], 'w',
+            markerfacecolor=col, marker='.')
+    ax.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
+            markeredgecolor='k', markersize=6)
+ax.set_title('KMeans')
+ax.set_xticks(())
+ax.set_yticks(())
+plt.text(-3.5, 1.8,  'train time: %.2fs\ninertia: %f' % (
+    t_batch, k_means.inertia_))
+
+# MiniBatchKMeans
+ax = fig.add_subplot(1, 3, 2)
+for k, col in zip(range(n_clusters), colors):
+    my_members = mbk_means_labels == order[k]
+    cluster_center = mbk_means_cluster_centers[order[k]]
+    ax.plot(X[my_members, 0], X[my_members, 1], 'w',
+            markerfacecolor=col, marker='.')
+    ax.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
+            markeredgecolor='k', markersize=6)
+ax.set_title('MiniBatchKMeans')
+ax.set_xticks(())
+ax.set_yticks(())
+plt.text(-3.5, 1.8, 'train time: %.2fs\ninertia: %f' %
+         (t_mini_batch, mbk.inertia_))
+
+# Initialise the different array to all False
+different = (mbk_means_labels == 4)
+ax = fig.add_subplot(1, 3, 3)
+
+for k in range(n_clusters):
+    different += ((k_means_labels == k) != (mbk_means_labels == order[k]))
+
+identic = np.logical_not(different)
+ax.plot(X[identic, 0], X[identic, 1], 'w',
+        markerfacecolor='#bbbbbb', marker='.')
+ax.plot(X[different, 0], X[different, 1], 'w',
+        markerfacecolor='m', marker='.')
+ax.set_title('Difference')
+ax.set_xticks(())
+ax.set_yticks(())
+
+plt.show()
+</pre> <img alt="../../_images/sphx_glr_plot_mini_batch_kmeans_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_mini_batch_kmeans_001.png"> <p><strong>Total running time of the script:</strong> (0 minutes 0.359 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_mini_batch_kmeans.py" download="" target="_blank"><code>plot_mini_batch_kmeans.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_mini_batch_kmeans.ipynb" download="" target="_blank"><code>plot_mini_batch_kmeans.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/cluster/plot_mini_batch_kmeans.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/cluster/plot_mini_batch_kmeans.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

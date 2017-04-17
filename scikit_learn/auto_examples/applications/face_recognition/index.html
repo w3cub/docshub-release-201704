@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Faces Recognition Example Using Eigenfaces and SVMs - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content=" The dataset used in this example is a preprocessed excerpt of the “Labeled Faces in the Wild”, aka LFW&#58; ">
+  <meta name="keywords" content="faces, recognition, example, using, eigenfaces, and, svms, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/applications/face_recognition/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-applications-face-recognition-py">Faces recognition example using eigenfaces and SVMs</h1> <p id="faces-recognition-example-using-eigenfaces-and-svms">The dataset used in this example is a preprocessed excerpt of the “Labeled Faces in the Wild”, aka <a class="reference external" href="http://vis-www.cs.umass.edu/lfw/" target="_blank">LFW</a>:</p>  <a class="reference external" href="http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz" target="_blank">http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz</a> (233MB) <p>Expected results for the top 5 most represented people in the dataset:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head"> </th> <th class="head"> </th> <th class="head"> </th> <th class="head"> </th> <th class="head"> </th> </tr> </thead>  <tr class="row-even">
+<td>Ariel Sharon</td> <td>0.67</td> <td>0.92</td> <td>0.77</td> <td>13</td> </tr> <tr class="row-odd">
+<td>Colin Powell</td> <td>0.75</td> <td>0.78</td> <td>0.76</td> <td>60</td> </tr> <tr class="row-even">
+<td>Donald Rumsfeld</td> <td>0.78</td> <td>0.67</td> <td>0.72</td> <td>27</td> </tr> <tr class="row-odd">
+<td>George W Bush</td> <td>0.86</td> <td>0.86</td> <td>0.86</td> <td>146</td> </tr> <tr class="row-even">
+<td>Gerhard Schroeder</td> <td>0.76</td> <td>0.76</td> <td>0.76</td> <td>25</td> </tr> <tr class="row-odd">
+<td>Hugo Chavez</td> <td>0.67</td> <td>0.67</td> <td>0.67</td> <td>15</td> </tr> <tr class="row-even">
+<td>Tony Blair</td> <td>0.81</td> <td>0.69</td> <td>0.75</td> <td>36</td> </tr> <tr class="row-odd">
+<td>avg / total</td> <td>0.80</td> <td>0.80</td> <td>0.80</td> <td>322</td> </tr>  </table> <pre data-language="python">from __future__ import print_function
+
+from time import time
+import logging
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.datasets import fetch_lfw_people
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+
+
+print(__doc__)
+
+# Display progress logs on stdout
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+</pre> <p>Download the data, if not already on disk and load it as numpy arrays</p> <pre data-language="python">lfw_people = fetch_lfw_people(min_faces_per_person=70, resize=0.4)
+
+# introspect the images arrays to find the shapes (for plotting)
+n_samples, h, w = lfw_people.images.shape
+
+# for machine learning we use the 2 data directly (as relative pixel
+# positions info is ignored by this model)
+X = lfw_people.data
+n_features = X.shape[1]
+
+# the label to predict is the id of the person
+y = lfw_people.target
+target_names = lfw_people.target_names
+n_classes = target_names.shape[0]
+
+print("Total dataset size:")
+print("n_samples: %d" % n_samples)
+print("n_features: %d" % n_features)
+print("n_classes: %d" % n_classes)
+</pre> <p>Split into a training set and a test set using a stratified k fold</p> <pre data-language="python"># split into a training and testing set
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=42)
+</pre> <p>Compute a PCA (eigenfaces) on the face dataset (treated as unlabeled dataset): unsupervised feature extraction / dimensionality reduction</p> <pre data-language="python">n_components = 150
+
+print("Extracting the top %d eigenfaces from %d faces"
+      % (n_components, X_train.shape[0]))
+t0 = time()
+pca = PCA(n_components=n_components, svd_solver='randomized',
+          whiten=True).fit(X_train)
+print("done in %0.3fs" % (time() - t0))
+
+eigenfaces = pca.components_.reshape((n_components, h, w))
+
+print("Projecting the input data on the eigenfaces orthonormal basis")
+t0 = time()
+X_train_pca = pca.transform(X_train)
+X_test_pca = pca.transform(X_test)
+print("done in %0.3fs" % (time() - t0))
+</pre> <p>Train a SVM classification model</p> <pre data-language="python">print("Fitting the classifier to the training set")
+t0 = time()
+param_grid = {'C': [1e3, 5e3, 1e4, 5e4, 1e5],
+              'gamma': [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1], }
+clf = GridSearchCV(SVC(kernel='rbf', class_weight='balanced'), param_grid)
+clf = clf.fit(X_train_pca, y_train)
+print("done in %0.3fs" % (time() - t0))
+print("Best estimator found by grid search:")
+print(clf.best_estimator_)
+</pre> <p>Quantitative evaluation of the model quality on the test set</p> <pre data-language="python">print("Predicting people's names on the test set")
+t0 = time()
+y_pred = clf.predict(X_test_pca)
+print("done in %0.3fs" % (time() - t0))
+
+print(classification_report(y_test, y_pred, target_names=target_names))
+print(confusion_matrix(y_test, y_pred, labels=range(n_classes)))
+</pre> <p>Qualitative evaluation of the predictions using matplotlib</p> <pre data-language="python">def plot_gallery(images, titles, h, w, n_row=3, n_col=4):
+    """Helper function to plot a gallery of portraits"""
+    plt.figure(figsize=(1.8 * n_col, 2.4 * n_row))
+    plt.subplots_adjust(bottom=0, left=.01, right=.99, top=.90, hspace=.35)
+    for i in range(n_row * n_col):
+        plt.subplot(n_row, n_col, i + 1)
+        plt.imshow(images[i].reshape((h, w)), cmap=plt.cm.gray)
+        plt.title(titles[i], size=12)
+        plt.xticks(())
+        plt.yticks(())
+
+
+# plot the result of the prediction on a portion of the test set
+
+def title(y_pred, y_test, target_names, i):
+    pred_name = target_names[y_pred[i]].rsplit(' ', 1)[-1]
+    true_name = target_names[y_test[i]].rsplit(' ', 1)[-1]
+    return 'predicted: %s\ntrue:      %s' % (pred_name, true_name)
+
+prediction_titles = [title(y_pred, y_test, target_names, i)
+                     for i in range(y_pred.shape[0])]
+
+plot_gallery(X_test, prediction_titles, h, w)
+
+# plot the gallery of the most significative eigenfaces
+
+eigenface_titles = ["eigenface %d" % i for i in range(eigenfaces.shape[0])]
+plot_gallery(eigenfaces, eigenface_titles, h, w)
+
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.000 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/face_recognition.py" download="" target="_blank"><code>face_recognition.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/face_recognition.ipynb" download="" target="_blank"><code>face_recognition.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/applications/face_recognition.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/applications/face_recognition.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Gradient Boosting Out-of-Bag Estimates - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="Out-of-bag (OOB) estimates can be a useful heuristic to estimate the “optimal” number of boosting iterations. OOB estimates are almost identical to &hellip;">
+  <meta name="keywords" content="gradient, boosting, out-of-bag, estimates, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/ensemble/plot_gradient_boosting_oob/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-ensemble-plot-gradient-boosting-oob-py">Gradient Boosting Out-of-Bag estimates</h1> <p id="gradient-boosting-out-of-bag-estimates">Out-of-bag (OOB) estimates can be a useful heuristic to estimate the “optimal” number of boosting iterations. OOB estimates are almost identical to cross-validation estimates but they can be computed on-the-fly without the need for repeated model fitting. OOB estimates are only available for Stochastic Gradient Boosting (i.e. <code>subsample &lt; 1.0</code>), the estimates are derived from the improvement in loss based on the examples not included in the bootstrap sample (the so-called out-of-bag examples). The OOB estimator is a pessimistic estimator of the true test loss, but remains a fairly good approximation for a small number of trees.</p> <p>The figure shows the cumulative sum of the negative OOB improvements as a function of the boosting iteration. As you can see, it tracks the test loss for the first hundred iterations but then diverges in a pessimistic way. The figure also shows the performance of 3-fold cross validation which usually gives a better estimate of the test loss but is computationally more demanding.</p> <img alt="../../_images/sphx_glr_plot_gradient_boosting_oob_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_gradient_boosting_oob_001.png"> <p class="sphx-glr-script-out">Out:</p> <pre data-language="python">Accuracy: 0.6840
+</pre>  <pre data-language="python">print(__doc__)
+
+# Author: Peter Prettenhofer &lt;peter.prettenhofer@gmail.com&gt;
+#
+# License: BSD 3 clause
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn import ensemble
+from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
+
+
+# Generate data (adapted from G. Ridgeway's gbm example)
+n_samples = 1000
+random_state = np.random.RandomState(13)
+x1 = random_state.uniform(size=n_samples)
+x2 = random_state.uniform(size=n_samples)
+x3 = random_state.randint(0, 4, size=n_samples)
+
+p = 1 / (1.0 + np.exp(-(np.sin(3 * x1) - 4 * x2 + x3)))
+y = random_state.binomial(1, p, size=n_samples)
+
+X = np.c_[x1, x2, x3]
+
+X = X.astype(np.float32)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
+                                                    random_state=9)
+
+# Fit classifier with out-of-bag estimates
+params = {'n_estimators': 1200, 'max_depth': 3, 'subsample': 0.5,
+          'learning_rate': 0.01, 'min_samples_leaf': 1, 'random_state': 3}
+clf = ensemble.GradientBoostingClassifier(**params)
+
+clf.fit(X_train, y_train)
+acc = clf.score(X_test, y_test)
+print("Accuracy: {:.4f}".format(acc))
+
+n_estimators = params['n_estimators']
+x = np.arange(n_estimators) + 1
+
+
+def heldout_score(clf, X_test, y_test):
+    """compute deviance scores on ``X_test`` and ``y_test``. """
+    score = np.zeros((n_estimators,), dtype=np.float64)
+    for i, y_pred in enumerate(clf.staged_decision_function(X_test)):
+        score[i] = clf.loss_(y_test, y_pred)
+    return score
+
+
+def cv_estimate(n_splits=3):
+    cv = KFold(n_splits=n_splits)
+    cv_clf = ensemble.GradientBoostingClassifier(**params)
+    val_scores = np.zeros((n_estimators,), dtype=np.float64)
+    for train, test in cv.split(X_train, y_train):
+        cv_clf.fit(X_train[train], y_train[train])
+        val_scores += heldout_score(cv_clf, X_train[test], y_train[test])
+    val_scores /= n_splits
+    return val_scores
+
+
+# Estimate best n_estimator using cross-validation
+cv_score = cv_estimate(3)
+
+# Compute best n_estimator for test data
+test_score = heldout_score(clf, X_test, y_test)
+
+# negative cumulative sum of oob improvements
+cumsum = -np.cumsum(clf.oob_improvement_)
+
+# min loss according to OOB
+oob_best_iter = x[np.argmin(cumsum)]
+
+# min loss according to test (normalize such that first loss is 0)
+test_score -= test_score[0]
+test_best_iter = x[np.argmin(test_score)]
+
+# min loss according to cv (normalize such that first loss is 0)
+cv_score -= cv_score[0]
+cv_best_iter = x[np.argmin(cv_score)]
+
+# color brew for the three curves
+oob_color = list(map(lambda x: x / 256.0, (190, 174, 212)))
+test_color = list(map(lambda x: x / 256.0, (127, 201, 127)))
+cv_color = list(map(lambda x: x / 256.0, (253, 192, 134)))
+
+# plot curves and vertical lines for best iterations
+plt.plot(x, cumsum, label='OOB loss', color=oob_color)
+plt.plot(x, test_score, label='Test loss', color=test_color)
+plt.plot(x, cv_score, label='CV loss', color=cv_color)
+plt.axvline(x=oob_best_iter, color=oob_color)
+plt.axvline(x=test_best_iter, color=test_color)
+plt.axvline(x=cv_best_iter, color=cv_color)
+
+# add three vertical lines to xticks
+xticks = plt.xticks()
+xticks_pos = np.array(xticks[0].tolist() +
+                      [oob_best_iter, cv_best_iter, test_best_iter])
+xticks_label = np.array(list(map(lambda t: int(t), xticks[0])) +
+                        ['OOB', 'CV', 'Test'])
+ind = np.argsort(xticks_pos)
+xticks_pos = xticks_pos[ind]
+xticks_label = xticks_label[ind]
+plt.xticks(xticks_pos, xticks_label)
+
+plt.legend(loc='upper right')
+plt.ylabel('normalized loss')
+plt.xlabel('number of iterations')
+
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 4.022 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_gradient_boosting_oob.py" download="" target="_blank"><code>plot_gradient_boosting_oob.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_gradient_boosting_oob.ipynb" download="" target="_blank"><code>plot_gradient_boosting_oob.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_oob.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_oob.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

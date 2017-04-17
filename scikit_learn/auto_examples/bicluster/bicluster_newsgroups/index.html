@@ -1,0 +1,243 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Biclustering Documents With the Spectral Co-clustering Algorithm - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="This example demonstrates the Spectral Co-clustering algorithm on the twenty newsgroups dataset. The ‘comp.os.ms-windows.misc’ category is excluded &hellip;">
+  <meta name="keywords" content="biclustering, documents, with, spectral, co-clustering, algorithm, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/bicluster/bicluster_newsgroups/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-bicluster-bicluster-newsgroups-py">Biclustering documents with the Spectral Co-clustering algorithm</h1> <p id="biclustering-documents-with-the-spectral-co-clustering-algorithm">This example demonstrates the Spectral Co-clustering algorithm on the twenty newsgroups dataset. The ‘comp.os.ms-windows.misc’ category is excluded because it contains many posts containing nothing but data.</p> <p>The TF-IDF vectorized posts form a word frequency matrix, which is then biclustered using Dhillon’s Spectral Co-Clustering algorithm. The resulting document-word biclusters indicate subsets words used more often in those subsets documents.</p> <p>For a few of the best biclusters, its most common document categories and its ten most important words get printed. The best biclusters are determined by their normalized cut. The best words are determined by comparing their sums inside and outside the bicluster.</p> <p>For comparison, the documents are also clustered using MiniBatchKMeans. The document clusters derived from the biclusters achieve a better V-measure than clusters found by MiniBatchKMeans.</p> <p>Output:</p> <pre data-language="python">Vectorizing...
+Coclustering...
+Done in 9.53s. V-measure: 0.4455
+MiniBatchKMeans...
+Done in 12.00s. V-measure: 0.3309
+
+Best biclusters:
+----------------
+bicluster 0 : 1951 documents, 4373 words
+categories   : 23% talk.politics.guns, 19% talk.politics.misc, 14% sci.med
+words        : gun, guns, geb, banks, firearms, drugs, gordon, clinton, cdt, amendment
+
+bicluster 1 : 1165 documents, 3304 words
+categories   : 29% talk.politics.mideast, 26% soc.religion.christian, 25% alt.atheism
+words        : god, jesus, christians, atheists, kent, sin, morality, belief, resurrection, marriage
+
+bicluster 2 : 2219 documents, 2830 words
+categories   : 18% comp.sys.mac.hardware, 16% comp.sys.ibm.pc.hardware, 16% comp.graphics
+words        : voltage, dsp, board, receiver, circuit, shipping, packages, stereo, compression, package
+
+bicluster 3 : 1860 documents, 2745 words
+categories   : 26% rec.motorcycles, 23% rec.autos, 13% misc.forsale
+words        : bike, car, dod, engine, motorcycle, ride, honda, cars, bmw, bikes
+
+bicluster 4 : 12 documents, 155 words
+categories   : 100% rec.sport.hockey
+words        : scorer, unassisted, reichel, semak, sweeney, kovalenko, ricci, audette, momesso, nedved
+</pre> <pre data-language="python">from __future__ import print_function
+
+print(__doc__)
+
+from collections import defaultdict
+import operator
+import re
+from time import time
+
+import numpy as np
+
+from sklearn.cluster.bicluster import SpectralCoclustering
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.externals.six import iteritems
+from sklearn.datasets.twenty_newsgroups import fetch_20newsgroups
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.cluster import v_measure_score
+
+
+def number_aware_tokenizer(doc):
+    """ Tokenizer that maps all numeric tokens to a placeholder.
+
+    For many applications, tokens that begin with a number are not directly
+    useful, but the fact that such a token exists can be relevant.  By applying
+    this form of dimensionality reduction, some methods may perform better.
+    """
+    token_pattern = re.compile(u'(?u)\\b\\w\\w+\\b')
+    tokens = token_pattern.findall(doc)
+    tokens = ["#NUMBER" if token[0] in "0123456789_" else token
+              for token in tokens]
+    return tokens
+
+# exclude 'comp.os.ms-windows.misc'
+categories = ['alt.atheism', 'comp.graphics',
+              'comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware',
+              'comp.windows.x', 'misc.forsale', 'rec.autos',
+              'rec.motorcycles', 'rec.sport.baseball',
+              'rec.sport.hockey', 'sci.crypt', 'sci.electronics',
+              'sci.med', 'sci.space', 'soc.religion.christian',
+              'talk.politics.guns', 'talk.politics.mideast',
+              'talk.politics.misc', 'talk.religion.misc']
+newsgroups = fetch_20newsgroups(categories=categories)
+y_true = newsgroups.target
+
+vectorizer = TfidfVectorizer(stop_words='english', min_df=5,
+                             tokenizer=number_aware_tokenizer)
+cocluster = SpectralCoclustering(n_clusters=len(categories),
+                                 svd_method='arpack', random_state=0)
+kmeans = MiniBatchKMeans(n_clusters=len(categories), batch_size=20000,
+                         random_state=0)
+
+print("Vectorizing...")
+X = vectorizer.fit_transform(newsgroups.data)
+
+print("Coclustering...")
+start_time = time()
+cocluster.fit(X)
+y_cocluster = cocluster.row_labels_
+print("Done in {:.2f}s. V-measure: {:.4f}".format(
+    time() - start_time,
+    v_measure_score(y_cocluster, y_true)))
+
+print("MiniBatchKMeans...")
+start_time = time()
+y_kmeans = kmeans.fit_predict(X)
+print("Done in {:.2f}s. V-measure: {:.4f}".format(
+    time() - start_time,
+    v_measure_score(y_kmeans, y_true)))
+
+feature_names = vectorizer.get_feature_names()
+document_names = list(newsgroups.target_names[i] for i in newsgroups.target)
+
+
+def bicluster_ncut(i):
+    rows, cols = cocluster.get_indices(i)
+    if not (np.any(rows) and np.any(cols)):
+        import sys
+        return sys.float_info.max
+    row_complement = np.nonzero(np.logical_not(cocluster.rows_[i]))[0]
+    col_complement = np.nonzero(np.logical_not(cocluster.columns_[i]))[0]
+    # Note: the following is identical to X[rows[:, np.newaxis], cols].sum() but
+    # much faster in scipy &lt;= 0.16
+    weight = X[rows][:, cols].sum()
+    cut = (X[row_complement][:, cols].sum() +
+           X[rows][:, col_complement].sum())
+    return cut / weight
+
+
+def most_common(d):
+    """Items of a defaultdict(int) with the highest values.
+
+    Like Counter.most_common in Python &gt;=2.7.
+    """
+    return sorted(iteritems(d), key=operator.itemgetter(1), reverse=True)
+
+
+bicluster_ncuts = list(bicluster_ncut(i)
+                       for i in range(len(newsgroups.target_names)))
+best_idx = np.argsort(bicluster_ncuts)[:5]
+
+print()
+print("Best biclusters:")
+print("----------------")
+for idx, cluster in enumerate(best_idx):
+    n_rows, n_cols = cocluster.get_shape(cluster)
+    cluster_docs, cluster_words = cocluster.get_indices(cluster)
+    if not len(cluster_docs) or not len(cluster_words):
+        continue
+
+    # categories
+    counter = defaultdict(int)
+    for i in cluster_docs:
+        counter[document_names[i]] += 1
+    cat_string = ", ".join("{:.0f}% {}".format(float(c) / n_rows * 100, name)
+                           for name, c in most_common(counter)[:3])
+
+    # words
+    out_of_cluster_docs = cocluster.row_labels_ != cluster
+    out_of_cluster_docs = np.where(out_of_cluster_docs)[0]
+    word_col = X[:, cluster_words]
+    word_scores = np.array(word_col[cluster_docs, :].sum(axis=0) -
+                           word_col[out_of_cluster_docs, :].sum(axis=0))
+    word_scores = word_scores.ravel()
+    important_words = list(feature_names[cluster_words[i]]
+                           for i in word_scores.argsort()[:-11:-1])
+
+    print("bicluster {} : {} documents, {} words".format(
+        idx, n_rows, n_cols))
+    print("categories   : {}".format(cat_string))
+    print("words        : {}\n".format(', '.join(important_words)))
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.000 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/bicluster_newsgroups.py" download="" target="_blank"><code>bicluster_newsgroups.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/bicluster_newsgroups.ipynb" download="" target="_blank"><code>bicluster_newsgroups.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/bicluster/bicluster_newsgroups.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/bicluster/bicluster_newsgroups.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

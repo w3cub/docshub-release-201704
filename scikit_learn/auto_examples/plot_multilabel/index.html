@@ -1,0 +1,169 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Multilabel Classification - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content=" This example simulates a multi-label document classification problem. The dataset is generated randomly based on the following process&#58; ">
+  <meta name="keywords" content="multilabel, classification, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/plot_multilabel/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-plot-multilabel-py">Multilabel classification</h1> <p id="multilabel-classification">This example simulates a multi-label document classification problem. The dataset is generated randomly based on the following process:</p>  <ul class="simple"> <li>pick the number of labels: n ~ Poisson(n_labels)</li> <li>n times, choose a class c: c ~ Multinomial(theta)</li> <li>pick the document length: k ~ Poisson(length)</li> <li>k times, choose a word: w ~ Multinomial(theta_c)</li> </ul>  <p>In the above process, rejection sampling is used to make sure that n is more than 2, and that the document length is never zero. Likewise, we reject classes which have already been chosen. The documents that are assigned to both classes are plotted surrounded by two colored circles.</p> <p>The classification is performed by projecting to the first two principal components found by PCA and CCA for visualisation purposes, followed by using the <a class="reference internal" href="../../modules/generated/sklearn.multiclass.onevsrestclassifier/#sklearn.multiclass.OneVsRestClassifier" title="sklearn.multiclass.OneVsRestClassifier"><code>sklearn.multiclass.OneVsRestClassifier</code></a> metaclassifier using two SVCs with linear kernels to learn a discriminative model for each class. Note that PCA is used to perform an unsupervised dimensionality reduction, while CCA is used to perform a supervised one.</p> <p>Note: in the plot, “unlabeled samples” does not mean that we don’t know the labels (as in semi-supervised learning) but that the samples simply do <em>not</em> have a label.</p> <img alt="../_images/sphx_glr_plot_multilabel_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_multilabel_001.png"> <pre data-language="python">print(__doc__)
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.datasets import make_multilabel_classification
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.decomposition import PCA
+from sklearn.cross_decomposition import CCA
+
+
+def plot_hyperplane(clf, min_x, max_x, linestyle, label):
+    # get the separating hyperplane
+    w = clf.coef_[0]
+    a = -w[0] / w[1]
+    xx = np.linspace(min_x - 5, max_x + 5)  # make sure the line is long enough
+    yy = a * xx - (clf.intercept_[0]) / w[1]
+    plt.plot(xx, yy, linestyle, label=label)
+
+
+def plot_subfigure(X, Y, subplot, title, transform):
+    if transform == "pca":
+        X = PCA(n_components=2).fit_transform(X)
+    elif transform == "cca":
+        X = CCA(n_components=2).fit(X, Y).transform(X)
+    else:
+        raise ValueError
+
+    min_x = np.min(X[:, 0])
+    max_x = np.max(X[:, 0])
+
+    min_y = np.min(X[:, 1])
+    max_y = np.max(X[:, 1])
+
+    classif = OneVsRestClassifier(SVC(kernel='linear'))
+    classif.fit(X, Y)
+
+    plt.subplot(2, 2, subplot)
+    plt.title(title)
+
+    zero_class = np.where(Y[:, 0])
+    one_class = np.where(Y[:, 1])
+    plt.scatter(X[:, 0], X[:, 1], s=40, c='gray')
+    plt.scatter(X[zero_class, 0], X[zero_class, 1], s=160, edgecolors='b',
+               facecolors='none', linewidths=2, label='Class 1')
+    plt.scatter(X[one_class, 0], X[one_class, 1], s=80, edgecolors='orange',
+               facecolors='none', linewidths=2, label='Class 2')
+
+    plot_hyperplane(classif.estimators_[0], min_x, max_x, 'k--',
+                    'Boundary\nfor class 1')
+    plot_hyperplane(classif.estimators_[1], min_x, max_x, 'k-.',
+                    'Boundary\nfor class 2')
+    plt.xticks(())
+    plt.yticks(())
+
+    plt.xlim(min_x - .5 * max_x, max_x + .5 * max_x)
+    plt.ylim(min_y - .5 * max_y, max_y + .5 * max_y)
+    if subplot == 2:
+        plt.xlabel('First principal component')
+        plt.ylabel('Second principal component')
+        plt.legend(loc="upper left")
+
+
+plt.figure(figsize=(8, 6))
+
+X, Y = make_multilabel_classification(n_classes=2, n_labels=1,
+                                      allow_unlabeled=True,
+                                      random_state=1)
+
+plot_subfigure(X, Y, 1, "With unlabeled samples + CCA", "cca")
+plot_subfigure(X, Y, 2, "With unlabeled samples + PCA", "pca")
+
+X, Y = make_multilabel_classification(n_classes=2, n_labels=1,
+                                      allow_unlabeled=False,
+                                      random_state=1)
+
+plot_subfigure(X, Y, 3, "Without unlabeled samples + CCA", "cca")
+plot_subfigure(X, Y, 4, "Without unlabeled samples + PCA", "pca")
+
+plt.subplots_adjust(.04, .02, .97, .94, .09, .2)
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.427 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_multilabel.py" download="" target="_blank"><code>plot_multilabel.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_multilabel.ipynb" download="" target="_blank"><code>plot_multilabel.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/plot_multilabel.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/plot_multilabel.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

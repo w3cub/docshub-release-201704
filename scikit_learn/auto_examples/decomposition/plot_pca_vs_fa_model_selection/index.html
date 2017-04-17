@@ -1,0 +1,185 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Model Selection With Probabilistic PCA and Factor Analysis - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="Probabilistic PCA and Factor Analysis are probabilistic models. The consequence is that the likelihood of new data can be used for model selection &hellip;">
+  <meta name="keywords" content="model, selection, with, probabilistic, pca, and, factor, analysis, fa, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/decomposition/plot_pca_vs_fa_model_selection/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-decomposition-plot-pca-vs-fa-model-selection-py">Model selection with Probabilistic PCA and Factor Analysis (FA)</h1> <p id="model-selection-with-probabilistic-pca-and-factor-analysis-fa">Probabilistic PCA and Factor Analysis are probabilistic models. The consequence is that the likelihood of new data can be used for model selection and covariance estimation. Here we compare PCA and FA with cross-validation on low rank data corrupted with homoscedastic noise (noise variance is the same for each feature) or heteroscedastic noise (noise variance is the different for each feature). In a second step we compare the model likelihood to the likelihoods obtained from shrinkage covariance estimators.</p> <p>One can observe that with homoscedastic noise both FA and PCA succeed in recovering the size of the low rank subspace. The likelihood with PCA is higher than FA in this case. However PCA fails and overestimates the rank when heteroscedastic noise is present. Under appropriate circumstances the low rank models are more likely than shrinkage models.</p> <p>The automatic estimation from Automatic Choice of Dimensionality for PCA. NIPS 2000: 598-604 by Thomas P. Minka is also compared.</p> <pre data-language="python"># Authors: Alexandre Gramfort
+#          Denis A. Engemann
+# License: BSD 3 clause
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import linalg
+
+from sklearn.decomposition import PCA, FactorAnalysis
+from sklearn.covariance import ShrunkCovariance, LedoitWolf
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+
+print(__doc__)
+</pre> <p>Create the data</p> <pre data-language="python">n_samples, n_features, rank = 1000, 50, 10
+sigma = 1.
+rng = np.random.RandomState(42)
+U, _, _ = linalg.svd(rng.randn(n_features, n_features))
+X = np.dot(rng.randn(n_samples, rank), U[:, :rank].T)
+
+# Adding homoscedastic noise
+X_homo = X + sigma * rng.randn(n_samples, n_features)
+
+# Adding heteroscedastic noise
+sigmas = sigma * rng.rand(n_features) + sigma / 2.
+X_hetero = X + rng.randn(n_samples, n_features) * sigmas
+</pre> <p>Fit the models</p> <pre data-language="python">n_components = np.arange(0, n_features, 5)  # options for n_components
+
+
+def compute_scores(X):
+    pca = PCA(svd_solver='full')
+    fa = FactorAnalysis()
+
+    pca_scores, fa_scores = [], []
+    for n in n_components:
+        pca.n_components = n
+        fa.n_components = n
+        pca_scores.append(np.mean(cross_val_score(pca, X)))
+        fa_scores.append(np.mean(cross_val_score(fa, X)))
+
+    return pca_scores, fa_scores
+
+
+def shrunk_cov_score(X):
+    shrinkages = np.logspace(-2, 0, 30)
+    cv = GridSearchCV(ShrunkCovariance(), {'shrinkage': shrinkages})
+    return np.mean(cross_val_score(cv.fit(X).best_estimator_, X))
+
+
+def lw_score(X):
+    return np.mean(cross_val_score(LedoitWolf(), X))
+
+
+for X, title in [(X_homo, 'Homoscedastic Noise'),
+                 (X_hetero, 'Heteroscedastic Noise')]:
+    pca_scores, fa_scores = compute_scores(X)
+    n_components_pca = n_components[np.argmax(pca_scores)]
+    n_components_fa = n_components[np.argmax(fa_scores)]
+
+    pca = PCA(svd_solver='full', n_components='mle')
+    pca.fit(X)
+    n_components_pca_mle = pca.n_components_
+
+    print("best n_components by PCA CV = %d" % n_components_pca)
+    print("best n_components by FactorAnalysis CV = %d" % n_components_fa)
+    print("best n_components by PCA MLE = %d" % n_components_pca_mle)
+
+    plt.figure()
+    plt.plot(n_components, pca_scores, 'b', label='PCA scores')
+    plt.plot(n_components, fa_scores, 'r', label='FA scores')
+    plt.axvline(rank, color='g', label='TRUTH: %d' % rank, linestyle='-')
+    plt.axvline(n_components_pca, color='b',
+                label='PCA CV: %d' % n_components_pca, linestyle='--')
+    plt.axvline(n_components_fa, color='r',
+                label='FactorAnalysis CV: %d' % n_components_fa,
+                linestyle='--')
+    plt.axvline(n_components_pca_mle, color='k',
+                label='PCA MLE: %d' % n_components_pca_mle, linestyle='--')
+
+    # compare with other covariance estimators
+    plt.axhline(shrunk_cov_score(X), color='violet',
+                label='Shrunk Covariance MLE', linestyle='-.')
+    plt.axhline(lw_score(X), color='orange',
+                label='LedoitWolf MLE' % n_components_pca_mle, linestyle='-.')
+
+    plt.xlabel('nb of components')
+    plt.ylabel('CV scores')
+    plt.legend(loc='lower right')
+    plt.title(title)
+
+plt.show()
+</pre> <ul class="sphx-glr-horizontal"> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_pca_vs_fa_model_selection_001.png" target="_blank"><img alt="../../_images/sphx_glr_plot_pca_vs_fa_model_selection_001.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_pca_vs_fa_model_selection_001.png" style="width: 376.0px; height: 282.0px;"></a> </li> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_pca_vs_fa_model_selection_002.png" target="_blank"><img alt="../../_images/sphx_glr_plot_pca_vs_fa_model_selection_002.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_pca_vs_fa_model_selection_002.png" style="width: 376.0px; height: 282.0px;"></a> </li> </ul> <p class="sphx-glr-script-out">Out:</p> <pre data-language="python">  best n_components by PCA CV = 10
+best n_components by FactorAnalysis CV = 10
+best n_components by PCA MLE = 10
+best n_components by PCA CV = 40
+best n_components by FactorAnalysis CV = 10
+best n_components by PCA MLE = 38
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 12.300 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_pca_vs_fa_model_selection.py" download="" target="_blank"><code>plot_pca_vs_fa_model_selection.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_pca_vs_fa_model_selection.ipynb" download="" target="_blank"><code>plot_pca_vs_fa_model_selection.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/decomposition/plot_pca_vs_fa_model_selection.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/decomposition/plot_pca_vs_fa_model_selection.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

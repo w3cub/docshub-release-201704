@@ -1,0 +1,242 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Feature Union With Heterogeneous Data Sources - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content=" Datasets can often contain components of that require different feature extraction and processing pipelines. This scenario might occur when&#58; ">
+  <meta name="keywords" content="feature, union, with, heterogeneous, data, sources, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/hetero_feature_union/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-hetero-feature-union-py">Feature Union with Heterogeneous Data Sources</h1> <p id="feature-union-with-heterogeneous-data-sources">Datasets can often contain components of that require different feature extraction and processing pipelines. This scenario might occur when:</p> <ol class="arabic simple"> <li>Your dataset consists of heterogeneous data types (e.g. raster images and text captions)</li> <li>Your dataset is stored in a Pandas DataFrame and different columns require different processing pipelines.</li> </ol> <p>This example demonstrates how to use <code>sklearn.feature_extraction.FeatureUnion</code> on a dataset containing different types of features. We use the 20-newsgroups dataset and compute standard bag-of-words features for the subject line and body in separate pipelines as well as ad hoc features on the body. We combine them (with weights) using a FeatureUnion and finally train a classifier on the combined set of features.</p> <p>The choice of features is not particularly helpful, but serves to illustrate the technique.</p> <pre data-language="python"># Author: Matt Terry &lt;matt.terry@gmail.com&gt;
+#
+# License: BSD 3 clause
+from __future__ import print_function
+
+import numpy as np
+
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.datasets import fetch_20newsgroups
+from sklearn.datasets.twenty_newsgroups import strip_newsgroup_footer
+from sklearn.datasets.twenty_newsgroups import strip_newsgroup_quoting
+from sklearn.decomposition import TruncatedSVD
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import classification_report
+from sklearn.pipeline import FeatureUnion
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
+
+
+class ItemSelector(BaseEstimator, TransformerMixin):
+    """For data grouped by feature, select subset of data at a provided key.
+
+    The data is expected to be stored in a 2D data structure, where the first
+    index is over features and the second is over samples.  i.e.
+
+    &gt;&gt; len(data[key]) == n_samples
+
+    Please note that this is the opposite convention to scikit-learn feature
+    matrixes (where the first index corresponds to sample).
+
+    ItemSelector only requires that the collection implement getitem
+    (data[key]).  Examples include: a dict of lists, 2D numpy array, Pandas
+    DataFrame, numpy record array, etc.
+
+    &gt;&gt; data = {'a': [1, 5, 2, 5, 2, 8],
+               'b': [9, 4, 1, 4, 1, 3]}
+    &gt;&gt; ds = ItemSelector(key='a')
+    &gt;&gt; data['a'] == ds.transform(data)
+
+    ItemSelector is not designed to handle data grouped by sample.  (e.g. a
+    list of dicts).  If your data is structured this way, consider a
+    transformer along the lines of `sklearn.feature_extraction.DictVectorizer`.
+
+    Parameters
+    ----------
+    key : hashable, required
+        The key corresponding to the desired value in a mappable.
+    """
+    def __init__(self, key):
+        self.key = key
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, data_dict):
+        return data_dict[self.key]
+
+
+class TextStats(BaseEstimator, TransformerMixin):
+    """Extract features from each document for DictVectorizer"""
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, posts):
+        return [{'length': len(text),
+                 'num_sentences': text.count('.')}
+                for text in posts]
+
+
+class SubjectBodyExtractor(BaseEstimator, TransformerMixin):
+    """Extract the subject &amp; body from a usenet post in a single pass.
+
+    Takes a sequence of strings and produces a dict of sequences.  Keys are
+    `subject` and `body`.
+    """
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, posts):
+        features = np.recarray(shape=(len(posts),),
+                               dtype=[('subject', object), ('body', object)])
+        for i, text in enumerate(posts):
+            headers, _, bod = text.partition('\n\n')
+            bod = strip_newsgroup_footer(bod)
+            bod = strip_newsgroup_quoting(bod)
+            features['body'][i] = bod
+
+            prefix = 'Subject:'
+            sub = ''
+            for line in headers.split('\n'):
+                if line.startswith(prefix):
+                    sub = line[len(prefix):]
+                    break
+            features['subject'][i] = sub
+
+        return features
+
+
+pipeline = Pipeline([
+    # Extract the subject &amp; body
+    ('subjectbody', SubjectBodyExtractor()),
+
+    # Use FeatureUnion to combine the features from subject and body
+    ('union', FeatureUnion(
+        transformer_list=[
+
+            # Pipeline for pulling features from the post's subject line
+            ('subject', Pipeline([
+                ('selector', ItemSelector(key='subject')),
+                ('tfidf', TfidfVectorizer(min_df=50)),
+            ])),
+
+            # Pipeline for standard bag-of-words model for body
+            ('body_bow', Pipeline([
+                ('selector', ItemSelector(key='body')),
+                ('tfidf', TfidfVectorizer()),
+                ('best', TruncatedSVD(n_components=50)),
+            ])),
+
+            # Pipeline for pulling ad hoc features from post's body
+            ('body_stats', Pipeline([
+                ('selector', ItemSelector(key='body')),
+                ('stats', TextStats()),  # returns a list of dicts
+                ('vect', DictVectorizer()),  # list of dicts -&gt; feature matrix
+            ])),
+
+        ],
+
+        # weight components in FeatureUnion
+        transformer_weights={
+            'subject': 0.8,
+            'body_bow': 0.5,
+            'body_stats': 1.0,
+        },
+    )),
+
+    # Use a SVC classifier on the combined features
+    ('svc', SVC(kernel='linear')),
+])
+
+# limit the list of categories to make running this example faster.
+categories = ['alt.atheism', 'talk.religion.misc']
+train = fetch_20newsgroups(random_state=1,
+                           subset='train',
+                           categories=categories,
+                           )
+test = fetch_20newsgroups(random_state=1,
+                          subset='test',
+                          categories=categories,
+                          )
+
+pipeline.fit(train.data, train.target)
+y = pipeline.predict(test.data)
+print(classification_report(y, test.target))
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.000 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/hetero_feature_union.py" download="" target="_blank"><code>hetero_feature_union.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/hetero_feature_union.ipynb" download="" target="_blank"><code>hetero_feature_union.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/hetero_feature_union.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

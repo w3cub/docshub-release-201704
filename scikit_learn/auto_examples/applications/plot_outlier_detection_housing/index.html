@@ -1,0 +1,173 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Outlier Detection on a Real Data Set - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="This example illustrates the need for robust covariance estimation on a real data set. It is useful both for outlier detection and for a better &hellip;">
+  <meta name="keywords" content="outlier, detection, on, real, data, set, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/applications/plot_outlier_detection_housing/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-applications-plot-outlier-detection-housing-py">Outlier detection on a real data set</h1> <p id="outlier-detection-on-a-real-data-set">This example illustrates the need for robust covariance estimation on a real data set. It is useful both for outlier detection and for a better understanding of the data structure.</p> <p>We selected two sets of two variables from the Boston housing data set as an illustration of what kind of analysis can be done with several outlier detection tools. For the purpose of visualization, we are working with two-dimensional examples, but one should be aware that things are not so trivial in high-dimension, as it will be pointed out.</p> <p>In both examples below, the main result is that the empirical covariance estimate, as a non-robust one, is highly influenced by the heterogeneous structure of the observations. Although the robust covariance estimate is able to focus on the main mode of the data distribution, it sticks to the assumption that the data should be Gaussian distributed, yielding some biased estimation of the data structure, but yet accurate to some extent. The One-Class SVM does not assume any parametric form of the data distribution and can therefore model the complex shape of the data much better.</p>  <h2 id="first-example">First example</h2> <p>The first example illustrates how robust covariance estimation can help concentrating on a relevant cluster when another one exists. Here, many observations are confounded into one and break down the empirical covariance estimation. Of course, some screening tools would have pointed out the presence of two clusters (Support Vector Machines, Gaussian Mixture Models, univariate outlier detection, ...). But had it been a high-dimensional example, none of these could be applied that easily.</p>   <h2 id="second-example">Second example</h2> <p>The second example shows the ability of the Minimum Covariance Determinant robust estimator of covariance to concentrate on the main mode of the data distribution: the location seems to be well estimated, although the covariance is hard to estimate due to the banana-shaped distribution. Anyway, we can get rid of some outlying observations. The One-Class SVM is able to capture the real data structure, but the difficulty is to adjust its kernel bandwidth parameter so as to obtain a good compromise between the shape of the data scatter matrix and the risk of over-fitting the data.</p> <ul class="sphx-glr-horizontal"> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_outlier_detection_housing_001.png" target="_blank"><img alt="../../_images/sphx_glr_plot_outlier_detection_housing_001.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_outlier_detection_housing_001.png" style="width: 376.0px; height: 282.0px;"></a> </li> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_outlier_detection_housing_002.png" target="_blank"><img alt="../../_images/sphx_glr_plot_outlier_detection_housing_002.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_outlier_detection_housing_002.png" style="width: 376.0px; height: 282.0px;"></a> </li> </ul> <pre data-language="python">print(__doc__)
+
+# Author: Virgile Fritsch &lt;virgile.fritsch@inria.fr&gt;
+# License: BSD 3 clause
+
+import numpy as np
+from sklearn.covariance import EllipticEnvelope
+from sklearn.svm import OneClassSVM
+import matplotlib.pyplot as plt
+import matplotlib.font_manager
+from sklearn.datasets import load_boston
+
+# Get data
+X1 = load_boston()['data'][:, [8, 10]]  # two clusters
+X2 = load_boston()['data'][:, [5, 12]]  # "banana"-shaped
+
+# Define "classifiers" to be used
+classifiers = {
+    "Empirical Covariance": EllipticEnvelope(support_fraction=1.,
+                                             contamination=0.261),
+    "Robust Covariance (Minimum Covariance Determinant)":
+    EllipticEnvelope(contamination=0.261),
+    "OCSVM": OneClassSVM(nu=0.261, gamma=0.05)}
+colors = ['m', 'g', 'b']
+legend1 = {}
+legend2 = {}
+
+# Learn a frontier for outlier detection with several classifiers
+xx1, yy1 = np.meshgrid(np.linspace(-8, 28, 500), np.linspace(3, 40, 500))
+xx2, yy2 = np.meshgrid(np.linspace(3, 10, 500), np.linspace(-5, 45, 500))
+for i, (clf_name, clf) in enumerate(classifiers.items()):
+    plt.figure(1)
+    clf.fit(X1)
+    Z1 = clf.decision_function(np.c_[xx1.ravel(), yy1.ravel()])
+    Z1 = Z1.reshape(xx1.shape)
+    legend1[clf_name] = plt.contour(
+        xx1, yy1, Z1, levels=[0], linewidths=2, colors=colors[i])
+    plt.figure(2)
+    clf.fit(X2)
+    Z2 = clf.decision_function(np.c_[xx2.ravel(), yy2.ravel()])
+    Z2 = Z2.reshape(xx2.shape)
+    legend2[clf_name] = plt.contour(
+        xx2, yy2, Z2, levels=[0], linewidths=2, colors=colors[i])
+
+legend1_values_list = list(legend1.values())
+legend1_keys_list = list(legend1.keys())
+
+# Plot the results (= shape of the data points cloud)
+plt.figure(1)  # two clusters
+plt.title("Outlier detection on a real data set (boston housing)")
+plt.scatter(X1[:, 0], X1[:, 1], color='black')
+bbox_args = dict(boxstyle="round", fc="0.8")
+arrow_args = dict(arrowstyle="-&gt;")
+plt.annotate("several confounded points", xy=(24, 19),
+             xycoords="data", textcoords="data",
+             xytext=(13, 10), bbox=bbox_args, arrowprops=arrow_args)
+plt.xlim((xx1.min(), xx1.max()))
+plt.ylim((yy1.min(), yy1.max()))
+plt.legend((legend1_values_list[0].collections[0],
+            legend1_values_list[1].collections[0],
+            legend1_values_list[2].collections[0]),
+           (legend1_keys_list[0], legend1_keys_list[1], legend1_keys_list[2]),
+           loc="upper center",
+           prop=matplotlib.font_manager.FontProperties(size=12))
+plt.ylabel("accessibility to radial highways")
+plt.xlabel("pupil-teacher ratio by town")
+
+legend2_values_list = list(legend2.values())
+legend2_keys_list = list(legend2.keys())
+
+plt.figure(2)  # "banana" shape
+plt.title("Outlier detection on a real data set (boston housing)")
+plt.scatter(X2[:, 0], X2[:, 1], color='black')
+plt.xlim((xx2.min(), xx2.max()))
+plt.ylim((yy2.min(), yy2.max()))
+plt.legend((legend2_values_list[0].collections[0],
+            legend2_values_list[1].collections[0],
+            legend2_values_list[2].collections[0]),
+           (legend2_keys_list[0], legend2_keys_list[1], legend2_keys_list[2]),
+           loc="upper center",
+           prop=matplotlib.font_manager.FontProperties(size=12))
+plt.ylabel("% lower status of the population")
+plt.xlabel("average number of rooms per dwelling")
+
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 4.439 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_outlier_detection_housing.py" download="" target="_blank"><code>plot_outlier_detection_housing.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_outlier_detection_housing.ipynb" download="" target="_blank"><code>plot_outlier_detection_housing.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/applications/plot_outlier_detection_housing.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/applications/plot_outlier_detection_housing.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

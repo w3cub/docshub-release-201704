@@ -1,0 +1,215 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Feature Agglomeration vs. Univariate Selection - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content=" This example compares 2 dimensionality reduction strategies&#58; ">
+  <meta name="keywords" content="feature, agglomeration, univariate, selection, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/cluster/plot_feature_agglomeration_vs_univariate_selection/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-cluster-plot-feature-agglomeration-vs-univariate-selection-py">Feature agglomeration vs. univariate selection</h1> <p id="feature-agglomeration-vs-univariate-selection">This example compares 2 dimensionality reduction strategies:</p> <ul class="simple"> <li>univariate feature selection with Anova</li> <li>feature agglomeration with Ward hierarchical clustering</li> </ul> <p>Both methods are compared in a regression problem using a BayesianRidge as supervised estimator.</p> <pre data-language="python"># Author: Alexandre Gramfort &lt;alexandre.gramfort@inria.fr&gt;
+# License: BSD 3 clause
+
+print(__doc__)
+
+import shutil
+import tempfile
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import linalg, ndimage
+
+from sklearn.feature_extraction.image import grid_to_graph
+from sklearn import feature_selection
+from sklearn.cluster import FeatureAgglomeration
+from sklearn.linear_model import BayesianRidge
+from sklearn.pipeline import Pipeline
+from sklearn.externals.joblib import Memory
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import KFold
+</pre> <p>Generate data</p> <pre data-language="python">n_samples = 200
+size = 40  # image size
+roi_size = 15
+snr = 5.
+np.random.seed(0)
+mask = np.ones([size, size], dtype=np.bool)
+
+coef = np.zeros((size, size))
+coef[0:roi_size, 0:roi_size] = -1.
+coef[-roi_size:, -roi_size:] = 1.
+
+X = np.random.randn(n_samples, size ** 2)
+for x in X:  # smooth data
+    x[:] = ndimage.gaussian_filter(x.reshape(size, size), sigma=1.0).ravel()
+X -= X.mean(axis=0)
+X /= X.std(axis=0)
+
+y = np.dot(X, coef.ravel())
+noise = np.random.randn(y.shape[0])
+noise_coef = (linalg.norm(y, 2) / np.exp(snr / 20.)) / linalg.norm(noise, 2)
+y += noise_coef * noise  # add noise
+</pre> <p>Compute the coefs of a Bayesian Ridge with GridSearch</p> <pre data-language="python">cv = KFold(2)  # cross-validation generator for model selection
+ridge = BayesianRidge()
+cachedir = tempfile.mkdtemp()
+mem = Memory(cachedir=cachedir, verbose=1)
+
+# Ward agglomeration followed by BayesianRidge
+connectivity = grid_to_graph(n_x=size, n_y=size)
+ward = FeatureAgglomeration(n_clusters=10, connectivity=connectivity,
+                            memory=mem)
+clf = Pipeline([('ward', ward), ('ridge', ridge)])
+# Select the optimal number of parcels with grid search
+clf = GridSearchCV(clf, {'ward__n_clusters': [10, 20, 30]}, n_jobs=1, cv=cv)
+clf.fit(X, y)  # set the best parameters
+coef_ = clf.best_estimator_.steps[-1][1].coef_
+coef_ = clf.best_estimator_.steps[0][1].inverse_transform(coef_)
+coef_agglomeration_ = coef_.reshape(size, size)
+
+# Anova univariate feature selection followed by BayesianRidge
+f_regression = mem.cache(feature_selection.f_regression)  # caching function
+anova = feature_selection.SelectPercentile(f_regression)
+clf = Pipeline([('anova', anova), ('ridge', ridge)])
+# Select the optimal percentage of features with grid search
+clf = GridSearchCV(clf, {'anova__percentile': [5, 10, 20]}, cv=cv)
+clf.fit(X, y)  # set the best parameters
+coef_ = clf.best_estimator_.steps[-1][1].coef_
+coef_ = clf.best_estimator_.steps[0][1].inverse_transform(coef_.reshape(1, -1))
+coef_selection_ = coef_.reshape(size, size)
+</pre> <p class="sphx-glr-script-out">Out:</p> <pre data-language="python">  ________________________________________________________________________________
+[Memory] Calling sklearn.cluster.hierarchical.ward_tree...
+ward_tree(array([[-0.451933, ..., -0.675318],
+       ...,
+       [ 0.275706, ..., -1.085711]]),
+&lt;1600x1600 sparse matrix of type '&lt;type 'numpy.int64'&gt;'
+        with 7840 stored elements in COOrdinate format&gt;, n_clusters=None)
+________________________________________________________ward_tree - 0.2s, 0.0min
+________________________________________________________________________________
+[Memory] Calling sklearn.cluster.hierarchical.ward_tree...
+ward_tree(array([[ 0.905206, ...,  0.161245],
+       ...,
+       [-0.849835, ..., -1.091621]]),
+&lt;1600x1600 sparse matrix of type '&lt;type 'numpy.int64'&gt;'
+        with 7840 stored elements in COOrdinate format&gt;, n_clusters=None)
+________________________________________________________ward_tree - 0.2s, 0.0min
+________________________________________________________________________________
+[Memory] Calling sklearn.cluster.hierarchical.ward_tree...
+ward_tree(array([[ 0.905206, ..., -0.675318],
+       ...,
+       [-0.849835, ..., -1.085711]]),
+&lt;1600x1600 sparse matrix of type '&lt;type 'numpy.int64'&gt;'
+        with 7840 stored elements in COOrdinate format&gt;, n_clusters=None)
+________________________________________________________ward_tree - 0.2s, 0.0min
+________________________________________________________________________________
+[Memory] Calling sklearn.feature_selection.univariate_selection.f_regression...
+f_regression(array([[-0.451933, ...,  0.275706],
+       ...,
+       [-0.675318, ..., -1.085711]]),
+array([ 25.267703, ..., -25.026711]))
+_____________________________________________________f_regression - 0.0s, 0.0min
+________________________________________________________________________________
+[Memory] Calling sklearn.feature_selection.univariate_selection.f_regression...
+f_regression(array([[ 0.905206, ..., -0.849835],
+       ...,
+       [ 0.161245, ..., -1.091621]]),
+array([ -27.447268, ..., -112.638768]))
+_____________________________________________________f_regression - 0.0s, 0.0min
+________________________________________________________________________________
+[Memory] Calling sklearn.feature_selection.univariate_selection.f_regression...
+f_regression(array([[ 0.905206, ..., -0.849835],
+       ...,
+       [-0.675318, ..., -1.085711]]),
+array([-27.447268, ..., -25.026711]))
+_____________________________________________________f_regression - 0.0s, 0.0min
+</pre> <p>Inverse the transformation to plot the results on an image</p> <pre data-language="python">plt.close('all')
+plt.figure(figsize=(7.3, 2.7))
+plt.subplot(1, 3, 1)
+plt.imshow(coef, interpolation="nearest", cmap=plt.cm.RdBu_r)
+plt.title("True weights")
+plt.subplot(1, 3, 2)
+plt.imshow(coef_selection_, interpolation="nearest", cmap=plt.cm.RdBu_r)
+plt.title("Feature Selection")
+plt.subplot(1, 3, 3)
+plt.imshow(coef_agglomeration_, interpolation="nearest", cmap=plt.cm.RdBu_r)
+plt.title("Feature Agglomeration")
+plt.subplots_adjust(0.04, 0.0, 0.98, 0.94, 0.16, 0.26)
+plt.show()
+
+# Attempt to remove the temporary cachedir, but don't worry if it fails
+shutil.rmtree(cachedir, ignore_errors=True)
+</pre> <img alt="../../_images/sphx_glr_plot_feature_agglomeration_vs_univariate_selection_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_feature_agglomeration_vs_univariate_selection_001.png"> <p><strong>Total running time of the script:</strong> (0 minutes 1.313 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_feature_agglomeration_vs_univariate_selection.py" download="" target="_blank"><code>plot_feature_agglomeration_vs_univariate_selection.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_feature_agglomeration_vs_univariate_selection.ipynb" download="" target="_blank"><code>plot_feature_agglomeration_vs_univariate_selection.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/cluster/plot_feature_agglomeration_vs_univariate_selection.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/cluster/plot_feature_agglomeration_vs_univariate_selection.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,149 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Gaussian Mixture Model Ellipsoids - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="Plot the confidence ellipsoids of a mixture of two Gaussians obtained with Expectation Maximisation (GaussianMixture class) and Variational &hellip;">
+  <meta name="keywords" content="gaussian, mixture, model, ellipsoids, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/mixture/plot_gmm/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-mixture-plot-gmm-py">Gaussian Mixture Model Ellipsoids</h1> <p id="gaussian-mixture-model-ellipsoids">Plot the confidence ellipsoids of a mixture of two Gaussians obtained with Expectation Maximisation (<code>GaussianMixture</code> class) and Variational Inference (<code>BayesianGaussianMixture</code> class models with a Dirichlet process prior).</p> <p>Both models have access to five components with which to fit the data. Note that the Expectation Maximisation model will necessarily use all five components while the Variational Inference model will effectively only use as many as are needed for a good fit. Here we can see that the Expectation Maximisation model splits some components arbitrarily, because it is trying to fit too many components, while the Dirichlet Process model adapts it number of state automatically.</p> <p>This example doesn’t show it, as we’re in a low-dimensional space, but another advantage of the Dirichlet process model is that it can fit full covariance matrices effectively even when there are less examples per cluster than there are dimensions in the data, due to regularization properties of the inference algorithm.</p> <img alt="../../_images/sphx_glr_plot_gmm_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_gmm_001.png"> <pre data-language="python">import itertools
+
+import numpy as np
+from scipy import linalg
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+from sklearn import mixture
+
+color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
+                              'darkorange'])
+
+
+def plot_results(X, Y_, means, covariances, index, title):
+    splot = plt.subplot(2, 1, 1 + index)
+    for i, (mean, covar, color) in enumerate(zip(
+            means, covariances, color_iter)):
+        v, w = linalg.eigh(covar)
+        v = 2. * np.sqrt(2.) * np.sqrt(v)
+        u = w[0] / linalg.norm(w[0])
+        # as the DP will not use every component it has access to
+        # unless it needs it, we shouldn't plot the redundant
+        # components.
+        if not np.any(Y_ == i):
+            continue
+        plt.scatter(X[Y_ == i, 0], X[Y_ == i, 1], .8, color=color)
+
+        # Plot an ellipse to show the Gaussian component
+        angle = np.arctan(u[1] / u[0])
+        angle = 180. * angle / np.pi  # convert to degrees
+        ell = mpl.patches.Ellipse(mean, v[0], v[1], 180. + angle, color=color)
+        ell.set_clip_box(splot.bbox)
+        ell.set_alpha(0.5)
+        splot.add_artist(ell)
+
+    plt.xlim(-9., 5.)
+    plt.ylim(-3., 6.)
+    plt.xticks(())
+    plt.yticks(())
+    plt.title(title)
+
+
+# Number of samples per component
+n_samples = 500
+
+# Generate random sample, two components
+np.random.seed(0)
+C = np.array([[0., -0.1], [1.7, .4]])
+X = np.r_[np.dot(np.random.randn(n_samples, 2), C),
+          .7 * np.random.randn(n_samples, 2) + np.array([-6, 3])]
+
+# Fit a Gaussian mixture with EM using five components
+gmm = mixture.GaussianMixture(n_components=5, covariance_type='full').fit(X)
+plot_results(X, gmm.predict(X), gmm.means_, gmm.covariances_, 0,
+             'Gaussian Mixture')
+
+# Fit a Dirichlet process Gaussian mixture using five components
+dpgmm = mixture.BayesianGaussianMixture(n_components=5,
+                                        covariance_type='full').fit(X)
+plot_results(X, dpgmm.predict(X), dpgmm.means_, dpgmm.covariances_, 1,
+             'Bayesian Gaussian Mixture with a Dirichlet process prior')
+
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.428 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_gmm.py" download="" target="_blank"><code>plot_gmm.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_gmm.ipynb" download="" target="_blank"><code>plot_gmm.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/mixture/plot_gmm.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/mixture/plot_gmm.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

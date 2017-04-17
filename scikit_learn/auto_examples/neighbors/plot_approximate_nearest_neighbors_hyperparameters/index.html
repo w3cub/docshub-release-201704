@@ -1,0 +1,192 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Hyper-parameters of Approximate Nearest Neighbors - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="This example demonstrates the behaviour of the accuracy of the nearest neighbor queries of Locality Sensitive Hashing Forest as the number of &hellip;">
+  <meta name="keywords" content="hyper-parameters, approximate, nearest, neighbors, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/neighbors/plot_approximate_nearest_neighbors_hyperparameters/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-neighbors-plot-approximate-nearest-neighbors-hyperparameters-py">Hyper-parameters of Approximate Nearest Neighbors</h1> <p id="hyper-parameters-of-approximate-nearest-neighbors">This example demonstrates the behaviour of the accuracy of the nearest neighbor queries of Locality Sensitive Hashing Forest as the number of candidates and the number of estimators (trees) vary.</p> <p>In the first plot, accuracy is measured with the number of candidates. Here, the term “number of candidates” refers to maximum bound for the number of distinct points retrieved from each tree to calculate the distances. Nearest neighbors are selected from this pool of candidates. Number of estimators is maintained at three fixed levels (1, 5, 10).</p> <p>In the second plot, the number of candidates is fixed at 50. Number of trees is varied and the accuracy is plotted against those values. To measure the accuracy, the true nearest neighbors are required, therefore <a class="reference internal" href="../../../modules/generated/sklearn.neighbors.nearestneighbors/#sklearn.neighbors.NearestNeighbors" title="sklearn.neighbors.NearestNeighbors"><code>sklearn.neighbors.NearestNeighbors</code></a> is used to compute the exact neighbors.</p> <pre data-language="python">from __future__ import division
+print(__doc__)
+
+# Author: Maheshakya Wijewardena &lt;maheshakya.10@cse.mrt.ac.lk&gt;
+#
+# License: BSD 3 clause
+</pre> <pre data-language="python">import numpy as np
+from sklearn.datasets.samples_generator import make_blobs
+from sklearn.neighbors import LSHForest
+from sklearn.neighbors import NearestNeighbors
+import matplotlib.pyplot as plt
+
+
+# Initialize size of the database, iterations and required neighbors.
+n_samples = 10000
+n_features = 100
+n_queries = 30
+rng = np.random.RandomState(42)
+
+# Generate sample data
+X, _ = make_blobs(n_samples=n_samples + n_queries,
+                  n_features=n_features, centers=10,
+                  random_state=0)
+X_index = X[:n_samples]
+X_query = X[n_samples:]
+# Get exact neighbors
+nbrs = NearestNeighbors(n_neighbors=1, algorithm='brute',
+                        metric='cosine').fit(X_index)
+neighbors_exact = nbrs.kneighbors(X_query, return_distance=False)
+
+# Set `n_candidate` values
+n_candidates_values = np.linspace(10, 500, 5).astype(np.int)
+n_estimators_for_candidate_value = [1, 5, 10]
+n_iter = 10
+stds_accuracies = np.zeros((len(n_estimators_for_candidate_value),
+                            n_candidates_values.shape[0]),
+                           dtype=float)
+accuracies_c = np.zeros((len(n_estimators_for_candidate_value),
+                         n_candidates_values.shape[0]), dtype=float)
+
+# LSH Forest is a stochastic index: perform several iteration to estimate
+# expected accuracy and standard deviation displayed as error bars in
+# the plots
+for j, value in enumerate(n_estimators_for_candidate_value):
+    for i, n_candidates in enumerate(n_candidates_values):
+        accuracy_c = []
+        for seed in range(n_iter):
+            lshf = LSHForest(n_estimators=value,
+                             n_candidates=n_candidates, n_neighbors=1,
+                             random_state=seed)
+            # Build the LSH Forest index
+            lshf.fit(X_index)
+            # Get neighbors
+            neighbors_approx = lshf.kneighbors(X_query,
+                                               return_distance=False)
+            accuracy_c.append(np.sum(np.equal(neighbors_approx,
+                                              neighbors_exact)) /
+                              n_queries)
+
+        stds_accuracies[j, i] = np.std(accuracy_c)
+        accuracies_c[j, i] = np.mean(accuracy_c)
+
+# Set `n_estimators` values
+n_estimators_values = [1, 5, 10, 20, 30, 40, 50]
+accuracies_trees = np.zeros(len(n_estimators_values), dtype=float)
+
+# Calculate average accuracy for each value of `n_estimators`
+for i, n_estimators in enumerate(n_estimators_values):
+    lshf = LSHForest(n_estimators=n_estimators, n_neighbors=1)
+    # Build the LSH Forest index
+    lshf.fit(X_index)
+    # Get neighbors
+    neighbors_approx = lshf.kneighbors(X_query, return_distance=False)
+    accuracies_trees[i] = np.sum(np.equal(neighbors_approx,
+                                          neighbors_exact))/n_queries
+</pre> <p>Plot the accuracy variation with <code>n_candidates</code></p> <pre data-language="python">plt.figure()
+colors = ['c', 'm', 'y']
+for i, n_estimators in enumerate(n_estimators_for_candidate_value):
+    label = 'n_estimators = %d ' % n_estimators
+    plt.plot(n_candidates_values, accuracies_c[i, :],
+             'o-', c=colors[i], label=label)
+    plt.errorbar(n_candidates_values, accuracies_c[i, :],
+                 stds_accuracies[i, :], c=colors[i])
+
+plt.legend(loc='upper left', prop=dict(size='small'))
+plt.ylim([0, 1.2])
+plt.xlim(min(n_candidates_values), max(n_candidates_values))
+plt.ylabel("Accuracy")
+plt.xlabel("n_candidates")
+plt.grid(which='both')
+plt.title("Accuracy variation with n_candidates")
+
+# Plot the accuracy variation with `n_estimators`
+plt.figure()
+plt.scatter(n_estimators_values, accuracies_trees, c='k')
+plt.plot(n_estimators_values, accuracies_trees, c='g')
+plt.ylim([0, 1.2])
+plt.xlim(min(n_estimators_values), max(n_estimators_values))
+plt.ylabel("Accuracy")
+plt.xlabel("n_estimators")
+plt.grid(which='both')
+plt.title("Accuracy variation with n_estimators")
+
+plt.show()
+</pre> <ul class="sphx-glr-horizontal"> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_001.png" target="_blank"><img alt="../../_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_001.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_001.png" style="width: 376.0px; height: 282.0px;"></a> </li> <li>
+<a class="first reference internal image-reference" href="http://scikit-learn.org/stable/_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_002.png" target="_blank"><img alt="../../_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_002.png" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_approximate_nearest_neighbors_hyperparameters_002.png" style="width: 376.0px; height: 282.0px;"></a> </li> </ul> <p><strong>Total running time of the script:</strong> (0 minutes 20.796 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_approximate_nearest_neighbors_hyperparameters.py" download="" target="_blank"><code>plot_approximate_nearest_neighbors_hyperparameters.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_approximate_nearest_neighbors_hyperparameters.ipynb" download="" target="_blank"><code>plot_approximate_nearest_neighbors_hyperparameters.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/neighbors/plot_approximate_nearest_neighbors_hyperparameters.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/neighbors/plot_approximate_nearest_neighbors_hyperparameters.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,277 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Visualizing the Stock Market Structure - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content=" This example employs several unsupervised learning techniques to extract the stock market structure from variations in historical quotes. ">
+  <meta name="keywords" content="visualizing, stock, market, structure, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/applications/plot_stock_market/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-applications-plot-stock-market-py">Visualizing the stock market structure</h1> <p id="visualizing-the-stock-market-structure">This example employs several unsupervised learning techniques to extract the stock market structure from variations in historical quotes.</p> <p>The quantity that we use is the daily variation in quote price: quotes that are linked tend to cofluctuate during a day.</p>  <h2 id="stock-market">Learning a graph structure</h2> <p id="learning-a-graph-structure">We use sparse inverse covariance estimation to find which quotes are correlated conditionally on the others. Specifically, sparse inverse covariance gives us a graph, that is a list of connection. For each symbol, the symbols that it is connected too are those useful to explain its fluctuations.</p>   <h2 id="clustering">Clustering</h2> <p>We use clustering to group together quotes that behave similarly. Here, amongst the <a class="reference internal" href="../../../modules/clustering/#clustering"><span class="std std-ref">various clustering techniques</span></a> available in the scikit-learn, we use <a class="reference internal" href="../../../modules/clustering/#affinity-propagation"><span class="std std-ref">Affinity Propagation</span></a> as it does not enforce equal-size clusters, and it can choose automatically the number of clusters from the data.</p> <p>Note that this gives us a different indication than the graph, as the graph reflects conditional relations between variables, while the clustering reflects marginal properties: variables clustered together can be considered as having a similar impact at the level of the full stock market.</p>   <h2 id="embedding-in-2d-space">Embedding in 2D space</h2> <p>For visualization purposes, we need to lay out the different symbols on a 2D canvas. For this we use <a class="reference internal" href="../../../modules/manifold/#manifold"><span class="std std-ref">Manifold learning</span></a> techniques to retrieve 2D embedding.</p>   <h2 id="visualization">Visualization</h2> <p>The output of the 3 models are combined in a 2D graph where nodes represents the stocks and edges the:</p> <ul class="simple"> <li>cluster labels are used to define the color of the nodes</li> <li>the sparse covariance model is used to display the strength of the edges</li> <li>the 2D embedding is used to position the nodes in the plan</li> </ul> <p>This example has a fair amount of visualization-related code, as visualization is crucial here to display the graph. One of the challenge is to position the labels minimizing overlap. For this we use an heuristic based on the direction of the nearest neighbor along each axis.</p> <pre data-language="python">print(__doc__)
+
+# Author: Gael Varoquaux gael.varoquaux@normalesup.org
+# License: BSD 3 clause
+
+import datetime
+
+import numpy as np
+import matplotlib.pyplot as plt
+try:
+     from matplotlib.finance import quotes_historical_yahoo_ochl
+except ImportError:
+     # quotes_historical_yahoo_ochl was named quotes_historical_yahoo before matplotlib 1.4
+     from matplotlib.finance import quotes_historical_yahoo as quotes_historical_yahoo_ochl
+from matplotlib.collections import LineCollection
+from sklearn import cluster, covariance, manifold
+</pre> <p>Retrieve the data from Internet</p> <pre data-language="python"># Choose a time period reasonably calm (not too long ago so that we get
+# high-tech firms, and before the 2008 crash)
+d1 = datetime.datetime(2003, 1, 1)
+d2 = datetime.datetime(2008, 1, 1)
+
+# kraft symbol has now changed from KFT to MDLZ in yahoo
+symbol_dict = {
+    'TOT': 'Total',
+    'XOM': 'Exxon',
+    'CVX': 'Chevron',
+    'COP': 'ConocoPhillips',
+    'VLO': 'Valero Energy',
+    'MSFT': 'Microsoft',
+    'IBM': 'IBM',
+    'TWX': 'Time Warner',
+    'CMCSA': 'Comcast',
+    'CVC': 'Cablevision',
+    'YHOO': 'Yahoo',
+    'DELL': 'Dell',
+    'HPQ': 'HP',
+    'AMZN': 'Amazon',
+    'TM': 'Toyota',
+    'CAJ': 'Canon',
+    'MTU': 'Mitsubishi',
+    'SNE': 'Sony',
+    'F': 'Ford',
+    'HMC': 'Honda',
+    'NAV': 'Navistar',
+    'NOC': 'Northrop Grumman',
+    'BA': 'Boeing',
+    'KO': 'Coca Cola',
+    'MMM': '3M',
+    'MCD': 'Mc Donalds',
+    'PEP': 'Pepsi',
+    'MDLZ': 'Kraft Foods',
+    'K': 'Kellogg',
+    'UN': 'Unilever',
+    'MAR': 'Marriott',
+    'PG': 'Procter Gamble',
+    'CL': 'Colgate-Palmolive',
+    'GE': 'General Electrics',
+    'WFC': 'Wells Fargo',
+    'JPM': 'JPMorgan Chase',
+    'AIG': 'AIG',
+    'AXP': 'American express',
+    'BAC': 'Bank of America',
+    'GS': 'Goldman Sachs',
+    'AAPL': 'Apple',
+    'SAP': 'SAP',
+    'CSCO': 'Cisco',
+    'TXN': 'Texas instruments',
+    'XRX': 'Xerox',
+    'LMT': 'Lookheed Martin',
+    'WMT': 'Wal-Mart',
+    'WBA': 'Walgreen',
+    'HD': 'Home Depot',
+    'GSK': 'GlaxoSmithKline',
+    'PFE': 'Pfizer',
+    'SNY': 'Sanofi-Aventis',
+    'NVS': 'Novartis',
+    'KMB': 'Kimberly-Clark',
+    'R': 'Ryder',
+    'GD': 'General Dynamics',
+    'RTN': 'Raytheon',
+    'CVS': 'CVS',
+    'CAT': 'Caterpillar',
+    'DD': 'DuPont de Nemours'}
+
+symbols, names = np.array(list(symbol_dict.items())).T
+
+quotes = [quotes_historical_yahoo_ochl(symbol, d1, d2, asobject=True)
+          for symbol in symbols]
+
+open = np.array([q.open for q in quotes]).astype(np.float)
+close = np.array([q.close for q in quotes]).astype(np.float)
+
+# The daily variations of the quotes are what carry most information
+variation = close - open
+</pre> <p>Learn a graphical structure from the correlations</p> <pre data-language="python">edge_model = covariance.GraphLassoCV()
+
+# standardize the time series: using correlations rather than covariance
+# is more efficient for structure recovery
+X = variation.copy().T
+X /= X.std(axis=0)
+edge_model.fit(X)
+</pre> <p>Cluster using affinity propagation</p> <pre data-language="python">_, labels = cluster.affinity_propagation(edge_model.covariance_)
+n_labels = labels.max()
+
+for i in range(n_labels + 1):
+    print('Cluster %i: %s' % ((i + 1), ', '.join(names[labels == i])))
+</pre> <p class="sphx-glr-script-out">Out:</p> <pre data-language="python">  Cluster 1: Pepsi, Coca Cola, Kellogg
+Cluster 2: Apple, Amazon, Yahoo
+Cluster 3: GlaxoSmithKline, Novartis, Sanofi-Aventis
+Cluster 4: Comcast, Time Warner, Cablevision
+Cluster 5: ConocoPhillips, Chevron, Total, Valero Energy, Exxon
+Cluster 6: CVS, Walgreen
+Cluster 7: Navistar, Sony, Marriott, Caterpillar, Canon, Toyota, Honda, Mitsubishi, Xerox, Unilever
+Cluster 8: Kimberly-Clark, Colgate-Palmolive, Procter Gamble
+Cluster 9: American express, Ryder, Goldman Sachs, Wal-Mart, General Electrics, Pfizer, Wells Fargo, DuPont de Nemours, Bank of America, AIG, Home Depot, Ford, JPMorgan Chase, Mc Donalds
+Cluster 10: Microsoft, SAP, 3M, IBM, Texas instruments, HP, Dell, Cisco
+Cluster 11: Raytheon, Boeing, Lookheed Martin, General Dynamics, Northrop Grumman
+Cluster 12: Kraft Foods
+</pre> <p>Find a low-dimension embedding for visualization: find the best position of the nodes (the stocks) on a 2D plane</p> <pre data-language="python"># We use a dense eigen_solver to achieve reproducibility (arpack is
+# initiated with random vectors that we don't control). In addition, we
+# use a large number of neighbors to capture the large-scale structure.
+node_position_model = manifold.LocallyLinearEmbedding(
+    n_components=2, eigen_solver='dense', n_neighbors=6)
+
+embedding = node_position_model.fit_transform(X.T).T
+</pre> <p>Visualization</p> <pre data-language="python">plt.figure(1, facecolor='w', figsize=(10, 8))
+plt.clf()
+ax = plt.axes([0., 0., 1., 1.])
+plt.axis('off')
+
+# Display a graph of the partial correlations
+partial_correlations = edge_model.precision_.copy()
+d = 1 / np.sqrt(np.diag(partial_correlations))
+partial_correlations *= d
+partial_correlations *= d[:, np.newaxis]
+non_zero = (np.abs(np.triu(partial_correlations, k=1)) &gt; 0.02)
+
+# Plot the nodes using the coordinates of our embedding
+plt.scatter(embedding[0], embedding[1], s=100 * d ** 2, c=labels,
+            cmap=plt.cm.spectral)
+
+# Plot the edges
+start_idx, end_idx = np.where(non_zero)
+#a sequence of (*line0*, *line1*, *line2*), where::
+#            linen = (x0, y0), (x1, y1), ... (xm, ym)
+segments = [[embedding[:, start], embedding[:, stop]]
+            for start, stop in zip(start_idx, end_idx)]
+values = np.abs(partial_correlations[non_zero])
+lc = LineCollection(segments,
+                    zorder=0, cmap=plt.cm.hot_r,
+                    norm=plt.Normalize(0, .7 * values.max()))
+lc.set_array(values)
+lc.set_linewidths(15 * values)
+ax.add_collection(lc)
+
+# Add a label to each node. The challenge here is that we want to
+# position the labels to avoid overlap with other labels
+for index, (name, label, (x, y)) in enumerate(
+        zip(names, labels, embedding.T)):
+
+    dx = x - embedding[0]
+    dx[index] = 1
+    dy = y - embedding[1]
+    dy[index] = 1
+    this_dx = dx[np.argmin(np.abs(dy))]
+    this_dy = dy[np.argmin(np.abs(dx))]
+    if this_dx &gt; 0:
+        horizontalalignment = 'left'
+        x = x + .002
+    else:
+        horizontalalignment = 'right'
+        x = x - .002
+    if this_dy &gt; 0:
+        verticalalignment = 'bottom'
+        y = y + .002
+    else:
+        verticalalignment = 'top'
+        y = y - .002
+    plt.text(x, y, name, size=10,
+             horizontalalignment=horizontalalignment,
+             verticalalignment=verticalalignment,
+             bbox=dict(facecolor='w',
+                       edgecolor=plt.cm.spectral(label / float(n_labels)),
+                       alpha=.6))
+
+plt.xlim(embedding[0].min() - .15 * embedding[0].ptp(),
+         embedding[0].max() + .10 * embedding[0].ptp(),)
+plt.ylim(embedding[1].min() - .03 * embedding[1].ptp(),
+         embedding[1].max() + .03 * embedding[1].ptp())
+
+plt.show()
+</pre> <img alt="../../_images/sphx_glr_plot_stock_market_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_stock_market_001.png"> <p><strong>Total running time of the script:</strong> (0 minutes 15.395 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_stock_market.py" download="" target="_blank"><code>plot_stock_market.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_stock_market.ipynb" download="" target="_blank"><code>plot_stock_market.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/applications/plot_stock_market.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/applications/plot_stock_market.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

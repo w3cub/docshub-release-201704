@@ -1,0 +1,170 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Sparse Coding With a Precomputed Dictionary - Scikit-learn - W3cubDocs</title>
+  
+  <meta name="description" content="Transform a signal as a sparse combination of Ricker wavelets. This example visually compares different sparse coding methods using the sklearn. &hellip;">
+  <meta name="keywords" content="sparse, coding, with, precomputed, dictionary, example, -, scikit-learn, scikit_learn">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/scikit_learn/auto_examples/decomposition/plot_sparse_coding/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/scikit_learn.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/scikit_learn/" class="_nav-link" title="" style="margin-left:0;">scikit-learn</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="sphx-glr-auto-examples-decomposition-plot-sparse-coding-py">Sparse coding with a precomputed dictionary</h1> <p id="sparse-coding-with-a-precomputed-dictionary">Transform a signal as a sparse combination of Ricker wavelets. This example visually compares different sparse coding methods using the <a class="reference internal" href="../../../modules/generated/sklearn.decomposition.sparsecoder/#sklearn.decomposition.SparseCoder" title="sklearn.decomposition.SparseCoder"><code>sklearn.decomposition.SparseCoder</code></a> estimator. The Ricker (also known as Mexican hat or the second derivative of a Gaussian) is not a particularly good kernel to represent piecewise constant signals like this one. It can therefore be seen how much adding different widths of atoms matters and it therefore motivates learning the dictionary to best fit your type of signals.</p> <p>The richer dictionary on the right is not larger in size, heavier subsampling is performed in order to stay on the same order of magnitude.</p> <img alt="../../_images/sphx_glr_plot_sparse_coding_001.png" class="align-center" src="http://scikit-learn.org/stable/_images/sphx_glr_plot_sparse_coding_001.png"> <pre data-language="python">print(__doc__)
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.decomposition import SparseCoder
+
+
+def ricker_function(resolution, center, width):
+    """Discrete sub-sampled Ricker (Mexican hat) wavelet"""
+    x = np.linspace(0, resolution - 1, resolution)
+    x = ((2 / ((np.sqrt(3 * width) * np.pi ** 1 / 4)))
+         * (1 - ((x - center) ** 2 / width ** 2))
+         * np.exp((-(x - center) ** 2) / (2 * width ** 2)))
+    return x
+
+
+def ricker_matrix(width, resolution, n_components):
+    """Dictionary of Ricker (Mexican hat) wavelets"""
+    centers = np.linspace(0, resolution - 1, n_components)
+    D = np.empty((n_components, resolution))
+    for i, center in enumerate(centers):
+        D[i] = ricker_function(resolution, center, width)
+    D /= np.sqrt(np.sum(D ** 2, axis=1))[:, np.newaxis]
+    return D
+
+
+resolution = 1024
+subsampling = 3  # subsampling factor
+width = 100
+n_components = resolution / subsampling
+
+# Compute a wavelet dictionary
+D_fixed = ricker_matrix(width=width, resolution=resolution,
+                        n_components=n_components)
+D_multi = np.r_[tuple(ricker_matrix(width=w, resolution=resolution,
+                                    n_components=np.floor(n_components / 5))
+                for w in (10, 50, 100, 500, 1000))]
+
+# Generate a signal
+y = np.linspace(0, resolution - 1, resolution)
+first_quarter = y &lt; resolution / 4
+y[first_quarter] = 3.
+y[np.logical_not(first_quarter)] = -1.
+
+# List the different sparse coding methods in the following format:
+# (title, transform_algorithm, transform_alpha, transform_n_nozero_coefs)
+estimators = [('OMP', 'omp', None, 15, 'navy'),
+              ('Lasso', 'lasso_cd', 2, None, 'turquoise'), ]
+lw = 2
+
+plt.figure(figsize=(13, 6))
+for subplot, (D, title) in enumerate(zip((D_fixed, D_multi),
+                                         ('fixed width', 'multiple widths'))):
+    plt.subplot(1, 2, subplot + 1)
+    plt.title('Sparse coding against %s dictionary' % title)
+    plt.plot(y, lw=lw, linestyle='--', label='Original signal')
+    # Do a wavelet approximation
+    for title, algo, alpha, n_nonzero, color in estimators:
+        coder = SparseCoder(dictionary=D, transform_n_nonzero_coefs=n_nonzero,
+                            transform_alpha=alpha, transform_algorithm=algo)
+        x = coder.transform(y.reshape(1, -1))
+        density = len(np.flatnonzero(x))
+        x = np.ravel(np.dot(x, D))
+        squared_error = np.sum((y - x) ** 2)
+        plt.plot(x, color=color, lw=lw,
+                 label='%s: %s nonzero coefs,\n%.2f error'
+                 % (title, density, squared_error))
+
+    # Soft thresholding debiasing
+    coder = SparseCoder(dictionary=D, transform_algorithm='threshold',
+                        transform_alpha=20)
+    x = coder.transform(y.reshape(1, -1))
+    _, idx = np.where(x != 0)
+    x[0, idx], _, _, _ = np.linalg.lstsq(D[idx, :].T, y)
+    x = np.ravel(np.dot(x, D))
+    squared_error = np.sum((y - x) ** 2)
+    plt.plot(x, color='darkorange', lw=lw,
+             label='Thresholding w/ debiasing:\n%d nonzero coefs, %.2f error'
+             % (len(idx), squared_error))
+    plt.axis('tight')
+    plt.legend(shadow=False, loc='best')
+plt.subplots_adjust(.04, .07, .97, .90, .09, .2)
+plt.show()
+</pre> <p><strong>Total running time of the script:</strong> (0 minutes 0.359 seconds)</p> <div class="sphx-glr-download container"> <strong>Download Python source code:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_sparse_coding.py" download="" target="_blank"><code>plot_sparse_coding.py</code></a>
+</div> <div class="sphx-glr-download container"> <strong>Download IPython notebook:</strong> <a class="reference download internal" href="http://scikit-learn.org/stable/_downloads/plot_sparse_coding.ipynb" download="" target="_blank"><code>plot_sparse_coding.ipynb</code></a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2007–2016 The scikit-learn developers<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://scikit-learn.org/stable/auto_examples/decomposition/plot_sparse_coding.html" class="_attribution-link" target="_blank">http://scikit-learn.org/stable/auto_examples/decomposition/plot_sparse_coding.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
