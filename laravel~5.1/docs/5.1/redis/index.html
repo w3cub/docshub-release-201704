@@ -1,0 +1,167 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Redis - Laravel 5.1 - W3cubDocs</title>
+  
+  <meta name="description" content="Redis is an open source, advanced key-value store. It is often referred to as a data structure server since keys can contain strings, hashes, lists &hellip;">
+  <meta name="keywords" content="redis, -, laravel, laravel~5.1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/laravel~5.1/docs/5.1/redis/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/laravel~5.1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/laravel~5.1/" class="_nav-link" title="" style="margin-left:0;">Laravel 5.1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _laravel">
+				
+<h1>Redis</h1> <ul> <li><a href="#introduction">Introduction</a></li> <li>
+<a href="#basic-usage">Basic Usage</a> <ul> <li><a href="#pipelining-commands">Pipelining Commands</a></li> </ul>
+</li> <li><a href="#pubsub">Pub / Sub</a></li> </ul>  <h2 id="introduction">Introduction</h2> <p><a href="http://redis.io" target="_blank">Redis</a> is an open source, advanced key-value store. It is often referred to as a data structure server since keys can contain <a href="http://redis.io/topics/data-types#strings" target="_blank">strings</a>, <a href="http://redis.io/topics/data-types#hashes" target="_blank">hashes</a>, <a href="http://redis.io/topics/data-types#lists" target="_blank">lists</a>, <a href="http://redis.io/topics/data-types#sets" target="_blank">sets</a>, and <a href="http://redis.io/topics/data-types#sorted-sets" target="_blank">sorted sets</a>. Before using Redis with Laravel, you will need to install the <code>predis/predis</code> package (~1.0) via Composer.</p>  <h3 id="configuration">Configuration</h3> <p>The Redis configuration for your application is located in the <code>config/database.php</code> configuration file. Within this file, you will see a <code>redis</code> array containing the Redis servers used by your application:</p> <pre data-language="php">'redis' =&gt; [
+
+    'cluster' =&gt; false,
+
+    'default' =&gt; [
+        'host'     =&gt; '127.0.0.1',
+        'port'     =&gt; 6379,
+        'database' =&gt; 0,
+    ],
+
+],</pre> <p>The default server configuration should suffice for development. However, you are free to modify this array based on your environment. Simply give each Redis server a name, and specify the host and port used by the server.</p> <p>The <code>cluster</code> option will tell the Laravel Redis client to perform client-side sharding across your Redis nodes, allowing you to pool nodes and create a large amount of available RAM. However, note that client-side sharding does not handle failover; therefore, is primarily suited for cached data that is available from another primary data store.</p> <p>Additionally, you may define an <code>options</code> array value in your Redis connection definition, allowing you to specify a set of Predis <a href="https://github.com/nrk/predis/wiki/Client-Options" target="_blank">client options</a>.</p> <p>If your Redis server requires authentication, you may supply a password by adding a <code>password</code> configuration item to your Redis server configuration array.</p> <blockquote> <p><strong>Note:</strong> If you have the Redis PHP extension installed via PECL, you will need to rename the alias for Redis in your <code>config/app.php</code> file.</p> </blockquote>  <h2 id="basic-usage">Basic Usage</h2> <p>You may interact with Redis by calling various methods on the <code>Redis</code> <a href="../facades/">facade</a>. The <code>Redis</code> facade supports dynamic methods, meaning you may call any <a href="http://redis.io/commands" target="_blank">Redis command</a> on the facade and the command will be passed directly to Redis. In this example, we will call the <code>GET</code> command on Redis by calling the <code>get</code> method on the <code>Redis</code> facade:</p> <pre data-language="php">&lt;?php
+
+namespace App\Http\Controllers;
+
+use Redis;
+use App\Http\Controllers\Controller;
+
+class UserController extends Controller
+{
+    /**
+     * Show the profile for the given user.
+     *
+     * @param  int  $id
+     * @return Response
+     */
+    public function showProfile($id)
+    {
+        $user = Redis::get('user:profile:'.$id);
+
+        return view('user.profile', ['user' =&gt; $user]);
+    }
+}</pre> <p>Of course, as mentioned above, you may call any of the Redis commands on the <code>Redis</code> facade. Laravel uses magic methods to pass the commands to the Redis server, so simply pass the arguments the Redis command expects:</p> <pre data-language="php">Redis::set('name', 'Taylor');
+
+$values = Redis::lrange('names', 5, 10);</pre> <p>Alternatively, you may also pass commands to the server using the <code>command</code> method, which accepts the name of the command as its first argument, and an array of values as its second argument:</p> <pre data-language="php">$values = Redis::command('lrange', ['name', 5, 10]);</pre> <h4>Using Multiple Redis Connections</h4> <p>You may get a Redis instance by calling the <code>Redis::connection</code> method:</p> <pre data-language="php">$redis = Redis::connection();</pre> <p>This will give you an instance of the default Redis server. If you are not using server clustering, you may pass the server name to the <code>connection</code> method to get a specific server as defined in your Redis configuration:</p> <pre data-language="php">$redis = Redis::connection('other');</pre>  <h3 id="pipelining-commands">Pipelining Commands</h3> <p>Pipelining should be used when you need to send many commands to the server in one operation. The <code>pipeline</code> method accepts one argument: a <code>Closure</code> that receives a Redis instance. You may issue all of your commands to this Redis instance and they will all be executed within a single operation:</p> <pre data-language="php">Redis::pipeline(function ($pipe) {
+    for ($i = 0; $i &lt; 1000; $i++) {
+        $pipe-&gt;set("key:$i", $i);
+    }
+});</pre>  <h2 id="pubsub">Pub / Sub</h2> <p>Laravel also provides a convenient interface to the Redis <code>publish</code> and <code>subscribe</code> commands. These Redis commands allow you to listen for messages on a given "channel". You may publish messages to the channel from another application, or even using another programming language, allowing easy communication between applications / processes.</p> <p>First, let's setup a listener on a channel via Redis using the <code>subscribe</code> method. We will place this method call within an <a href="../artisan/">Artisan command</a> since calling the <code>subscribe</code> method begins a long-running process:</p> <pre data-language="php">&lt;?php
+
+namespace App\Console\Commands;
+
+use Redis;
+use Illuminate\Console\Command;
+
+class RedisSubscribe extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'redis:subscribe';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Subscribe to a Redis channel';
+
+    /**
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {
+        Redis::subscribe(['test-channel'], function($message) {
+            echo $message;
+        });
+    }
+}</pre> <p>Now, we may publish messages to the channel using the <code>publish</code> method:</p> <pre data-language="php">Route::get('publish', function () {
+    // Route logic...
+
+    Redis::publish('test-channel', json_encode(['foo' =&gt; 'bar']));
+});</pre> <h4>Wildcard Subscriptions</h4> <p>Using the <code>psubscribe</code> method, you may subscribe to a wildcard channel, which is useful for catching all messages on all channels. The <code>$channel</code> name will be passed as the second argument to the provided callback <code>Closure</code>:</p> <pre data-language="php">Redis::psubscribe(['*'], function($message, $channel) {
+    echo $message;
+});
+
+Redis::psubscribe(['users.*'], function($message, $channel) {
+    echo $message;
+});</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Taylor Otwell<br>Licensed under the MIT License.<br>Laravel is a trademark of Taylor Otwell.<br>
+    <a href="https://laravel.com/docs/5.1/redis" class="_attribution-link" target="_blank">https://laravel.com/docs/5.1/redis</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

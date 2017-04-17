@@ -1,0 +1,243 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Artisan Console - Laravel 5.1 - W3cubDocs</title>
+  
+  <meta name="description" content="Artisan is the name of the command-line interface included with Laravel. It provides a number of helpful commands for your use while developing your &hellip;">
+  <meta name="keywords" content="artisan, console, -, laravel, laravel~5.1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/laravel~5.1/docs/5.1/artisan/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/laravel~5.1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/laravel~5.1/" class="_nav-link" title="" style="margin-left:0;">Laravel 5.1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _laravel">
+				
+<h1>Artisan Console</h1> <ul> <li><a href="#introduction">Introduction</a></li> <li>
+<a href="#writing-commands">Writing Commands</a> <ul> <li><a href="#command-structure">Command Structure</a></li> </ul>
+</li> <li>
+<a href="#command-io">Command I/O</a> <ul> <li><a href="#defining-input-expectations">Defining Input Expectations</a></li> <li><a href="#retrieving-input">Retrieving Input</a></li> <li><a href="#prompting-for-input">Prompting For Input</a></li> <li><a href="#writing-output">Writing Output</a></li> </ul>
+</li> <li><a href="#registering-commands">Registering Commands</a></li> <li><a href="#calling-commands-via-code">Calling Commands Via Code</a></li> </ul>  <h2 id="introduction">Introduction</h2> <p>Artisan is the name of the command-line interface included with Laravel. It provides a number of helpful commands for your use while developing your application. It is driven by the powerful Symfony Console component. To view a list of all available Artisan commands, you may use the <code>list</code> command:</p> <pre data-language="php">php artisan list</pre> <p>Every command also includes a "help" screen which displays and describes the command's available arguments and options. To view a help screen, simply precede the name of the command with <code>help</code>:</p> <pre data-language="php">php artisan help migrate</pre>  <h2 id="writing-commands">Writing Commands</h2> <p>In addition to the commands provided with Artisan, you may also build your own custom commands for working with your application. You may store your custom commands in the <code>app/Console/Commands</code> directory; however, you are free to choose your own storage location as long as your commands can be autoloaded based on your <code>composer.json</code> settings.</p> <p>To create a new command, you may use the <code>make:console</code> Artisan command, which will generate a command stub to help you get started:</p> <pre data-language="php">php artisan make:console SendEmails</pre> <p>The command above would generate a class at <code>app/Console/Commands/SendEmails.php</code>. When creating the command, the <code>--command</code> option may be used to assign the terminal command name:</p> <pre data-language="php">php artisan make:console SendEmails --command=emails:send</pre>  <h3 id="command-structure">Command Structure</h3> <p>Once your command is generated, you should fill out the <code>signature</code> and <code>description</code> properties of the class, which will be used when displaying your command on the <code>list</code> screen.</p> <p>The <code>handle</code> method will be called when your command is executed. You may place any command logic in this method. Let's take a look at an example command.</p> <p>Note that we are able to inject any dependencies we need into the command's constructor. The Laravel <a href="../container/">service container</a> will automatically inject all dependencies type-hinted in the constructor. For greater code reusability, it is good practice to keep your console commands light and let them defer to application services to accomplish their tasks.</p> <pre data-language="php">&lt;?php
+
+namespace App\Console\Commands;
+
+use App\User;
+use App\DripEmailer;
+use Illuminate\Console\Command;
+
+class SendEmails extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'email:send {user}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Send drip e-mails to a user';
+
+    /**
+     * The drip e-mail service.
+     *
+     * @var DripEmailer
+     */
+    protected $drip;
+
+    /**
+     * Create a new command instance.
+     *
+     * @param  DripEmailer  $drip
+     * @return void
+     */
+    public function __construct(DripEmailer $drip)
+    {
+        parent::__construct();
+
+        $this-&gt;drip = $drip;
+    }
+
+    /**
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {
+        $this-&gt;drip-&gt;send(User::find($this-&gt;argument('user')));
+    }
+}</pre>  <h2 id="command-io">Command I/O</h2>  <h3 id="defining-input-expectations">Defining Input Expectations</h3> <p>When writing console commands, it is common to gather input from the user through arguments or options. Laravel makes it very convenient to define the input you expect from the user using the <code>signature</code> property on your commands. The <code>signature</code> property allows you to define the name, arguments, and options for the command in a single, expressive, route-like syntax.</p> <p>All user supplied arguments and options are wrapped in curly braces. In the following example, the command defines one <strong>required</strong> argument: <code>user</code>:</p> <pre data-language="php">/**
+ * The name and signature of the console command.
+ *
+ * @var string
+ */
+protected $signature = 'email:send {user}';</pre> <p>You may also make arguments optional and define default values for optional arguments:</p> <pre data-language="php">// Optional argument...
+email:send {user?}
+
+// Optional argument with default value...
+email:send {user=foo}</pre> <p>Options, like arguments, are also a form of user input. However, they are prefixed by two hyphens (<code>--</code>) when they are specified on the command line. We can define options in the signature like so:</p> <pre data-language="php">/**
+ * The name and signature of the console command.
+ *
+ * @var string
+ */
+protected $signature = 'email:send {user} {--queue}';</pre> <p>In this example, the <code>--queue</code> switch may be specified when calling the Artisan command. If the <code>--queue</code> switch is passed, the value of the option will be <code>true</code>. Otherwise, the value will be <code>false</code>:</p> <pre data-language="php">php artisan email:send 1 --queue</pre> <p>You may also specify that the option should be assigned a value by the user by suffixing the option name with a <code>=</code> sign, indicating that a value should be provided:</p> <pre data-language="php">/**
+ * The name and signature of the console command.
+ *
+ * @var string
+ */
+protected $signature = 'email:send {user} {--queue=}';</pre> <p>In this example, the user may pass a value for the option like so:</p> <pre data-language="php">php artisan email:send 1 --queue=default</pre> <p>You may also assign default values to options:</p> <pre data-language="php">email:send {user} {--queue=default}</pre> <p>To assign a shortcut when defining an option, you may specify it before the option name and use a | delimiter to separate the shortcut from the full option name:</p> <pre data-language="php">email:send {user} {--Q|queue}</pre> <h4>Input Descriptions</h4> <p>You may assign descriptions to input arguments and options by separating the parameter from the description using a colon:</p> <pre data-language="php">/**
+ * The name and signature of the console command.
+ *
+ * @var string
+ */
+protected $signature = 'email:send
+                        {user : The ID of the user}
+                        {--queue= : Whether the job should be queued}';</pre>  <h3 id="retrieving-input">Retrieving Input</h3> <p>While your command is executing, you will obviously need to access the values for the arguments and options accepted by your command. To do so, you may use the <code>argument</code> and <code>option</code> methods:</p> <p>To retrieve the value of an argument, use the <code>argument</code> method:</p> <pre data-language="php">/**
+ * Execute the console command.
+ *
+ * @return mixed
+ */
+public function handle()
+{
+    $userId = $this-&gt;argument('user');
+
+    //
+}</pre> <p>If you need to retrieve all of the arguments as an <code>array</code>, call <code>argument</code> with no parameters:</p> <pre data-language="php">$arguments = $this-&gt;argument();</pre> <p>Options may be retrieved just as easily as arguments using the <code>option</code> method. Like the <code>argument</code> method, you may call <code>option</code> without any parameters in order to retrieve all of the options as an <code>array</code>:</p> <pre data-language="php">// Retrieve a specific option...
+$queueName = $this-&gt;option('queue');
+
+// Retrieve all options...
+$options = $this-&gt;option();</pre> <p>If the argument or option does not exist, <code>null</code> will be returned.</p>  <h3 id="prompting-for-input">Prompting For Input</h3> <p>In addition to displaying output, you may also ask the user to provide input during the execution of your command. The <code>ask</code> method will prompt the user with the given question, accept their input, and then return the user's input back to your command:</p> <pre data-language="php">/**
+ * Execute the console command.
+ *
+ * @return mixed
+ */
+public function handle()
+{
+    $name = $this-&gt;ask('What is your name?');
+}</pre> <p>The <code>secret</code> method is similar to <code>ask</code>, but the user's input will not be visible to them as they type in the console. This method is useful when asking for sensitive information such as a password:</p> <pre data-language="php">$password = $this-&gt;secret('What is the password?');</pre> <h4>Asking For Confirmation</h4> <p>If you need to ask the user for a simple confirmation, you may use the <code>confirm</code> method. By default, this method will return <code>false</code>. However, if the user enters <code>y</code> in response to the prompt, the method will return <code>true</code>.</p> <pre data-language="php">if ($this-&gt;confirm('Do you wish to continue? [y|N]')) {
+    //
+}</pre> <h4>Giving The User A Choice</h4> <p>The <code>anticipate</code> method can be used to provided autocompletion for possible choices. The user can still choose any answer, regardless of the choices.</p> <pre data-language="php">$name = $this-&gt;anticipate('What is your name?', ['Taylor', 'Dayle']);</pre> <p>If you need to give the user a predefined set of choices, you may use the <code>choice</code> method. The user chooses the index of the answer, but the value of the answer will be returned to you. You may set the default value to be returned if nothing is chosen:</p> <pre data-language="php">$name = $this-&gt;choice('What is your name?', ['Taylor', 'Dayle'], false);</pre>  <h3 id="writing-output">Writing Output</h3> <p>To send output to the console, use the <code>line</code>, <code>info</code>, <code>comment</code>, <code>question</code> and <code>error</code> methods. Each of these methods will use the appropriate ANSI colors for their purpose.</p> <p>To display an information message to the user, use the <code>info</code> method. Typically, this will display in the console as green text:</p> <pre data-language="php">/**
+ * Execute the console command.
+ *
+ * @return mixed
+ */
+public function handle()
+{
+    $this-&gt;info('Display this on the screen');
+}</pre> <p>To display an error message, use the <code>error</code> method. Error message text is typically displayed in red:</p> <pre data-language="php">$this-&gt;error('Something went wrong!');</pre> <p>If you want to display plain console output, use the <code>line</code> method. The <code>line</code> method does not receive any unique coloration:</p> <pre data-language="php">$this-&gt;line('Display this on the screen');</pre> <h4>Table Layouts</h4> <p>The <code>table</code> method makes it easy to correctly format multiple rows / columns of data. Just pass in the headers and rows to the method. The width and height will be dynamically calculated based on the given data:</p> <pre data-language="php">$headers = ['Name', 'Email'];
+
+$users = App\User::all(['name', 'email'])-&gt;toArray();
+
+$this-&gt;table($headers, $users);</pre> <h4>Progress Bars</h4> <p>For long running tasks, it could be helpful to show a progress indicator. Using the output object, we can start, advance and stop the Progress Bar. You have to define the number of steps when you start the progress, then advance the Progress Bar after each step:</p> <pre data-language="php">$users = App\User::all();
+
+$bar = $this-&gt;output-&gt;createProgressBar(count($users));
+
+foreach ($users as $user) {
+    $this-&gt;performTask($user);
+
+    $bar-&gt;advance();
+}
+
+$bar-&gt;finish();</pre> <p>For more advanced options, check out the <a href="http://symfony.com/doc/2.7/components/console/helpers/progressbar.html" target="_blank">Symfony Progress Bar component documentation</a>.</p>  <h2 id="registering-commands">Registering Commands</h2> <p>Once your command is finished, you need to register it with Artisan so it will be available for use. This is done within the <code>app/Console/Kernel.php</code> file.</p> <p>Within this file, you will find a list of commands in the <code>commands</code> property. To register your command, simply add the class name to the list. When Artisan boots, all the commands listed in this property will be resolved by the <a href="../container/">service container</a> and registered with Artisan:</p> <pre data-language="php">protected $commands = [
+    Commands\SendEmails::class
+];</pre>  <h2 id="calling-commands-via-code">Calling Commands Via Code</h2> <p>Sometimes you may wish to execute an Artisan command outside of the CLI. For example, you may wish to fire an Artisan command from a route or controller. You may use the <code>call</code> method on the <code>Artisan</code> facade to accomplish this. The <code>call</code> method accepts the name of the command as the first argument, and an array of command parameters as the second argument. The exit code will be returned:</p> <pre data-language="php">Route::get('/foo', function () {
+    $exitCode = Artisan::call('email:send', [
+        'user' =&gt; 1, '--queue' =&gt; 'default'
+    ]);
+
+    //
+});</pre> <p>Using the <code>queue</code> method on the <code>Artisan</code> facade, you may even queue Artisan commands so they are processed in the background by your <a href="../queues/">queue workers</a>:</p> <pre data-language="php">Route::get('/foo', function () {
+    Artisan::queue('email:send', [
+        'user' =&gt; 1, '--queue' =&gt; 'default'
+    ]);
+
+    //
+});</pre> <p>If you need to specify the value of an option that does not accept string values, such as the <code>--force</code> flag on the <code>migrate:refresh</code> command, you may pass a boolean <code>true</code> or <code>false</code>:</p> <pre data-language="php">$exitCode = Artisan::call('migrate:refresh', [
+    '--force' =&gt; true,
+]);</pre> <h3>Calling Commands From Other Commands</h3> <p>Sometimes you may wish to call other commands from an existing Artisan command. You may do so using the <code>call</code> method. This <code>call</code> method accepts the command name and an array of command parameters:</p> <pre data-language="php">/**
+ * Execute the console command.
+ *
+ * @return mixed
+ */
+public function handle()
+{
+    $this-&gt;call('email:send', [
+        'user' =&gt; 1, '--queue' =&gt; 'default'
+    ]);
+
+    //
+}</pre> <p>If you would like to call another console command and suppress all of its output, you may use the <code>callSilent</code> method. The <code>callSilent</code> method has the same signature as the <code>call</code> method:</p> <pre data-language="php">$this-&gt;callSilent('email:send', [
+    'user' =&gt; 1, '--queue' =&gt; 'default'
+]);</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Taylor Otwell<br>Licensed under the MIT License.<br>Laravel is a trademark of Taylor Otwell.<br>
+    <a href="https://laravel.com/docs/5.1/artisan" class="_attribution-link" target="_blank">https://laravel.com/docs/5.1/artisan</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
