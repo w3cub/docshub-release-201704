@@ -1,0 +1,187 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Guides&#58; Performance - Crystal - W3cubDocs</title>
+  
+  <meta name="description" content=" Follow these tips to get the best out of your programs, both in speed and memory terms. ">
+  <meta name="keywords" content="performance, guides, -, crystal">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/crystal/docs/guides/performance/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/crystal.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/crystal/" class="_nav-link" title="" style="margin-left:0;">Crystal</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _crystal">
+				
+<h1 id="performance">Performance</h1> <p>Follow these tips to get the best out of your programs, both in speed and memory terms.</p> <h2 id="premature-optimization">Premature optimization</h2> <p>Donald Knuth once said:</p> <blockquote> <p>We should forget about small efficiencies, say about 97% of the time: premature optimization is the root of all evil. Yet we should not pass up our opportunities in that critical 3%</p> </blockquote> <p>However, if you are writing a program and you realize that writing a semantically equivalent, faster version involves just minor changes, you shouldn't miss that opportunity.</p> <p>And always be sure to profile your program to learn what its bottlenecks are. For profiling, on Mac OSX you can use <a href="https://developer.apple.com/library/prerelease/content/documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Instrument-TimeProfiler.html" target="_blank">Instruments Time Profiler</a>, which comes with XCode. On Linux, a program that can profile C/C++ programs, like <a href="https://sourceware.org/binutils/docs/gprof/" target="_blank">gprof</a>, should work.</p> <p>Make sure to always profile programs by compiling or running them with the <code>--release</code> flag, which turns on optimizations.</p> <h2 id="avoiding-memory-allocations">Avoiding memory allocations</h2> <p>One of the best optimizations you can do in a program is avoiding extra/useless memory allocation. A memory allocation happens when you create an instance of a <strong>class</strong>, which ends up allocating heap memory. Creating an instance of a <strong>struct</strong> uses stack memory and doesn't incur a performance penalty. If you don't know the difference between stack and heap memory, be sure to <a href="https://www.google.com/search?q=stack+vs+heap+memory" target="_blank">read this</a>.</p> <p>Allocating heap memory is slow, and it puts more pressure on the Garbage Collector (GC) as it will later have to free that memory.</p> <p>There are several ways to avoid heap memory allocations. The standard library is designed in a way to help you do that.</p> <h3 id="dont-create-intermediate-strings-when-writing-to-an-io">Don't create intermediate strings when writing to an IO</h3> <p>To print a number to the standard output you write:</p> <pre>puts 123
+</pre>
+<p>In many programming languages what will happen is that <code>to_s</code>, or a similar method for converting the object to its string representation, will be invoked, and then that string will be written to the standard output. This works, but it has a flaw: it creates an intermediate string, in heap memory, only to write it and then discard it. This, involves a heap memory allocation and gives a bit of work to the GC.</p> <p>In Crystal, <code>puts</code> will invoke <code>to_s(io)</code> on the object, passing it the IO to which the string representation should be written.</p> <p>So, you should never do this:</p> <pre>puts 123.to_s
+</pre>
+<p>as it will create an intermediate string. Always append an object directly to an IO.</p> <p>When writing custom types, always be sure to override <code>to_s(io)</code>, not <code>to_s</code>, and avoid creating intermediate strings in that method. For example:</p> <pre data-language="crystal">class MyClass
+  # Good
+  def to_s(io)
+    # appends "1, 2" to IO without creating intermediate strings
+    x = 1
+    y = 2
+    io &lt;&lt; x &lt;&lt; ", " &lt;&lt; y
+  end
+
+  # Bad
+  def to_s(io)
+    x = 1
+    y = 2
+    # using a string interpolation creates an intermediate string.
+    # this should be avoided
+    io &lt;&lt; "#{x}, #{y}"
+  end
+end
+</pre> <p>This philosophy of appending to an IO instead of returning an intermediate string is present in other APIs, such as in the JSON and YAML APIs, where one needs to define <code>to_json(io)</code> and <code>to_yaml(io)</code> methods to write this data directly to an IO. And you should use this strategy in your API definitions too.</p> <p>Let's compare the times:</p> <pre data-language="crystal"># io_benchmark.cr
+require "benchmark"
+
+io = IO::Memory.new
+
+Benchmark.ips do |x|
+  x.report("without to_s") do
+    io &lt;&lt; 123
+    io.clear
+  end
+
+  x.report("with to_s") do
+    io &lt;&lt; 123.to_s
+    io.clear
+  end
+end
+</pre> <p>Output:</p> <pre>$ crystal run --release io_benchmark.cr
+without to_s  77.11M ( 12.97ns) (± 1.05%)       fastest
+   with to_s  18.15M ( 55.09ns) (± 7.99%)  4.25× slower
+</pre>
+<p>And always remember that it's not just the time that has improved: memory usage is also decreased.</p> <h3 id="avoid-creating-temporary-objects-over-and-over">Avoid creating temporary objects over and over</h3> <p>Consider this program:</p> <pre data-language="crystal">lines_with_language_reference = 0
+while line = gets
+  if ["crystal", "ruby", "java"].any? { |string| line.includes?(string) }
+    lines_with_language_reference += 1
+  end
+end
+puts "Lines that mention crystal, ruby or java: #{lines_with_language_reference}"
+</pre> <p>The above program works but has a big performance problem: on every iteration a new array is created for <code>["crystal", "ruby", "java"]</code>. Remember: an array literal is just syntax sugar for creating an instance of an array and adding some values to it, and this will happen over and over on each iteration.</p> <p>There are two ways to solve this:</p> <ol> <li>
+<p>Use a tuple. If you use <code>{"crystal", "ruby", "java"}</code> in the above program it will work the same way, but since a tuple doesn't involve heap memory it will be faster, consume less memory, and give more chances for the compiler to optimize the program.</p> <pre data-language="crystal">lines_with_language_reference = 0
+while line = gets
+ if {"crystal", "ruby", "java"}.any? { |string| line.includes?(string) }
+   lines_with_language_reference += 1
+ end
+end
+puts "Lines that mention crystal, ruby or java: #{lines_with_language_reference}"
+</pre> </li> <li>
+<p>Move the array to a constant.</p> <pre data-language="crystal">LANGS = ["crystal", "ruby", "java"]
+
+lines_with_language_reference = 0
+while line = gets
+ if LANGS.any? { |string| line.includes?(string) }
+   lines_with_language_reference += 1
+ end
+end
+puts "Lines that mention crystal, ruby or java: #{lines_with_language_reference}"
+</pre> </li> </ol> <p>Using tuples is the preferred way.</p> <p>Explicit array literals in loops is one way to create temporary objects, but these can also be created via method calls. For example <code>Hash#keys</code> will return a new array with the keys each time it's invoked. Instead of doing that, you can use <code>Hash#each_key</code>, <code>Hash#has_key?</code> and other methods.</p> <h3 id="use-structs-when-possible">Use structs when possible</h3> <p>If you declare your type as a <strong>struct</strong> instead of a <strong>class</strong>, creating an instance of it will use stack memory, which is much cheaper than heap memory and doesn't put pressure on the GC.</p> <p>You shouldn't always use a struct, though. Structs are passed by value, so if you pass one to a method and the method makes changes to it, the caller won't see those changes, so they can be bug-prone. The best thing to do is to only use structs with immutable objects, especially if they are small.</p> <p>For example:</p> <pre data-language="crystal"># class_vs_struct.cr
+require "benchmark"
+
+class PointClass
+  getter x
+  getter y
+
+  def initialize(@x : Int32, @y : Int32)
+  end
+end
+
+struct PointStruct
+  getter x
+  getter y
+
+  def initialize(@x : Int32, @y : Int32)
+  end
+end
+
+Benchmark.ips do |x|
+  x.report("class") { PointClass.new(1, 2) }
+  x.report("struct") { PointStruct.new(1, 2) }
+end
+</pre> <p>Output:</p> <pre>$ crystal run --release class_vs_struct.cr
+ class  28.17M (± 2.86%) 15.29× slower
+struct 430.82M (± 6.58%)       fastest
+</pre>
+<h2 id="iterating-strings">Iterating strings</h2> <p>Strings in Crystal always contain UTF-8 encoded bytes. UTF-8 is a variable-length encoding: a character may be represented by several bytes, although characters in the ASCII range are always represented by a single byte. Because of this, indexing a string with <code>String#[]</code> is not an <code>O(1)</code> operation, as the bytes need to be decoded each time to find the character at the given position. There's an optimization that Crystal's <code>String</code> does here: if it knows all the characters in the string are ASCII, then <code>String#[]</code> can be implemented in <code>O(1)</code>. However, this isn't generally true.</p> <p>For this reason, iterating a String in this way is not optimal, and in fact has a complexity of <code>O(n^2)</code>:</p> <pre data-language="crystal">string = ...
+while i &lt; string.size
+  char = string[i]
+  # ...
+end
+</pre> <p>There's a second problem with the above: computing the <code>size</code> of a String is also slow, because it's not simply the number of bytes in the string (the <code>bytesize</code>). However, once a String's size has been computed, it is cached.</p> <p>The way to improve performance in this case is to either use one of the iteration methods (<code>each_char</code>, <code>each_byte</code>, <code>each_codepoint</code>), or use the more low-level <code>Char::Reader</code> struct. For example, using <code>each_char</code>:</p> <pre data-language="crystal">string = ...
+string.each_char do |char|
+  # ...
+end
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    To the extent possible under law, the persons who contributed to this workhave waived<br>all copyright and related or neighboring rights to this workby associating CC0 with it.<br>
+    <a href="https://crystal-lang.org/docs/guides/performance.html" class="_attribution-link" target="_blank">https://crystal-lang.org/docs/guides/performance.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

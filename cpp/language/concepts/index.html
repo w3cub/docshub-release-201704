@@ -1,0 +1,418 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Constraints and Concepts - C++ - W3cubDocs</title>
+  
+  <meta name="description" content="This page describes an experimental core language feature. For named type requirements used in the specification of the standard library, see &hellip;">
+  <meta name="keywords" content="constraints, and, concepts, -, c++, cpp">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/cpp/language/concepts/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/cpp.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/cpp/" class="_nav-link" title="" style="margin-left:0;">C++</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _c">
+				
+<h1 id="firstHeading" class="firstHeading">Constraints and concepts</h1>            <div class="plainlinks fmbox fmbox-system noprint">     Experimental Feature The functionality described on this page is part of the Concepts Technical Specification ISO/IEC TS 19217:2015 (concepts TS)   </div> <p>This page describes an experimental core language feature. For named type requirements used in the specification of the standard library, see <a href="../../concept/" title="cpp/concept">library concepts</a>.</p>
+<p><a href="../class_template/" title="cpp/language/class template">Class templates</a>, <a href="../function_template/" title="cpp/language/function template">function templates</a>, and non-template functions (typically members of class templates) may be associated with a <i>constraint</i>, which specifies the requirements on template arguments, which can be used to select the most appropriate function overloads and template specializations.</p>
+<p>Constraints may also be used to limit automatic type deduction in variable declarations and function return types to only the types that satisfy specified requirements.</p>
+<p>Named sets of such requirements are called <i>concepts</i>. Each concept is a predicate, evaluated at compile time, and becomes a part of the interface of a template where it is used as a constraint:</p>
+<div class="t-example"> <div class="cpp source-cpp"><pre data-language="cpp">#include &lt;string&gt;
+#include &lt;locale&gt;
+using namespace std::literals;
+ 
+// Declaration of the concept "EqualityComparable", which is satisfied by
+// any type T such that for values a and b of type T,
+// the expression a==b compiles and its result is convertible to bool
+template&lt;typename T&gt;
+concept bool EqualityComparable = requires(T a, T b) {
+    { a == b } -&gt; bool;
+};
+ 
+void f(EqualityComparable&amp;&amp;); // declaration of a constrained function template
+// template&lt;typename T&gt;
+// void f(T&amp;&amp;) requires EqualityComparable&lt;T&gt;; // long form of the same
+ 
+int main() {
+  f("abc"s); // OK, std::string is EqualityComparable
+  f(std::use_facet&lt;std::ctype&lt;char&gt;&gt;(std::locale{})); // Error: not EqualityComparable 
+}</pre></div> </div> <p>Violations of constraints are detected at compile time, early in the template instantiation process, which leads to easy to follow error messages.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">std::list&lt;int&gt; l = {3,-1,10};
+std::sort(l.begin(), l.end()); 
+//Typical compiler diagnostic without concepts:
+//  invalid operands to binary expression ('std::_List_iterator&lt;int&gt;' and
+//  'std::_List_iterator&lt;int&gt;')
+//                           std::__lg(__last - __first) * 2);
+//                                     ~~~~~~ ^ ~~~~~~~
+// ... 50 lines of output ...
+//
+//Typical compiler diagnostic with concepts:
+//  error: cannot call std::sort with std::_List_iterator&lt;int&gt;
+//  note:  concept RandomAccessIterator&lt;std::_List_iterator&lt;int&gt;&gt; was not satisfied</pre></div> <p>The intent of concepts is to model semantic categories (Number, Range, RegularFunction) rather than syntactic restrictions (HasPlus, Array). According to <a rel="nofollow" class="external text" href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#t20-avoid-concepts-without-meaningful-semantics" target="_blank">ISO C++ core guideline T.20</a>, "The ability to specify a meaningful semantics is a defining characteristic of a true concept, as opposed to a syntactic constraint."</p>
+<p>If feature testing is supported, the features described here are indicated by the macro constant <code>__cpp_concepts</code> with a value equal or greater <code>201507</code>.</p>
+<h3 id="Placeholders"> Placeholders</h3> <p>The unconstrained placeholder <code>auto</code> and <i>constrained placeholders</i> which have the form <span class="t-spar">concept-name</span> <code>&lt;</code> <span class="t-spar">template-argument-list</span><span class="t-mark">(optional)</span><code>&gt;</code>, are placeholders for the type that is to be deduced.</p>
+<p>Placeholders may appear in variable declarations (in which case they are deduced from the initializer) or in function return types (in which case they are deduced from return statements).</p>
+<div class="cpp source-cpp"><pre data-language="cpp">std::pair&lt;auto, auto&gt; p2 = std::make_pair(0, 'a'); // first auto is int,
+                                                   // second auto is char
+ 
+Sortable x = f(y); // the type of x is deduced from the return type of f, 
+                   // only compiles if the type satisfies the constraint Sortable
+ 
+auto f(Container) -&gt; Sortable; // return type is deduced from the return statement
+                               // only compiles if the type satisfies Sortable</pre></div> <p>Placeholders may also appear in parameters, in which case they turn function declarations into template declarations (constrained if the placeholder is constrained).</p>
+<div class="cpp source-cpp"><pre data-language="cpp">void f(std::pair&lt;auto, EqualityComparable&gt;); // this is a template with two parameters:
+       // unconstrained type parameter and a constrained non-type parameter</pre></div> <p>Constrained placeholders may be used anywhere <code>auto</code> may be used, for example, in generic lambda declarations.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">auto gl = [](Assignable&amp; a, auto* b) { a = *b; };</pre></div> <p>If constrained type specifier designates a non-type or a template, but is used as a constrained placeholder, the program is ill-formed:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;size_t N&gt; concept bool Even = (N%2 == 0);
+struct S1 { int n; };
+int Even::* p2 = &amp;S1::n; // error, invalid use of a non-type concept
+void f(std::array&lt;auto, Even&gt;); // error, invalid use of a non-type concept
+template&lt;Even N&gt; void f(std::array&lt;auto, N&gt;); // OK</pre></div> <h3 id="Abbreviated_templates"> Abbreviated templates</h3> <p>If one or more placeholders appears in a function parameter list, the function declaration is actually a function template declaration, whose template parameter list includes one invented parameter for every unique placeholder, in order of appearance.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// short form
+void g1(const EqualityComparable*, Incrementable&amp;);
+// long form:
+// template&lt;EqualityComparable T, Incrementable U&gt; void g1(const T*, U&amp;);
+// longer form:
+// template&lt;typename T, typename U&gt;
+// void g1(const T*, U&amp;) requires EqualityComparable&lt;T&gt; &amp;&amp; Incrementable&lt;U&gt;;
+ 
+void f2(std::vector&lt;auto*&gt;...);
+// long form: template&lt;typename... T&gt; void f2(std::vector&lt;T*&gt;...);
+ 
+void f4(auto (auto::*)(auto));
+// long form: template&lt;typename T, typename U, typename V&gt; void f4(T (U::*)(V));</pre></div> <p>All placeholders introduced by equivalent constrained type specifiers have the same invented template parameter. However, each unconstrained specifier (<code>auto</code>) always introduces a different template parameter.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">void f0(Comparable a, Comparable* b);
+// long form: template&lt;Comparable T&gt; void f0(T a, T* b);
+ 
+void f1(auto a, auto* b);
+// long form: template&lt;typename T, typename U&gt; f1(T a, U* b);</pre></div> <p>Both function templates and class templates can be declared using a <i>template introduction</i>, which has the syntax <span class="t-spar">concept-name</span> <code>{</code> <span class="t-spar">parameter-list</span><span class="t-mark">(optional)</span>}, in which case the keyword <code>template</code> is not needed: each parameter from the <span class="t-spar">parameter-list</span> of the template introduction becomes a template parameter whose kind (type, non-type, template) is determined by the kind of the corresponding parameter in the named concept.</p>
+<p>Besides declaring a template, template introduction associates a <i>predicate constraint</i> (see below) that names (for variable concepts) or invokes (for function concepts) the concept named by the introduction.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">EqualityComparable{T} class Foo;
+// long form: template&lt;EqualityComparable T&gt; class Foo;
+// longer form: template&lt;typename T&gt; requires EqualityComparable&lt;T&gt; class Foo;
+ 
+template&lt;typename T, int N, typename... Xs&gt; concept bool Example = ...;
+Example{A, B, ...C} struct S1;
+// long form template&lt;class A, int B, class... C&gt; requires Example&lt;A,B,C...&gt; struct S1;</pre></div> <p>For function templates, template introduction can be combined with placeholders:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">Sortable{T} void f(T, auto);
+// long form: template&lt;Sortable T, typename U&gt; void f(T, U);
+// alternative using only placeholders: void f(Sortable, auto);</pre></div>  <h3 id="Concepts"> Concepts</h3> <p>A concept is a named set of requirements. The definition of a concept appears at namespace scope and has the form of a <a href="../function_template/" title="cpp/language/function template">function template</a> definition (in which case it is called <i>function concept</i>) or <a href="../variable_template/" title="cpp/language/variable template">variable template</a> definition (in which case it is called <i>variable concept</i>). The only difference is that the keyword <code>concept</code> appears in the <span class="t-spar">decl-specifier-seq</span>:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// variable concept from the standard library (Ranges TS)
+template &lt;class T, class U&gt;
+concept bool Derived = std::is_base_of&lt;U, T&gt;::value;
+ 
+// function concept from the standard library (Ranges TS)
+template &lt;class T&gt;
+concept bool EqualityComparable() { 
+    return requires(T a, T b) { {a == b} -&gt; Boolean; {a != b} -&gt; Boolean; };
+}</pre></div> <p>The following restrictions apply to function concepts:</p>
+<ul>
+<li> <code>inline</code> and <code>constexpr</code> are not allowed, the function is automatically <code>inline</code> and <code>constexpr</code> </li>
+<li> <code>friend</code> and <code>virtual</code> are not allowed </li>
+<li> exception specification is not allowed, the function is automatically <code>noexcept(true)</code>. </li>
+<li> cannot be declared and defined later, cannot be redeclared </li>
+<li> the return type must be <code>bool</code> </li>
+<li> return type deduction is not allowed </li>
+<li> parameter list must be empty </li>
+<li> the function body must consist of only a <code>return</code> statement, whose argument must be a <i>constraint-expression</i> (predicate constraint, conjunction/disjunction of other constraints, or a requires-expression, see below) </li>
+</ul> <p>The following restrictions apply to variable concepts:</p>
+<ul>
+<li> Must have the type <code>bool</code> </li>
+<li> Cannot be declared without an initializer </li>
+<li> Cannot be declared or at class scope. </li>
+<li> <code>constexpr</code> is not allowed, the variable is automatically <code>constexpr</code> </li>
+<li> the initializer must be a constraint expression (predicate constraint, conjunction/disjunction of constraints, or a requires-expression, see below) </li>
+</ul> <p>Concepts cannot recursively refer to themselves in the body of the function or in the initializer of the variable:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+concept bool F() { return F&lt;typename T::type&gt;(); } // error
+template&lt;typename T&gt;
+concept bool V = V&lt;T*&gt;; // error</pre></div> <p>Explicit instantiations, explicit specializations, or partial specializations of concepts are not allowed (the meaning of the original definition of a constraint cannot be changed).</p>
+<h3 id="Constraints"> Constraints</h3> <p>A constraint is a sequence of logical operations that specifies requirements on template arguments. They can appear within <i>requires-expression</i>s (see below) and directly as bodies of concepts.</p>
+<p>There are 9 types of constraints:</p>
+<div class="t-li1">
+<span class="t-li">1)</span> conjunctions</div> <div class="t-li1">
+<span class="t-li">2)</span> disjunctions</div> <div class="t-li1">
+<span class="t-li">3)</span> predicate constraints</div> <div class="t-li1">
+<span class="t-li">4)</span> expression constraints (only in a <i>requires-expression</i>)</div> <div class="t-li1">
+<span class="t-li">5)</span> type constraints (only in a <i>requires-expression</i>)</div> <div class="t-li1">
+<span class="t-li">6)</span> implicit conversion constraints (only in a <i>requires-expression</i>)</div> <div class="t-li1">
+<span class="t-li">7)</span> argument deduction constraints (only in a <i>requires-expression</i>)</div> <div class="t-li1">
+<span class="t-li">8)</span> exception constraints (only in a <i>requires-expression</i>)</div> <div class="t-li1">
+<span class="t-li">9)</span> parametrized constraints (only in a <i>requires-expression</i>)</div> <p>The first three types of constraints may appear directly as the body of a concept or as an ad-hoc requires-clause:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+requires // requires-clause (ad-hoc constraint)
+sizeof(T) &gt; 1 &amp;&amp; get_value&lt;T&gt;() // conjunction of two predicate constraints
+void f(T);</pre></div> <p>When multiple constraints are attached to the same declaration, the total constraint is a conjunction in the following order: the constraint introduced by <i>template introduction</i>, constraints for each template parameter in order of appearance, the <i>requires</i> clause after the template parameter list, constraints for each function parameter in order of appearance, trailing <i>requires</i> clause:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// the declarations declare the same constrained function template 
+// with the constraint Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+template&lt;Incrementable T&gt; void f(T) requires Decrementable&lt;T&gt;;
+template&lt;typename T&gt; requires Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt; void f(T); // ok
+ 
+// the following two declarations have different constraints:
+// the first declaration has Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+// the second declaration has Decrementable&lt;T&gt; &amp;&amp; Incrementable&lt;T&gt;
+// Even though they are logically equivalent.
+// The second declaration is ill-formed, no diagnostic required
+ 
+template&lt;Incrementable T&gt; requires Decrementable&lt;T&gt; void g();
+template&lt;Decrementable T&gt; requires Incrementable&lt;T&gt; void g(); // error</pre></div> <h4 id="Conjunctions"> Conjunctions</h4> <p>Conjunction of constraints <code>P</code> and <code>Q</code> is specified as <code>P &amp;&amp; Q</code>.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// example concepts from the standard library (Ranges TS)
+template &lt;class T&gt;
+concept bool Integral = std::is_integral&lt;T&gt;::value;
+template &lt;class T&gt;
+concept bool SignedIntegral = Integral&lt;T&gt; &amp;&amp; std::is_signed&lt;T&gt;::value;
+template &lt;class T&gt;
+concept bool UnsignedIntegral = Integral&lt;T&gt; &amp;&amp; !SignedIntegral&lt;T&gt;;</pre></div> <p>A conjunction of two constraints is satisfied only if both constraints are satisfied. Conjunctions are evaluated left to right and short-circuited (if the left constraint is not satisfied, template argument substitution into the right constraint is not attempted: this prevents failures due to substitution outside of immediate context). User-defined overloads of <code>operator&amp;&amp;</code> are not allowed in constraint conjunctions.</p>
+<h4 id="Disjunctions"> Disjunctions</h4> <p>Disjunction of constraints <code>P</code> and <code>Q</code> is specified as <code>P || Q</code>.</p>
+<p>A disjunction of two constraints is satisfied if either constraint is satisfied. Disjunctions are evaluated left to right and short-circuited (if the left constraint is satisfied, template argument deduction into the right constraint is not attempted). User-defined overloads of <code>operator||</code> are not allowed in constraint disjunctions.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// example constraint from the standard library (Ranges TS)
+template &lt;class T = void&gt;
+requires EqualityComparable&lt;T&gt;() || Same&lt;T, void&gt;
+struct equal_to;</pre></div> <h4 id="Predicate_constraints"> Predicate constraints</h4> <p>A predicate constraint is a constant expression of type <code>bool</code>. It is satisfied only if it evaluates to <code>true</code>.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool Size32 = sizeof(T) == 4;</pre></div> <p>Predicate constraints can specify requirements on non-type template parameters and on template template arguments.</p>
+<p>Predicate constraints must evaluate directly to <code>bool</code>, no conversions allowed:</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; struct S {
+    constexpr explicit operator bool() const { return true; }
+};
+template&lt;typename T&gt;
+requires S&lt;T&gt;{} // bad predicate constraint: S&lt;T&gt;{} is not bool
+void f(T);
+f(0); // error: constraint never satisfied</pre></div> <h3 id="Requirements"> Requirements</h3> <p>The keyword <code>requires</code> is used in two ways:</p>
+<div class="t-li1">
+<span class="t-li">1)</span> To introduce a <i>requires-clause</i>, which specifies constraints on template arguments or on a function declaration. <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+void f(T&amp;&amp;) requires Eq&lt;T&gt;; // can appear as the last element of a function declarator
+ 
+template&lt;typename T&gt; requires Addable&lt;T&gt; // or right after a template parameter list
+T add(T a, T b) { return a + b; }</pre></div>
+</div> <div class="t-li1">
+ In this case, the keyword <i>requires</i> must be followed by some constant expression (so it's possible to write "requires true;"), but the intent is that a named concept (as in the example above) or a conjunction/disjunction of named concepts or a <i>requires-expression</i> is used.</div> <div class="t-li1">
+<span class="t-li">2)</span> To begin a <i>requires-expression</i>, which is an <a href="../expressions/#Unevaluated_expressions" title="cpp/language/expressions">unevaluated expression</a> of type <code>bool</code>, that describes the constraints on some template arguments. Such expression may appear in a <i>requires-clause</i> or directly in the definition of a concept: <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+concept bool Addable = requires (T x) { x + x; }; // requires-expression
+ 
+template&lt;typename T&gt; requires Addable&lt;T&gt; // requires-clause, not requires-expression
+T add(T a, T b) { return a + b; }
+ 
+template&lt;typename T&gt;
+requires requires (T x) { x + x; } // ad-hoc constraint, note keyword used twice
+T add(T a, T b) { return a + b; }</pre></div>
+</div> <p>The syntax of <i>requires-expession</i> is as follows:</p>
+<table class="t-sdsc-begin">  <tr class="t-sdsc"> <td class="t-sdsc-nopad"> <code>requires</code> <code>(</code> <span class="t-spar">parameter-list</span><span class="t-mark">(optional)</span> <code>)</code> <code>{ </code> <span class="t-spar">requirement-seq</span> <code>} </code> </td> <td class="t-sdsc-nopad"> </td> <td class="t-sdsc-nopad"> </td>
+</tr> 
+</table> <table class="t-par-begin"> <tr class="t-par"> <td> <span class="t-spar">parameter-list</span> </td> <td> - </td> <td> a comma-separated list of parameters like in a function declaration, except that default arguments are not allowed and the last parameter cannot be an ellipsis. These parameters have no storage, linkage or lifetime. These parameters are in scope until the closing <code>} </code> of the <span class="t-spar">requirement-seq</span>. If no parameters are used, the round parentheses may be omitted as well </td>
+</tr> <tr class="t-par"> <td> <span class="t-spar">requirement-seq</span> </td> <td> - </td> <td> whitespace-separated sequence of <i>requirements</i>, described below (each requirement ends with a semicolon). Each requirement adds another constraint to the <i>conjunction</i> of constraints that this requires-expression defines. </td>
+</tr>
+</table> <p>Each requirement in the <span class="t-spar">requirements-seq</span> is one of the following:</p>
+<ul>
+<li> simple requirement </li>
+<li> type requirements </li>
+<li> compound requirements </li>
+<li> nested requirements </li>
+</ul> <p>Requirements may refer to the template parameters that are in scope and to the local parameters introduced in the <span class="t-spar">parameter-list</span>. When parametrised, a requires-expression is said to introduce a <i>parametrized constraint</i>.</p>
+<h4 id="Simple_requirements"> Simple requirements</h4> <p>A simple requirement is an arbitrary expression statement. The requirement is that the expression is valid (this is an <i>expression constraint</i>). Unlike with predicate constraints, evaluation does not take place, only language correctness is checked.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+concept bool Addable =
+requires (T a, T b) {
+    a + b; // "the expression a+b is a valid expression that will compile"
+};
+ 
+// example constraint from the standard library (ranges TS)
+template &lt;class T, class U = T&gt;
+concept bool Swappable = requires(T t, U u) {
+    swap(std::forward&lt;T&gt;(t), std::forward&lt;U&gt;(u));
+    swap(std::forward&lt;U&gt;(u), std::forward&lt;T&gt;(t));
+};</pre></div> <h4 id="Type_requirements"> Type requirements</h4> <p>A type requirement is the keyword <code>typename</code> followed by a type name, optionally qualified. The requirement is that the named type exists (a <i>type constraint</i>): this can be used to verify that a certain named nested type exists, or that a class template specialization names a type, or that an alias template names a type.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; using Ref = T&amp;;
+template&lt;typename T&gt; concept bool C =
+requires () {
+    typename T::inner; // required nested member name
+    typename S&lt;T&gt;;     // required class template specialization
+    typename Ref&lt;T&gt;;   // required alias template substitution
+};
+ 
+//Example concept from the standard library (Ranges TS)
+template &lt;class T, class U&gt; using CommonType = std::common_type_t&lt;T, U&gt;;
+template &lt;class T, class U&gt; concept bool Common =
+requires (T t, U u) {
+    typename CommonType&lt;T, U&gt;; // CommonType&lt;T, U&gt; is valid and names a type
+    { CommonType&lt;T, U&gt;{std::forward&lt;T&gt;(t)} }; 
+    { CommonType&lt;T, U&gt;{std::forward&lt;U&gt;(u)} }; 
+};</pre></div> <h4 id="Compound_Requirements"> Compound Requirements</h4> <p>A compound requirement has the form.</p>
+<table class="t-sdsc-begin">  <tr class="t-sdsc"> <td class="t-sdsc-nopad"> <code>{</code> <span class="t-spar">expression</span> } <code>noexcept</code><span class="t-mark">(optional)</span> <span class="t-spar">trailing-return-type</span><span class="t-mark">(optional)</span> <code>;</code> </td> <td class="t-sdsc-nopad"> </td> <td class="t-sdsc-nopad"> </td>
+</tr> 
+</table> <p>and specifies a conjunction of the following constraints:</p>
+<div class="t-li1">
+<span class="t-li">1)</span> <span class="t-spar">expression</span> is a valid expression (<i>expression constraint</i>)</div> <div class="t-li1">
+<span class="t-li">2)</span> If <code>noexcept</code> is used, expression must also be noexcept (<i>exception constraint</i>)</div> <div class="t-li1">
+<span class="t-li">3)</span> If <span class="t-spar">trailing-return-type</span> that names a type that uses placeholders, the type must be deducible from the type of the expression (<i>argument deduction constraint</i>)</div> <div class="t-li1">
+<span class="t-li">4)</span> If <span class="t-spar">trailing-return-type</span> that names a type that does not use placeholders, then two more constraints are added:</div> <div class="t-li2">
+<span class="t-li">4a)</span> the type named by <span class="t-spar">trailing-return-type</span> is valid (<i>type constraint</i>)</div> <div class="t-li2">
+<span class="t-li">4b)</span> the result of the expression is <a href="../implicit_cast/" title="cpp/language/implicit cast" class="mw-redirect">implicitly convertible</a> to that type (<i>implicit conversion constraint</i>)</div> <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C2 =
+requires(T x) {
+    {*x} -&gt; typename T::inner; // the expression *x must be valid
+                               // AND the type T::inner must be valid
+                               // AND the result of *x must be convertible to T::inner
+};
+ 
+// Example concept from the standard library (Ranges TS)
+template &lt;class T, class U&gt; concept bool Same = std::is_same&lt;T,U&gt;::value;
+template &lt;class B&gt; concept bool Boolean =
+requires(B b1, B b2) {
+    { bool(b1) }; // direct initialization constraint has to use expression
+    { !b1 } -&gt; bool; // compound constraint
+    requires Same&lt;decltype(b1 &amp;&amp; b2), bool&gt;; // nested constraint, see below
+    requires Same&lt;decltype(b1 || b2), bool&gt;;
+};</pre></div> <h4 id="Nested_requirements"> Nested requirements</h4> <p>A nested requirement is another <i>requires-clause</i>, terminated with a semicolon. This is used to introduce <i>predicate constraints</i> (see above) expressed in terms of other named concepts applied to the local parameters (outside a requires clause, predicate constraints can't use parameters, and placing an expression directly in a requires clause makes it an expression constraint which means it is not evaluated).</p>
+<div class="cpp source-cpp"><pre data-language="cpp">// example constraint from Ranges TS
+template &lt;class T&gt;
+concept bool Semiregular = DefaultConstructible&lt;T&gt; &amp;&amp;
+    CopyConstructible&lt;T&gt; &amp;&amp; Destructible&lt;T&gt; &amp;&amp; CopyAssignable&lt;T&gt; &amp;&amp;
+requires(T a, size_t n) {  
+    requires Same&lt;T*, decltype(&amp;a)&gt;;  // nested: "Same&lt;...&gt; evaluates to true"
+    { a.~T() } noexcept;  // compound: "a.~T()" is a valid expression that doesn't throw
+    requires Same&lt;T*, decltype(new T)&gt;; // nested: "Same&lt;...&gt; evaluates to true"
+    requires Same&lt;T*, decltype(new T[n])&gt;; // nested
+    { delete new T };  // compound
+    { delete new T[n] }; // compound
+};</pre></div> <h3 id="Concept_resolution"> Concept resolution</h3> <p>Like any other function template, a function concept (but not variable concept) can be overloaded: multiple concept definitions may be provided that all use the same <span class="t-spar">concept-name</span>.</p>
+<p>Concept resolution is performed when a <span class="t-spar">concept-name</span> (which may be qualified) appears in.</p>
+<div class="t-li1">
+<span class="t-li">1)</span> a constrained type specifier <code><span class="kw4">void</span> f<span class="br0">(</span>Concept<span class="br0">)</span><span class="sy4">;</span> <a href="../../container/vector/"><span class="kw1159">std::<span class="me2">vector</span></span></a><span class="sy1">&lt;</span>Concept<span class="sy1">&gt;</span> x <span class="sy1">=</span> ...<span class="sy4">;</span></code>
+</div> <div class="t-li1">
+<span class="t-li">2)</span> a constrained parameter <code>template&lt;Concept T&gt; void f();</code>
+</div> <div class="t-li1">
+<span class="t-li">3)</span> a template introduction <code>Concept{T} struct X;</code>
+</div> <div class="t-li1">
+<span class="t-li">4)</span> a <i>constraint-expression</i> <code>template&lt;typename T&gt; void f() requires Concept&lt;T&gt;;</code>
+</div> <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C() { return true; } // #2
+void f(C); // the set of concepts referred to by C includes both #1 and #2;
+           // concept resolution (see below) selects #1.</pre></div> <p>In order to perform concept resolution, <i>template parameters</i> of each concept that matches the name (and the qualification, if any) is matched against a sequence of <i>concept arguments</i>, which are template arguments and <i>wildcards</i>. A wildcard can match a template parameter of any kind (type, non-type, template). The argument set is constructed differently, depending on the context.</p>
+<div class="t-li1">
+<span class="t-li">1)</span> For a concept name used as part of a constrained type specifier or parameter, if the concept name is used without a parameter list, the argument list is a single wildcard. <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C1() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C1() { return true; } // #2
+void f1(const C1*); // &lt;wildcard&gt; matches &lt;T&gt;, selects #1</pre></div>
+</div> <div class="t-li1">
+<span class="t-li">2)</span> For a concept name used as part of a constrained type specifier or parameter, if the concept name is used with a template argument list, the argument list is a single wildcard followed by that argument list. <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C1() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C1() { return true; } // #2
+void f2(C1&lt;char&gt;); // &lt;wildcard, char&gt; matches &lt;T, U&gt;, selects #2</pre></div>
+</div> <div class="t-li1">
+<span class="t-li">3)</span> If a concept appears in a template introduction, the argument list is a sequence of placeholders as long as the list of parameters in the template introduction <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename... Ts&gt;
+concept bool C3 = true;
+C3{T} void q2();     // OK: &lt;T&gt; matches &lt;...Ts&gt;
+C3{...Ts} void q1(); // OK: &lt;...Ts&gt; matches &lt;...Ts&gt;</pre></div>
+</div> <div class="t-li1">
+<span class="t-li">4)</span> If a concept appears as the name of a template-id, the concept argument list is exactly the sequence of arguments of that template-id <div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C() { return true; } // #2
+ 
+template &lt;typename T&gt;
+void f(T) requires C&lt;T&gt;(); // matches #1</pre></div>
+</div> <p>Concept resolution is performed by matching each argument against the corresponding parameter of each visible concept. Default template arguments (if used) are instantiated for each paramter that doesn't correspond to an argument, and are then appended to the argument list. Template parameter matches an argument only if it has the same kind (type, non-type, template), unless the argument is a wildcard. A parameter pack matches zero or more arguments as long as all arguments match the pattern in kind (unless they are wildcards).</p>
+<p>If any argument does not match its corresponding parameter or if there are more arguments than parameters and the last parameter is not a pack, the concept is not viable. If there is zero or more than one viable concept, the program is ill-formed.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt; concept bool C2() { return true; }
+template&lt;int T&gt; concept bool C2() { return true; }
+ 
+template&lt;C2&lt;0&gt; T&gt; struct S1; // error: &lt;wildcard, 0&gt; matches 
+                             // neither &lt;typename T&gt; nor &lt;int T&gt;
+template&lt;C2 T&gt; struct S2; // both #1 and #2 match: error</pre></div>  <h3 id="Partial_ordering_of_constraints"> Partial ordering of constraints</h3> <p>Before any further analysis, constraints are <i>normalized</i> by substituting the body of every name concept and every requires expression until what is left is a sequence of conjunctions and disjunctions on atomic constraints, which are predicate constraints, expression constraints, type constraints, implicit conversion constraints, argument deduction constraints, and exception constraints.</p>
+<p>Concept <code>P</code> is said to <i>subsume</i> concept <code>Q</code> if it can be proven that <code>P</code> <a href="http://en.wikipedia.com/wiki/Logical_consequence" class="extiw" title="enwiki:Logical consequence" target="_blank">implies</a> <code>Q</code> without analyzing types and expressions for equivalence (so <code>N &gt;= 0</code> does not subsume <code>N &gt; 0</code>).</p>
+<p>Specifically, first <code>P</code> is converted to disjunctive normal form and <code>Q</code> is converted to conjunctive normal form, and they are compared as follows:</p>
+<ul>
+<li> each atomic constraint <code>A</code> subsumes equivalent atomic constraint <code>A</code> </li>
+<li> each atomic constraint <code>A</code> subsumes a conjunction <code>A&amp;&amp;B</code> and does not subsume a disjunction <code>A||B</code> </li>
+<li> each disjunction <code>A||B</code> subsumes <code>A</code>, but a conjunction <code>A&amp;&amp;B</code> does not subsume <code>A</code> </li>
+</ul> <p>Subsumption relationship defines partial order of constraints, which is used to determine:</p>
+<ul>
+<li> the best viable candidate for a non-template function in <a href="../overload_resolution/" title="cpp/language/overload resolution">overload resolution</a> </li>
+<li> the <a href="../overloaded_address/" title="cpp/language/overloaded address">address of a non-template function</a> in an overload set </li>
+<li> the best match for a template template argument </li>
+<li> partial ordering of class template specializations </li>
+<li> <a href="../function_template/#Function_template_overloading" title="cpp/language/function template">partial ordering</a> of function templates </li>
+</ul>  <p>If declarations <code>D1</code> and <code>D2</code> are constrained and D1's normalized constraints subsume D2's normalized constraints (or if D1 is constrained and D2 is unconstrained), then D1 is said to be <i>at least as constrained</i> as D2. If D1 is at least as constrained as D2 and D2 is not at least as constrained as D1, then D1 is <i>more constrained</i> than D2.</p>
+<div class="cpp source-cpp"><pre data-language="cpp">template&lt;typename T&gt;
+concept bool Decrementable = requires(T t) { --t; };
+template&lt;typename T&gt;
+concept bool RevIterator = Decrementable&lt;T&gt; &amp;&amp; requires(T t) { *t; };
+ 
+// RevIterator subsumes Decrementable, but not the other way around
+// RevIterator is more constrained as Decrementable
+ 
+void f(Decrementable); // #1
+void f(RevIterator);   // #2
+ 
+f(0);       // int only satisfies Decrementable, selects #1
+f((int*)0); // int* satisfies both constraints, selects #2 as more constrained
+ 
+void g(auto);          // #3 (unconstrained)
+void g(Decrementable); // #4
+ 
+g(true);  // bool does not satisfy Decrementable, selects #3
+g(0);     // int satisfies Decrementable, selects #4 because it is more constrained</pre></div> <h3 id="Keywords"> Keywords</h3> <p><a href="../../keyword/concept/" title="cpp/keyword/concept"><code>concept</code></a>, <a href="../../keyword/requires/" title="cpp/keyword/requires"><code>requires</code></a>.</p>
+<h3 id="Compiler_support"> Compiler support</h3> <p>GCC &gt;= 6.1 supports this technical specification (required option <code>-fconcepts</code>).</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © cppreference.com<br>Licensed under the Creative Commons Attribution-ShareAlike Unported License v3.0.<br>
+    <a href="http://en.cppreference.com/w/cpp/language/concepts" class="_attribution-link" target="_blank">http://en.cppreference.com/w/cpp/language/concepts</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

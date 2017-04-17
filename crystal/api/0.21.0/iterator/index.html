@@ -1,0 +1,330 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Iterator - Crystal - W3cubDocs</title>
+  
+  <meta name="description" content="An Iterator allows processing sequences lazily, as opposed to Enumerable which processes sequences eagerly and produces an Array in most of its &hellip;">
+  <meta name="keywords" content="module, iterator, t, -, crystal">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/crystal/api/0.21.0/iterator/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/crystal.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/crystal/" class="_nav-link" title="" style="margin-left:0;">Crystal</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _crystal">
+				
+<h1 class="type-name"> module Iterator(T) </h1> <h2>Overview</h2> <p>An <code><a href="../iterator/">Iterator</a></code> allows processing sequences lazily, as opposed to <code><a href="../enumerable/">Enumerable</a></code> which processes sequences eagerly and produces an <code><a href="../array/">Array</a></code> in most of its methods.</p> <p>As an example, let's compute the first three numbers in the range <code>1..10_000_000</code> that are even, multiplied by three. One way to do this is:</p> <pre data-language="crystal">(1..10_000_000).select(&amp;.even?).map { |x| x * 3 }.first(3) # =&gt; [6, 12, 18]</pre> <p>The above works, but creates many intermediate arrays: one for the <em>select</em> call, one for the <em>map</em> call and one for the <em>take</em> call. A more efficient way is to invoke <code><a href="../range/#each%28%26block%29%3ANil-instance-method">Range#each</a></code> without a block, which gives us an <code><a href="../iterator/">Iterator</a></code> so we can process the operations lazily:</p> <pre data-language="crystal">(1..10_000_000).each.select(&amp;.even?).map { |x| x * 3 }.first(3) # =&gt; #&lt; Iterator(T)::First...</pre> <p><code><a href="../iterator/">Iterator</a></code> redefines many of <code><a href="../enumerable/">Enumerable</a></code>'s method in a lazy way, returning iterators instead of arrays.</p> <p>At the end of the call chain we get back a new iterator: we need to consume it, either using <code><a href="../iterator/#each-instance-method">#each</a></code> or <code><a href="../enumerable/#to_a-instance-method">Enumerable#to_a</a></code>:</p> <pre data-language="crystal">(1..10_000_000).each.select(&amp;.even?).map { |x| x * 3 }.first(3).to_a # =&gt; [6, 12, 18]</pre> <p>To implement an <code><a href="../iterator/">Iterator</a></code> you need to define a <code><a href="../iterator/#next-instance-method">#next</a></code> method that must return the next element in the sequence or <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code>, which signals the end of the sequence (you can invoke <code><a href="../iterator/#stop-instance-method">#stop</a></code> inside an iterator as a shortcut).</p> <p>Additionally, an <code><a href="../iterator/">Iterator</a></code> can implement <code><a href="../iterator/#rewind-instance-method">#rewind</a></code>, which must rewind the iterator to its initial state. This is needed to implement the <code><a href="../iterator/#cycle-instance-method">#cycle</a></code> method.</p> <p>For example, this is an iterator that returns a sequence of <code>N</code> zeros:</p> <pre data-language="crystal">class Zeros
+  include Iterator(Int32)
+
+  def initialize(@size : Int32)
+    @produced = 0
+  end
+
+  def next
+    if @produced &lt; @size
+      @produced += 1
+      0
+    else
+      stop
+    end
+  end
+
+  def rewind
+    @produced = 0
+    self
+  end
+end
+
+zeros = Zeros.new(5)
+zeros.to_a # =&gt; [0, 0, 0, 0, 0]
+
+zeros.rewind
+zeros.first(3).to_a # =&gt; [0, 0, 0]</pre> <p>The standard library provides iterators for many classes, like <code><a href="../array/">Array</a></code>, <code><a href="../hash/">Hash</a></code>, <code><a href="../range/">Range</a></code>, <code><a href="../string/">String</a></code> and <code><a href="../io/">IO</a></code>. Usually to get an iterator you invoke a method that would usually yield elements to a block, but without passing a block: <code>Array#each</code>, <code>Array#each_index</code>, <code><a href="../hash/#each-instance-method">Hash#each</a></code>, <code><a href="../string/#each_char-instance-method">String#each_char</a></code>, <code><a href="../io/#each_line%28%2Aargs%2C%2A%2Aoptions%2C%26block%29%3ANil-instance-method">IO#each_line</a></code>, etc.</p> <h2>Included Modules</h2> <ul class="other-types-list"> <li class="other-type"><a href="../enumerable/">Enumerable(T)</a></li> </ul> <h2>Defined in:</h2> <a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L75" target="_blank">iterator.cr</a> <br> <h2>Class Method Summary</h2> <ul class="list-summary"> <li class="entry-summary"> <a href="#of%28element%3AT%29-class-method" class="signature"><strong>.of</strong>(element : T)</a> </li> <li class="entry-summary"> <a href="#of%28%26block%3A-%3ET%29-class-method" class="signature"><strong>.of</strong>(&amp;block : -&gt; T)</a> </li> <li class="entry-summary"> <a href="#stop-class-method" class="signature"><strong>.stop</strong></a> <div class="summary"><p>Shortcut for <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code>, to signal that there are no more elements in an iterator.</p></div> </li> </ul> <h2>Instance Method Summary</h2> <ul class="list-summary"> <li class="entry-summary"> <a href="#chain%28other%3AIterator%28U%29%29forallU-instance-method" class="signature"><strong>#chain</strong>(other : Iterator(U)) forall U</a> <div class="summary"><p>Returns an iterator that returns elements from the original iterator until it is exhausted and then returns the elements of the second iterator.</p></div> </li> <li class="entry-summary"> <a href="#chunk%28reuse%3Dfalse%2C%26block%3AT-%3EU%29forallT%2CU-instance-method" class="signature"><strong>#chunk</strong>(reuse = false, &amp;block : T -&gt; U) forall T, U</a> <div class="summary"><p>Returns an Iterator that enumerates over the items, chunking them together based on the return value of the block.</p></div> </li> <li class="entry-summary"> <a href="#compact_map%28%26func%3AT-%3E_%29-instance-method" class="signature"><strong>#compact_map</strong>(&amp;func : T -&gt; _)</a> <div class="summary"><p>Return an iterator that applies the given function to the element and then returns it unless it is <code>nil</code>.</p></div> </li> <li class="entry-summary"> <a href="#cons%28n%3AInt%2Creuse%3Dfalse%29-instance-method" class="signature"><strong>#cons</strong>(n : Int, reuse = false)</a> <div class="summary"><p>Returns an iterator that returns consecutive chunks of the size <em>n</em>.</p></div> </li> <li class="entry-summary"> <a href="#cycle%28n%3AInt%29-instance-method" class="signature"><strong>#cycle</strong>(n : Int)</a> <div class="summary"><p>Returns an iterator that repeatedly returns the elements of the original iterator starting back at the beginning when the end was reached, but only <em>n</em> times.</p></div> </li> <li class="entry-summary"> <a href="#cycle-instance-method" class="signature"><strong>#cycle</strong></a> <div class="summary"><p>Returns an iterator that repeatedly returns the elements of the original iterator forever starting back at the beginning when the end was reached.</p></div> </li> <li class="entry-summary"> <a href="#each-instance-method" class="signature"><strong>#each</strong></a> </li> <li class="entry-summary"> <a href="#each%28%26block%29%3ANil-instance-method" class="signature"><strong>#each</strong>(&amp;block) : Nil</a> <div class="summary"><p>Calls the given block once for each element, passing that element as a parameter.</p></div> </li> <li class="entry-summary"> <a href="#each_slice%28n%2Creuse%3Dfalse%29-instance-method" class="signature"><strong>#each_slice</strong>(n, reuse = false)</a> <div class="summary"><p>Returns an iterator that then returns slices of <em>n</em> elements of the initial iterator.</p></div> </li> <li class="entry-summary"> <a href="#first%28n%3AInt%29-instance-method" class="signature"><strong>#first</strong>(n : Int)</a> <div class="summary"><p>Returns an iterator that only returns the first <em>n</em> elements of the initial iterator.</p></div> </li> <li class="entry-summary"> <a href="#flat_map%28%26func%3AT-%3EArray%28U%29%7CIterator%28U%29%7CU%29forallU-instance-method" class="signature"><strong>#flat_map</strong>(&amp;func : T -&gt; Array(U) | Iterator(U) | U) forall U</a> <div class="summary"><p>Returns a new iterator with the concatenated results of running the block (which is expected to return arrays or iterators) once for every element in the collection.</p></div> </li> <li class="entry-summary"> <a href="#flatten-instance-method" class="signature"><strong>#flatten</strong></a> <div class="summary"><p>Returns an iterator that flattens nested iterators and arrays into a single iterator whose type is the union of the simple types of all of the nested iterators and arrays (and their nested iterators and arrays, and so on).</p></div> </li> <li class="entry-summary"> <a href="#in_groups_of%28size%3AInt%2Cfilled_up_with%3Dnil%2Creuse%3Dfalse%29-instance-method" class="signature"><strong>#in_groups_of</strong>(size : Int, filled_up_with = nil, reuse = false)</a> <div class="summary"><p>Returns an iterator that chunks the iterator's elements in arrays of <em>size</em> filling up the remaining elements if no element remains with <code>nil</code> or a given optional parameter.</p></div> </li> <li class="entry-summary"> <a href="#map%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#map</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that applies the given block to the next element and returns the result.</p></div> </li> <li class="entry-summary"> <a href="#next-instance-method" class="signature"><strong>#next</strong></a> <div class="summary"><p>Returns the next element in this iterator, or <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code> if there are no more elements.</p></div> </li> <li class="entry-summary"> <a href="#reject%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#reject</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that only returns elements for which the the passed in block returns a falsey value.</p></div> </li> <li class="entry-summary"> <a href="#rewind-instance-method" class="signature"><strong>#rewind</strong></a> <div class="summary"><p>Rewinds the iterator to its original state.</p></div> </li> <li class="entry-summary"> <a href="#select%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#select</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that only returns elements for which the the passed in block returns a truthy value.</p></div> </li> <li class="entry-summary"> <a href="#skip%28n%3AInt%29-instance-method" class="signature"><strong>#skip</strong>(n : Int)</a> <div class="summary"><p>Returns an iterator that skips the first <em>n</em> elements and only returns the elements after that.</p></div> </li> <li class="entry-summary"> <a href="#skip_while%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#skip_while</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that only starts to return elements once the given block has returned falsey value for one element.</p></div> </li> <li class="entry-summary"> <a href="#slice%28n%3AInt%2Creuse%3Dfalse%29-instance-method" class="signature"><strong>#slice</strong>(n : Int, reuse = false)</a> <div class="summary"><p>Alias of <code><a href="../iterator/#each_slice%28n%2Creuse%3Dfalse%29-instance-method">#each_slice</a></code>.</p></div> </li> <li class="entry-summary"> <a href="#step%28n%3AInt%29-instance-method" class="signature"><strong>#step</strong>(n : Int)</a> <div class="summary"><p>Returns an iterator that only returns every <em>n</em>th element, starting with the first.</p></div> </li> <li class="entry-summary"> <a href="#stop-instance-method" class="signature"><strong>#stop</strong></a> <div class="summary"><p>Shortcut for <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code>, to signal that there are no more elements in an iterator.</p></div> </li> <li class="entry-summary"> <a href="#take_while%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#take_while</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that returns elements while the given block returns a truthy value.</p></div> </li> <li class="entry-summary"> <a href="#tap%28%26block%3AT-%3E%29-instance-method" class="signature"><strong>#tap</strong>(&amp;block : T -&gt; )</a> <div class="summary"><p>Returns an iterator that calls the given block with the next element of the iterator when calling <code><a href="../iterator/#next-instance-method">#next</a></code>, still returning the original element.</p></div> </li> <li class="entry-summary"> <a href="#uniq-instance-method" class="signature"><strong>#uniq</strong></a> <div class="summary"><p>Returns an iterator that only returns unique values of the original iterator.</p></div> </li> <li class="entry-summary"> <a href="#uniq%28%26func%3AT-%3EU%29forallU-instance-method" class="signature"><strong>#uniq</strong>(&amp;func : T -&gt; U) forall U</a> <div class="summary"><p>Returns an iterator that only returns unique values of the original iterator.</p></div> </li> <li class="entry-summary"> <a href="#with_index%28offset%3AInt%3D0%29-instance-method" class="signature"><strong>#with_index</strong>(offset : Int = 0)</a> <div class="summary"><p>Returns an iterator that returns a <code><a href="../tuple/">Tuple</a></code> of the element and its index.</p></div> </li> <li class="entry-summary"> <a href="#with_index%28offset%3AInt%3D0%2C%26block%29-instance-method" class="signature"><strong>#with_index</strong>(offset : Int = 0, &amp;block)</a> <div class="summary"><p>Yields each element in this iterator together with its index.</p></div> </li> <li class="entry-summary"> <a href="#with_object%28obj%29-instance-method" class="signature"><strong>#with_object</strong>(obj)</a> <div class="summary"><p>Returns an iterator that returns a <code><a href="../tuple/">Tuple</a></code> of the element and a given object.</p></div> </li> <li class="entry-summary"> <a href="#zip%28other%3AIterator%28U%29%29forallU-instance-method" class="signature"><strong>#zip</strong>(other : Iterator(U)) forall U</a> <div class="summary"><p>Returns an iterator that returns the elements of this iterator and the given one pairwise as <code><a href="../tuple/">Tuple</a></code>s.</p></div> </li> </ul> <div class="methods-inherited"> <h3>Instance methods inherited from module <code><a href="../enumerable/">Enumerable(T)</a></code>
+</h3> <a href="../enumerable/#all%3F%28%26block%29-instance-method" class="tooltip"> all?(&amp;block)<br>all? all?</a>, <a href="../enumerable/#any%3F%28%26block%29-instance-method" class="tooltip"> any?(&amp;block)<br>any? any?</a>, <a href="../enumerable/#chunks%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> chunks(&amp;block : T -&gt; U) forall U chunks</a>, <a href="../enumerable/#compact_map%28%26block%29-instance-method" class="tooltip"> compact_map(&amp;block) compact_map</a>, <a href="../enumerable/#count%28%26block%29-instance-method" class="tooltip"> count(&amp;block)<br>count(item) count</a>, <a href="../enumerable/#cycle%28n%2C%26block%29-instance-method" class="tooltip"> cycle(n, &amp;block)<br>cycle(&amp;block) cycle</a>, <a href="../enumerable/#each%28%26block%3AT-%3E_%29-instance-method" class="tooltip"> each(&amp;block : T -&gt; _) each</a>, <a href="../enumerable/#each_cons%28count%3AInt%2Creuse%3Dfalse%2C%26block%29-instance-method" class="tooltip"> each_cons(count : Int, reuse = false, &amp;block) each_cons</a>, <a href="../enumerable/#each_slice%28count%3AInt%2Creuse%3Dfalse%2C%26block%29-instance-method" class="tooltip"> each_slice(count : Int, reuse = false, &amp;block) each_slice</a>, <a href="../enumerable/#each_with_index%28offset%3D0%2C%26block%29-instance-method" class="tooltip"> each_with_index(offset = 0, &amp;block) each_with_index</a>, <a href="../enumerable/#each_with_object%28obj%2C%26block%29-instance-method" class="tooltip"> each_with_object(obj, &amp;block) each_with_object</a>, <a href="../enumerable/#find%28if_none%3Dnil%2C%26block%29-instance-method" class="tooltip"> find(if_none = nil, &amp;block) find</a>, <a href="../enumerable/#first%28count%3AInt%29-instance-method" class="tooltip"> first(count : Int)<br>first first</a>, <a href="../enumerable/#first%3F-instance-method" class="tooltip"> first? first?</a>, <a href="../enumerable/#flat_map%28%26block%3AT-%3EArray%28U%29%7CIterator%28U%29%7CU%29forallU-instance-method" class="tooltip"> flat_map(&amp;block : T -&gt; Array(U) | Iterator(U) | U) forall U flat_map</a>, <a href="../enumerable/#grep%28pattern%29-instance-method" class="tooltip"> grep(pattern) grep</a>, <a href="../enumerable/#group_by%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> group_by(&amp;block : T -&gt; U) forall U group_by</a>, <a href="../enumerable/#in_groups_of%28size%3AInt%2Cfilled_up_with%3AU%3Dnil%29forallU-instance-method" class="tooltip"> in_groups_of(size : Int, filled_up_with : U = nil) forall U<br>in_groups_of(size : Int, filled_up_with : U = nil, reuse = false, &amp;block) forall U in_groups_of</a>, <a href="../enumerable/#includes%3F%28obj%29-instance-method" class="tooltip"> includes?(obj) includes?</a>, <a href="../enumerable/#index%28%26block%29-instance-method" class="tooltip"> index(&amp;block)<br>index(obj) index</a>, <a href="../enumerable/#index_by%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> index_by(&amp;block : T -&gt; U) forall U index_by</a>, <a href="../enumerable/#join%28separator%2Cio%29-instance-method" class="tooltip"> join(separator, io)<br>join(separator = "")<br>join(separator, io, &amp;block)<br>join(separator = "", &amp;block) join</a>, <a href="../enumerable/#map%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> map(&amp;block : T -&gt; U) forall U map</a>, <a href="../enumerable/#map_with_index%28%26block%3AT%2CInt32-%3EU%29forallU-instance-method" class="tooltip"> map_with_index(&amp;block : T, Int32 -&gt; U) forall U map_with_index</a>, <a href="../enumerable/#max-instance-method" class="tooltip"> max max</a>, <a href="../enumerable/#max%3F-instance-method" class="tooltip"> max? max?</a>, <a href="../enumerable/#max_by%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> max_by(&amp;block : T -&gt; U) forall U max_by</a>, <a href="../enumerable/#max_by%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> max_by?(&amp;block : T -&gt; U) forall U max_by?</a>, <a href="../enumerable/#max_of%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> max_of(&amp;block : T -&gt; U) forall U max_of</a>, <a href="../enumerable/#max_of%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> max_of?(&amp;block : T -&gt; U) forall U max_of?</a>, <a href="../enumerable/#min-instance-method" class="tooltip"> min min</a>, <a href="../enumerable/#min%3F-instance-method" class="tooltip"> min? min?</a>, <a href="../enumerable/#min_by%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> min_by(&amp;block : T -&gt; U) forall U min_by</a>, <a href="../enumerable/#min_by%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> min_by?(&amp;block : T -&gt; U) forall U min_by?</a>, <a href="../enumerable/#min_of%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> min_of(&amp;block : T -&gt; U) forall U min_of</a>, <a href="../enumerable/#min_of%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> min_of?(&amp;block : T -&gt; U) forall U min_of?</a>, <a href="../enumerable/#minmax-instance-method" class="tooltip"> minmax minmax</a>, <a href="../enumerable/#minmax%3F-instance-method" class="tooltip"> minmax? minmax?</a>, <a href="../enumerable/#minmax_by%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> minmax_by(&amp;block : T -&gt; U) forall U minmax_by</a>, <a href="../enumerable/#minmax_by%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> minmax_by?(&amp;block : T -&gt; U) forall U minmax_by?</a>, <a href="../enumerable/#minmax_of%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> minmax_of(&amp;block : T -&gt; U) forall U minmax_of</a>, <a href="../enumerable/#minmax_of%3F%28%26block%3AT-%3EU%29forallU-instance-method" class="tooltip"> minmax_of?(&amp;block : T -&gt; U) forall U minmax_of?</a>, <a href="../enumerable/#none%3F%28%26block%29-instance-method" class="tooltip"> none?(&amp;block)<br>none? none?</a>, <a href="../enumerable/#one%3F%28%26block%29-instance-method" class="tooltip"> one?(&amp;block) one?</a>, <a href="../enumerable/#partition%28%26block%29-instance-method" class="tooltip"> partition(&amp;block) partition</a>, <a href="../enumerable/#product%28%26block%29-instance-method" class="tooltip"> product(&amp;block)<br>product(initial : Number, &amp;block)<br>product<br>product(initial : Number) product</a>, <a href="../enumerable/#reduce%28%26block%29-instance-method" class="tooltip"> reduce(&amp;block)<br>reduce(memo, &amp;block) reduce</a>, <a href="../enumerable/#reject%28%26block%3AT-%3E%29-instance-method" class="tooltip"> reject(&amp;block : T -&gt; ) reject</a>, <a href="../enumerable/#select%28%26block%3AT-%3E%29-instance-method" class="tooltip"> select(&amp;block : T -&gt; ) select</a>, <a href="../enumerable/#size-instance-method" class="tooltip"> size size</a>, <a href="../enumerable/#skip%28count%3AInt%29-instance-method" class="tooltip"> skip(count : Int) skip</a>, <a href="../enumerable/#skip_while%28%26block%29-instance-method" class="tooltip"> skip_while(&amp;block) skip_while</a>, <a href="../enumerable/#sum%28initial%29-instance-method" class="tooltip"> sum(initial)<br>sum<br>sum(initial, &amp;block)<br>sum(&amp;block) sum</a>, <a href="../enumerable/#take_while%28%26block%29-instance-method" class="tooltip"> take_while(&amp;block) take_while</a>, <a href="../enumerable/#to_a-instance-method" class="tooltip"> to_a to_a</a>, <a href="../enumerable/#to_h-instance-method" class="tooltip"> to_h to_h</a>, <a href="../enumerable/#to_set-instance-method" class="tooltip"> to_set to_set</a> </div> <h2>Class Method Detail</h2> <div class="entry-detail" id="of(element:T)-class-method"> <h3 class="signature">def self.<strong>of</strong>(element : T)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L114" target="_blank" class="view-source">Source</a>
+</h3>   </div> <div class="entry-detail" id="of(&amp;block:-&gt;T)-class-method"> <h3 class="signature">def self.<strong>of</strong>(&amp;block : -&gt; T)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L133" target="_blank" class="view-source">Source</a>
+</h3>   </div> <div class="entry-detail" id="stop-class-method"> <h3 class="signature">def self.<strong>stop</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L110" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Shortcut for <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code>, to signal that there are no more elements in an iterator.</p></div>   </div> <h2>Instance Method Detail</h2> <div class="entry-detail" id="chain(other:Iterator(U))forallU-instance-method"> <h3 class="signature">def <strong>chain</strong>(other : <a href="../iterator/">Iterator</a>(U)) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L166" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns elements from the original iterator until it is exhausted and then returns the elements of the second iterator.</p> <pre data-language="crystal">iter = (1..2).each.chain(('a'..'b').each)
+iter.next # =&gt; 1
+iter.next # =&gt; 2
+iter.next # =&gt; 'a'
+iter.next # =&gt; 'b'
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="chunk(reuse=false,&amp;block:T-&gt;U)forallT,U-instance-method"> <h3 class="signature">def <strong>chunk</strong>(reuse = false, &amp;block : T -&gt; U) forall T, U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1184" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an Iterator that enumerates over the items, chunking them together based on the return value of the block.</p> <p>Consecutive elements which return the same block value are chunked together.</p> <p>For example, consecutive even numbers and odd numbers can be chunked as follows.</p> <pre data-language="crystal">[3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5].chunk { |n|
+  n.even?
+}.each { |even, ary|
+  p [even, ary]
+}
+
+# =&gt; [false, [3, 1]]
+#    [true, [4]]
+#    [false, [1, 5, 9]]
+#    [true, [2, 6]]
+#    [false, [5, 3, 5]]</pre> <p>The following key values have special meaning:</p> <ul>
+<li>
+<code>Enumerable::Chunk::Drop</code> specifies that the elements should be dropped</li>
+<li>
+<code>Enumerable::Chunk::Alone</code> specifies that the element should be chunked by itself</li>
+</ul> <p>By default, a new array is created and yielded for each chunk when invoking <code><a href="../iterator/#next-instance-method">#next</a></code>.</p> <ul>
+<li>If <em>reuse</em> is given, the array can be reused</li>
+<li>If <em>reuse</em> is an <code><a href="../array/">Array</a></code>, this array will be reused</li>
+<li>If <em>reuse</em> is truthy, the method will create a new array and reuse it.</li>
+</ul> <p>This can be used to prevent many memory allocations when each slice of interest is to be used in a read-only fashion.</p> <p>See also: <code><a href="../enumerable/#chunks%28%26block%3AT-%3EU%29forallU-instance-method">Enumerable#chunks</a></code>.</p>
+</div>   </div> <div class="entry-detail" id="compact_map(&amp;func:T-&gt;_)-instance-method"> <h3 class="signature">def <strong>compact_map</strong>(&amp;func : T -&gt; _)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L207" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Return an iterator that applies the given function to the element and then returns it unless it is <code>nil</code>. If the returned value would be <code>nil</code> it instead returns the next non <code>nil</code> value.</p> <pre data-language="crystal">iter = [1, nil, 2, nil].each.compact_map { |e| e.try &amp;.*(2) }
+iter.next # =&gt; 2
+iter.next # =&gt; 4
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="cons(n:Int,reuse=false)-instance-method"> <h3 class="signature">def <strong>cons</strong>(n : <a href="../int/">Int</a>, reuse = false)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L245" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns consecutive chunks of the size <em>n</em>.</p> <pre data-language="crystal">iter = (1..5).each.cons(3)
+iter.next # =&gt; [1, 2, 3]
+iter.next # =&gt; [2, 3, 4]
+iter.next # =&gt; [3, 4, 5]
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre> <p>By default, a new array is created and yielded for each consecutive when invoking <code><a href="../iterator/#next-instance-method">#next</a></code>.</p> <ul>
+<li>If <em>reuse</em> is given, the array can be reused</li>
+<li>If <em>reuse</em> is an <code><a href="../array/">Array</a></code>, this array will be reused</li>
+<li>If <em>reuse</em> is truthy, the method will create a new array and reuse it.</li>
+</ul> <p>This can be used to prevent many memory allocations when each slice of interest is to be used in a read-only fashion.</p>
+</div>   </div> <div class="entry-detail" id="cycle(n:Int)-instance-method"> <h3 class="signature">def <strong>cycle</strong>(n : <a href="../int/">Int</a>)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L339" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that repeatedly returns the elements of the original iterator starting back at the beginning when the end was reached, but only <em>n</em> times.</p> <pre data-language="crystal">iter = ["a", "b", "c"].each.cycle(2)
+iter.next # =&gt; "a"
+iter.next # =&gt; "b"
+iter.next # =&gt; "c"
+iter.next # =&gt; "a"
+iter.next # =&gt; "b"
+iter.next # =&gt; "c"
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="cycle-instance-method"> <h3 class="signature">def <strong>cycle</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L303" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that repeatedly returns the elements of the original iterator forever starting back at the beginning when the end was reached.</p> <pre data-language="crystal">iter = ["a", "b", "c"].each.cycle
+iter.next # =&gt; "a"
+iter.next # =&gt; "b"
+iter.next # =&gt; "c"
+iter.next # =&gt; "a"
+iter.next # =&gt; "b"
+iter.next # =&gt; "c"
+iter.next # =&gt; "a"
+# and so an and so on</pre>
+</div>   </div> <div class="entry-detail" id="each-instance-method"> <h3 class="signature">def <strong>each</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L371" target="_blank" class="view-source">Source</a>
+</h3>   </div> <div class="entry-detail" id="each(&amp;block):Nil-instance-method"> <h3 class="signature">def <strong>each</strong>(&amp;block) : <a href="../nil/">Nil</a><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L382" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Calls the given block once for each element, passing that element as a parameter.</p> <pre data-language="crystal">iter = ["a", "b", "c"].each
+iter.each { |x| print x, " " } # Prints "a b c"</pre>
+</div>   </div> <div class="entry-detail" id="each_slice(n,reuse=false)-instance-method"> <h3 class="signature">def <strong>each_slice</strong>(n, reuse = false)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L408" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that then returns slices of <em>n</em> elements of the initial iterator.</p> <pre data-language="crystal">iter = (1..9).each.each_slice(3)
+iter.next # =&gt; [1, 2, 3]
+iter.next # =&gt; [4, 5, 6]
+iter.next # =&gt; [7, 8, 9]
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre> <p>By default, a new array is created and yielded for each consecutive when invoking <code><a href="../iterator/#next-instance-method">#next</a></code>.</p> <ul>
+<li>If <em>reuse</em> is given, the array can be reused</li>
+<li>If <em>reuse</em> is an <code><a href="../array/">Array</a></code>, this array will be reused</li>
+<li>If <em>reuse</em> is truthy, the method will create a new array and reuse it.</li>
+</ul> <p>This can be used to prevent many memory allocations when each slice of interest is to be used in a read-only fashion.</p>
+</div>   </div> <div class="entry-detail" id="first(n:Int)-instance-method"> <h3 class="signature">def <strong>first</strong>(n : <a href="../int/">Int</a>)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L891" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns the first <em>n</em> elements of the initial iterator.</p> <pre data-language="crystal">iter = ["a", "b", "c"].each.first 2
+iter.next # =&gt; "a"
+iter.next # =&gt; "b"
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="flat_map(&amp;func:T-&gt;Array(U)|Iterator(U)|U)forallU-instance-method"> <h3 class="signature">def <strong>flat_map</strong>(&amp;func : T -&gt; <a href="../array/">Array</a>(U) | <a href="../iterator/">Iterator</a>(U) | U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L509" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns a new iterator with the concatenated results of running the block (which is expected to return arrays or iterators) once for every element in the collection.</p> <pre data-language="crystal">iter = [1, 2, 3].each.flat_map { |x| [x, x] }
+
+iter.next # =&gt; 1
+iter.next # =&gt; 1
+iter.next # =&gt; 2
+
+iter = [1, 2, 3].each.flat_map { |x| [x, x].each }
+
+iter.to_a # =&gt; [1, 1, 2, 2, 3, 3]</pre>
+</div>   </div> <div class="entry-detail" id="flatten-instance-method"> <h3 class="signature">def <strong>flatten</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L424" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that flattens nested iterators and arrays into a single iterator whose type is the union of the simple types of all of the nested iterators and arrays (and their nested iterators and arrays, and so on).</p> <pre data-language="crystal">iter = [(1..2).each, ('a'..'b').each].each.flatten
+iter.next # =&gt; 1
+iter.next # =&gt; 2
+iter.next # =&gt; 'a'
+iter.next # =&gt; 'b'
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="in_groups_of(size:Int,filled_up_with=nil,reuse=false)-instance-method"> <h3 class="signature">def <strong>in_groups_of</strong>(size : <a href="../int/">Int</a>, filled_up_with = nil, reuse = false)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L598" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that chunks the iterator's elements in arrays of <em>size</em> filling up the remaining elements if no element remains with <code>nil</code> or a given optional parameter.</p> <pre data-language="crystal">iter = (1..3).each.in_groups_of(2)
+iter.next # =&gt; [1, 2]
+iter.next # =&gt; [3, nil]
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre> <pre data-language="crystal">iter = (1..3).each.in_groups_of(2, 'z')
+iter.next # =&gt; [1, 2]
+iter.next # =&gt; [3, 'z']
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre> <p>By default, a new array is created and yielded for each group.</p> <ul>
+<li>If <em>reuse</em> is given, the array can be reused</li>
+<li>If <em>reuse</em> is an <code><a href="../array/">Array</a></code>, this array will be reused</li>
+<li>If <em>reuse</em> is truthy, the method will create a new array and reuse it.</li>
+</ul> <p>This can be used to prevent many memory allocations when each slice of interest is to be used in a read-only fashion.</p>
+</div>   </div> <div class="entry-detail" id="map(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>map</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L651" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that applies the given block to the next element and returns the result.</p> <pre data-language="crystal">iter = [1, 2, 3].each.map &amp;.*(2)
+iter.next # =&gt; 2
+iter.next # =&gt; 4
+iter.next # =&gt; 6
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="next-instance-method"> <h3 class="signature">abstract def <strong>next</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L150" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Returns the next element in this iterator, or <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code> if there are no more elements.</p></div>   </div> <div class="entry-detail" id="reject(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>reject</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L676" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns elements for which the the passed in block returns a falsey value.</p> <pre data-language="crystal">iter = [1, 2, 3].each.reject &amp;.odd?
+iter.next # =&gt; 2
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="rewind-instance-method"> <h3 class="signature">abstract def <strong>rewind</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L153" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Rewinds the iterator to its original state.</p></div>   </div> <div class="entry-detail" id="select(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>select</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L706" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns elements for which the the passed in block returns a truthy value.</p> <pre data-language="crystal">iter = [1, 2, 3].each.select &amp;.odd?
+iter.next # =&gt; 1
+iter.next # =&gt; 3
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="skip(n:Int)-instance-method"> <h3 class="signature">def <strong>skip</strong>(n : <a href="../int/">Int</a>)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L735" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that skips the first <em>n</em> elements and only returns the elements after that.</p> <pre data-language="crystal">iter = (1..3).each.skip(2)
+iter.next # -&gt; 3
+iter.next # -&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="skip_while(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>skip_while</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L772" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only starts to return elements once the given block has returned falsey value for one element.</p> <pre data-language="crystal">iter = [1, 2, 3, 4, 0].each.skip_while { |i| i &lt; 3 }
+iter.next # =&gt; 3
+iter.next # =&gt; 4
+iter.next # =&gt; 0
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="slice(n:Int,reuse=false)-instance-method"> <h3 class="signature">def <strong>slice</strong>(n : <a href="../int/">Int</a>, reuse = false)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L802" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Alias of <code><a href="../iterator/#each_slice%28n%2Creuse%3Dfalse%29-instance-method">#each_slice</a></code>.</p></div>   </div> <div class="entry-detail" id="step(n:Int)-instance-method"> <h3 class="signature">def <strong>step</strong>(n : <a href="../int/">Int</a>)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L858" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns every <em>n</em>th element, starting with the first.</p> <pre data-language="crystal">iter = (1..6).each.step(2)
+iter.next # =&gt; 1
+iter.next # =&gt; 3
+iter.next # =&gt; 5
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="stop-instance-method"> <h3 class="signature">def <strong>stop</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L105" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Shortcut for <code><a href="../iterator/stop/">Iterator::Stop</a>::INSTANCE</code>, to signal that there are no more elements in an iterator.</p></div>   </div> <div class="entry-detail" id="take_while(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>take_while</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L928" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns elements while the given block returns a truthy value.</p> <pre data-language="crystal">iter = (1..5).each.take_while { |i| i &lt; 3 }
+iter.next # =&gt; 1
+iter.next # =&gt; 2
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="tap(&amp;block:T-&gt;)-instance-method"> <h3 class="signature">def <strong>tap</strong>(&amp;block : T -&gt; )<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L971" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that calls the given block with the next element of the iterator when calling <code><a href="../iterator/#next-instance-method">#next</a></code>, still returning the original element.</p> <pre data-language="crystal">a = 0
+iter = (1..3).each.tap { |x| a += x }
+iter.next # =&gt; 1
+a         # =&gt; 1
+iter.next # =&gt; 2
+a         # =&gt; 3
+iter.next # =&gt; 3
+a         # =&gt; 6
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="uniq-instance-method"> <h3 class="signature">def <strong>uniq</strong><a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L998" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns unique values of the original iterator.</p> <pre data-language="crystal">iter = [1, 2, 1].each.uniq
+iter.next # =&gt; 1
+iter.next # =&gt; 2
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="uniq(&amp;func:T-&gt;U)forallU-instance-method"> <h3 class="signature">def <strong>uniq</strong>(&amp;func : T -&gt; U) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1012" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that only returns unique values of the original iterator. The provided block is applied to the elements to determine the value to be checked for uniqueness.</p> <pre data-language="crystal">iter = [["a", "a"], ["b", "a"], ["a", "c"]].each.uniq &amp;.first
+iter.next # =&gt; ["a", "a"]
+iter.next # =&gt; ["b", "a"]
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="with_index(offset:Int=0)-instance-method"> <h3 class="signature">def <strong>with_index</strong>(offset : <a href="../int/">Int</a> = 0)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1051" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns a <code><a href="../tuple/">Tuple</a></code> of the element and its index.</p> <pre data-language="crystal">iter = (1..3).each.with_index
+iter.next # =&gt; {1, 0}
+iter.next # =&gt; {2, 1}
+iter.next # =&gt; {3, 2}
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="with_index(offset:Int=0,&amp;block)-instance-method"> <h3 class="signature">def <strong>with_index</strong>(offset : <a href="../int/">Int</a> = 0, &amp;block)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1056" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc"><p>Yields each element in this iterator together with its index.</p></div>   </div> <div class="entry-detail" id="with_object(obj)-instance-method"> <h3 class="signature">def <strong>with_object</strong>(obj)<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1093" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns a <code><a href="../tuple/">Tuple</a></code> of the element and a given object.</p> <pre data-language="crystal">iter = (1..3).each.with_object("a")
+iter.next # =&gt; {1, "a"}
+iter.next # =&gt; {2, "a"}
+iter.next # =&gt; {3, "a"}
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div> <div class="entry-detail" id="zip(other:Iterator(U))forallU-instance-method"> <h3 class="signature">def <strong>zip</strong>(other : <a href="../iterator/">Iterator</a>(U)) forall U<a href="https://github.com/crystal-lang/crystal/blob/c2c2276ec667171af5c2347490f49acdbdc4a3ca/src/iterator.cr#L1122" target="_blank" class="view-source">Source</a>
+</h3> <div class="doc">
+<p>Returns an iterator that returns the elements of this iterator and the given one pairwise as <code><a href="../tuple/">Tuple</a></code>s.</p> <pre data-language="crystal">iter1 = [4, 5, 6].each
+iter2 = [7, 8, 9].each
+iter = iter1.zip(iter2)
+iter.next # =&gt; {4, 7}
+iter.next # =&gt; {5, 8}
+iter.next # =&gt; {6, 9}
+iter.next # =&gt; Iterator::Stop::INSTANCE</pre>
+</div>   </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Manas Technology Solutions.<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://crystal-lang.org/api/0.21.0/Iterator.html" class="_attribution-link" target="_blank">https://crystal-lang.org/api/0.21.0/Iterator.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
