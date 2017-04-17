@@ -1,0 +1,111 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.1. Statements and Declarations in Expressions - GCC 5 - W3cubDocs</title>
+  
+  <meta name="description" content="A compound statement enclosed in parentheses may appear as an expression in GNU C. This allows you to use loops, switches, and local variables &hellip;">
+  <meta name="keywords" content="statements, and, declarations, expressions, -, gcc, gcc~5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/gcc~5/statement-exprs/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/gcc~5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/gcc~5/" class="_nav-link" title="" style="margin-left:0;">GCC 5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _gnu">
+				
+<h1 class="section" id="Statement-Exprs">6.1 Statements and Declarations in Expressions</h1> <p>   A compound statement enclosed in parentheses may appear as an expression in GNU C. This allows you to use loops, switches, and local variables within an expression. </p>
+<p>Recall that a compound statement is a sequence of statements surrounded by braces; in this construct, parentheses go around the braces. For example: </p>
+<pre class="smallexample">({ int y = foo (); int z;
+   if (y &gt; 0) z = y;
+   else z = - y;
+   z; })</pre> <p class="noindent">is a valid (though slightly more complex than necessary) expression for the absolute value of <code>foo ()</code>. </p>
+<p>The last thing in the compound statement should be an expression followed by a semicolon; the value of this subexpression serves as the value of the entire construct. (If you use some other kind of statement last within the braces, the construct has type <code>void</code>, and thus effectively no value.) </p>
+<p>This feature is especially useful in making macro definitions “safe” (so that they evaluate each operand exactly once). For example, the “maximum” function is commonly defined as a macro in standard C as follows: </p>
+<pre class="smallexample">#define max(a,b) ((a) &gt; (b) ? (a) : (b))</pre> <p class="noindent">But this definition computes either <var>a</var> or <var>b</var> twice, with bad results if the operand has side effects. In GNU C, if you know the type of the operands (here taken as <code>int</code>), you can define the macro safely as follows: </p>
+<pre class="smallexample">#define maxint(a,b) \
+  ({int _a = (a), _b = (b); _a &gt; _b ? _a : _b; })</pre> <p>Embedded statements are not allowed in constant expressions, such as the value of an enumeration constant, the width of a bit-field, or the initial value of a static variable. </p>
+<p>If you don't know the type of the operand, you can still do this, but you must use <code>typeof</code> or <code>__auto_type</code> (see <a href="../typeof/#Typeof">Typeof</a>). </p>
+<p>In G++, the result value of a statement expression undergoes array and function pointer decay, and is returned by value to the enclosing expression. For instance, if <code>A</code> is a class, then </p>
+<pre class="smallexample">A a;
+     
+({a;}).Foo ()</pre> <p class="noindent">constructs a temporary <code>A</code> object to hold the result of the statement expression, and that is used to invoke <code>Foo</code>. Therefore the <code>this</code> pointer observed by <code>Foo</code> is not the address of <code>a</code>. </p>
+<p>In a statement expression, any temporaries created within a statement are destroyed at that statement's end. This makes statement expressions inside macros slightly different from function calls. In the latter case temporaries introduced during argument evaluation are destroyed at the end of the statement that includes the function call. In the statement expression case they are destroyed during the statement expression. For instance, </p>
+<pre class="smallexample">#define macro(a)  ({__typeof__(a) b = (a); b + 3; })
+template&lt;typename T&gt; T function(T a) { T b = a; return b + 3; }
+
+void foo ()
+{
+  macro (X ());
+  function (X ());
+}</pre> <p class="noindent">has different places where temporaries are destroyed. For the <code>macro</code> case, the temporary <code>X</code> is destroyed just after the initialization of <code>b</code>. In the <code>function</code> case that temporary is destroyed when the function returns. </p>
+<p>These considerations mean that it is probably a bad idea to use statement expressions of this form in header files that are designed to work with C++. (Note that some versions of the GNU C Library contained header files using statement expressions that lead to precisely this bug.) </p>
+<p>Jumping into a statement expression with <code>goto</code> or using a <code>switch</code> statement outside the statement expression with a <code>case</code> or <code>default</code> label inside the statement expression is not permitted. Jumping into a statement expression with a computed <code>goto</code> (see <a href="../labels-as-values/#Labels-as-Values">Labels as Values</a>) has undefined behavior. Jumping out of a statement expression is permitted, but if the statement expression is part of a larger expression then it is unspecified which other subexpressions of that expression have been evaluated except where the language definition requires certain subexpressions to be evaluated before or after the statement expression. In any case, as with a function call, the evaluation of a statement expression is not interleaved with the evaluation of other parts of the containing expression. For example, </p>
+<pre class="smallexample">foo (), (({ bar1 (); goto a; 0; }) + bar2 ()), baz();</pre> <p class="noindent">calls <code>foo</code> and <code>bar1</code> and does not call <code>baz</code> but may or may not call <code>bar2</code>. If <code>bar2</code> is called, it is called after <code>foo</code> and before <code>bar1</code>. </p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Free Software Foundation<br>Licensed under the GNU Free Documentation License, Version 1.3.<br>
+    <a href="https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Statement-Exprs.html" class="_attribution-link" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Statement-Exprs.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

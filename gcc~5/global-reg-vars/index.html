@@ -1,0 +1,98 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.43.5.1. Defining Global Register Variables - GCC 5 - W3cubDocs</title>
+  
+  <meta name="description" content=" You can define a global register variable in GNU C like this&#58; ">
+  <meta name="keywords" content="defining, global, register, variables, -, gcc, gcc~5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/gcc~5/global-reg-vars/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/gcc~5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/gcc~5/" class="_nav-link" title="" style="margin-left:0;">GCC 5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _gnu">
+				
+<h1 class="subsubsection" id="Global-Reg-Vars">6.43.5.1 Defining Global Register Variables</h1> <p> You can define a global register variable in GNU C like this: </p>
+<pre class="smallexample">register int *foo asm ("a5");</pre> <p class="noindent">Here <code>a5</code> is the name of the register that should be used. Choose a register that is normally saved and restored by function calls on your machine, so that library routines will not clobber it. </p>
+<p>Naturally the register name is CPU-dependent, so you need to conditionalize your program according to CPU type. The register <code>a5</code> is a good choice on a 68000 for a variable of pointer type. On machines with register windows, be sure to choose a “global” register that is not affected magically by the function call mechanism. </p>
+<p>In addition, different operating systems on the same CPU may differ in how they name the registers; then you need additional conditionals. For example, some 68000 operating systems call this register <code>%a5</code>. </p>
+<p>Eventually there may be a way of asking the compiler to choose a register automatically, but first we need to figure out how it should choose and how to enable you to guide the choice. No solution is evident. </p>
+<p>Defining a global register variable in a certain register reserves that register entirely for this use, at least within the current compilation. The register is not allocated for any other purpose in the functions in the current compilation, and is not saved and restored by these functions. Stores into this register are never deleted even if they appear to be dead, but references may be deleted or moved or simplified. </p>
+<p>It is not safe to access the global register variables from signal handlers, or from more than one thread of control, because the system library routines may temporarily use the register for other things (unless you recompile them specially for the task at hand). </p>
+<p>It is not safe for one function that uses a global register variable to call another such function <code>foo</code> by way of a third function <code>lose</code> that is compiled without knowledge of this variable (i.e. in a different source file in which the variable isn't declared). This is because <code>lose</code> might save the register and put some other value there. For example, you can't expect a global register variable to be available in the comparison-function that you pass to <code>qsort</code>, since <code>qsort</code> might have put something else in that register. (If you are prepared to recompile <code>qsort</code> with the same global register variable, you can solve this problem.) </p>
+<p>If you want to recompile <code>qsort</code> or other source files that do not actually use your global register variable, so that they do not use that register for any other purpose, then it suffices to specify the compiler option <samp><span class="option">-ffixed-</span><var>reg</var></samp>. You need not actually add a global register declaration to their source code. </p>
+<p>A function that can alter the value of a global register variable cannot safely be called from a function compiled without this variable, because it could clobber the value the caller expects to find there on return. Therefore, the function that is the entry point into the part of the program that uses the global register variable must explicitly save and restore the value that belongs to its caller. </p>
+<p>On most machines, <code>longjmp</code> restores to each global register variable the value it had at the time of the <code>setjmp</code>. On some machines, however, <code>longjmp</code> does not change the value of global register variables. To be portable, the function that called <code>setjmp</code> should make other arrangements to save the values of the global register variables, and to restore them in a <code>longjmp</code>. This way, the same thing happens regardless of what <code>longjmp</code> does. </p>
+<p>All global register variable declarations must precede all function definitions. If such a declaration could appear after function definitions, the declaration would be too late to prevent the register from being used for other purposes in the preceding functions. </p>
+<p>Global register variables may not have initial values, because an executable file has no means to supply initial contents for a register. </p>
+<p>On the SPARC, there are reports that g3 <small class="dots">...</small> g7 are suitable registers, but certain library functions, such as <code>getwd</code>, as well as the subroutines for division and remainder, modify g3 and g4. g1 and g2 are local temporaries. </p>
+<p>On the 68000, a2 <small class="dots">...</small> a5 should be suitable, as should d2 <small class="dots">...</small> d7. Of course, it does not do to use more than a few of those. </p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Free Software Foundation<br>Licensed under the GNU Free Documentation License, Version 1.3.<br>
+    <a href="https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Global-Reg-Vars.html" class="_attribution-link" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Global-Reg-Vars.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

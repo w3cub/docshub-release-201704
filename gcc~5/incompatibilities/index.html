@@ -1,0 +1,149 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>12.3. Incompatibilities of GCC - GCC 5 - W3cubDocs</title>
+  
+  <meta name="description" content=" There are several noteworthy incompatibilities between GNU C and K&#38;R (non-ISO) versions of C. ">
+  <meta name="keywords" content="incompatibilities, gcc, -, gcc~5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/gcc~5/incompatibilities/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/gcc~5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/gcc~5/" class="_nav-link" title="" style="margin-left:0;">GCC 5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _gnu">
+				
+<h1 class="section" id="Incompatibilities">12.3 Incompatibilities of GCC</h1> <p> There are several noteworthy incompatibilities between GNU C and K&amp;R (non-ISO) versions of C.    </p>
+<ul>
+<li>GCC normally makes string constants read-only. If several identical-looking string constants are used, GCC stores only one copy of the string. <p>One consequence is that you cannot call <code>mktemp</code> with a string constant argument. The function <code>mktemp</code> always alters the string its argument points to. </p>
+<p>Another consequence is that <code>sscanf</code> does not work on some very old systems when passed a string constant as its format control string or input. This is because <code>sscanf</code> incorrectly tries to write into the string constant. Likewise <code>fscanf</code> and <code>scanf</code>. </p>
+<p>The solution to these problems is to change the program to use <code>char</code>-array variables with initialization strings for these purposes instead of string constants. </p>
+</li>
+<li>
+<code>-2147483648</code> is positive. <p>This is because 2147483648 cannot fit in the type <code>int</code>, so (following the ISO C rules) its data type is <code>unsigned long int</code>. Negating this value yields 2147483648 again. </p>
+</li>
+<li>GCC does not substitute macro arguments when they appear inside of string constants. For example, the following macro in GCC <pre class="smallexample">#define foo(a) "a"</pre> <p class="noindent">will produce output <code>"a"</code> regardless of what the argument <var>a</var> is. </p>
+
+</li>
+<li>When you use <code>setjmp</code> and <code>longjmp</code>, the only automatic variables guaranteed to remain valid are those declared <code>volatile</code>. This is a consequence of automatic register allocation. Consider this function: <pre class="smallexample">jmp_buf j;
+
+foo ()
+{
+  int a, b;
+
+  a = fun1 ();
+  if (setjmp (j))
+    return a;
+
+  a = fun2 ();
+  /* <code>longjmp (j)</code><span class="roman"> may occur in </span><code>fun3</code><span class="roman">.</span> */
+  return a + fun3 ();
+}</pre> <p>Here <code>a</code> may or may not be restored to its first value when the <code>longjmp</code> occurs. If <code>a</code> is allocated in a register, then its first value is restored; otherwise, it keeps the last value stored in it. </p>
+<p>If you use the <code>-W</code> option with the <code>-O</code> option, you will get a warning when GCC thinks such a problem might be possible. </p>
+</li>
+<li>Programs that use preprocessing directives in the middle of macro arguments do not work with GCC. For example, a program like this will not work: <pre class="smallexample">foobar (
+#define luser
+        hack)</pre> <p>ISO C does not permit such a construct. </p>
+</li>
+<li>K&amp;R compilers allow comments to cross over an inclusion boundary (i.e. started in an include file and ended in the including file). 
+</li>
+<li>Declarations of external variables and functions within a block apply only to the block containing the declaration. In other words, they have the same scope as any other declaration in the same place. <p>In some other C compilers, an <code>extern</code> declaration affects all the rest of the file even if it happens within a block. </p>
+</li>
+<li>In traditional C, you can combine <code>long</code>, etc., with a typedef name, as shown here: <pre class="smallexample">typedef int foo;
+typedef long foo bar;</pre> <p>In ISO C, this is not allowed: <code>long</code> and other type modifiers require an explicit <code>int</code>. </p>
+
+</li>
+<li>PCC allows typedef names to be used as function parameters. </li>
+<li>Traditional C allows the following erroneous pair of declarations to appear together in a given scope: <pre class="smallexample">typedef int foo;
+typedef foo foo;</pre> </li>
+<li>GCC treats all characters of identifiers as significant. According to K&amp;R-1 (2.2), “No more than the first eight characters are significant, although more may be used.”. Also according to K&amp;R-1 (2.2), “An identifier is a sequence of letters and digits; the first character must be a letter. The underscore _ counts as a letter.”, but GCC also allows dollar signs in identifiers. 
+</li>
+<li>PCC allows whitespace in the middle of compound assignment operators such as ‘<code>+=</code>’. GCC, following the ISO standard, does not allow this. 
+</li>
+<li>GCC complains about unterminated character constants inside of preprocessing conditionals that fail. Some programs have English comments enclosed in conditionals that are guaranteed to fail; if these comments contain apostrophes, GCC will probably report an error. For example, this code would produce an error: <pre class="smallexample">#if 0
+You can't expect this to work.
+#endif</pre> <p>The best solution to such a problem is to put the text into an actual C comment delimited by ‘<code>/*...*/</code>’. </p>
+</li>
+<li>Many user programs contain the declaration ‘<code>long time ();</code>’. In the past, the system header files on many systems did not actually declare <code>time</code>, so it did not matter what type your program declared it to return. But in systems with ISO C headers, <code>time</code> is declared to return <code>time_t</code>, and if that is not the same as <code>long</code>, then ‘<code>long time ();</code>’ is erroneous. <p>The solution is to change your program to use appropriate system headers (<code>&lt;time.h&gt;</code> on systems with ISO C headers) and not to declare <code>time</code> if the system header files declare it, or failing that to use <code>time_t</code> as the return type of <code>time</code>. </p>
+
+</li>
+<li>When compiling functions that return <code>float</code>, PCC converts it to a double. GCC actually returns a <code>float</code>. If you are concerned with PCC compatibility, you should declare your functions to return <code>double</code>; you might as well say what you mean. 
+</li>
+<li>When compiling functions that return structures or unions, GCC output code normally uses a method different from that used on most versions of Unix. As a result, code compiled with GCC cannot call a structure-returning function compiled with PCC, and vice versa. <p>The method used by GCC is as follows: a structure or union which is 1, 2, 4 or 8 bytes long is returned like a scalar. A structure or union with any other size is stored into an address supplied by the caller (usually in a special, fixed register, but on some machines it is passed on the stack). The target hook <code>TARGET_STRUCT_VALUE_RTX</code> tells GCC where to pass this address. </p>
+<p>By contrast, PCC on most target machines returns structures and unions of any size by copying the data into an area of static storage, and then returning the address of that storage as if it were a pointer value. The caller must copy the data from that memory area to the place where the value is wanted. GCC does not use this method because it is slower and nonreentrant. </p>
+<p>On some newer machines, PCC uses a reentrant convention for all structure and union returning. GCC on most of these machines uses a compatible convention when returning structures and unions in memory, but still returns small structures and unions in registers. </p>
+<p>You can tell GCC to use a compatible convention for all structure and union returning with the option <code>-fpcc-struct-return</code>. </p>
+
+</li>
+<li>GCC complains about program fragments such as ‘<code>0x74ae-0x4000</code>’ which appear to be two hexadecimal constants separated by the minus operator. Actually, this string is a single preprocessing token. Each such token must correspond to one token in C. Since this does not, GCC prints an error message. Although it may appear obvious that what is meant is an operator and two values, the ISO C standard specifically requires that this be treated as erroneous. <p>A preprocessing token is a preprocessing number if it begins with a digit and is followed by letters, underscores, digits, periods and ‘<code>e+</code>’, ‘<code>e-</code>’, ‘<code>E+</code>’, ‘<code>E-</code>’, ‘<code>p+</code>’, ‘<code>p-</code>’, ‘<code>P+</code>’, or ‘<code>P-</code>’ character sequences. (In strict C90 mode, the sequences ‘<code>p+</code>’, ‘<code>p-</code>’, ‘<code>P+</code>’ and ‘<code>P-</code>’ cannot appear in preprocessing numbers.) </p>
+<p>To make the above program fragment valid, place whitespace in front of the minus sign. This whitespace will end the preprocessing number. </p>
+</li>
+</ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Free Software Foundation<br>Licensed under the GNU Free Documentation License, Version 1.3.<br>
+    <a href="https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Incompatibilities.html" class="_attribution-link" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-5.4.0/gcc/Incompatibilities.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

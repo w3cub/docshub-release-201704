@@ -1,0 +1,104 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>3.10.6. Argument Prescan - GCC 5 CPP - W3cubDocs</title>
+  
+  <meta name="description" content="Macro arguments are completely macro-expanded before they are substituted into a macro body, unless they are stringified or pasted with other tokens &hellip;">
+  <meta name="keywords" content="argument, prescan, -, gcc, cpp, gcc~5_cpp">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/gcc~5_cpp/argument-prescan/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/gcc~5_cpp.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/gcc~5_cpp/" class="_nav-link" title="" style="margin-left:0;">GCC 5 CPP</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _gnu">
+				
+<h1 class="subsection" id="Argument-Prescan">3.10.6 Argument Prescan</h1> <p> Macro arguments are completely macro-expanded before they are substituted into a macro body, unless they are stringified or pasted with other tokens. After substitution, the entire macro body, including the substituted arguments, is scanned again for macros to be expanded. The result is that the arguments are scanned <em>twice</em> to expand macro calls in them. </p>
+<p>Most of the time, this has no effect. If the argument contained any macro calls, they are expanded during the first scan. The result therefore contains no macro calls, so the second scan does not change it. If the argument were substituted as given, with no prescan, the single remaining scan would find the same macro calls and produce the same results. </p>
+<p>You might expect the double scan to change the results when a self-referential macro is used in an argument of another macro (see <a href="../self_002dreferential-macros/#Self_002dReferential-Macros">Self-Referential Macros</a>): the self-referential macro would be expanded once in the first scan, and a second time in the second scan. However, this is not what happens. The self-references that do not expand in the first scan are marked so that they will not expand in the second scan either. </p>
+<p>You might wonder, “Why mention the prescan, if it makes no difference? And why not skip it and make the preprocessor faster?” The answer is that the prescan does make a difference in three special cases: </p>
+<ul> <li>Nested calls to a macro. <p>We say that nested calls to a macro occur when a macro's argument contains a call to that very macro. For example, if <code>f</code> is a macro that expects one argument, <code>f (f (1))</code> is a nested pair of calls to <code>f</code>. The desired expansion is made by expanding <code>f (1)</code> and substituting that into the definition of <code>f</code>. The prescan causes the expected result to happen. Without the prescan, <code>f (1)</code> itself would be substituted as an argument, and the inner use of <code>f</code> would appear during the main scan as an indirect self-reference and would not be expanded. </p>
+</li>
+<li>Macros that call other macros that stringify or concatenate. <p>If an argument is stringified or concatenated, the prescan does not occur. If you <em>want</em> to expand a macro, then stringify or concatenate its expansion, you can do that by causing one macro to call another macro that does the stringification or concatenation. For instance, if you have </p>
+<pre class="smallexample">#define AFTERX(x) X_ ## x
+#define XAFTERX(x) AFTERX(x)
+#define TABLESIZE 1024
+#define BUFSIZE TABLESIZE</pre> <p>then <code>AFTERX(BUFSIZE)</code> expands to <code>X_BUFSIZE</code>, and <code>XAFTERX(BUFSIZE)</code> expands to <code>X_1024</code>. (Not to <code>X_TABLESIZE</code>. Prescan always does a complete expansion.) </p>
+</li>
+<li>Macros used in arguments, whose expansions contain unshielded commas. <p>This can cause a macro expanded on the second scan to be called with the wrong number of arguments. Here is an example: </p>
+<pre class="smallexample">#define foo  a,b
+#define bar(x) lose(x)
+#define lose(x) (1 + (x))</pre> <p>We would like <code>bar(foo)</code> to turn into <code>(1 + (foo))</code>, which would then turn into <code>(1 + (a,b))</code>. Instead, <code>bar(foo)</code> expands into <code>lose(a,b)</code>, and you get an error because <code>lose</code> requires a single argument. In this case, the problem is easily solved by the same parentheses that ought to be used to prevent misnesting of arithmetic operations: </p>
+<pre class="smallexample">#define foo (a,b)
+or
+     #define bar(x) lose((x))</pre> <p>The extra pair of parentheses prevents the comma in <code>foo</code>'s definition from being interpreted as an argument separator. </p>
+</li>
+</ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Free Software Foundation<br>Licensed under the GNU Free Documentation License, Version 1.3.<br>
+    <a href="https://gcc.gnu.org/onlinedocs/gcc-5.4.0/cpp/Argument-Prescan.html" class="_attribution-link" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-5.4.0/cpp/Argument-Prescan.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
