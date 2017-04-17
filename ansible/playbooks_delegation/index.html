@@ -1,0 +1,192 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Delegation, Rolling Updates, and Local Actions - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Being designed for multi-tier deployments since the beginning, Ansible is great at doing things on one host on behalf of another, or doing local &hellip;">
+  <meta name="keywords" content="delegation, rolling, updates, and, local, actions, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_delegation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="delegation-rolling-updates-and-local-actions">Delegation, Rolling Updates, and Local Actions</h1>   <ul> <li><a class="reference internal" href="#rolling-update-batch-size" id="id8">Rolling Update Batch Size</a></li> <li><a class="reference internal" href="#maximum-failure-percentage" id="id9">Maximum Failure Percentage</a></li> <li><a class="reference internal" href="#delegation" id="id10">Delegation</a></li> <li><a class="reference internal" href="#delegated-facts" id="id11">Delegated facts</a></li> <li><a class="reference internal" href="#run-once" id="id12">Run Once</a></li> <li><a class="reference internal" href="#local-playbooks" id="id13">Local Playbooks</a></li> <li><a class="reference internal" href="#interrupt-execution-on-any-error" id="id14">Interrupt execution on any error</a></li> </ul>
+  <p>Being designed for multi-tier deployments since the beginning, Ansible is great at doing things on one host on behalf of another, or doing local steps with reference to some remote hosts.</p> <p>This in particular is very applicable when setting up continuous deployment infrastructure or zero downtime rolling updates, where you might be talking with load balancers or monitoring systems.</p> <p>Additional features allow for tuning the orders in which things complete, and assigning a batch window size for how many machines to process at once during a rolling update.</p> <p>This section covers all of these features. For examples of these items in use, <a class="reference external" href="https://github.com/ansible/ansible-examples/" target="_blank">please see the ansible-examples repository</a>. There are quite a few examples of zero-downtime update procedures for different kinds of applications.</p> <p>You should also consult the <a class="reference internal" href="../modules/"><span class="doc">About Modules</span></a> section, various modules like ‘ec2_elb’, ‘nagios’, and ‘bigip_pool’, and ‘netscaler’ dovetail neatly with the concepts mentioned here.</p> <p>You’ll also want to read up on <a class="reference internal" href="../playbooks_roles/"><span class="doc">Playbook Roles and Include Statements</span></a>, as the ‘pre_task’ and ‘post_task’ concepts are the places where you would typically call these modules.</p>  <h2 id="id1">Rolling Update Batch Size</h2> <div class="versionadded" id="rolling-update-batch-size"> <p><span class="versionmodified">New in version 0.7.</span></p> </div> <p>By default, Ansible will try to manage all of the machines referenced in a play in parallel. For a rolling updates use case, you can define how many hosts Ansible should manage at a single time by using the ‘’serial’’ keyword:</p> <pre data-language="yaml">- name: test play
+  hosts: webservers
+  serial: 3
+</pre> <p>In the above example, if we had 100 hosts, 3 hosts in the group ‘webservers’ would complete the play completely before moving on to the next 3 hosts.</p> <p>The ‘’serial’’ keyword can also be specified as a percentage in Ansible 1.8 and later, which will be applied to the total number of hosts in a play, in order to determine the number of hosts per pass:</p> <pre data-language="yaml">- name: test play
+  hosts: webservers
+  serial: "30%"
+</pre> <p>If the number of hosts does not divide equally into the number of passes, the final pass will contain the remainder.</p> <p>As of Ansible 2.2, the batch sizes can be specified as a list, as follows:</p> <pre data-language="yaml">- name: test play
+  hosts: webservers
+  serial:
+  - 1
+  - 5
+  - 10
+</pre> <p>In the above example, the first batch would contain a single host, the next would contain 5 hosts, and (if there are any hosts left), every following batch would contain 10 hosts until all available hosts are used.</p> <p>It is also possible to list multiple batche sizes as percentages:</p> <pre data-language="yaml">- name: test play
+  hosts: webservers
+  serial:
+  - "10%"
+  - "20%"
+  - "100%"
+</pre> <p>You can also mix and match the values:</p> <pre data-language="yaml">- name: test play
+  hosts: webservers
+  serial:
+  - 1
+  - 5
+  - "20%"
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">No matter how small the percentage, the number of hosts per pass will always be 1 or greater.</p> </div>   <h2 id="id2">Maximum Failure Percentage</h2> <div class="versionadded" id="maximum-failure-percentage"> <p><span class="versionmodified">New in version 1.3.</span></p> </div> <p>By default, Ansible will continue executing actions as long as there are hosts in the group that have not yet failed. In some situations, such as with the rolling updates described above, it may be desirable to abort the play when a certain threshold of failures have been reached. To achieve this, as of version 1.3 you can set a maximum failure percentage on a play as follows:</p> <pre data-language="yaml">- hosts: webservers
+  max_fail_percentage: 30
+  serial: 10
+</pre> <p>In the above example, if more than 3 of the 10 servers in the group were to fail, the rest of the play would be aborted.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The percentage set must be exceeded, not equaled. For example, if serial were set to 4 and you wanted the task to abort when 2 of the systems failed, the percentage should be set at 49 rather than 50.</p> </div>   <h2 id="id3">Delegation</h2> <div class="versionadded" id="delegation"> <p><span class="versionmodified">New in version 0.7.</span></p> </div> <p>This isn’t actually rolling update specific but comes up frequently in those cases.</p> <p>If you want to perform a task on one host with reference to other hosts, use the ‘delegate_to’ keyword on a task. This is ideal for placing nodes in a load balanced pool, or removing them. It is also very useful for controlling outage windows. Using this with the ‘serial’ keyword to control the number of hosts executing at one time is also a good idea:</p> <pre data-language="yaml">---
+
+- hosts: webservers
+  serial: 5
+
+  tasks:
+
+  - name: take out of load balancer pool
+    command: /usr/bin/take_out_of_pool {{ inventory_hostname }}
+    delegate_to: 127.0.0.1
+
+  - name: actual steps would go here
+    yum: name=acme-web-stack state=latest
+
+  - name: add back to load balancer pool
+    command: /usr/bin/add_back_to_pool {{ inventory_hostname }}
+    delegate_to: 127.0.0.1
+</pre> <p>These commands will run on 127.0.0.1, which is the machine running Ansible. There is also a shorthand syntax that you can use on a per-task basis: ‘local_action’. Here is the same playbook as above, but using the shorthand syntax for delegating to 127.0.0.1:</p> <pre data-language="yaml">---
+
+# ...
+
+  tasks:
+
+  - name: take out of load balancer pool
+    local_action: command /usr/bin/take_out_of_pool {{ inventory_hostname }}
+
+# ...
+
+  - name: add back to load balancer pool
+    local_action: command /usr/bin/add_back_to_pool {{ inventory_hostname }}
+</pre> <p>A common pattern is to use a local action to call ‘rsync’ to recursively copy files to the managed servers. Here is an example:</p> <pre data-language="yaml">---
+# ...
+  tasks:
+
+  - name: recursively copy files from management server to target
+    local_action: command rsync -a /path/to/files {{ inventory_hostname }}:/path/to/target/
+</pre> <p>Note that you must have passphrase-less SSH keys or an ssh-agent configured for this to work, otherwise rsync will need to ask for a passphrase.</p> <p>The <code>ansible_host</code> variable (<code>ansible_ssh_host</code> in 1.x) reflects the host a task is delegated to.</p>   <h2 id="delegate-facts">Delegated facts</h2> <div class="versionadded" id="delegated-facts"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>By default, any fact gathered by a delegated task are assigned to the <code>inventory_hostname</code> (the current host) instead of the host which actually produced the facts (the delegated to host). In 2.0, the directive <code>delegate_facts</code> may be set to <code>True</code> to assign the task’s gathered facts to the delegated host instead of the current one.:</p> <pre data-language="yaml">- hosts: app_servers
+  tasks:
+    - name: gather facts from db servers
+      setup:
+      delegate_to: "{{item}}"
+      delegate_facts: True
+      with_items: "{{groups['dbservers']}}"
+</pre> <p>The above will gather facts for the machines in the dbservers group and assign the facts to those machines and not to app_servers. This way you can lookup <code>hostvars[‘dbhost1’][‘default_ipv4_addresses’][0]</code> even though dbservers were not part of the play, or left out by using <code>–limit</code>.</p>   <h2 id="id4">Run Once</h2> <div class="versionadded" id="run-once"> <p><span class="versionmodified">New in version 1.7.</span></p> </div> <p>In some cases there may be a need to only run a task one time and only on one host. This can be achieved by configuring “run_once” on a task:</p> <pre data-language="yaml">---
+# ...
+
+  tasks:
+
+    # ...
+
+    - command: /opt/application/upgrade_db.py
+      run_once: true
+
+    # ...
+</pre> <p>This can be optionally paired with “delegate_to” to specify an individual host to execute on:</p> <pre data-language="yaml">- command: /opt/application/upgrade_db.py
+  run_once: true
+  delegate_to: web01.example.org
+</pre> <p>When “run_once” is not used with “delegate_to” it will execute on the first host, as defined by inventory, in the group(s) of hosts targeted by the play - e.g. webservers[0] if the play targeted “hosts: webservers”.</p> <p>This approach is similar to applying a conditional to a task such as:</p> <pre data-language="yaml">- command: /opt/application/upgrade_db.py
+  when: inventory_hostname == webservers[0]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">When used together with “serial”, tasks marked as “run_once” will be run on one host in <em>each</em> serial batch. If it’s crucial that the task is run only once regardless of “serial” mode, use <code>when: inventory_hostname == ansible_play_hosts[0]</code> construct.</p> </div>   <h2 id="id5">Local Playbooks</h2> <p id="local-playbooks">It may be useful to use a playbook locally, rather than by connecting over SSH. This can be useful for assuring the configuration of a system by putting a playbook in a crontab. This may also be used to run a playbook inside an OS installer, such as an Anaconda kickstart.</p> <p>To run an entire playbook locally, just set the “hosts:” line to “hosts: 127.0.0.1” and then run the playbook like so:</p> <pre data-language="yaml">ansible-playbook playbook.yml --connection=local
+</pre> <p>Alternatively, a local connection can be used in a single playbook play, even if other plays in the playbook use the default remote connection type:</p> <pre data-language="yaml">- hosts: 127.0.0.1
+  connection: local
+</pre>   <h2 id="id6">Interrupt execution on any error</h2> <p id="interrupt-execution-on-any-error">With option ‘’any_errors_fatal’’ any failure on any host in a multi-host play will be treated as fatal and Ansible will exit immediately without waiting for the other hosts.</p> <p>Sometimes ‘’serial’’ execution is unsuitable - number of hosts is unpredictable (because of dynamic inventory), speed is crucial (simultaneous execution is required). But all tasks must be 100% successful to continue playbook execution.</p> <p>For example there is a service located in many datacenters, there a some load balancers to pass traffic from users to service. There is a deploy playbook to upgrade service deb-packages. Playbook stages:</p> <ul class="simple"> <li>disable traffic on load balancers (must be turned off simultaneously)</li> <li>gracefully stop service</li> <li>upgrade software (this step includes tests and starting service)</li> <li>enable traffic on load balancers (should be turned off simultaneously)</li> </ul> <p>Service can’t be stopped with “alive” load balancers, they must be disabled, all of them. So second stage can’t be played if any server failed on “stage 1”.</p> <p>For datacenter “A” playbook can be written this way:</p> <pre data-language="yaml">---
+- hosts: load_balancers_dc_a
+  any_errors_fatal: True
+  tasks:
+  - name: 'shutting down datacenter [ A ]'
+    command: /usr/bin/disable-dc
+
+- hosts: frontends_dc_a
+  tasks:
+  - name: 'stopping service'
+    command: /usr/bin/stop-software
+  - name: 'updating software'
+    command: /usr/bin/upgrade-software
+
+- hosts: load_balancers_dc_a
+  tasks:
+  - name: 'Starting datacenter [ A ]'
+    command: /usr/bin/enable-dc
+</pre> <p>In this example Ansible will start software upgrade on frontends only if all load balancers are successfully disabled.</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>An introduction to playbooks</dd> <dt><a class="reference external" href="https://github.com/ansible/ansible-examples" target="_blank">Ansible Examples on GitHub</a></dt> <dd>Many examples of full-stack deployments</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">User Mailing List</a></dt> <dd>Have a question? Stop by the google group!</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_delegation.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_delegation.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

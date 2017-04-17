@@ -1,0 +1,165 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Setting the Environment (and Working With Proxies) - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content=" New in version 1.1. ">
+  <meta name="keywords" content="setting, environment, and, working, with, proxies, language-specific, version, managers, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_environment/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="setting-the-environment-and-working-with-proxies">Setting the Environment (and Working With Proxies)</h1> <div class="versionadded"> <p><span class="versionmodified">New in version 1.1.</span></p> </div> <p>It is quite possible that you may need to get package updates through a proxy, or even get some package updates through a proxy and access other packages not through a proxy. Or maybe a script you might wish to call may also need certain environment variables set to run properly.</p> <p>Ansible makes it easy for you to configure your environment by using the ‘environment’ keyword. Here is an example:</p> <pre data-language="yaml">- hosts: all
+  remote_user: root
+
+  tasks:
+
+    - apt: name=cobbler state=installed
+      environment:
+        http_proxy: http://proxy.example.com:8080
+</pre> <p>The environment can also be stored in a variable, and accessed like so:</p> <pre data-language="yaml">- hosts: all
+  remote_user: root
+
+  # here we make a variable named "proxy_env" that is a dictionary
+  vars:
+    proxy_env:
+      http_proxy: http://proxy.example.com:8080
+
+  tasks:
+
+    - apt: name=cobbler state=installed
+      environment: "{{proxy_env}}"
+</pre> <p>You can also use it at a play level:</p> <pre data-language="yaml">- hosts: testhost
+
+  roles:
+     - php
+     - nginx
+
+  environment:
+    http_proxy: http://proxy.example.com:8080
+</pre> <p>While just proxy settings were shown above, any number of settings can be supplied. The most logical place to define an environment hash might be a group_vars file, like so:</p> <pre data-language="yaml">---
+# file: group_vars/boston
+
+ntp_server: ntp.bos.example.com
+backup: bak.bos.example.com
+proxy_env:
+  http_proxy: http://proxy.bos.example.com:8080
+  https_proxy: http://proxy.bos.example.com:8080
+</pre>   <h1 id="working-with-language-specific-version-managers">Working With Language-Specific Version Managers</h1> <p>Some language-specific version managers (such as rbenv and nvm) require environment variables be set while these tools are in use. When using these tools manually, they usually require sourcing some environment variables via a script or lines added to your shell configuration file. In Ansible, you can instead use the environment directive:</p> <pre data-language="yaml">---
+### A playbook demonstrating a common npm workflow:
+# - Check for package.json in the application directory
+# - If package.json exists:
+#   * Run npm prune
+#   * Run npm install
+
+- hosts: application
+  become: false
+
+  vars:
+    node_app_dir: /var/local/my_node_app
+
+  environment:
+    NVM_DIR: /var/local/nvm
+    PATH: /var/local/nvm/versions/node/v4.2.1/bin:{{ ansible_env.PATH }}
+
+  tasks:
+  - name: check for package.json
+    stat:
+      path: '{{ node_app_dir }}/package.json'
+    register: packagejson
+
+  - name: npm prune
+    command: npm prune
+    args:
+      chdir: '{{ node_app_dir }}'
+    when: packagejson.stat.exists
+
+  - name: npm install
+    npm:
+      path: '{{ node_app_dir }}'
+    when: packagejson.stat.exists
+</pre> <p>You might also want to simply specify the environment for a single task:</p> <pre data-language="yaml">---
+- name: install ruby 2.3.1
+  command: rbenv install {{ rbenv_ruby_version }}
+  args:
+    creates: '{{ rbenv_root }}/versions/{{ rbenv_ruby_version }}/bin/ruby'
+  vars:
+    rbenv_root: /usr/local/rbenv
+    rbenv_ruby_version: 2.3.1
+  environment:
+    CONFIGURE_OPTS: '--disable-install-doc'
+    RBENV_ROOT: '{{ rbenv_root }}'
+    PATH: '{{ rbenv_root }}/bin:{{ rbenv_root }}/shims:{{ rbenv_plugins }}/ruby-build/bin:{{ ansible_env.PATH }}'
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last"><code>environment:</code> is not currently supported for Windows targets</p> </div> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>An introduction to playbooks</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">User Mailing List</a></dt> <dd>Have a question? Stop by the google group!</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_environment.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_environment.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

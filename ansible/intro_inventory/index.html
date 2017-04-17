@@ -1,0 +1,170 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Inventory - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Ansible works against multiple systems in your infrastructure at the same time. It does this by selecting portions of systems listed in Ansible’s &hellip;">
+  <meta name="keywords" content="inventory, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/intro_inventory/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="id1">Inventory</h1>   <ul id="inventory"> <li><a class="reference internal" href="#hosts-and-groups" id="id5">Hosts and Groups</a></li> <li><a class="reference internal" href="#host-variables" id="id6">Host Variables</a></li> <li><a class="reference internal" href="#group-variables" id="id7">Group Variables</a></li> <li><a class="reference internal" href="#groups-of-groups-and-group-variables" id="id8">Groups of Groups, and Group Variables</a></li> <li><a class="reference internal" href="#splitting-out-host-and-group-specific-data" id="id9">Splitting Out Host and Group Specific Data</a></li> <li><a class="reference internal" href="#list-of-behavioral-inventory-parameters" id="id10">List of Behavioral Inventory Parameters</a></li> <li><a class="reference internal" href="#non-ssh-connection-types" id="id11">Non-SSH connection types</a></li> </ul>
+  <p>Ansible works against multiple systems in your infrastructure at the same time. It does this by selecting portions of systems listed in Ansible’s inventory file, which defaults to being saved in the location <code>/etc/ansible/hosts</code>. You can specify a different inventory file using the <code>-i &lt;path&gt;</code> option on the command line.</p> <p>Not only is this inventory configurable, but you can also use multiple inventory files at the same time (explained below) and also pull inventory from dynamic or cloud sources, as described in <a class="reference internal" href="../intro_dynamic_inventory/"><span class="doc">Dynamic Inventory</span></a>.</p>  <h2 id="inventoryformat">Hosts and Groups</h2> <p id="hosts-and-groups">The format for <code>/etc/ansible/hosts</code> is an INI-like format and looks like this:</p> <pre data-language="yaml">mail.example.com
+
+[webservers]
+foo.example.com
+bar.example.com
+
+[dbservers]
+one.example.com
+two.example.com
+three.example.com
+</pre> <p>The things in brackets are group names, which are used in classifying systems and deciding what systems you are controlling at what times and for what purpose.</p> <p>It is ok to put systems in more than one group, for instance a server could be both a webserver and a dbserver. If you do, note that variables will come from all of the groups they are a member of, and variable precedence is detailed in a later chapter.</p> <p>If you have hosts that run on non-standard SSH ports you can put the port number after the hostname with a colon. Ports listed in your SSH config file won’t be used with the paramiko connection but will be used with the openssh connection.</p> <p>To make things explicit, it is suggested that you set them if things are not running on the default port:</p> <pre data-language="yaml">badwolf.example.com:5309
+</pre> <p>Suppose you have just static IPs and want to set up some aliases that live in your host file, or you are connecting through tunnels. You can also describe hosts like this:</p> <pre data-language="yaml">jumper ansible_port=5555 ansible_host=192.0.2.50
+</pre> <p>In the above example, trying to ansible against the host alias “jumper” (which may not even be a real hostname) will contact 192.0.2.50 on port 5555. Note that this is using a feature of the inventory file to define some special variables. Generally speaking this is not the best way to define variables that describe your system policy, but we’ll share suggestions on doing this later. We’re just getting started.</p> <p>Adding a lot of hosts? If you have a lot of hosts following similar patterns you can do this rather than listing each hostname:</p> <pre data-language="yaml">[webservers]
+www[01:50].example.com
+</pre> <p>For numeric patterns, leading zeros can be included or removed, as desired. Ranges are inclusive. You can also define alphabetic ranges:</p> <pre data-language="yaml">[databases]
+db-[a:f].example.com
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Ansible 2.0 has deprecated the “ssh” from <code>ansible_ssh_user</code>, <code>ansible_ssh_host</code>, and <code>ansible_ssh_port</code> to become <code>ansible_user</code>, <code>ansible_host</code>, and <code>ansible_port</code>. If you are using a version of Ansible prior to 2.0, you should continue using the older style variables (<code>ansible_ssh_*</code>). These shorter variables are ignored, without warning, in older versions of Ansible.</p> </div> <p>You can also select the connection type and user on a per host basis:</p> <pre data-language="yaml">[targets]
+
+localhost              ansible_connection=local
+other1.example.com     ansible_connection=ssh        ansible_user=mpdehaan
+other2.example.com     ansible_connection=ssh        ansible_user=mdehaan
+</pre> <p>As mentioned above, setting these in the inventory file is only a shorthand, and we’ll discuss how to store them in individual files in the ‘host_vars’ directory a bit later on.</p>   <h2 id="id2">Host Variables</h2> <p id="host-variables">As alluded to above, it is easy to assign variables to hosts that will be used later in playbooks:</p> <pre data-language="yaml">[atlanta]
+host1 http_port=80 maxRequestsPerChild=808
+host2 http_port=303 maxRequestsPerChild=909
+</pre>   <h2 id="id3">Group Variables</h2> <p id="group-variables">Variables can also be applied to an entire group at once:</p> <pre data-language="yaml">[atlanta]
+host1
+host2
+
+[atlanta:vars]
+ntp_server=ntp.atlanta.example.com
+proxy=proxy.atlanta.example.com
+</pre>   <h2 id="subgroups">Groups of Groups, and Group Variables</h2> <p id="groups-of-groups-and-group-variables">It is also possible to make groups of groups using the <code>:children</code> suffix. Just like above, you can apply variables using <code>:vars</code>:</p> <pre data-language="yaml">[atlanta]
+host1
+host2
+
+[raleigh]
+host2
+host3
+
+[southeast:children]
+atlanta
+raleigh
+
+[southeast:vars]
+some_server=foo.southeast.example.com
+halon_system_timeout=30
+self_destruct_countdown=60
+escape_pods=2
+
+[usa:children]
+southeast
+northeast
+southwest
+northwest
+</pre> <p>If you need to store lists or hash data, or prefer to keep host and group specific variables separate from the inventory file, see the next section.</p>   <h2 id="splitting-out-vars">Splitting Out Host and Group Specific Data</h2> <p id="splitting-out-host-and-group-specific-data">The preferred practice in Ansible is actually not to store variables in the main inventory file.</p> <p>In addition to storing variables directly in the INI file, host and group variables can be stored in individual files relative to the inventory file.</p> <p>These variable files are in YAML format. Valid file extensions include ‘.yml’, ‘.yaml’, ‘.json’, or no file extension. See <a class="reference internal" href="../yamlsyntax/"><span class="doc">YAML Syntax</span></a> if you are new to YAML.</p> <p>Assuming the inventory file path is:</p> <pre data-language="yaml">/etc/ansible/hosts
+</pre> <p>If the host is named ‘foosball’, and in groups ‘raleigh’ and ‘webservers’, variables in YAML files at the following locations will be made available to the host:</p> <pre data-language="yaml">/etc/ansible/group_vars/raleigh # can optionally end in '.yml', '.yaml', or '.json'
+/etc/ansible/group_vars/webservers
+/etc/ansible/host_vars/foosball
+</pre> <p>For instance, suppose you have hosts grouped by datacenter, and each datacenter uses some different servers. The data in the groupfile ‘/etc/ansible/group_vars/raleigh’ for the ‘raleigh’ group might look like:</p> <pre data-language="yaml">---
+ntp_server: acme.example.org
+database_server: storage.example.org
+</pre> <p>It is ok if these files do not exist, as this is an optional feature.</p> <p>As an advanced use-case, you can create <em>directories</em> named after your groups or hosts, and Ansible will read all the files in these directories. An example with the ‘raleigh’ group:</p> <pre data-language="yaml">/etc/ansible/group_vars/raleigh/db_settings
+/etc/ansible/group_vars/raleigh/cluster_settings
+</pre> <p>All hosts that are in the ‘raleigh’ group will have the variables defined in these files available to them. This can be very useful to keep your variables organized when a single file starts to be too big, or when you want to use <a class="reference internal" href="../playbooks_vault/"><span class="doc">Ansible Vault</span></a> on a part of a group’s variables. Note that this only works on Ansible 1.4 or later.</p> <p>Tip: In Ansible 1.2 or later the <code>group_vars/</code> and <code>host_vars/</code> directories can exist in the playbook directory OR the inventory directory. If both paths exist, variables in the playbook directory will override variables set in the inventory directory.</p> <p>Tip: Keeping your inventory file and variables in a git repo (or other version control) is an excellent way to track changes to your inventory and host variables.</p>   <h2 id="behavioral-parameters">List of Behavioral Inventory Parameters</h2> <p id="list-of-behavioral-inventory-parameters">As alluded to above, setting the following variables controls how ansible interacts with remote hosts.</p> <p>Host connection:</p> <dl class="docutils"> <dt>ansible_connection</dt> <dd>Connection type to the host. This can be the name of any of ansible’s connection plugins. SSH protocol types are <code>smart</code>, <code>ssh</code> or <code>paramiko</code>. The default is smart. Non-SSH based types are described in the next section.</dd> </dl> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Ansible 2.0 has deprecated the “ssh” from <code>ansible_ssh_user</code>, <code>ansible_ssh_host</code>, and <code>ansible_ssh_port</code> to become <code>ansible_user</code>, <code>ansible_host</code>, and <code>ansible_port</code>. If you are using a version of Ansible prior to 2.0, you should continue using the older style variables (<code>ansible_ssh_*</code>). These shorter variables are ignored, without warning, in older versions of Ansible.</p> </div> <p>SSH connection:</p> <dl class="docutils"> <dt>ansible_host</dt> <dd>The name of the host to connect to, if different from the alias you wish to give to it.</dd> <dt>ansible_port</dt> <dd>The ssh port number, if not 22</dd> <dt>ansible_user</dt> <dd>The default ssh user name to use.</dd> <dt>ansible_ssh_pass</dt> <dd>The ssh password to use (this is insecure, we strongly recommend using <code>--ask-pass</code> or SSH keys)</dd> <dt>ansible_ssh_private_key_file</dt> <dd>Private key file used by ssh. Useful if using multiple keys and you don’t want to use SSH agent.</dd> <dt>ansible_ssh_common_args</dt> <dd>This setting is always appended to the default command line for <strong class="command">sftp</strong>, <strong class="command">scp</strong>, and <strong class="command">ssh</strong>. Useful to configure a <code>ProxyCommand</code> for a certain host (or group).</dd> <dt>ansible_sftp_extra_args</dt> <dd>This setting is always appended to the default <strong class="command">sftp</strong> command line.</dd> <dt>ansible_scp_extra_args</dt> <dd>This setting is always appended to the default <strong class="command">scp</strong> command line.</dd> <dt>ansible_ssh_extra_args</dt> <dd>This setting is always appended to the default <strong class="command">ssh</strong> command line.</dd> <dt>ansible_ssh_pipelining</dt> <dd>Determines whether or not to use SSH pipelining. This can override the <code>pipelining</code> setting in <code>ansible.cfg</code>.</dd> </dl> <div class="versionadded"> <p><span class="versionmodified">New in version 2.2.</span></p> </div> <dl class="docutils"> <dt>ansible_ssh_executable</dt> <dd>This setting overrides the default behavior to use the system <strong class="command">ssh</strong>. This can override the <code>ssh_executable</code> setting in <code>ansible.cfg</code>.</dd> </dl> <p>Privilege escalation (see <a class="reference internal" href="../become/"><span class="doc">Ansible Privilege Escalation</span></a> for further details):</p> <dl class="docutils"> <dt>ansible_become</dt> <dd>Equivalent to <code>ansible_sudo</code> or <code>ansible_su</code>, allows to force privilege escalation</dd> <dt>ansible_become_method</dt> <dd>Allows to set privilege escalation method</dd> <dt>ansible_become_user</dt> <dd>Equivalent to <code>ansible_sudo_user</code> or <code>ansible_su_user</code>, allows to set the user you become through privilege escalation</dd> <dt>ansible_become_pass</dt> <dd>Equivalent to <code>ansible_sudo_pass</code> or <code>ansible_su_pass</code>, allows you to set the privilege escalation password (this is insecure, we strongly recommend using <code>--ask-become-pass</code> or SSH keys)</dd> </dl> <p>Remote host environment parameters:</p> <dl class="docutils"> <dt>ansible_shell_type</dt> <dd>The shell type of the target system. You should not use this setting unless you have set the <code>ansible_shell_executable</code> to a non-Bourne (sh) compatible shell. By default commands are formatted using <code>sh</code>-style syntax. Setting this to <code>csh</code> or <code>fish</code> will cause commands executed on target systems to follow those shell’s syntax instead.</dd> <dt>ansible_python_interpreter</dt> <dd>The target host python path. This is useful for systems with more than one Python or not located at <strong class="command">/usr/bin/python</strong> such as *BSD, or where <strong class="command">/usr/bin/python</strong> is not a 2.X series Python. We do not use the <strong class="command">/usr/bin/env</strong> mechanism as that requires the remote user’s path to be set right and also assumes the <strong class="program">python</strong> executable is named python, where the executable might be named something like <strong class="program">python2.6</strong>.</dd> <dt>ansible_*_interpreter</dt> <dd>Works for anything such as ruby or perl and works just like <code>ansible_python_interpreter</code>. This replaces shebang of modules which will run on that host.</dd> </dl> <div class="versionadded"> <p><span class="versionmodified">New in version 2.1.</span></p> </div> <dl class="docutils"> <dt>ansible_shell_executable</dt> <dd>This sets the shell the ansible controller will use on the target machine, overrides <code>executable</code> in <code>ansible.cfg</code> which defaults to <strong class="command">/bin/sh</strong>. You should really only change it if is not possible to use <strong class="command">/bin/sh</strong> (i.e. <strong class="command">/bin/sh</strong> is not installed on the target machine or cannot be run from sudo.).</dd> </dl> <p>Examples from a host file:</p> <pre data-language="yaml">some_host         ansible_port=2222     ansible_user=manager
+aws_host          ansible_ssh_private_key_file=/home/example/.ssh/aws.pem
+freebsd_host      ansible_python_interpreter=/usr/local/bin/python
+ruby_module_host  ansible_ruby_interpreter=/usr/bin/ruby.1.9.3
+</pre>   <h2 id="non-ssh-connection-types">Non-SSH connection types</h2> <p>As stated in the previous section, Ansible is executing playbooks over SSH but is not limited to. With the host specific parameter <code>ansible_connection=&lt;connector&gt;</code> the connection type can be changed. Following non SSH based connectors are available:</p> <p><strong>local</strong></p> <p>This connector can be used to deploy the playbook to the control machine itself.</p> <p><strong>docker</strong></p> <p>This connector deploys the playbook directly into Docker containers using the local Docker client. Following parameters are processed by this connector:</p> <dl class="docutils"> <dt>ansible_host</dt> <dd>The name of the Docker container to connect to.</dd> <dt>ansible_user</dt> <dd>The user name to operate within the container. The user must exist inside the container.</dd> <dt>ansible_become</dt> <dd>If set to <code>true</code> the <code>become_user</code> will be used to operate within the container.</dd> <dt>ansible_docker_extra_args</dt> <dd>Could be a string with any additional arguments understood by Docker, which are not command specific. This parameter is mainly used to configure a remote Docker daemon to use.</dd> </dl> <p>Here is an example of how to instantly deploy to created containers:</p> <pre data-language="yaml">- name: create jenkins container
+  docker:
+    name: my_jenkins
+    image: jenkins
+
+- name: add container to inventory
+  add_host:
+    name: my_jenkins
+    ansible_connection: docker
+    ansible_docker_extra_args: "--tlsverify --tlscacert=/path/to/ca.pem --tlscert=/path/to/client-cert.pem --tlskey=/path/to/client-key.pem -H=tcp://myserver.net:4243"
+    ansible_user: jenkins
+  changed_when: false
+
+- name: create directory for ssh keys
+  delegate_to: my_jenkins
+  file:
+    path: "/var/jenkins_home/.ssh/jupiter"
+    state: directory
+</pre> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../intro_dynamic_inventory/"><span class="doc">Dynamic Inventory</span></a></dt> <dd>Pulling inventory from dynamic sources, such as cloud providers</dd> <dt><a class="reference internal" href="../intro_adhoc/"><span class="doc">Introduction To Ad-Hoc Commands</span></a></dt> <dd>Examples of basic commands</dd> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>Learning Ansible’s configuration, deployment, and orchestration language.</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-project" target="_blank">Mailing List</a></dt> <dd>Questions? Help? Ideas? Stop by the list on Google Groups</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/intro_inventory.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/intro_inventory.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

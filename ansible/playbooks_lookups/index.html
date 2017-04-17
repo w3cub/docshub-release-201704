@@ -1,0 +1,270 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Using Lookups - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Lookup plugins allow access of data in Ansible from outside sources. These plugins are evaluated on the Ansible control machine, and can include &hellip;">
+  <meta name="keywords" content="using, lookups, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_lookups/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="using-lookups">Using Lookups</h1> <p>Lookup plugins allow access of data in Ansible from outside sources. These plugins are evaluated on the Ansible control machine, and can include reading the filesystem but also contacting external datastores and services. These values are then made available using the standard templating system in Ansible, and are typically used to load variables or templates with information from those systems.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This is considered an advanced feature, and many users will probably not rely on these features.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Lookups occur on the local computer, not on the remote computer.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Lookups are executed with a cwd relative to the role or play, as opposed to local tasks which are executed with the cwd of the executed script.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Since 1.9 you can pass wantlist=True to lookups to use in jinja2 template “for” loops.</p> </div>   <ul> <li><a class="reference internal" href="#intro-to-lookups-getting-file-contents" id="id3">Intro to Lookups: Getting File Contents</a></li> <li><a class="reference internal" href="#the-password-lookup" id="id4">The Password Lookup</a></li> <li><a class="reference internal" href="#the-csv-file-lookup" id="id5">The CSV File Lookup</a></li> <li><a class="reference internal" href="#the-ini-file-lookup" id="id6">The INI File Lookup</a></li> <li><a class="reference internal" href="#the-credstash-lookup" id="id7">The Credstash Lookup</a></li> <li><a class="reference internal" href="#the-dns-lookup-dig" id="id8">The DNS Lookup (dig)</a></li> <li><a class="reference internal" href="#more-lookups" id="id9">More Lookups</a></li> </ul>
+   <h2 id="getting-file-contents">Intro to Lookups: Getting File Contents</h2> <p id="intro-to-lookups-getting-file-contents">The file lookup is the most basic lookup type.</p> <p>Contents can be read off the filesystem as follows:</p> <pre data-language="yaml">---
+- hosts: all
+  vars:
+     contents: "{{ lookup('file', '/etc/foo.txt') }}"
+
+  tasks:
+
+     - debug: msg="the value of foo.txt is {{ contents }}"
+</pre>   <h2 id="password-lookup">The Password Lookup</h2> <div class="admonition note" id="the-password-lookup"> <p class="first admonition-title">Note</p> <p class="last">A great alternative to the password lookup plugin, if you don’t need to generate random passwords on a per-host basis, would be to use <a class="reference internal" href="../playbooks_vault/"><span class="doc">Vault</span></a>. Read the documentation there and consider using it first, it will be more desirable for most applications.</p> </div> <p><code>password</code> generates a random plaintext password and stores it in a file at a given filepath.</p> <p>(Docs about crypted save modes are pending)</p> <p>If the file exists previously, it will retrieve its contents, behaving just like with_file. Usage of variables like “{{ inventory_hostname }}” in the filepath can be used to set up random passwords per host (which simplifies password management in ‘host_vars’ variables).</p> <p>Generated passwords contain a random mix of upper and lowercase ASCII letters, the numbers 0-9 and punctuation (”. , : - _”). The default length of a generated password is 20 characters. This length can be changed by passing an extra parameter:</p> <pre data-language="yaml">---
+- hosts: all
+
+  tasks:
+
+    # create a mysql user with a random password:
+    - mysql_user: name={{ client }}
+                  password="{{ lookup('password', 'credentials/' + client + '/' + tier + '/' + role + '/mysqlpassword length=15') }}"
+                  priv={{ client }}_{{ tier }}_{{ role }}.*:ALL
+
+    (...)
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If the file already exists, no data will be written to it. If the file has contents, those contents will be read in as the password. Empty files cause the password to return as an empty string.</p> </div> <p>Caution: Since this runs on the ansible host as the user running the playbook, and “become” does not apply, the target file must be readable by the playbook user, or, if it does not exist, the playbook user must have sufficient privileges to create it. (So, for example, attempts to write into areas such as /etc will fail unless the entire playbook is being run as root).</p> <p>Starting in version 1.4, password accepts a “chars” parameter to allow defining a custom character set in the generated passwords. It accepts comma separated list of names that are either string module attributes (ascii_letters,digits, etc) or are used literally:</p> <pre data-language="yaml">---
+- hosts: all
+
+  tasks:
+
+    # create a mysql user with a random password using only ascii letters:
+    - mysql_user: name={{ client }}
+                  password="{{ lookup('password', '/tmp/passwordfile chars=ascii_letters') }}"
+                  priv={{ client }}_{{ tier }}_{{ role }}.*:ALL
+
+    # create a mysql user with a random password using only digits:
+    - mysql_user: name={{ client }}
+                  password="{{ lookup('password', '/tmp/passwordfile chars=digits') }}"
+                  priv={{ client }}_{{ tier }}_{{ role }}.*:ALL
+
+    # create a mysql user with a random password using many different char sets:
+    - mysql_user: name={{ client }}
+                  password="{{ lookup('password', '/tmp/passwordfile chars=ascii_letters,digits,hexdigits,punctuation') }}"
+                  priv={{ client }}_{{ tier }}_{{ role }}.*:ALL
+
+    (...)
+</pre> <p>To enter comma use two commas ‘,,’ somewhere - preferably at the end. Quotes and double quotes are not supported.</p>   <h2 id="csvfile-lookup">The CSV File Lookup</h2> <div class="versionadded" id="the-csv-file-lookup"> <p><span class="versionmodified">New in version 1.5.</span></p> </div> <p>The <code>csvfile</code> lookup reads the contents of a file in CSV (comma-separated value) format. The lookup looks for the row where the first column matches <code>keyname</code>, and returns the value in the second column, unless a different column is specified.</p> <p>The example below shows the contents of a CSV file named elements.csv with information about the periodic table of elements:</p> <pre data-language="yaml">Symbol,Atomic Number,Atomic Mass
+H,1,1.008
+He,2,4.0026
+Li,3,6.94
+Be,4,9.012
+B,5,10.81
+</pre> <p>We can use the <code>csvfile</code> plugin to look up the atomic number or atomic of Lithium by its symbol:</p> <pre data-language="yaml">- debug: msg="The atomic number of Lithium is {{ lookup('csvfile', 'Li file=elements.csv delimiter=,') }}"
+- debug: msg="The atomic mass of Lithium is {{ lookup('csvfile', 'Li file=elements.csv delimiter=, col=2') }}"
+</pre> <p>The <code>csvfile</code> lookup supports several arguments. The format for passing arguments is:</p> <pre data-language="yaml">lookup('csvfile', 'key arg1=val1 arg2=val2 ...')
+</pre> <p>The first value in the argument is the <code>key</code>, which must be an entry that appears exactly once in column 0 (the first column, 0-indexed) of the table. All other arguments are optional.</p> <table class="docutils">   <tr class="row-odd">
+<td>Field</td> <td>Default</td> <td>Description</td> </tr> <tr class="row-even">
+<td>file</td> <td>ansible.csv</td> <td>Name of the file to load</td> </tr> <tr class="row-odd">
+<td>col</td> <td>1</td> <td>The column to output, indexed by 0</td> </tr> <tr class="row-even">
+<td>delimiter</td> <td>TAB</td> <td>Delimiter used by CSV file. As a special case, tab can be specified as either TAB or t.</td> </tr> <tr class="row-odd">
+<td>default</td> <td>empty string</td> <td>Default return value if the key is not in the csv file</td> </tr> <tr class="row-even">
+<td>encoding</td> <td>utf-8</td> <td>Encoding (character set) of the used CSV file (added in version 2.1)</td> </tr>  </table> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The default delimiter is TAB, <em>not</em> comma.</p> </div>   <h2 id="ini-lookup">The INI File Lookup</h2> <div class="versionadded" id="the-ini-file-lookup"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>The <code>ini</code> lookup reads the contents of a file in INI format (key1=value1). This plugin retrieve the value on the right side after the equal sign (‘=’) of a given section ([section]). You can also read a property file which - in this case - does not contain section.</p> <p>Here’s a simple example of an INI file with user/password configuration:</p> <pre data-language="yaml">[production]
+# My production information
+user=robert
+pass=somerandompassword
+
+[integration]
+# My integration information
+user=gertrude
+pass=anotherpassword
+</pre> <p>We can use the <code>ini</code> plugin to lookup user configuration:</p> <pre data-language="yaml">- debug: msg="User in integration is {{ lookup('ini', 'user section=integration file=users.ini') }}"
+- debug: msg="User in production  is {{ lookup('ini', 'user section=production  file=users.ini') }}"
+</pre> <p>Another example for this plugin is for looking for a value on java properties. Here’s a simple properties we’ll take as an example:</p> <pre data-language="yaml">user.name=robert
+user.pass=somerandompassword
+</pre> <p>You can retrieve the <code>user.name</code> field with the following lookup:</p> <pre data-language="yaml">- debug: msg="user.name is {{ lookup('ini', 'user.name type=properties file=user.properties') }}"
+</pre> <p>The <code>ini</code> lookup supports several arguments like the csv plugin. The format for passing arguments is:</p> <pre data-language="yaml">lookup('ini', 'key [type=&lt;properties|ini&gt;] [section=section] [file=file.ini] [re=true] [default=&lt;defaultvalue&gt;]')
+</pre> <p>The first value in the argument is the <code>key</code>, which must be an entry that appears exactly once on keys. All other arguments are optional.</p> <table class="docutils">   <tr class="row-odd">
+<td>Field</td> <td>Default</td> <td>Description</td> </tr> <tr class="row-even">
+<td>type</td> <td>ini</td> <td>Type of the file. Can be ini or properties (for java properties).</td> </tr> <tr class="row-odd">
+<td>file</td> <td>ansible.ini</td> <td>Name of the file to load</td> </tr> <tr class="row-even">
+<td>section</td> <td>global</td> <td>Default section where to lookup for key.</td> </tr> <tr class="row-odd">
+<td>re</td> <td>False</td> <td>The key is a regexp.</td> </tr> <tr class="row-even">
+<td>default</td> <td>empty string</td> <td>return value if the key is not in the ini file</td> </tr>  </table> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">In java properties files, there’s no need to specify a section.</p> </div>   <h2 id="credstash-lookup">The Credstash Lookup</h2> <div class="versionadded" id="the-credstash-lookup"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>Credstash is a small utility for managing secrets using AWS’s KMS and DynamoDB: <a class="reference external" href="https://github.com/LuminalOSS/credstash" target="_blank">https://github.com/LuminalOSS/credstash</a></p> <p>First, you need to store your secrets with credstash:</p> <pre data-language="yaml">$ credstash put my-github-password secure123
+
+my-github-password has been stored
+</pre> <p>Example usage:</p> <pre data-language="yaml">---
+- name: "Test credstash lookup plugin -- get my github password"
+  debug: msg="Credstash lookup! {{ lookup('credstash', 'my-github-password') }}"
+</pre> <p>You can specify regions or tables to fetch secrets from:</p> <pre data-language="yaml">---
+- name: "Test credstash lookup plugin -- get my other password from us-west-1"
+  debug: msg="Credstash lookup! {{ lookup('credstash', 'my-other-password', region='us-west-1') }}"
+
+
+- name: "Test credstash lookup plugin -- get the company's github password"
+  debug: msg="Credstash lookup! {{ lookup('credstash', 'company-github-password', table='company-passwords') }}"
+</pre> <p>If you use the context feature when putting your secret, you can get it by passing a dictionary to the context option like this:</p> <pre data-language="yaml">---
+- name: test
+  hosts: localhost
+  vars:
+    context:
+      app: my_app
+      environment: production
+  tasks:
+
+  - name: "Test credstash lookup plugin -- get the password with a context passed as a variable"
+    debug: msg="{{ lookup('credstash', 'some-password', context=context) }}"
+
+  - name: "Test credstash lookup plugin -- get the password with a context defined here"
+    debug: msg="{{ lookup('credstash', 'some-password', context=dict(app='my_app', environment='production')) }}"
+</pre> <p>If you’re not using 2.0 yet, you can do something similar with the credstash tool and the pipe lookup (see below):</p> <pre data-language="yaml">debug: msg="Poor man's credstash lookup! {{ lookup('pipe', 'credstash -r us-west-1 get my-other-password') }}"
+</pre>   <h2 id="dns-lookup">The DNS Lookup (dig)</h2> <div class="versionadded" id="the-dns-lookup-dig"> <p><span class="versionmodified">New in version 1.9.0.</span></p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">This lookup depends on the <a class="reference external" href="http://www.dnspython.org/" target="_blank">dnspython</a> library.</p> </div> <p>The <code>dig</code> lookup runs queries against DNS servers to retrieve DNS records for a specific name (<em>FQDN</em> - fully qualified domain name). It is possible to lookup any DNS record in this manner.</p> <p>There is a couple of different syntaxes that can be used to specify what record should be retrieved, and for which name. It is also possible to explicitly specify the DNS server(s) to use for lookups.</p> <p>In its simplest form, the <code>dig</code> lookup plugin can be used to retrieve an IPv4 address (DNS <code>A</code> record) associated with <em>FQDN</em>:</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you need to obtain the <code>AAAA</code> record (IPv6 address), you must specify the record type explicitly. Syntax for specifying the record type is described below.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The trailing dot in most of the examples listed is purely optional, but is specified for completeness/correctness sake.</p> </div> <pre data-language="yaml">- debug: msg="The IPv4 address for example.com. is {{ lookup('dig', 'example.com.')}}"
+</pre> <p>In addition to (default) <code>A</code> record, it is also possible to specify a different record type that should be queried. This can be done by either passing-in additional parameter of format <code>qtype=TYPE</code> to the <code>dig</code> lookup, or by appending <code>/TYPE</code> to the <em>FQDN</em> being queried. For example:</p> <pre data-language="yaml">- debug: msg="The TXT record for example.org. is {{ lookup('dig', 'example.org.', 'qtype=TXT') }}"
+- debug: msg="The TXT record for example.org. is {{ lookup('dig', 'example.org./TXT') }}"
+</pre> <p>If multiple values are associated with the requested record, the results will be returned as a comma-separated list. In such cases you may want to pass option <code>wantlist=True</code> to the plugin, which will result in the record values being returned as a list over which you can iterate later on:</p> <pre data-language="yaml">- debug: msg="One of the MX records for gmail.com. is {{ item }}"
+  with_items: "{{ lookup('dig', 'gmail.com./MX', wantlist=True) }}"
+</pre> <p>In case of reverse DNS lookups (<code>PTR</code> records), you can also use a convenience syntax of format <code>IP_ADDRESS/PTR</code>. The following three lines would produce the same output:</p> <pre data-language="yaml">- debug: msg="Reverse DNS for 192.0.2.5 is {{ lookup('dig', '192.0.2.5/PTR') }}"
+- debug: msg="Reverse DNS for 192.0.2.5 is {{ lookup('dig', '5.2.0.192.in-addr.arpa./PTR') }}"
+- debug: msg="Reverse DNS for 192.0.2.5 is {{ lookup('dig', '5.2.0.192.in-addr.arpa.', 'qtype=PTR') }}"
+</pre> <p>By default, the lookup will rely on system-wide configured DNS servers for performing the query. It is also possible to explicitly specify DNS servers to query using the <code>@DNS_SERVER_1,DNS_SERVER_2,...,DNS_SERVER_N</code> notation. This needs to be passed-in as an additional parameter to the lookup. For example:</p> <pre data-language="yaml">- debug: msg="Querying 198.51.100.23 for IPv4 address for example.com. produces {{ lookup('dig', 'example.com', '@198.51.100.23') }}"
+</pre> <p>In some cases the DNS records may hold a more complex data structure, or it may be useful to obtain the results in a form of a dictionary for future processing. The <code>dig</code> lookup supports parsing of a number of such records, with the result being returned as a dictionary. This way it is possible to easily access such nested data. This return format can be requested by passing-in the <code>flat=0</code> option to the lookup. For example:</p> <pre data-language="yaml">- debug: msg="XMPP service for gmail.com. is available at {{ item.target }} on port {{ item.port }}"
+  with_items: "{{ lookup('dig', '_xmpp-server._tcp.gmail.com./SRV', 'flat=0', wantlist=True) }}"
+</pre> <p>Take note that due to the way Ansible lookups work, you must pass the <code>wantlist=True</code> argument to the lookup, otherwise Ansible will report errors.</p> <p>Currently the dictionary results are supported for the following records:</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last"><em>ALL</em> is not a record per-se, merely the listed fields are available for any record results you retrieve in the form of a dictionary.</p> </div> <table class="docutils">   <tr class="row-odd">
+<td>Record</td> <td>Fields</td> </tr> <tr class="row-even">
+<td><em>ALL</em></td> <td>owner, ttl, type</td> </tr> <tr class="row-odd">
+<td>A</td> <td>address</td> </tr> <tr class="row-even">
+<td>AAAA</td> <td>address</td> </tr> <tr class="row-odd">
+<td>CNAME</td> <td>target</td> </tr> <tr class="row-even">
+<td>DNAME</td> <td>target</td> </tr> <tr class="row-odd">
+<td>DLV</td> <td>algorithm, digest_type, key_tag, digest</td> </tr> <tr class="row-even">
+<td>DNSKEY</td> <td>flags, algorithm, protocol, key</td> </tr> <tr class="row-odd">
+<td>DS</td> <td>algorithm, digest_type, key_tag, digest</td> </tr> <tr class="row-even">
+<td>HINFO</td> <td>cpu, os</td> </tr> <tr class="row-odd">
+<td>LOC</td> <td>latitude, longitude, altitude, size, horizontal_precision, vertical_precision</td> </tr> <tr class="row-even">
+<td>MX</td> <td>preference, exchange</td> </tr> <tr class="row-odd">
+<td>NAPTR</td> <td>order, preference, flags, service, regexp, replacement</td> </tr> <tr class="row-even">
+<td>NS</td> <td>target</td> </tr> <tr class="row-odd">
+<td>NSEC3PARAM</td> <td>algorithm, flags, iterations, salt</td> </tr> <tr class="row-even">
+<td>PTR</td> <td>target</td> </tr> <tr class="row-odd">
+<td>RP</td> <td>mbox, txt</td> </tr> <tr class="row-even">
+<td>SOA</td> <td>mname, rname, serial, refresh, retry, expire, minimum</td> </tr> <tr class="row-odd">
+<td>SPF</td> <td>strings</td> </tr> <tr class="row-even">
+<td>SRV</td> <td>priority, weight, port, target</td> </tr> <tr class="row-odd">
+<td>SSHFP</td> <td>algorithm, fp_type, fingerprint</td> </tr> <tr class="row-even">
+<td>TLSA</td> <td>usage, selector, mtype, cert</td> </tr> <tr class="row-odd">
+<td>TXT</td> <td>strings</td> </tr>  </table>   <h2 id="id1">More Lookups</h2> <p id="more-lookups">Various <em>lookup plugins</em> allow additional ways to iterate over data. In <a class="reference internal" href="../playbooks_loops/"><span class="doc">Loops</span></a> you will learn how to use them to walk over collections of numerous types. However, they can also be used to pull in data from remote sources, such as shell commands or even key value stores. This section will cover lookup plugins in this capacity.</p> <p>Here are some examples:</p> <pre data-language="yaml">---
+- hosts: all
+
+  tasks:
+
+     - debug: msg="{{ lookup('env','HOME') }} is an environment variable"
+
+     - debug: msg="{{ item }} is a line from the result of this command"
+       with_lines:
+         - cat /etc/motd
+
+     - debug: msg="{{ lookup('pipe','date') }} is the raw result of running this command"
+
+     # redis_kv lookup requires the Python redis package
+     - debug: msg="{{ lookup('redis_kv', 'redis://localhost:6379,somekey') }} is value in Redis for somekey"
+
+     # dnstxt lookup requires the Python dnspython package
+     - debug: msg="{{ lookup('dnstxt', 'example.com') }} is a DNS TXT record for example.com"
+
+     - debug: msg="{{ lookup('template', './some_template.j2') }} is a value from evaluation of this template"
+
+     # loading a json file from a template as a string
+     - debug: msg="{{ lookup('template', './some_json.json.j2', convert_data=False) }} is a value from evaluation of this template"
+
+
+     - debug: msg="{{ lookup('etcd', 'foo') }} is a value from a locally running etcd"
+
+     # shelvefile lookup retrieves a string value corresponding to a key inside a Python shelve file
+     - debug: msg="{{ lookup('shelvefile', 'file=path_to_some_shelve_file.db key=key_to_retrieve') }}
+
+     # The following lookups were added in 1.9
+     - debug: msg="{{item}}"
+       with_url:
+            - 'https://github.com/gremlin.keys'
+
+     # outputs the cartesian product of the supplied lists
+     - debug: msg="{{item}}"
+       with_cartesian:
+            - list1
+            - list2
+            - list3
+</pre> <p>As an alternative you can also assign lookup plugins to variables or use them elsewhere. This macros are evaluated each time they are used in a task (or template):</p> <pre data-language="yaml">vars:
+  motd_value: "{{ lookup('file', '/etc/motd') }}"
+
+tasks:
+
+  - debug: msg="motd value is {{ motd_value }}"
+</pre> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>An introduction to playbooks</dd> <dt><a class="reference internal" href="../playbooks_conditionals/"><span class="doc">Conditionals</span></a></dt> <dd>Conditional statements in playbooks</dd> <dt><a class="reference internal" href="../playbooks_variables/"><span class="doc">Variables</span></a></dt> <dd>All about variables</dd> <dt><a class="reference internal" href="../playbooks_loops/"><span class="doc">Loops</span></a></dt> <dd>Looping in playbooks</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">User Mailing List</a></dt> <dd>Have a question? Stop by the google group!</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_lookups.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_lookups.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

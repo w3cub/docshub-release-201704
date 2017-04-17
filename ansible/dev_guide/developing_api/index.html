@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Python API - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Please note that while we make this API available it is not intended for direct consumption, it is here for the support of the Ansible command line &hellip;">
+  <meta name="keywords" content="python, api, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/dev_guide/developing_api/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="python-api">Python API</h1>   <ul> <li><a class="reference internal" href="#python-api-2-0" id="id3">Python API 2.0</a></li> <li>
+<a class="reference internal" href="#python-api-pre-2-0" id="id4">Python API pre 2.0</a><ul> <li><a class="reference internal" href="#detailed-api-example" id="id5">Detailed API Example</a></li> </ul> </li> </ul>
+  <p>Please note that while we make this API available it is not intended for direct consumption, it is here for the support of the Ansible command line tools. We try not to make breaking changes but we reserve the right to do so at any time if it makes sense for the Ansible toolset.</p> <p>The following documentation is provided for those that still want to use the API directly, but be mindful this is not something the Ansible team supports.</p> <p>There are several interesting ways to use Ansible from an API perspective. You can use the Ansible python API to control nodes, you can extend Ansible to respond to various python events, you can write various plugins, and you can plug in inventory data from external data sources. This document covers the execution and Playbook API at a basic level.</p> <p>If you are looking to use Ansible programmatically from something other than Python, trigger events asynchronously, or have access control and logging demands, take a look at <span class="xref doc">tower</span> as it has a very nice REST API that provides all of these things at a higher level.</p> <p>Ansible is written in its own API so you have a considerable amount of power across the board. This chapter discusses the Python API.</p> <p id="id1">The Python API is very powerful, and is how the all the ansible CLI tools are implemented. In version 2.0 the core ansible got rewritten and the API was mostly rewritten.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Ansible relies on forking processes, as such the API is not thread safe.</p> </div>  <h2 id="python-api-20">Python API 2.0</h2> <p id="python-api-2-0">In 2.0 things get a bit more complicated to start, but you end up with much more discrete and readable classes:</p> <pre data-language="yaml">#!/usr/bin/env python
+
+import json
+from collections import namedtuple
+from ansible.parsing.dataloader import DataLoader
+from ansible.vars import VariableManager
+from ansible.inventory import Inventory
+from ansible.playbook.play import Play
+from ansible.executor.task_queue_manager import TaskQueueManager
+from ansible.plugins.callback import CallbackBase
+
+class ResultCallback(CallbackBase):
+    """A sample callback plugin used for performing an action as results come in
+
+    If you want to collect all results into a single object for processing at
+    the end of the execution, look into utilizing the ``json`` callback plugin
+    or writing your own custom callback plugin
+    """
+    def v2_runner_on_ok(self, result, **kwargs):
+        """Print a json representation of the result
+
+        This method could store the result in an instance attribute for retrieval later
+        """
+        host = result._host
+        print json.dumps({host.name: result._result}, indent=4)
+
+Options = namedtuple('Options', ['connection', 'module_path', 'forks', 'become', 'become_method', 'become_user', 'check'])
+# initialize needed objects
+variable_manager = VariableManager()
+loader = DataLoader()
+options = Options(connection='local', module_path='/path/to/mymodules', forks=100, become=None, become_method=None, become_user=None, check=False)
+passwords = dict(vault_pass='secret')
+
+# Instantiate our ResultCallback for handling results as they come in
+results_callback = ResultCallback()
+
+# create inventory and pass to var manager
+inventory = Inventory(loader=loader, variable_manager=variable_manager, host_list='localhost')
+variable_manager.set_inventory(inventory)
+
+# create play with tasks
+play_source =  dict(
+        name = "Ansible Play",
+        hosts = 'localhost',
+        gather_facts = 'no',
+        tasks = [
+            dict(action=dict(module='shell', args='ls'), register='shell_out'),
+            dict(action=dict(module='debug', args=dict(msg='{{shell_out.stdout}}')))
+         ]
+    )
+play = Play().load(play_source, variable_manager=variable_manager, loader=loader)
+
+# actually run it
+tqm = None
+try:
+    tqm = TaskQueueManager(
+              inventory=inventory,
+              variable_manager=variable_manager,
+              loader=loader,
+              options=options,
+              passwords=passwords,
+              stdout_callback=results_callback,  # Use our custom callback instead of the ``default`` callback plugin
+          )
+    result = tqm.run(play)
+finally:
+    if tqm is not None:
+        tqm.cleanup()
+</pre>   <h2 id="python-api-old">Python API pre 2.0</h2> <p id="python-api-pre-2-0">It’s pretty simple:</p> <pre data-language="yaml">import ansible.runner
+
+runner = ansible.runner.Runner(
+   module_name='ping',
+   module_args='',
+   pattern='web*',
+   forks=10
+)
+datastructure = runner.run()
+</pre> <p>The run method returns results per host, grouped by whether they could be contacted or not. Return types are module specific, as expressed in the <span class="xref doc">modules</span> documentation.:</p> <pre data-language="yaml">{
+    "dark" : {
+       "web1.example.com" : "failure message"
+    },
+    "contacted" : {
+       "web2.example.com" : 1
+    }
+}
+</pre> <p>A module can return any type of JSON data it wants, so Ansible can be used as a framework to rapidly build powerful applications and scripts.</p>  <h3 id="detailed-api-old-example">Detailed API Example</h3> <p id="detailed-api-example">The following script prints out the uptime information for all hosts:</p> <pre data-language="yaml">#!/usr/bin/python
+
+import ansible.runner
+import sys
+
+# construct the ansible runner and execute on all hosts
+results = ansible.runner.Runner(
+    pattern='*', forks=10,
+    module_name='command', module_args='/usr/bin/uptime',
+).run()
+
+if results is None:
+   print "No hosts found"
+   sys.exit(1)
+
+print "UP ***********"
+for (hostname, result) in results['contacted'].items():
+    if not 'failed' in result:
+        print "%s &gt;&gt;&gt; %s" % (hostname, result['stdout'])
+
+print "FAILED *******"
+for (hostname, result) in results['contacted'].items():
+    if 'failed' in result:
+        print "%s &gt;&gt;&gt; %s" % (hostname, result['msg'])
+
+print "DOWN *********"
+for (hostname, result) in results['dark'].items():
+    print "%s &gt;&gt;&gt; %s" % (hostname, result)
+</pre> <p>Advanced programmers may also wish to read the source to ansible itself, for it uses the API (with all available options) to implement the <code>ansible</code> command line tools (<code>lib/ansible/cli/</code>).</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../developing_inventory/"><span class="doc">Developing Dynamic Inventory Sources</span></a></dt> <dd>Developing dynamic inventory integrations</dd> <dt><a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a></dt> <dd>How to develop modules</dd> <dt><a class="reference internal" href="../developing_plugins/"><span class="doc">Developing Plugins</span></a></dt> <dd>How to develop plugins</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">Development Mailing List</a></dt> <dd>Mailing list for development topics</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/dev_guide/developing_api.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/dev_guide/developing_api.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,106 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Accelerated Mode - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content=" New in version 1.3. ">
+  <meta name="keywords" content="accelerated, mode, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_acceleration/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="accelerated-mode">Accelerated Mode</h1> <div class="versionadded"> <p><span class="versionmodified">New in version 1.3.</span></p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Accelerated mode is deprecated. Consider using SSH with ControlPersist and pipelining enabled instead. This feature will be removed in a future release. Deprecation warnings can be disabled by setting <code>deprecation_warnings=False</code> in <code>ansible.cfg</code>.</p> </div>  <h2 id="you-might-not-need-this">You Might Not Need This!</h2> <p>Are you running Ansible 1.5 or later? If so, you may not need accelerated mode due to a new feature called “SSH pipelining” and should read the <a class="reference internal" href="../intro_configuration/#pipelining"><span class="std std-ref">pipelining</span></a> section of the documentation.</p> <p>For users on 1.5 and later, accelerated mode only makes sense if you (A) are managing from an Enterprise Linux 6 or earlier host and still are on paramiko, or (B) can’t enable TTYs with sudo as described in the pipelining docs.</p> <p>If you can use pipelining, Ansible will reduce the amount of files transferred over the wire, making everything much more efficient, and performance will be on par with accelerated mode in nearly all cases, possibly excluding very large file transfer. Because less moving parts are involved, pipelining is better than accelerated mode for nearly all use cases.</p> <p>Accelerated moded remains around in support of EL6 control machines and other constrained environments.</p>   <h2 id="accelerated-mode-details">Accelerated Mode Details</h2> <p>While OpenSSH using the ControlPersist feature is quite fast and scalable, there is a certain small amount of overhead involved in using SSH connections. While many people will not encounter a need, if you are running on a platform that doesn’t have ControlPersist support (such as an EL6 control machine), you’ll probably be even more interested in tuning options.</p> <p>Accelerated mode is there to help connections work faster, but still uses SSH for initial secure key exchange. There is no additional public key infrastructure to manage, and this does not require things like NTP or even DNS.</p> <p>Accelerated mode can be anywhere from 2-6x faster than SSH with ControlPersist enabled, and 10x faster than paramiko.</p> <p>Accelerated mode works by launching a temporary daemon over SSH. Once the daemon is running, Ansible will connect directly to it via a socket connection. Ansible secures this communication by using a temporary AES key that is exchanged during the SSH connection (this key is different for every host, and is also regenerated periodically).</p> <p>By default, Ansible will use port 5099 for the accelerated connection, though this is configurable. Once running, the daemon will accept connections for 30 minutes, after which time it will terminate itself and need to be restarted over SSH.</p> <p>Accelerated mode offers several improvements over the (deprecated) original fireball mode from which it was based:</p> <ul class="simple"> <li>No bootstrapping is required, only a single line needs to be added to each play you wish to run in accelerated mode.</li> <li>Support for sudo commands (see below for more details and caveats) is available.</li> <li>There are fewer requirements. ZeroMQ is no longer required, nor are there any special packages beyond python-keyczar</li> <li>python 2.5 or higher is required.</li> </ul> <p>In order to use accelerated mode, simply add <code>accelerate: true</code> to your play:</p> <pre data-language="yaml">---
+
+- hosts: all
+  accelerate: true
+
+  tasks:
+
+  - name: some task
+    command: echo {{ item }}
+    with_items:
+    - foo
+    - bar
+    - baz
+</pre> <p>If you wish to change the port Ansible will use for the accelerated connection, just add the <code>accelerate_port</code> option:</p> <pre data-language="yaml">---
+
+- hosts: all
+  accelerate: true
+  # default port is 5099
+  accelerate_port: 10000
+</pre> <p>The <code>accelerate_port</code> option can also be specified in the environment variable ACCELERATE_PORT, or in your <code>ansible.cfg</code> configuration:</p> <pre data-language="yaml">[accelerate]
+accelerate_port = 5099
+</pre> <p>As noted above, accelerated mode also supports running tasks via sudo, however there are two important caveats:</p> <ul class="simple"> <li>You must remove requiretty from your sudoers options.</li> <li>Prompting for the sudo password is not yet supported, so the NOPASSWD option is required for sudo’ed commands.</li> </ul> <p>As of Ansible version <code>1.6</code>, you can also allow the use of multiple keys for connections from multiple Ansible management nodes. To do so, add the following option to your <code>ansible.cfg</code> configuration:</p> <pre data-language="yaml">accelerate_multi_key = yes
+</pre> <p>When enabled, the daemon will open a UNIX socket file (by default <code>$ANSIBLE_REMOTE_TEMP/.ansible-accelerate/.local.socket</code>). New connections over SSH can use this socket file to upload new keys to the daemon.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_acceleration.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_acceleration.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

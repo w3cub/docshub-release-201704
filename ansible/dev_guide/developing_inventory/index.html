@@ -1,0 +1,120 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Developing Dynamic Inventory Sources - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content=" As described in intro_dynamic_inventory, ansible can pull inventory information from dynamic sources, including cloud sources. ">
+  <meta name="keywords" content="developing, dynamic, inventory, sources, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/dev_guide/developing_inventory/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="developing-dynamic-inventory-sources">Developing Dynamic Inventory Sources</h1>   <ul class="simple"> <li><a class="reference internal" href="#script-conventions" id="id1">Script Conventions</a></li> <li><a class="reference internal" href="#tuning-the-external-inventory-script" id="id2">Tuning the External Inventory Script</a></li> </ul>  <p>As described in <span class="xref doc">intro_dynamic_inventory</span>, ansible can pull inventory information from dynamic sources, including cloud sources.</p> <p>How do we write a new one?</p> <p>Simple! We just create a script or program that can print JSON in the right format when fed the proper arguments. You can do this in any language.</p>  <h2 id="inventory-script-conventions">Script Conventions</h2> <p id="script-conventions">When the external node script is called with the single argument <code>--list</code>, the script must output a JSON encoded hash/dictionary of all the groups to be managed to stdout. Each group’s value should be either a hash/dictionary containing a list of each host/IP, potential child groups, and potential group variables, or simply a list of host/IP addresses, like so:</p> <pre data-language="yaml">{
+    "databases"   : {
+        "hosts"   : [ "host1.example.com", "host2.example.com" ],
+        "vars"    : {
+            "a"   : true
+        }
+    },
+    "webservers"  : [ "host2.example.com", "host3.example.com" ],
+    "atlanta"     : {
+        "hosts"   : [ "host1.example.com", "host4.example.com", "host5.example.com" ],
+        "vars"    : {
+            "b"   : false
+        },
+        "children": [ "marietta", "5points" ]
+    },
+    "marietta"    : [ "host6.example.com" ],
+    "5points"     : [ "host7.example.com" ]
+}
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 1.0.</span></p> </div> <p>Before version 1.0, each group could only have a list of hostnames/IP addresses, like the webservers, marietta, and 5points groups above.</p> <p>When called with the arguments <code>--host &lt;hostname&gt;</code> (where &lt;hostname&gt; is a host from above), the script must print either an empty JSON hash/dictionary, or a hash/dictionary of variables to make available to templates and playbooks. Printing variables is optional, if the script does not wish to do this, printing an empty hash/dictionary is the way to go:</p> <pre data-language="yaml">{
+    "favcolor"   : "red",
+    "ntpserver"  : "wolf.example.com",
+    "monitoring" : "pack.example.com"
+}
+</pre>   <h2 id="inventory-script-tuning">Tuning the External Inventory Script</h2> <div class="versionadded" id="tuning-the-external-inventory-script"> <p><span class="versionmodified">New in version 1.3.</span></p> </div> <p>The stock inventory script system detailed above works for all versions of Ansible, but calling <code>--host</code> for every host can be rather expensive, especially if it involves expensive API calls to a remote subsystem. In Ansible 1.3 or later, if the inventory script returns a top level element called “_meta”, it is possible to return all of the host variables in one inventory script call. When this meta element contains a value for “hostvars”, the inventory script will not be invoked with <code>--host</code> for each host. This results in a significant performance increase for large numbers of hosts, and also makes client side caching easier to implement for the inventory script.</p> <p>The data to be added to the top level JSON dictionary looks like this:</p> <pre data-language="yaml">{
+
+    # results of inventory script as above go here
+    # ...
+
+    "_meta" : {
+       "hostvars" : {
+          "moocow.example.com"     : { "asdf" : 1234 },
+          "llama.example.com"      : { "asdf" : 5678 },
+       }
+    }
+
+}
+</pre> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../developing_api/"><span class="doc">Python API</span></a></dt> <dd>Python API to Playbooks and Ad Hoc Task Execution</dd> <dt><a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a></dt> <dd>How to develop modules</dd> <dt><a class="reference internal" href="../developing_plugins/"><span class="doc">Developing Plugins</span></a></dt> <dd>How to develop plugins</dd> <dt><a class="reference external" href="http://ansible.com/ansible-tower" target="_blank">Ansible Tower</a></dt> <dd>REST API endpoint and GUI for Ansible, syncs with dynamic inventory</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">Development Mailing List</a></dt> <dd>Mailing list for development topics</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/dev_guide/developing_inventory.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/dev_guide/developing_inventory.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

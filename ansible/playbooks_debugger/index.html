@@ -1,0 +1,154 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Playbook Debugger - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="In 2.1 we added a debug strategy. This strategy enables you to invoke a debugger when a task has failed. You have access to all of the features of &hellip;">
+  <meta name="keywords" content="playbook, debugger, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_debugger/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="playbook-debugger">Playbook Debugger</h1>   <ul> <li>
+<a class="reference internal" href="#available-commands" id="id3">Available Commands</a><ul> <li><a class="reference internal" href="#p-task-vars-host-result" id="id4">p task/vars/host/result</a></li> <li><a class="reference internal" href="#task-args-key-value" id="id5">task.args[key] = value</a></li> <li><a class="reference internal" href="#vars-key-value" id="id6">vars[key] = value</a></li> <li><a class="reference internal" href="#r-edo" id="id7">r(edo)</a></li> <li><a class="reference internal" href="#c-ontinue" id="id8">c(ontinue)</a></li> <li><a class="reference internal" href="#q-uit" id="id9">q(uit)</a></li> </ul> </li> </ul>
+  <p>In 2.1 we added a <code>debug</code> strategy. This strategy enables you to invoke a debugger when a task has failed. You have access to all of the features of the debugger in the context of the failed task. You can then, for example, check or set the value of variables, update module arguments, and re-run the failed task with the new variables and arguments to help resolve the cause of the failure.</p> <p>To use the <code>debug</code> strategy, change the <code>strategy</code> attribute like this:</p> <pre data-language="yaml">- hosts: test
+  strategy: debug
+  tasks:
+  ...
+</pre> <p>For example, run the playbook below:</p> <pre data-language="yaml">- hosts: test
+  strategy: debug
+  gather_facts: no
+  vars:
+    var1: value1
+  tasks:
+    - name: wrong variable
+      ping: data={{ wrong_var }}
+</pre> <p>The debugger is invoked since the <em>wrong_var</em> variable is undefined.</p> <p>Let’s change the module’s arguments and run the task again:</p> <pre data-language="yaml">PLAY ***************************************************************************
+
+TASK [wrong variable] **********************************************************
+fatal: [192.0.2.10]: FAILED! =&gt; {"failed": true, "msg": "ERROR! 'wrong_var' is undefined"}
+Debugger invoked
+(debug) p result
+{'msg': u"ERROR! 'wrong_var' is undefined", 'failed': True}
+(debug) p task.args
+{u'data': u'{{ wrong_var }}'}
+(debug) task.args['data'] = '{{ var1 }}'
+(debug) p task.args
+{u'data': '{{ var1 }}'}
+(debug) redo
+ok: [192.0.2.10]
+
+PLAY RECAP *********************************************************************
+192.0.2.10               : ok=1    changed=0    unreachable=0    failed=0
+</pre> <p>This time, the task runs successfully!</p>  <h2 id="id1">Available Commands</h2>  <h3 id="p-command">p task/vars/host/result</h3> <p id="available-commands">Print values used to execute a module:</p> <pre data-language="yaml">(debug) p task
+TASK: install package
+(debug) p task.args
+{u'name': u'{{ pkg_name }}'}
+(debug) p vars
+{u'ansible_all_ipv4_addresses': [u'192.0.2.10'],
+ u'ansible_architecture': u'x86_64',
+ ...
+}
+(debug) p vars['pkg_name']
+u'bash'
+(debug) p host
+192.0.2.10
+(debug) p result
+{'_ansible_no_log': False,
+ 'changed': False,
+ u'failed': True,
+ ...
+ u'msg': u"No package matching 'not_exist' is available"}
+</pre>   <h3 id="update-args-command">task.args[key] = value</h3> <p id="task-args-key-value">Update module’s argument.</p> <p>If you run a playbook like this:</p> <pre data-language="yaml">- hosts: test
+  strategy: debug
+  gather_facts: yes
+  vars:
+    pkg_name: not_exist
+  tasks:
+    - name: install package
+      apt: name={{ pkg_name }}
+</pre> <p>Debugger is invoked due to wrong package name, so let’s fix the module’s args:</p> <pre data-language="yaml">(debug) p task.args
+{u'name': u'{{ pkg_name }}'}
+(debug) task.args['name'] = 'bash'
+(debug) p task.args
+{u'name': 'bash'}
+(debug) redo
+</pre> <p>Then the task runs again with new args.</p>   <h3 id="update-vars-command">vars[key] = value</h3> <p id="vars-key-value">Update vars.</p> <p>Let’s use the same playbook above, but fix vars instead of args:</p> <pre data-language="yaml">(debug) p vars['pkg_name']
+u'not_exist'
+(debug) vars['pkg_name'] = 'bash'
+(debug) p vars['pkg_name']
+'bash'
+(debug) redo
+</pre> <p>Then the task runs again with new vars.</p>   <h3 id="redo-command">r(edo)</h3> <p id="r-edo">Run the task again.</p>   <h3 id="continue-command">c(ontinue)</h3> <p id="c-ontinue">Just continue.</p>   <h3 id="quit-command">q(uit)</h3> <p id="q-uit">Quit from the debugger. The playbook execution is aborted.</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>An introduction to playbooks</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">User Mailing List</a></dt> <dd>Have a question? Stop by the google group!</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_debugger.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_debugger.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

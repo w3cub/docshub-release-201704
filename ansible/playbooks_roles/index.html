@@ -1,0 +1,237 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Playbook Roles and Include Statements - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="While it is possible to write a playbook in one very large file (and you might start out learning playbooks this way), eventually you’ll want to &hellip;">
+  <meta name="keywords" content="playbook, roles, and, include, statements, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_roles/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="playbook-roles-and-include-statements">Playbook Roles and Include Statements</h1>   <ul> <li><a class="reference internal" href="#introduction" id="id4">Introduction</a></li> <li><a class="reference internal" href="#task-include-files-and-encouraging-reuse" id="id5">Task Include Files And Encouraging Reuse</a></li> <li><a class="reference internal" href="#dynamic-versus-static-includes" id="id6">Dynamic versus Static Includes</a></li> <li><a class="reference internal" href="#roles" id="id7">Roles</a></li> <li><a class="reference internal" href="#role-default-variables" id="id8">Role Default Variables</a></li> <li><a class="reference internal" href="#role-dependencies" id="id9">Role Dependencies</a></li> <li><a class="reference internal" href="#embedding-modules-and-plugins-in-roles" id="id10">Embedding Modules and Plugins In Roles</a></li> <li><a class="reference internal" href="#ansible-galaxy" id="id11">Ansible Galaxy</a></li> </ul>
+   <h2 id="introduction">Introduction</h2> <p>While it is possible to write a playbook in one very large file (and you might start out learning playbooks this way), eventually you’ll want to reuse files and start to organize things.</p> <p>At a basic level, including task files allows you to break up bits of configuration policy into smaller files. Task includes pull in tasks from other files. Since handlers are tasks too, you can also include handler files from the ‘handler’ section.</p> <p>See <a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a> if you need a review of these concepts.</p> <p>Playbooks can also include plays from other playbook files. When that is done, the plays will be inserted into the playbook to form a longer list of plays.</p> <p>When you start to think about it – tasks, handlers, variables, and so on – begin to form larger concepts. You start to think about modeling what something is, rather than how to make something look like something. It’s no longer “apply this handful of THINGS to these hosts”, you say “these hosts are dbservers” or “these hosts are webservers”. In programming, we might call that “encapsulating” how things work. For instance, you can drive a car without knowing how the engine works.</p> <p>Roles in Ansible build on the idea of include files and combine them to form clean, reusable abstractions – they allow you to focus more on the big picture and only dive down into the details when needed.</p> <p>We’ll start with understanding includes so roles make more sense, but our ultimate goal should be understanding roles – roles are great and you should use them every time you write playbooks.</p> <p>See the <a class="reference external" href="https://github.com/ansible/ansible-examples" target="_blank">ansible-examples</a> repository on GitHub for lots of examples of all of this put together. You may wish to have this open in a separate tab as you dive in.</p>   <h2 id="task-include-files-and-encouraging-reuse">Task Include Files And Encouraging Reuse</h2> <p>Suppose you want to reuse lists of tasks between plays or playbooks. You can use include files to do this. Use of included task lists is a great way to define a role that system is going to fulfill. Remember, the goal of a play in a playbook is to map a group of systems into multiple roles. Let’s see what this looks like...</p> <p>A task include file simply contains a flat list of tasks, like so:</p> <pre data-language="yaml">---
+# possibly saved as tasks/foo.yml
+
+- name: placeholder foo
+  command: /bin/foo
+
+- name: placeholder bar
+  command: /bin/bar
+</pre> <p>Include directives look like this, and can be mixed in with regular tasks in a playbook:</p> <pre data-language="yaml">tasks:
+
+  - include: tasks/foo.yml
+</pre> <p>You can also pass variables into includes. We call this a ‘parameterized include’.</p> <p>For instance, to deploy to multiple wordpress instances, I could encapsulate all of my wordpress tasks in a single wordpress.yml file, and use it like so:</p> <pre data-language="yaml">tasks:
+  - include: wordpress.yml wp_user=timmy
+  - include: wordpress.yml wp_user=alice
+  - include: wordpress.yml wp_user=bob
+</pre> <p>Starting in 1.0, variables can also be passed to include files using an alternative syntax, which also supports structured variables:</p> <pre data-language="yaml">tasks:
+
+  - include: wordpress.yml
+    vars:
+        wp_user: timmy
+        ssh_keys:
+          - keys/one.txt
+          - keys/two.txt
+</pre> <p>Using either syntax, variables passed in can then be used in the included files. We’ll cover them in <a class="reference internal" href="../playbooks_variables/"><span class="doc">Variables</span></a>. You can reference them like this:</p> <pre data-language="yaml">{{ wp_user }}
+</pre> <p>(In addition to the explicitly passed-in parameters, all variables from the vars section are also available for use here as well.)</p> <p>Playbooks can include other playbooks too, but that’s mentioned in a later section.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">As of 1.0, task include statements can be used at arbitrary depth. They were previously limited to a single level, so task includes could not include other files containing task includes.</p> </div> <p>Includes can also be used in the ‘handlers’ section, for instance, if you want to define how to restart apache, you only have to do that once for all of your playbooks. You might make a handlers.yml that looks like:</p> <pre data-language="yaml">---
+# this might be in a file like handlers/handlers.yml
+- name: restart apache
+  service: name=apache state=restarted
+</pre> <p>And in your main playbook file, just include it like so, at the bottom of a play:</p> <pre data-language="yaml">handlers:
+  - include: handlers/handlers.yml
+</pre> <p>You can mix in includes along with your regular non-included tasks and handlers.</p> <p>Includes can also be used to import one playbook file into another. This allows you to define a top-level playbook that is composed of other playbooks.</p> <p>For example:</p> <pre data-language="yaml">- name: this is a play at the top level of a file
+  hosts: all
+  remote_user: root
+
+  tasks:
+
+  - name: say hi
+    tags: foo
+    shell: echo "hi..."
+
+- include: load_balancers.yml
+- include: webservers.yml
+- include: dbservers.yml
+</pre> <p>Note that you cannot do variable substitution when including one playbook inside another.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">You can not conditionally pass the location to an include file, like you can with ‘vars_files’. If you find yourself needing to do this, consider how you can restructure your playbook to be more class/role oriented. This is to say you cannot use a ‘fact’ to decide what include file to use. All hosts contained within the play are going to get the same tasks. (‘<em>when</em>‘ provides some ability for hosts to conditionally skip tasks).</p> </div>   <h2 id="dynamic-static">Dynamic versus Static Includes</h2> <p id="dynamic-versus-static-includes">Ansible 2.0 changes how include tasks are processed. In previous versions of Ansible, includes acted as a pre-processor statement and were read during playbook parsing time. This created problems with things like inventory variables (like group and host vars, which are not available during the parsing time) were used in the included file name.</p> <p>Ansible 2.0 instead makes includes “dynamic”, meaning they are not evaluated until the include task is reached during the play execution. This change allows the reintroduction of loops on include statements, such as the following:</p> <pre data-language="yaml">- include: foo.yml param={{item}}
+  with_items:
+  - 1
+  - 2
+  - 3
+</pre> <p>It is also possible to use variables from any source with a dynamic include:</p> <pre data-language="yaml">- include: "{{inventory_hostname}}.yml"
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">When an include statement loads different tasks for different hosts, the <code>linear</code> strategy keeps the hosts in lock-step by alternating which hosts are executing tasks while doing a <code>noop</code> for all other hosts. For example, if you had hostA, hostB and hostC with the above example, hostA would execute all of the tasks in hostA.yml while hostB and hostC waited. It is generally better to do the above with the <code>free</code> strategy, which does not force hosts to execute in lock-step.</p> </div> <p>Dynamic includes introduced some other limitations due to the fact that the included file is not read in until that task is reached during the execution of the play. When using dynamic includes, it is important to keep these limitations in mind:</p> <ul class="simple"> <li>You cannot use <code>notify</code> to trigger a handler name which comes from a dynamic include.</li> <li>You cannot use <code>--start-at-task</code> to begin execution at a task inside a dynamic include.</li> <li>Tags which only exist inside a dynamic include will not show up in –list-tags output.</li> <li>Tasks which only exist inside a dynamic include will not show up in –list-tasks output.</li> </ul> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">In Ansible 1.9.x and earlier, an error would be raised if a tag name was used with <code>--tags</code> or <code>--skip-tags</code>. This error was disabled in Ansible 2.0 to prevent incorrect failures with tags which only existed inside of dynamic includes.</p> </div> <p>To work around these limitations, Ansible 2.1 introduces the <code>static</code> option for includes:</p> <pre data-language="yaml">- include: foo.yml
+  static: &lt;yes|no|true|false&gt;
+</pre> <p>By default in Ansible 2.1 and higher, includes are automatically treated as static rather than dynamic when the include meets the following conditions:</p> <ul class="simple"> <li>The include does not use any loops</li> <li>The included file name does not use any variables</li> <li>The <code>static</code> option is not explicitly disabled (ie. <code>static: no</code>)</li> <li>The ansible.cfg options to force static includes (see below) are disabled</li> </ul> <p>Two options are available in the ansible.cfg configuration for static includes:</p> <ul class="simple"> <li>
+<code>task_includes_static</code> - forces all includes in tasks sections to be static.</li> <li>
+<code>handler_includes_static</code> - forces all includes in handlers sections to be static.</li> </ul> <p>These options allow users to force playbooks to behave exactly as they did in 1.9.x and before.</p>   <h2 id="id1">Roles</h2> <div class="versionadded" id="roles"> <p><span class="versionmodified">New in version 1.2.</span></p> </div> <p>Now that you have learned about tasks and handlers, what is the best way to organize your playbooks? The short answer is to use roles! Roles are ways of automatically loading certain vars_files, tasks, and handlers based on a known file structure. Grouping content by roles also allows easy sharing of roles with other users.</p> <p>Roles are just automation around ‘include’ directives as described above, and really don’t contain much additional magic beyond some improvements to search path handling for referenced files. However, that can be a big thing!</p> <p>Example project structure:</p> <pre data-language="yaml">site.yml
+webservers.yml
+fooservers.yml
+roles/
+   common/
+     files/
+     templates/
+     tasks/
+     handlers/
+     vars/
+     defaults/
+     meta/
+   webservers/
+     files/
+     templates/
+     tasks/
+     handlers/
+     vars/
+     defaults/
+     meta/
+</pre> <p>In a playbook, it would look like this:</p> <pre data-language="yaml">---
+- hosts: webservers
+  roles:
+     - common
+     - webservers
+</pre> <p>This designates the following behaviors, for each role ‘x’:</p> <ul class="simple"> <li>If roles/x/tasks/main.yml exists, tasks listed therein will be added to the play</li> <li>If roles/x/handlers/main.yml exists, handlers listed therein will be added to the play</li> <li>If roles/x/vars/main.yml exists, variables listed therein will be added to the play</li> <li>If roles/x/defaults/main.yml exists, variables listed therein will be added to the play</li> <li>If roles/x/meta/main.yml exists, any role dependencies listed therein will be added to the list of roles (1.3 and later)</li> <li>Any copy, script, template or include tasks (in the role) can reference files in roles/x/{files,templates,tasks}/ (dir depends on task) without having to path them relatively or absolutely</li> </ul> <p>In Ansible 1.4 and later you can configure a roles_path to search for roles. Use this to check all of your common roles out to one location, and share them easily between multiple playbook projects. See <a class="reference internal" href="../intro_configuration/"><span class="doc">Configuration file</span></a> for details about how to set this up in ansible.cfg.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Role dependencies are discussed below.</p> </div> <p>If any files are not present, they are just ignored. So it’s ok to not have a ‘vars/’ subdirectory for the role, for instance.</p> <p>Note, you are still allowed to list tasks, vars_files, and handlers “loose” in playbooks without using roles, but roles are a good organizational feature and are highly recommended. If there are loose things in the playbook, the roles are evaluated first.</p> <p>Also, should you wish to parameterize roles, by adding variables, you can do so, like this:</p> <pre data-language="yaml">---
+
+- hosts: webservers
+  roles:
+    - common
+    - { role: foo_app_instance, dir: '/opt/a',  app_port: 5000 }
+    - { role: foo_app_instance, dir: '/opt/b',  app_port: 5001 }
+</pre> <p>While it’s probably not something you should do often, you can also conditionally apply roles like so:</p> <pre data-language="yaml">---
+
+- hosts: webservers
+  roles:
+    - { role: some_role, when: "ansible_os_family == 'RedHat'" }
+</pre> <p>This works by applying the conditional to every task in the role. Conditionals are covered later on in the documentation.</p> <p>Finally, you may wish to assign tags to the roles you specify. You can do so inline:</p> <pre data-language="yaml">---
+
+- hosts: webservers
+  roles:
+    - { role: foo, tags: ["bar", "baz"] }
+</pre> <p>Note that this <em>tags all of the tasks in that role with the tags specified</em>, overriding any tags that are specified inside the role. If you find yourself building a role with lots of tags and you want to call subsets of the role at different times, you should consider just splitting that role into multiple roles.</p> <p>If the play still has a ‘tasks’ section, those tasks are executed after roles are applied.</p> <p>If you want to define certain tasks to happen before AND after roles are applied, you can do this:</p> <pre data-language="yaml">---
+
+- hosts: webservers
+
+  pre_tasks:
+    - shell: echo 'hello'
+
+  roles:
+    - { role: some_role }
+
+  tasks:
+    - shell: echo 'still busy'
+
+  post_tasks:
+    - shell: echo 'goodbye'
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If using tags with tasks (described later as a means of only running part of a playbook), be sure to also tag your pre_tasks and post_tasks and pass those along as well, especially if the pre and post tasks are used for monitoring outage window control or load balancing.</p> </div>   <h2 id="role-default-variables">Role Default Variables</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 1.3.</span></p> </div> <p>Role default variables allow you to set default variables for included or dependent roles (see below). To create defaults, simply add a <code>defaults/main.yml</code> file in your role directory. These variables will have the lowest priority of any variables available, and can be easily overridden by any other variable, including inventory variables.</p>   <h2 id="role-dependencies">Role Dependencies</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 1.3.</span></p> </div> <p>Role dependencies allow you to automatically pull in other roles when using a role. Role dependencies are stored in the <code>meta/main.yml</code> file contained within the role directory. This file should contain a list of roles and parameters to insert before the specified role, such as the following in an example <code>roles/myapp/meta/main.yml</code>:</p> <pre data-language="yaml">---
+dependencies:
+  - { role: common, some_parameter: 3 }
+  - { role: apache, apache_port: 80 }
+  - { role: postgres, dbname: blarg, other_parameter: 12 }
+</pre> <p>Role dependencies can also be specified as a full path, just like top level roles:</p> <pre data-language="yaml">---
+dependencies:
+   - { role: '/path/to/common/roles/foo', x: 1 }
+</pre> <p>Role dependencies can also be installed from source control repos or tar files (via <code>galaxy</code>) using comma separated format of path, an optional version (tag, commit, branch etc) and optional friendly role name (an attempt is made to derive a role name from the repo name or archive filename). Both through the command line or via a requirements.yml passed to ansible-galaxy.</p> <p>Roles dependencies are always executed before the role that includes them, and are recursive. By default, roles can also only be added as a dependency once - if another role also lists it as a dependency it will not be run again. This behavior can be overridden by adding <code>allow_duplicates: yes</code> to the <code>meta/main.yml</code> file. For example, a role named ‘car’ could add a role named ‘wheel’ to its dependencies as follows:</p> <pre data-language="yaml">---
+dependencies:
+- { role: wheel, n: 1 }
+- { role: wheel, n: 2 }
+- { role: wheel, n: 3 }
+- { role: wheel, n: 4 }
+</pre> <p>And the <code>meta/main.yml</code> for wheel contained the following:</p> <pre data-language="yaml">---
+allow_duplicates: yes
+dependencies:
+- { role: tire }
+- { role: brake }
+</pre> <p>The resulting order of execution would be as follows:</p> <pre data-language="yaml">tire(n=1)
+brake(n=1)
+wheel(n=1)
+tire(n=2)
+brake(n=2)
+wheel(n=2)
+...
+car
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Variable inheritance and scope are detailed in the <a class="reference internal" href="../playbooks_variables/"><span class="doc">Variables</span></a>.</p> </div>   <h2 id="embedding-modules-and-plugins-in-roles">Embedding Modules and Plugins In Roles</h2> <p>This is an advanced topic that should not be relevant for most users.</p> <p>If you write a custom module (see <a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a>) or a plugin (see <span class="xref doc">developing_plugins</span>), you may wish to distribute it as part of a role. Generally speaking, Ansible as a project is very interested in taking high-quality modules into ansible core for inclusion, so this shouldn’t be the norm, but it’s quite easy to do.</p> <p>A good example for this is if you worked at a company called AcmeWidgets, and wrote an internal module that helped configure your internal software, and you wanted other people in your organization to easily use this module – but you didn’t want to tell everyone how to configure their Ansible library path.</p> <p>Alongside the ‘tasks’ and ‘handlers’ structure of a role, add a directory named ‘library’. In this ‘library’ directory, then include the module directly inside of it.</p> <p>Assuming you had this:</p> <pre data-language="yaml">roles/
+   my_custom_modules/
+       library/
+          module1
+          module2
+</pre> <p>The module will be usable in the role itself, as well as any roles that are called <em>after</em> this role, as follows:</p> <pre data-language="yaml">- hosts: webservers
+  roles:
+    - my_custom_modules
+    - some_other_role_using_my_custom_modules
+    - yet_another_role_using_my_custom_modules
+</pre> <p>This can also be used, with some limitations, to modify modules in Ansible’s core distribution, such as to use development versions of modules before they are released in production releases. This is not always advisable as API signatures may change in core components, however, and is not always guaranteed to work. It can be a handy way of carrying a patch against a core module, however, should you have good reason for this. Naturally the project prefers that contributions be directed back to github whenever possible via a pull request.</p> <p>The same mechanism can be used to embed and distribute plugins in a role, using the same schema. For example, for a filter plugin:</p> <pre data-language="yaml">roles/
+   my_custom_filter/
+       filter_plugins
+          filter1
+          filter2
+</pre> <p>They can then be used in a template or a jinja template in any role called after ‘my_custom_filter’</p>   <h2 id="ansible-galaxy">Ansible Galaxy</h2> <p><a class="reference external" href="http://galaxy.ansible.com" target="_blank">Ansible Galaxy</a> is a free site for finding, downloading, rating, and reviewing all kinds of community developed Ansible roles and can be a great way to get a jumpstart on your automation projects.</p> <p>You can sign up with social auth, and the download client ‘ansible-galaxy’ is included in Ansible 1.4.2 and later.</p> <p>Read the “About” page on the Galaxy site for more information.</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../galaxy/"><span class="doc">Ansible Galaxy</span></a></dt> <dd>How to share roles on galaxy, role management</dd> <dt><a class="reference internal" href="../yamlsyntax/"><span class="doc">YAML Syntax</span></a></dt> <dd>Learn about YAML syntax</dd> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>Review the basic Playbook language features</dd> <dt><a class="reference internal" href="../playbooks_best_practices/"><span class="doc">Best Practices</span></a></dt> <dd>Various tips about managing playbooks in the real world</dd> <dt><a class="reference internal" href="../playbooks_variables/"><span class="doc">Variables</span></a></dt> <dd>All about variables in playbooks</dd> <dt><a class="reference internal" href="../playbooks_conditionals/"><span class="doc">Conditionals</span></a></dt> <dd>Conditionals in playbooks</dd> <dt><a class="reference internal" href="../playbooks_loops/"><span class="doc">Loops</span></a></dt> <dd>Loops in playbooks</dd> <dt><a class="reference internal" href="../modules/"><span class="doc">About Modules</span></a></dt> <dd>Learn about available modules</dd> <dt><a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a></dt> <dd>Learn how to extend Ansible by writing your own modules</dd> <dt><a class="reference external" href="https://github.com/ansible/ansible-examples" target="_blank">GitHub Ansible examples</a></dt> <dd>Complete playbook files from the GitHub project source</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-project" target="_blank">Mailing List</a></dt> <dd>Questions? Help? Ideas? Stop by the list on Google Groups</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_roles.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_roles.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

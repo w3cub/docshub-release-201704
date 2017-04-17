@@ -1,0 +1,212 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Google Cloud Platform - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content=" Note ">
+  <meta name="keywords" content="google, cloud, platform, guide, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/guide_gce/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="google-cloud-platform-guide">Google Cloud Platform Guide</h1>  <h2 id="introduction">Introduction</h2> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This section of the documentation is under construction. We are in the process of adding more examples about all of the GCE modules and how they work together. Upgrades via github pull requests are welcomed!</p> </div> <p>Ansible contains modules for managing Google Compute Engine resources, including creating instances, controlling network access, working with persistent disks, and managing load balancers. Additionally, there is an inventory plugin that can automatically suck down all of your GCE instances into Ansible dynamic inventory, and create groups by tag and other properties.</p> <p>The GCE modules all require the apache-libcloud module which you can install from pip:</p> <pre data-language="bash">$ pip install apache-libcloud
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you’re using Ansible on Mac OS X, libcloud also needs to access a CA cert chain. You’ll need to download one (you can get one for <a class="reference external" href="http://curl.haxx.se/docs/caextract.html" target="_blank">here</a>.)</p> </div>   <h2 id="credentials">Credentials</h2> <p>To work with the GCE modules, you’ll first need to get some credentials in the JSON format:</p> <ol class="arabic simple"> <li><a class="reference external" href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount#creatinganaccount" target="_blank">Create a Service Account</a></li> <li><a class="reference external" href="https://support.google.com/cloud/answer/6158849?hl=en&amp;ref_topic=6262490#serviceaccounts" target="_blank">Download JSON credentials</a></li> </ol> <p>There are three different ways to provide credentials to Ansible so that it can talk with Google Cloud for provisioning and configuration actions:</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you would like to use JSON credentials you must have libcloud &gt;= 0.17.0</p> </div> <ul class="simple"> <li>by providing to the modules directly</li> <li>by populating a <code>secrets.py</code> file</li> <li>by setting environment variables</li> </ul>  <h3 id="calling-modules-by-passing-credentials">Calling Modules By Passing Credentials</h3> <p>For the GCE modules you can specify the credentials as arguments:</p> <ul class="simple"> <li>
+<code>service_account_email</code>: email associated with the project</li> <li>
+<code>credentials_file</code>: path to the JSON credentials file</li> <li>
+<code>project_id</code>: id of the project</li> </ul> <p>For example, to create a new instance using the cloud module, you can use the following configuration:</p> <pre data-language="yaml">- name: Create instance(s)
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+    service_account_email: [email protected]
+    credentials_file: /path/to/project.json
+    project_id: project-id
+    machine_type: n1-standard-1
+    image: debian-7
+
+  tasks:
+
+   - name: Launch instances
+     gce:
+         instance_names: dev
+         machine_type: "{{ machine_type }}"
+         image: "{{ image }}"
+         service_account_email: "{{ service_account_email }}"
+         credentials_file: "{{ credentials_file }}"
+         project_id: "{{ project_id }}"
+</pre> <p>When running Ansible inside a GCE VM you can use the service account credentials from the local metadata server by setting both <code>service_account_email</code> and <code>credentials_file</code> to a blank string.</p>   <h3 id="configuring-modules-with-secrets-py">Configuring Modules with secrets.py</h3> <p>Create a file <code>secrets.py</code> looking like following, and put it in some folder which is in your <code>$PYTHONPATH</code>:</p> <pre data-language="python">GCE_PARAMS = ('i...@project.googleusercontent.com', '/path/to/project.json')
+GCE_KEYWORD_PARAMS = {'project': 'project_id'}
+</pre> <p>Ensure to enter the email address from the created services account and not the one from your main account.</p> <p>Now the modules can be used as above, but the account information can be omitted.</p> <p>If you are running Ansible from inside a GCE VM with an authorized service account you can set the email address and credentials path as follows so that get automatically picked up:</p> <pre data-language="python">GCE_PARAMS = ('', '')
+GCE_KEYWORD_PARAMS = {'project': 'project_id'}
+</pre>   <h3 id="configuring-modules-with-environment-variables">Configuring Modules with Environment Variables</h3> <p>Set the following environment variables before running Ansible in order to configure your credentials:</p> <pre data-language="bash">GCE_EMAIL
+GCE_PROJECT
+GCE_CREDENTIALS_FILE_PATH
+</pre>    <h2 id="gce-dynamic-inventory">GCE Dynamic Inventory</h2> <p>The best way to interact with your hosts is to use the gce inventory plugin, which dynamically queries GCE and tells Ansible what nodes can be managed.</p> <p>Note that when using the inventory script <code>gce.py</code>, you also need to populate the <code>gce.ini</code> file that you can find in the contrib/inventory directory of the ansible checkout.</p> <p>To use the GCE dynamic inventory script, copy <code>gce.py</code> from <code>contrib/inventory</code> into your inventory directory and make it executable. You can specify credentials for <code>gce.py</code> using the <code>GCE_INI_PATH</code> environment variable – the default is to look for gce.ini in the same directory as the inventory script.</p> <p>Let’s see if inventory is working:</p> <pre data-language="bash">$ ./gce.py --list
+</pre> <p>You should see output describing the hosts you have, if any, running in Google Compute Engine.</p> <p>Now let’s see if we can use the inventory script to talk to Google.</p> <pre data-language="bash">$ GCE_INI_PATH=~/.gce.ini ansible all -i gce.py -m setup
+hostname | success &gt;&gt; {
+  "ansible_facts": {
+    "ansible_all_ipv4_addresses": [
+      "x.x.x.x"
+    ],
+</pre> <p>As with all dynamic inventory scripts in Ansible, you can configure the inventory path in ansible.cfg. The recommended way to use the inventory is to create an <code>inventory</code> directory, and place both the <code>gce.py</code> script and a file containing <code>localhost</code> in it. This can allow for cloud inventory to be used alongside local inventory (such as a physical datacenter) or machines running in different providers.</p> <p>Executing <code>ansible</code> or <code>ansible-playbook</code> and specifying the <code>inventory</code> directory instead of an individual file will cause ansible to evaluate each file in that directory for inventory.</p> <p>Let’s once again use our inventory script to see if it can talk to Google Cloud:</p> <pre data-language="bash">$ ansible all -i inventory/ -m setup
+hostname | success &gt;&gt; {
+  "ansible_facts": {
+    "ansible_all_ipv4_addresses": [
+        "x.x.x.x"
+    ],
+</pre> <p>The output should be similar to the previous command. If you’re wanting less output and just want to check for SSH connectivity, use “-m” ping instead.</p>   <h2 id="use-cases">Use Cases</h2> <p>For the following use case, let’s use this small shell script as a wrapper.</p> <pre data-language="bash">#!/usr/bin/env bash
+PLAYBOOK="$1"
+
+if [[ -z $PLAYBOOK ]]; then
+  echo "You need to pass a playbook as argument to this script."
+  exit 1
+fi
+
+export SSL_CERT_FILE=$(pwd)/cacert.cer
+export ANSIBLE_HOST_KEY_CHECKING=False
+
+if [[ ! -f "$SSL_CERT_FILE" ]]; then
+  curl -O http://curl.haxx.se/ca/cacert.pem
+fi
+
+ansible-playbook -v -i inventory/ "$PLAYBOOK"
+</pre>  <h3 id="create-an-instance">Create an instance</h3> <p>The GCE module provides the ability to provision instances within Google Compute Engine. The provisioning task is typically performed from your Ansible control server against Google Cloud’s API.</p> <p>A playbook would looks like this:</p> <pre data-language="yaml">- name: Create instance(s)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+
+  vars:
+    machine_type: n1-standard-1 # default
+    image: debian-7
+    service_account_email: [email protected]
+    credentials_file: /path/to/project.json
+    project_id: project-id
+
+  tasks:
+    - name: Launch instances
+      gce:
+          instance_names: dev
+          machine_type: "{{ machine_type }}"
+          image: "{{ image }}"
+          service_account_email: "{{ service_account_email }}"
+          credentials_file: "{{ credentials_file }}"
+          project_id: "{{ project_id }}"
+          tags: webserver
+      register: gce
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_ip }} port=22 delay=10 timeout=60
+      with_items: gce.instance_data
+
+    - name: Add host to groupname
+      add_host: hostname={{ item.public_ip }} groupname=new_instances
+      with_items: gce.instance_data
+
+- name: Manage new instances
+  hosts: new_instances
+  connection: ssh
+  sudo: True
+  roles:
+    - base_configuration
+    - production_server
+</pre> <p>Note that use of the “add_host” module above creates a temporary, in-memory group. This means that a play in the same playbook can then manage machines in the ‘new_instances’ group, if so desired. Any sort of arbitrary configuration is possible at this point.</p>   <h3 id="configuring-instances-in-a-group">Configuring instances in a group</h3> <p>All of the created instances in GCE are grouped by tag. Since this is a cloud, it’s probably best to ignore hostnames and just focus on group management.</p> <p>Normally we’d also use roles here, but the following example is a simple one. Here we will also use the “gce_net” module to open up access to port 80 on these nodes.</p> <p>The variables in the ‘vars’ section could also be kept in a ‘vars_files’ file or something encrypted with Ansible-vault, if you so choose. This is just a basic example of what is possible:</p> <pre data-language="yaml">- name: Setup web servers
+  hosts: tag_webserver
+  gather_facts: no
+
+  vars:
+    machine_type: n1-standard-1 # default
+    image: debian-7
+    service_account_email: [email protected]
+    credentials_file: /path/to/project.json
+    project_id: project-id
+
+  roles:
+
+    - name: Install lighttpd
+      apt: pkg=lighttpd state=installed
+      sudo: True
+
+    - name: Allow HTTP
+      local_action: gce_net
+      args:
+        fwname: "all-http"
+        name: "default"
+        allowed: "tcp:80"
+        state: "present"
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+</pre> <p>By pointing your browser to the IP of the server, you should see a page welcoming you.</p> <p>Upgrades to this documentation are welcome, hit the github link at the top right of this page if you would like to make additions!</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/guide_gce.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/guide_gce.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

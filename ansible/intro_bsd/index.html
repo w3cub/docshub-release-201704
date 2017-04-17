@@ -1,0 +1,93 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>BSD Support - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Ansible manages Linux&#47;Unix machines using SSH by default. BSD machines are no exception, however this document covers some of the differences &hellip;">
+  <meta name="keywords" content="bsd, support, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/intro_bsd/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="bsd-support">BSD Support</h1>   <ul> <li><a class="reference internal" href="#working-with-bsd" id="id4">Working with BSD</a></li> <li><a class="reference internal" href="#bootstrapping-bsd" id="id5">Bootstrapping BSD</a></li> <li><a class="reference internal" href="#setting-the-python-interpreter" id="id6">Setting the Python interpreter</a></li> <li><a class="reference internal" href="#which-modules-are-available" id="id7">Which modules are available?</a></li> <li><a class="reference internal" href="#using-bsd-as-the-control-machine" id="id8">Using BSD as the control machine</a></li> <li><a class="reference internal" href="#bsd-facts" id="id9">BSD Facts</a></li> <li><a class="reference internal" href="#bsd-efforts-and-contributions" id="id10">BSD Efforts and Contributions</a></li> </ul>
+   <h2 id="id1">Working with BSD</h2> <p id="working-with-bsd">Ansible manages Linux/Unix machines using SSH by default. BSD machines are no exception, however this document covers some of the differences you may encounter with Ansible when working with BSD variants.</p> <p>Typically, Ansible will try to default to using OpenSSH as a connection method. This is suitable when using SSH keys to authenticate, but when using SSH passwords, Ansible relies on sshpass. Most versions of sshpass do not deal particularly well with BSD login prompts, so when using SSH passwords against BSD machines, it is recommended to change the transport method to paramiko. You can do this in ansible.cfg globally or you can set it as an inventory/group/host variable. For example:</p> <pre data-language="yaml">[freebsd]
+mybsdhost1 ansible_connection=paramiko
+</pre> <p>Ansible is agentless by default, however certain software is required on the target machines. Using Python 2.4 on the agents requires an additional py-simplejson package/library to be installed, however this library is already included in Python 2.5 and above. Operating without Python is possible with the <code>raw</code> module. Although this module can be used to bootstrap Ansible and install Python on BSD variants (see below), it is very limited and the use of Python is required to make full use of Ansible’s features.</p>   <h2 id="bootstrap-bsd">Bootstrapping BSD</h2> <p id="bootstrapping-bsd">As mentioned above, you can bootstrap Ansible with the <code>raw</code> module and remotely install Python on targets. The following example installs Python 2.7 which includes the json library required for full functionality of Ansible. On your control machine you can simply execute the following for most versions of FreeBSD:</p> <pre data-language="yaml">ansible -m raw -a “pkg install -y python27” mybsdhost1
+</pre> <p>Once this is done you can now use other Ansible modules apart from the <code>raw</code> module.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This example used pkg as used on FreeBSD, however you should be able to substitute the appropriate package tool for your BSD; the package name may also differ. Refer to the package list or documentation of the BSD variant you are using for the exact Python package name you intend to install.</p> </div>   <h2 id="python-location">Setting the Python interpreter</h2> <p id="setting-the-python-interpreter">To support a variety of Unix/Linux operating systems and distributions, Ansible cannot always rely on the existing environment or <code>env</code> variables to locate the correct Python binary. By default, modules point at <code>/usr/bin/python</code> as this is the most common location. On BSD variants, this path may differ, so it is advised to inform Ansible of the binary’s location, through the <code>ansible_python_interpreter</code> inventory variable. For example:</p> <pre data-language="yaml">[freebsd:vars]
+ansible_python_interpreter=/usr/local/bin/python2.7
+</pre> <p>If you use additional plugins beyond those bundled with Ansible, you can set similar variables for <code>bash</code>, <code>perl</code> or <code>ruby</code>, depending on how the plugin is written. For example:</p> <pre data-language="yaml">[freebsd:vars]
+ansible_python_interpreter=/usr/local/bin/python
+ansible_perl_interpreter=/usr/bin/perl5
+</pre>   <h2 id="which-modules-are-available">Which modules are available?</h2> <p>The majority of the core Ansible modules are written for a combination of Linux/Unix machines and other generic services, so most should function well on the BSDs with the obvious exception of those that are aimed at Linux-only technologies (such as LVG).</p>   <h2 id="using-bsd-as-the-control-machine">Using BSD as the control machine</h2> <p>Using BSD as the control machine is as simple as installing the Ansible package for your BSD variant or by following the <code>pip</code> or ‘from source’ instructions.</p>   <h2 id="id2">BSD Facts</h2> <p id="bsd-facts">Ansible gathers facts from the BSDs in a similar manner to Linux machines, but since the data, names and structures can vary for network, disks and other devices, one should expect the output to be slightly different yet still familiar to a BSD administrator.</p>   <h2 id="bsd-contributions">BSD Efforts and Contributions</h2> <p id="bsd-efforts-and-contributions">BSD support is important to us at Ansible. Even though the majority of our contributors use and target Linux we have an active BSD community and strive to be as BSD friendly as possible. Please feel free to report any issues or incompatibilities you discover with BSD; pull requests with an included fix are also welcome!</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../intro_adhoc/"><span class="doc">Introduction To Ad-Hoc Commands</span></a></dt> <dd>Examples of basic commands</dd> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>Learning ansible’s configuration management language</dd> <dt><a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a></dt> <dd>How to write modules</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-project" target="_blank">Mailing List</a></dt> <dd>Questions? Help? Ideas? Stop by the list on Google Groups</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/intro_bsd.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/intro_bsd.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

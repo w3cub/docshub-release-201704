@@ -1,0 +1,228 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Intro to Playbooks - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content=" Playbooks are a completely different way to use ansible than in adhoc task execution mode, and are particularly powerful. ">
+  <meta name="keywords" content="intro, playbooks, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_intro/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="intro-to-playbooks">Intro to Playbooks</h1>  <h2 id="id1">About Playbooks</h2> <p id="about-playbooks">Playbooks are a completely different way to use ansible than in adhoc task execution mode, and are particularly powerful.</p> <p>Simply put, playbooks are the basis for a really simple configuration management and multi-machine deployment system, unlike any that already exist, and one that is very well suited to deploying complex applications.</p> <p>Playbooks can declare configurations, but they can also orchestrate steps of any manual ordered process, even as different steps must bounce back and forth between sets of machines in particular orders. They can launch tasks synchronously or asynchronously.</p> <p>While you might run the main <code>/usr/bin/ansible</code> program for ad-hoc tasks, playbooks are more likely to be kept in source control and used to push out your configuration or assure the configurations of your remote systems are in spec.</p> <p>There are also some full sets of playbooks illustrating a lot of these techniques in the <a class="reference external" href="https://github.com/ansible/ansible-examples" target="_blank">ansible-examples repository</a>. We’d recommend looking at these in another tab as you go along.</p> <p>There are also many jumping off points after you learn playbooks, so hop back to the documentation index after you’re done with this section.</p>   <h2 id="id2">Playbook Language Example</h2> <p id="playbook-language-example">Playbooks are expressed in YAML format (see <a class="reference internal" href="../yamlsyntax/"><span class="doc">YAML Syntax</span></a>) and have a minimum of syntax, which intentionally tries to not be a programming language or script, but rather a model of a configuration or a process.</p> <p>Each playbook is composed of one or more ‘plays’ in a list.</p> <p>The goal of a play is to map a group of hosts to some well defined roles, represented by things ansible calls tasks. At a basic level, a task is nothing more than a call to an ansible module (see <a class="reference internal" href="../modules/"><span class="doc">About Modules</span></a>).</p> <p>By composing a playbook of multiple ‘plays’, it is possible to orchestrate multi-machine deployments, running certain steps on all machines in the webservers group, then certain steps on the database server group, then more commands back on the webservers group, etc.</p> <p>“plays” are more or less a sports analogy. You can have quite a lot of plays that affect your systems to do different things. It’s not as if you were just defining one particular state or model, and you can run different plays at different times.</p> <p>For starters, here’s a playbook that contains just one play:</p> <pre data-language="yaml">---
+- hosts: webservers
+  vars:
+    http_port: 80
+    max_clients: 200
+  remote_user: root
+  tasks:
+  - name: ensure apache is at the latest version
+    yum: name=httpd state=latest
+  - name: write the apache config file
+    template: src=/srv/httpd.j2 dest=/etc/httpd.conf
+    notify:
+    - restart apache
+  - name: ensure apache is running (and enable it at boot)
+    service: name=httpd state=started enabled=yes
+  handlers:
+    - name: restart apache
+      service: name=httpd state=restarted
+</pre> <p>When working with tasks that have really long parameters or modules that take many parameters, you can break tasks items over multiple lines to improve the structure. Below is another version of the above example but using YAML dictionaries to supply the modules with their <code>key=value</code> arguments.:</p> <pre data-language="yaml">---
+- hosts: webservers
+  vars:
+    http_port: 80
+    max_clients: 200
+  remote_user: root
+  tasks:
+  - name: ensure apache is at the latest version
+    yum:
+      name: httpd
+      state: latest
+  - name: write the apache config file
+    template:
+      src: /srv/httpd.j2
+      dest: /etc/httpd.conf
+    notify:
+    - restart apache
+  - name: ensure apache is running
+    service:
+      name: httpd
+      state: started
+  handlers:
+    - name: restart apache
+      service:
+        name: httpd
+        state: restarted
+</pre> <p>Playbooks can contain multiple plays. You may have a playbook that targets first the web servers, and then the database servers. For example:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: root
+
+  tasks:
+  - name: ensure apache is at the latest version
+    yum: name=httpd state=latest
+  - name: write the apache config file
+    template: src=/srv/httpd.j2 dest=/etc/httpd.conf
+
+- hosts: databases
+  remote_user: root
+
+  tasks:
+  - name: ensure postgresql is at the latest version
+    yum: name=postgresql state=latest
+  - name: ensure that postgresql is started
+    service: name=postgresql state=started
+</pre> <p>You can use this method to switch between the host group you’re targeting, the username logging into the remote servers, whether to sudo or not, and so forth. Plays, like tasks, run in the order specified in the playbook: top to bottom.</p> <p>Below, we’ll break down what the various features of the playbook language are.</p>   <h2 id="playbook-basics">Basics</h2>  <h3 id="playbook-hosts-and-users">Hosts and Users</h3> <p id="basics">For each play in a playbook, you get to choose which machines in your infrastructure to target and what remote user to complete the steps (called tasks) as.</p> <p>The <code>hosts</code> line is a list of one or more groups or host patterns, separated by colons, as described in the <a class="reference internal" href="../intro_patterns/"><span class="doc">Patterns</span></a> documentation. The <code>remote_user</code> is just the name of the user account:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: root
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The <code>remote_user</code> parameter was formerly called just <code>user</code>. It was renamed in Ansible 1.4 to make it more distinguishable from the <strong>user</strong> module (used to create users on remote systems).</p> </div> <p>Remote users can also be defined per task:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: root
+  tasks:
+    - name: test connection
+      ping:
+      remote_user: yourname
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The <code>remote_user</code> parameter for tasks was added in 1.4.</p> </div> <p>Support for running things as another user is also available (see <a class="reference internal" href="../become/"><span class="doc">Become (Privilege Escalation)</span></a>):</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: yourname
+  become: yes
+</pre> <p>You can also use become on a particular task instead of the whole play:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: yourname
+  tasks:
+    - service: name=nginx state=started
+      become: yes
+      become_method: sudo
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The become syntax deprecates the old sudo/su specific syntax beginning in 1.9.</p> </div> <p>You can also login as you, and then become a user different than root:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: yourname
+  become: yes
+  become_user: postgres
+</pre> <p>You can also use other privilege escalation methods, like su:</p> <pre data-language="yaml">---
+- hosts: webservers
+  remote_user: yourname
+  become: yes
+  become_method: su
+</pre> <p>If you need to specify a password to sudo, run <code>ansible-playbook</code> with <code>--ask-become-pass</code> or when using the old sudo syntax <code>--ask-sudo-pass</code> (<code>-K</code>). If you run a become playbook and the playbook seems to hang, it’s probably stuck at the privilege escalation prompt. Just <code>Control-C</code> to kill it and run it again adding the appropriate password.</p> <div class="admonition important"> <p class="first admonition-title">Important</p> <p class="last">When using <code>become_user</code> to a user other than root, the module arguments are briefly written into a random tempfile in <code>/tmp</code>. These are deleted immediately after the command is executed. This only occurs when changing privileges from a user like ‘bob’ to ‘timmy’, not when going from ‘bob’ to ‘root’, or logging in directly as ‘bob’ or ‘root’. If it concerns you that this data is briefly readable (not writable), avoid transferring unencrypted passwords with <code>become_user</code> set. In other cases, <code>/tmp</code> is not used and this does not come into play. Ansible also takes care to not log password parameters.</p> </div>   <h3 id="id3">Tasks list</h3> <p id="tasks-list">Each play contains a list of tasks. Tasks are executed in order, one at a time, against all machines matched by the host pattern, before moving on to the next task. It is important to understand that, within a play, all hosts are going to get the same task directives. It is the purpose of a play to map a selection of hosts to tasks.</p> <p>When running the playbook, which runs top to bottom, hosts with failed tasks are taken out of the rotation for the entire playbook. If things fail, simply correct the playbook file and rerun.</p> <p>The goal of each task is to execute a module, with very specific arguments. Variables, as mentioned above, can be used in arguments to modules.</p> <p>Modules are ‘idempotent’, meaning if you run them again, they will make only the changes they must in order to bring the system to the desired state. This makes it very safe to rerun the same playbook multiple times. They won’t change things unless they have to change things.</p> <p>The <strong>command</strong> and <strong>shell</strong> modules will typically rerun the same command again, which is totally ok if the command is something like <code>chmod</code> or <code>setsebool</code>, etc. Though there is a <code>creates</code> flag available which can be used to make these modules also idempotent.</p> <p>Every task should have a <code>name</code>, which is included in the output from running the playbook. This is human readable output, and so it is useful to have provide good descriptions of each task step. If the name is not provided though, the string fed to ‘action’ will be used for output.</p> <p>Tasks can be declared using the legacy <code>action: module options</code> format, but it is recommended that you use the more conventional <code>module: options</code> format. This recommended format is used throughout the documentation, but you may encounter the older format in some playbooks.</p> <p>Here is what a basic task looks like. As with most modules, the service module takes <code>key=value</code> arguments:</p> <pre data-language="yaml">tasks:
+  - name: make sure apache is running
+    service: name=httpd state=started
+</pre> <p>The <strong>command</strong> and <strong>shell</strong> modules are the only modules that just take a list of arguments and don’t use the <code>key=value</code> form. This makes them work as simply as you would expect:</p> <pre data-language="yaml">tasks:
+  - name: disable selinux
+    command: /sbin/setenforce 0
+</pre> <p>The <strong>command</strong> and <strong>shell</strong> module care about return codes, so if you have a command whose successful exit code is not zero, you may wish to do this:</p> <pre data-language="yaml">tasks:
+  - name: run this command and ignore the result
+    shell: /usr/bin/somecommand || /bin/true
+</pre> <p>Or this:</p> <pre data-language="yaml">tasks:
+  - name: run this command and ignore the result
+    shell: /usr/bin/somecommand
+    ignore_errors: True
+</pre> <p>If the action line is getting too long for comfort you can break it on a space and indent any continuation lines:</p> <pre data-language="yaml">tasks:
+  - name: Copy ansible inventory file to client
+    copy: src=/etc/ansible/hosts dest=/etc/ansible/hosts
+            owner=root group=root mode=0644
+</pre> <p>Variables can be used in action lines. Suppose you defined a variable called <code>vhost</code> in the <code>vars</code> section, you could do this:</p> <pre data-language="yaml">tasks:
+  - name: create a virtual host file for {{ vhost }}
+    template: src=somefile.j2 dest=/etc/httpd/conf.d/{{ vhost }}
+</pre> <p>Those same variables are usable in templates, which we’ll get to later.</p> <p>Now in a very basic playbook all the tasks will be listed directly in that play, though it will usually make more sense to break up tasks using the <code>include:</code> directive. We’ll show that a bit later.</p>    <h2 id="id4">Action Shorthand</h2> <div class="versionadded" id="action-shorthand"> <p><span class="versionmodified">New in version 0.8.</span></p> </div> <p>Ansible prefers listing modules like this in 0.8 and later:</p> <pre data-language="yaml">template: src=templates/foo.j2 dest=/etc/foo.conf
+</pre> <p>You will notice in earlier versions, this was only available as:</p> <pre data-language="yaml">action: template src=templates/foo.j2 dest=/etc/foo.conf
+</pre> <p>The old form continues to work in newer versions without any plan of deprecation.</p>   <h2 id="handlers">Handlers: Running Operations On Change</h2> <p id="handlers-running-operations-on-change">As we’ve mentioned, modules are written to be ‘idempotent’ and can relay when they have made a change on the remote system. Playbooks recognize this and have a basic event system that can be used to respond to change.</p> <p>These ‘notify’ actions are triggered at the end of each block of tasks in a play, and will only be triggered once even if notified by multiple different tasks.</p> <p>For instance, multiple resources may indicate that apache needs to be restarted because they have changed a config file, but apache will only be bounced once to avoid unnecessary restarts.</p> <p>Here’s an example of restarting two services when the contents of a file change, but only if the file changes:</p> <pre data-language="yaml">- name: template configuration file
+  template: src=template.j2 dest=/etc/foo.conf
+  notify:
+     - restart memcached
+     - restart apache
+</pre> <p>The things listed in the <code>notify</code> section of a task are called handlers.</p> <p>Handlers are lists of tasks, not really any different from regular tasks, that are referenced by a globally unique name, and are notified by notifiers. If nothing notifies a handler, it will not run. Regardless of how many tasks notify a handler, it will run only once, after all of the tasks complete in a particular play.</p> <p>Here’s an example handlers section:</p> <pre data-language="yaml">handlers:
+    - name: restart memcached
+      service: name=memcached state=restarted
+    - name: restart apache
+      service: name=apache state=restarted
+</pre> <p>As of Ansible 2.2, handlers can also “listen” to generic topics, and tasks can notify those topics as follows:</p> <pre data-language="yaml">handlers:
+    - name: restart memcached
+      service: name=memcached state=restarted
+      listen: "restart web services"
+    - name: restart apache
+      service: name=apache state=restarted
+      listen: "restart web services"
+
+tasks:
+    - name: restart everything
+      command: echo "this task will restart the web services"
+      notify: "restart web services"
+</pre> <p>This use makes it much easier to trigger multiple handlers. It also decouples handlers from their names, making it easier to share handlers among playbooks and roles (especially when using 3rd party roles from a shared source like Galaxy).</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <ul class="last simple"> <li>Notify handlers are always run in the same order they are defined, <code>not</code> in the order listed in the notify-statement. This is also the case for handlers using <code>listen</code>.</li> <li>Handler names and <code>listen</code> topics live in a global namespace.</li> <li>If two handler tasks have the same name, only one will run. <a class="reference external" href="https://github.com/ansible/ansible/issues/4943" target="_blank">*</a>
+</li> <li>You cannot notify a handler that is defined inside of an include. As of Ansible 2.1, this does work, however the include must be <code>static</code>.</li> </ul> </div> <p>Roles are described later on, but it’s worthwhile to point out that:</p> <ul class="simple"> <li>handlers notified within <code>pre_tasks</code>, <code>tasks</code>, and <code>post_tasks</code> sections are automatically flushed in the end of section where they were notified;</li> <li>handlers notified within <code>roles</code> section are automatically flushed in the end of <code>tasks</code> section, but before any <code>tasks</code> handlers.</li> </ul> <p>If you ever want to flush all the handler commands immediately though, in 1.2 and later, you can:</p> <pre data-language="yaml">tasks:
+   - shell: some tasks go here
+   - meta: flush_handlers
+   - shell: some other tasks
+</pre> <p>In the above example any queued up handlers would be processed early when the <code>meta</code> statement was reached. This is a bit of a niche case but can come in handy from time to time.</p>   <h2 id="id6">Executing A Playbook</h2> <p id="executing-a-playbook">Now that you’ve learned playbook syntax, how do you run a playbook? It’s simple. Let’s run a playbook using a parallelism level of 10:</p> <pre data-language="yaml">ansible-playbook playbook.yml -f 10
+</pre>   <h2 id="id7">Ansible-Pull</h2> <p id="ansible-pull">Should you want to invert the architecture of Ansible, so that nodes check in to a central location, instead of pushing configuration out to them, you can.</p> <p>The <code>ansible-pull</code> is a small script that will checkout a repo of configuration instructions from git, and then run <code>ansible-playbook</code> against that content.</p> <p>Assuming you load balance your checkout location, <code>ansible-pull</code> scales essentially infinitely.</p> <p>Run <code>ansible-pull --help</code> for details.</p> <p>There’s also a <a class="reference external" href="https://github.com/ansible/ansible-examples/blob/master/language_features/ansible_pull.yml" target="_blank">clever playbook</a> available to configure <code>ansible-pull</code> via a crontab from push mode.</p>   <h2 id="id8">Tips and Tricks</h2> <p id="tips-and-tricks">Look at the bottom of the playbook execution for a summary of the nodes that were targeted and how they performed. General failures and fatal “unreachable” communication attempts are kept separate in the counts.</p> <p>If you ever want to see detailed output from successful modules as well as unsuccessful ones, use the <code>--verbose</code> flag. This is available in Ansible 0.5 and later.</p> <p>Ansible playbook output is vastly upgraded if the cowsay package is installed. Try it!</p> <p>To see what hosts would be affected by a playbook before you run it, you can do this:</p> <pre data-language="yaml">ansible-playbook playbook.yml --list-hosts
+</pre> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../yamlsyntax/"><span class="doc">YAML Syntax</span></a></dt> <dd>Learn about YAML syntax</dd> <dt><a class="reference internal" href="../playbooks_best_practices/"><span class="doc">Best Practices</span></a></dt> <dd>Various tips about managing playbooks in the real world</dd> <dt><a class="reference internal" href="../"><span class="doc">Ansible Documentation</span></a></dt> <dd>Hop back to the documentation index for a lot of special topics about playbooks</dd> <dt><a class="reference internal" href="../modules/"><span class="doc">About Modules</span></a></dt> <dd>Learn about available modules</dd> <dt><a class="reference internal" href="../developing_modules/"><span class="doc">Developing Modules</span></a></dt> <dd>Learn how to extend Ansible by writing your own modules</dd> <dt><a class="reference internal" href="../intro_patterns/"><span class="doc">Patterns</span></a></dt> <dd>Learn about how to select hosts</dd> <dt><a class="reference external" href="https://github.com/ansible/ansible-examples" target="_blank">Github examples directory</a></dt> <dd>Complete end-to-end playbook examples</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-project" target="_blank">Mailing List</a></dt> <dd>Questions? Help? Ideas? Stop by the list on Google Groups</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_intro.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_intro.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

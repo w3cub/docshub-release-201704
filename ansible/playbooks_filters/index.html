@@ -1,0 +1,215 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Jinja2 Filters - Ansible - W3cubDocs</title>
+  
+  <meta name="description" content="Filters in Jinja2 are a way of transforming template expressions from one kind of data into another. Jinja2 ships with many of these. See builtin &hellip;">
+  <meta name="keywords" content="jinja, filters, -, ansible">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ansible/playbooks_filters/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ansible.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ansible/" class="_nav-link" title="" style="margin-left:0;">Ansible</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="jinja2-filters">Jinja2 filters</h1>   <ul> <li><a class="reference internal" href="#filters-for-formatting-data" id="id9">Filters For Formatting Data</a></li> <li><a class="reference internal" href="#forcing-variables-to-be-defined" id="id10">Forcing Variables To Be Defined</a></li> <li><a class="reference internal" href="#defaulting-undefined-variables" id="id11">Defaulting Undefined Variables</a></li> <li><a class="reference internal" href="#omitting-parameters" id="id12">Omitting Parameters</a></li> <li><a class="reference internal" href="#list-filters" id="id13">List Filters</a></li> <li><a class="reference internal" href="#set-theory-filters" id="id14">Set Theory Filters</a></li> <li><a class="reference internal" href="#random-number-filter" id="id15">Random Number Filter</a></li> <li><a class="reference internal" href="#shuffle-filter" id="id16">Shuffle Filter</a></li> <li><a class="reference internal" href="#math" id="id17">Math</a></li> <li><a class="reference internal" href="#ip-address-filter" id="id18">IP address filter</a></li> <li><a class="reference internal" href="#hashing-filters" id="id19">Hashing filters</a></li> <li><a class="reference internal" href="#combining-hashes-dictionaries" id="id20">Combining hashes/dictionaries</a></li> <li><a class="reference internal" href="#extracting-values-from-containers" id="id21">Extracting values from containers</a></li> <li><a class="reference internal" href="#comment-filter" id="id22">Comment Filter</a></li> <li><a class="reference internal" href="#other-useful-filters" id="id23">Other Useful Filters</a></li> <li><a class="reference internal" href="#debugging-filters" id="id24">Debugging Filters</a></li> </ul>
+  <p>Filters in Jinja2 are a way of transforming template expressions from one kind of data into another. Jinja2 ships with many of these. See <a class="reference external" href="http://jinja.pocoo.org/docs/templates/#builtin-filters" target="_blank">builtin filters</a> in the official Jinja2 template documentation.</p> <p>Take into account that filters always execute on the Ansible controller, <strong>not</strong> on the task target, as they manipulate local data.</p> <p>In addition to those, Ansible supplies many more.</p>  <h2 id="id1">Filters For Formatting Data</h2> <p id="filters-for-formatting-data">The following filters will take a data structure in a template and render it in a slightly different format. These are occasionally useful for debugging:</p> <pre data-language="yaml">{{ some_variable | to_json }}
+{{ some_variable | to_yaml }}
+</pre> <p>For human readable output, you can use:</p> <pre data-language="yaml">{{ some_variable | to_nice_json }}
+{{ some_variable | to_nice_yaml }}
+</pre> <p>It’s also possible to change the indentation of both (new in version 2.2):</p> <pre data-language="yaml">{{ some_variable | to_nice_json(indent=2) }}
+{{ some_variable | to_nice_yaml(indent=8) }}
+</pre> <p>Alternatively, you may be reading in some already formatted data:</p> <pre data-language="yaml">{{ some_variable | from_json }}
+{{ some_variable | from_yaml }}
+</pre> <p>for example:</p> <pre data-language="yaml">tasks:
+  - shell: cat /some/path/to/file.json
+    register: result
+
+  - set_fact: myvar="{{ result.stdout | from_json }}"
+</pre>   <h2 id="id2">Forcing Variables To Be Defined</h2> <p id="forcing-variables-to-be-defined">The default behavior from ansible and ansible.cfg is to fail if variables are undefined, but you can turn this off.</p> <p>This allows an explicit check with this feature off:</p> <pre data-language="yaml">{{ variable | mandatory }}
+</pre> <p>The variable value will be used as is, but the template evaluation will raise an error if it is undefined.</p>   <h2 id="id3">Defaulting Undefined Variables</h2> <p id="defaulting-undefined-variables">Jinja2 provides a useful ‘default’ filter, that is often a better approach to failing if a variable is not defined:</p> <pre data-language="yaml">{{ some_variable | default(5) }}
+</pre> <p>In the above example, if the variable ‘some_variable’ is not defined, the value used will be 5, rather than an error being raised.</p>   <h2 id="omitting-undefined-variables">Omitting Parameters</h2> <p id="omitting-parameters">As of Ansible 1.8, it is possible to use the default filter to omit module parameters using the special <code>omit</code> variable:</p> <pre data-language="yaml">- name: touch files with an optional mode
+  file: dest={{item.path}} state=touch mode={{item.mode|default(omit)}}
+  with_items:
+    - path: /tmp/foo
+    - path: /tmp/bar
+    - path: /tmp/baz
+      mode: "0444"
+</pre> <p>For the first two files in the list, the default mode will be determined by the umask of the system as the <code>mode=</code> parameter will not be sent to the file module while the final file will receive the <code>mode=0444</code> option.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you are “chaining” additional filters after the <code>default(omit)</code> filter, you should instead do something like this: <code>“{{ foo | default(None) | some_filter or omit }}”</code>. In this example, the default <code>None</code> (python null) value will cause the later filters to fail, which will trigger the <code>or omit</code> portion of the logic. Using omit in this manner is very specific to the later filters you’re chaining though, so be prepared for some trial and error if you do this.</p> </div>   <h2 id="id4">List Filters</h2> <p id="list-filters">These filters all operate on list variables.</p> <div class="versionadded"> <p><span class="versionmodified">New in version 1.8.</span></p> </div> <p>To get the minimum value from list of numbers:</p> <pre data-language="yaml">{{ list1 | min }}
+</pre> <p>To get the maximum value from a list of numbers:</p> <pre data-language="yaml">{{ [3, 4, 2] | max }}
+</pre>   <h2 id="id5">Set Theory Filters</h2> <p id="set-theory-filters">All these functions return a unique set from sets or lists.</p> <div class="versionadded"> <p><span class="versionmodified">New in version 1.4.</span></p> </div> <p>To get a unique set from a list:</p> <pre data-language="yaml">{{ list1 | unique }}
+</pre> <p>To get a union of two lists:</p> <pre data-language="yaml">{{ list1 | union(list2) }}
+</pre> <p>To get the intersection of 2 lists (unique list of all items in both):</p> <pre data-language="yaml">{{ list1 | intersect(list2) }}
+</pre> <p>To get the difference of 2 lists (items in 1 that don’t exist in 2):</p> <pre data-language="yaml">{{ list1 | difference(list2) }}
+</pre> <p>To get the symmetric difference of 2 lists (items exclusive to each list):</p> <pre data-language="yaml">{{ list1 | symmetric_difference(list2) }}
+</pre>   <h2 id="random-filter">Random Number Filter</h2> <div class="versionadded" id="random-number-filter"> <p><span class="versionmodified">New in version 1.6.</span></p> </div> <p>This filter can be used similar to the default jinja2 random filter (returning a random item from a sequence of items), but can also generate a random number based on a range.</p> <p>To get a random item from a list:</p> <pre data-language="yaml">{{ ['a','b','c']|random }} =&gt; 'c'
+</pre> <p>To get a random number from 0 to supplied end:</p> <pre data-language="yaml">{{ 59 |random}} * * * * root /script/from/cron
+</pre> <p>Get a random number from 0 to 100 but in steps of 10:</p> <pre data-language="yaml">{{ 100 |random(step=10) }}  =&gt; 70
+</pre> <p>Get a random number from 1 to 100 but in steps of 10:</p> <pre data-language="yaml">{{ 100 |random(1, 10) }}    =&gt; 31
+{{ 100 |random(start=1, step=10) }}    =&gt; 51
+</pre>   <h2 id="shuffle-filter">Shuffle Filter</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 1.8.</span></p> </div> <p>This filter will randomize an existing list, giving a different order every invocation.</p> <p>To get a random list from an existing list:</p> <pre data-language="yaml">{{ ['a','b','c']|shuffle }} =&gt; ['c','a','b']
+{{ ['a','b','c']|shuffle }} =&gt; ['b','c','a']
+</pre> <p>note that when used with a non ‘listable’ item it is a noop, otherwise it always returns a list</p>   <h2 id="math-stuff">Math</h2> <div class="versionadded" id="math"> <p><span class="versionmodified">New in version 1.9.</span></p> </div> <p>Get the logarithm (default is e):</p> <pre data-language="yaml">{{ myvar | log }}
+</pre> <p>Get the base 10 logarithm:</p> <pre data-language="yaml">{{ myvar | log(10) }}
+</pre> <p>Give me the power of 2! (or 5):</p> <pre data-language="yaml">{{ myvar | pow(2) }}
+{{ myvar | pow(5) }}
+</pre> <p>Square root, or the 5th:</p> <pre data-language="yaml">{{ myvar | root }}
+{{ myvar | root(5) }}
+</pre> <p>Note that jinja2 already provides some like abs() and round().</p>   <h2 id="ipaddr-filter">IP address filter</h2> <div class="versionadded" id="ip-address-filter"> <p><span class="versionmodified">New in version 1.9.</span></p> </div> <p>To test if a string is a valid IP address:</p> <pre data-language="yaml">{{ myvar | ipaddr }}
+</pre> <p>You can also require a specific IP protocol version:</p> <pre data-language="yaml">{{ myvar | ipv4 }}
+{{ myvar | ipv6 }}
+</pre> <p>IP address filter can also be used to extract specific information from an IP address. For example, to get the IP address itself from a CIDR, you can use:</p> <pre data-language="yaml">{{ '192.0.2.1/24' | ipaddr('address') }}
+</pre> <p>More information about <code>ipaddr</code> filter and complete usage guide can be found in <a class="reference internal" href="../playbooks_filters_ipaddr/"><span class="doc">Jinja2 ‘ipaddr()’ filter</span></a>.</p>   <h2 id="hash-filters">Hashing filters</h2> <div class="versionadded" id="hashing-filters"> <p><span class="versionmodified">New in version 1.9.</span></p> </div> <p>To get the sha1 hash of a string:</p> <pre data-language="yaml">{{ 'test1'|hash('sha1') }}
+</pre> <p>To get the md5 hash of a string:</p> <pre data-language="yaml">{{ 'test1'|hash('md5') }}
+</pre> <p>Get a string checksum:</p> <pre data-language="yaml">{{ 'test2'|checksum }}
+</pre> <p>Other hashes (platform dependent):</p> <pre data-language="yaml">{{ 'test2'|hash('blowfish') }}
+</pre> <p>To get a sha512 password hash (random salt):</p> <pre data-language="yaml">{{ 'passwordsaresecret'|password_hash('sha512') }}
+</pre> <p>To get a sha256 password hash with a specific salt:</p> <pre data-language="yaml">{{ 'secretpassword'|password_hash('sha256', 'mysecretsalt') }}
+</pre> <p>Hash types available depend on the master system running ansible, ‘hash’ depends on hashlib password_hash depends on crypt.</p>   <h2 id="combine-filter">Combining hashes/dictionaries</h2> <div class="versionadded" id="combining-hashes-dictionaries"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>The <code>combine</code> filter allows hashes to be merged. For example, the following would override keys in one hash:</p> <pre data-language="yaml">{{ {'a':1, 'b':2}|combine({'b':3}) }}
+</pre> <p>The resulting hash would be:</p> <pre data-language="yaml">{'a':1, 'b':3}
+</pre> <p>The filter also accepts an optional <code>recursive=True</code> parameter to not only override keys in the first hash, but also recurse into nested hashes and merge their keys too:</p> <pre data-language="yaml">{{ {'a':{'foo':1, 'bar':2}, 'b':2}|combine({'a':{'bar':3, 'baz':4}}, recursive=True) }}
+</pre> <p>This would result in:</p> <pre data-language="yaml">{'a':{'foo':1, 'bar':3, 'baz':4}, 'b':2}
+</pre> <p>The filter can also take multiple arguments to merge:</p> <pre data-language="yaml">{{ a|combine(b, c, d) }}
+</pre> <p>In this case, keys in <code>d</code> would override those in <code>c</code>, which would override those in <code>b</code>, and so on.</p> <p>This behaviour does not depend on the value of the <code>hash_behaviour</code> setting in <code>ansible.cfg</code>.</p>   <h2 id="extract-filter">Extracting values from containers</h2> <div class="versionadded" id="extracting-values-from-containers"> <p><span class="versionmodified">New in version 2.1.</span></p> </div> <p>The <code>extract</code> filter is used to map from a list of indices to a list of values from a container (hash or array):</p> <pre data-language="yaml">{{ [0,2]|map('extract', ['x','y','z'])|list }}
+{{ ['x','y']|map('extract', {'x': 42, 'y': 31})|list }}
+</pre> <p>The results of the above expressions would be:</p> <pre data-language="yaml">['x', 'z']
+[42, 31]
+</pre> <p>The filter can take another argument:</p> <pre data-language="yaml">{{ groups['x']|map('extract', hostvars, 'ec2_ip_address')|list }}
+</pre> <p>This takes the list of hosts in group ‘x’, looks them up in <code>hostvars</code>, and then looks up the <code>ec2_ip_address</code> of the result. The final result is a list of IP addresses for the hosts in group ‘x’.</p> <p>The third argument to the filter can also be a list, for a recursive lookup inside the container:</p> <pre data-language="yaml">{{ ['a']|map('extract', b, ['x','y'])|list }}
+</pre> <p>This would return a list containing the value of <code>b[‘a’][‘x’][‘y’]</code>.</p>   <h2 id="id6">Comment Filter</h2> <div class="versionadded" id="comment-filter"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>The <code>comment</code> filter allows to decorate the text with a chosen comment style. For example the following:</p> <pre data-language="yaml">{{ "Plain style (default)" | comment }}
+</pre> <p>will produce this output:</p> <pre data-language="yaml">#
+# Plain style (default)
+#
+</pre> <p>Similar way can be applied style for C (<code>//...</code>), C block (<code>/*...*/</code>), Erlang (<code>%...</code>) and XML (<code>&lt;!--...--&gt;</code>):</p> <pre data-language="yaml">{{ "C style" | comment('c') }}
+{{ "C block style" | comment('cblock') }}
+{{ "Erlang style" | comment('erlang') }}
+{{ "XML style" | comment('xml') }}
+</pre> <p>It is also possible to fully customize the comment style:</p> <pre data-language="yaml">{{ "Custom style" | comment('plain', prefix='#######\n#', postfix='#\n#######\n   ###\n    #') }}
+</pre> <p>That will create the following output:</p> <pre data-language="yaml">#######
+#
+# Custom style
+#
+#######
+   ###
+    #
+</pre> <p>The filter can also be applied to any Ansible variable. For example to make the output of the <code>ansible_managed</code> variable more readable, we can change the definition in the <code>ansible.cfg</code> file to this:</p> <pre data-language="yaml">[defaults]
+
+ansible_managed = This file is managed by Ansible.%n
+  template: {file}
+  date: %Y-%m-%d %H:%M:%S
+  user: {uid}
+  host: {host}
+</pre> <p>and then use the variable with the <code>comment</code> filter:</p> <pre data-language="yaml">{{ ansible_managed | comment }}
+</pre> <p>which will produce this output:</p> <pre data-language="yaml">#
+# This file is managed by Ansible.
+#
+# template: /home/ansible/env/dev/ansible_managed/roles/role1/templates/test.j2
+# date: 2015-09-10 11:02:58
+# user: ansible
+# host: myhost
+#
+</pre>   <h2 id="id7">Other Useful Filters</h2> <p id="other-useful-filters">To add quotes for shell usage:</p> <pre data-language="yaml">- shell: echo {{ string_value | quote }}
+</pre> <p>To use one value on true and another on false (new in version 1.9):</p> <pre data-language="yaml">{{ (name == "John") | ternary('Mr','Ms') }}
+</pre> <p>To concatenate a list into a string:</p> <pre data-language="yaml">{{ list | join(" ") }}
+</pre> <p>To get the last name of a file path, like ‘foo.txt’ out of ‘/etc/asdf/foo.txt’:</p> <pre data-language="yaml">{{ path | basename }}
+</pre> <p>To get the last name of a windows style file path (new in version 2.0):</p> <pre data-language="yaml">{{ path | win_basename }}
+</pre> <p>To separate the windows drive letter from the rest of a file path (new in version 2.0):</p> <pre data-language="yaml">{{ path | win_splitdrive }}
+</pre> <p>To get only the windows drive letter:</p> <pre data-language="yaml">{{ path | win_splitdrive | first }}
+</pre> <p>To get the rest of the path without the drive letter:</p> <pre data-language="yaml">{{ path | win_splitdrive | last }}
+</pre> <p>To get the directory from a path:</p> <pre data-language="yaml">{{ path | dirname }}
+</pre> <p>To get the directory from a windows path (new version 2.0):</p> <pre data-language="yaml">{{ path | win_dirname }}
+</pre> <p>To expand a path containing a tilde (<code>~</code>) character (new in version 1.5):</p> <pre data-language="yaml">{{ path | expanduser }}
+</pre> <p>To get the real path of a link (new in version 1.8):</p> <pre data-language="yaml">{{ path | realpath }}
+</pre> <p>To get the relative path of a link, from a start point (new in version 1.7):</p> <pre data-language="yaml">{{ path | relpath('/etc') }}
+</pre> <p>To get the root and extension of a path or filename (new in version 2.0):</p> <pre data-language="yaml"># with path == 'nginx.conf' the return would be ('nginx', '.conf')
+{{ path | splitext }}
+</pre> <p>To work with Base64 encoded strings:</p> <pre data-language="yaml">{{ encoded | b64decode }}
+{{ decoded | b64encode }}
+</pre> <p>To create a UUID from a string (new in version 1.9):</p> <pre data-language="yaml">{{ hostname | to_uuid }}
+</pre> <p>To cast values as certain types, such as when you input a string as “True” from a vars_prompt and the system doesn’t know it is a boolean value:</p> <pre data-language="yaml">- debug: msg=test
+  when: some_string_value | bool
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 1.6.</span></p> </div> <p>To replace text in a string with regex, use the “regex_replace” filter:</p> <pre data-language="yaml"># convert "ansible" to "able"
+{{ 'ansible' | regex_replace('^a.*i(.*)$', 'a\\1') }}
+
+# convert "foobar" to "bar"
+{{ 'foobar' | regex_replace('^f.*o(.*)$', '\\1') }}
+
+# convert "localhost:80" to "localhost, 80" using named groups
+{{ 'localhost:80' | regex_replace('^(?P&lt;host&gt;.+):(?P&lt;port&gt;\\d+)$', '\\g&lt;host&gt;, \\g&lt;port&gt;') }}
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Prior to ansible 2.0, if “regex_replace” filter was used with variables inside YAML arguments (as opposed to simpler ‘key=value’ arguments), then you needed to escape backreferences (e.g. <code>\\1</code>) with 4 backslashes (<code>\\\\</code>) instead of 2 (<code>\\</code>).</p> </div> <div class="versionadded"> <p><span class="versionmodified">New in version 2.0.</span></p> </div> <p>To escape special characters within a regex, use the “regex_escape” filter:</p> <pre data-language="yaml"># convert '^f.*o(.*)$' to '\^f\.\*o\(\.\*\)\$'
+{{ '^f.*o(.*)$' | regex_escape() }}
+</pre> <p>To make use of one attribute from each item in a list of complex variables, use the “map” filter (see the <a class="reference external" href="http://jinja.pocoo.org/docs/dev/templates/#map" target="_blank">Jinja2 map() docs</a> for more):</p> <pre data-language="yaml"># get a comma-separated list of the mount points (e.g. "/,/mnt/stuff") on a host
+{{ ansible_mounts|map(attribute='mount')|join(',') }}
+</pre> <p>To get date object from string use the <code>to_datetime</code> filter, (new in version in 2.2):</p> <pre data-language="yaml"># get amount of seconds between two dates, default date format is %Y-%d-%m %H:%M:%S but you can pass your own one
+{{ (("2016-08-04 20:00:12"|to_datetime) - ("2015-10-06"|to_datetime('%Y-%d-%m'))).seconds  }}
+</pre>   <h2 id="debugging-filters">Debugging Filters</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 2.3.</span></p> </div> <p>Use the <code>type</code> filter to display the underlying Python type of a variable. This can be useful in debugging in situations where you may need to know the exact type of a variable:</p> <pre data-language="yaml">{{ myvar | type }}
+</pre> <p>A few useful filters are typically added with each new Ansible release. The development documentation shows how to extend Ansible filters by writing your own as plugins, though in general, we encourage new ones to be added to core so everyone can make use of them.</p> <div class="admonition seealso"> <p class="first admonition-title">See also</p> <dl class="last docutils"> <dt><a class="reference internal" href="../playbooks/"><span class="doc">Playbooks</span></a></dt> <dd>An introduction to playbooks</dd> <dt><a class="reference internal" href="../playbooks_conditionals/"><span class="doc">Conditionals</span></a></dt> <dd>Conditional statements in playbooks</dd> <dt><a class="reference internal" href="../playbooks_variables/"><span class="doc">Variables</span></a></dt> <dd>All about variables</dd> <dt><a class="reference internal" href="../playbooks_loops/"><span class="doc">Loops</span></a></dt> <dd>Looping in playbooks</dd> <dt><a class="reference internal" href="../playbooks_roles/"><span class="doc">Playbook Roles and Include Statements</span></a></dt> <dd>Playbook organization by roles</dd> <dt><a class="reference internal" href="../playbooks_best_practices/"><span class="doc">Best Practices</span></a></dt> <dd>Best practices in playbooks</dd> <dt><a class="reference external" href="http://groups.google.com/group/ansible-devel" target="_blank">User Mailing List</a></dt> <dd>Have a question? Stop by the google group!</dd> <dt><a class="reference external" href="http://irc.freenode.net" target="_blank">irc.freenode.net</a></dt> <dd>#ansible IRC chat channel</dd> </dl> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Michael DeHaan<br>© 2016 Red Hat, Inc.<br>Licensed under the GNU General Public License version 3.<br>
+    <a href="https://docs.ansible.com/ansible/playbooks_filters.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/playbooks_filters.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
