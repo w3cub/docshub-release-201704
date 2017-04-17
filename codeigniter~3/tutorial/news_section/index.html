@@ -1,0 +1,173 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>News Section - CodeIgniter 3 - W3cubDocs</title>
+  
+  <meta name="description" content="In the last section, we went over some basic concepts of the framework by writing a class that includes static pages. We cleaned up the URI by &hellip;">
+  <meta name="keywords" content="news, section, -, codeigniter, codeigniter~3">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/codeigniter~3/tutorial/news_section/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/codeigniter~3.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/codeigniter~3/" class="_nav-link" title="" style="margin-left:0;">CodeIgniter 3</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="news-section">News section</h1> <p>In the last section, we went over some basic concepts of the framework by writing a class that includes static pages. We cleaned up the URI by adding custom routing rules. Now it’s time to introduce dynamic content and start using a database.</p>  <h2 id="setting-up-your-model">Setting up your model</h2> <p>Instead of writing database operations right in the controller, queries should be placed in a model, so they can easily be reused later. Models are the place where you retrieve, insert, and update information in your database or other data stores. They represent your data.</p> <p>Open up the <em>application/models/</em> directory and create a new file called <em>News_model.php</em> and add the following code. Make sure you’ve configured your database properly as described <a class="reference internal" href="../../database/configuration/">here</a>.</p> <pre data-language="php">&lt;?php
+class News_model extends CI_Model {
+
+        public function __construct()
+        {
+                $this-&gt;load-&gt;database();
+        }
+}
+</pre> <p>This code looks similar to the controller code that was used earlier. It creates a new model by extending <code>CI_Model</code> and loads the database library. This will make the database class available through the <code>$this-&gt;db</code> object.</p> <p>Before querying the database, a database schema has to be created. Connect to your database and run the SQL command below (MySQL). Also add some seed records.</p> <pre data-language="php">CREATE TABLE news (
+        id int(11) NOT NULL AUTO_INCREMENT,
+        title varchar(128) NOT NULL,
+        slug varchar(128) NOT NULL,
+        text text NOT NULL,
+        PRIMARY KEY (id),
+        KEY slug (slug)
+);
+</pre> <p>Now that the database and a model have been set up, you’ll need a method to get all of our posts from our database. To do this, the database abstraction layer that is included with CodeIgniter — <a class="reference internal" href="../../database/query_builder/">Query Builder</a> — is used. This makes it possible to write your ‘queries’ once and make them work on <a class="reference internal" href="https://www.codeigniter.com/user_guide/general/requirements.html" target="_blank">all supported database systems</a>. Add the following code to your model.</p> <pre data-language="php">public function get_news($slug = FALSE)
+{
+        if ($slug === FALSE)
+        {
+                $query = $this-&gt;db-&gt;get('news');
+                return $query-&gt;result_array();
+        }
+
+        $query = $this-&gt;db-&gt;get_where('news', array('slug' =&gt; $slug));
+        return $query-&gt;row_array();
+}
+</pre> <p>With this code you can perform two different queries. You can get all news records, or get a news item by its <a class="reference external" href="#">slug</a>. You might have noticed that the <code>$slug</code> variable wasn’t sanitized before running the query; <a class="reference internal" href="../../database/query_builder/">Query Builder</a> does this for you.</p>   <h2 id="display-the-news">Display the news</h2> <p>Now that the queries are written, the model should be tied to the views that are going to display the news items to the user. This could be done in our <code>Pages</code> controller created earlier, but for the sake of clarity, a new <code>News</code> controller is defined. Create the new controller at <em>application/controllers/News.php</em>.</p> <pre data-language="php">&lt;?php
+class News extends CI_Controller {
+
+        public function __construct()
+        {
+                parent::__construct();
+                $this-&gt;load-&gt;model('news_model');
+                $this-&gt;load-&gt;helper('url_helper');
+        }
+
+        public function index()
+        {
+                $data['news'] = $this-&gt;news_model-&gt;get_news();
+        }
+
+        public function view($slug = NULL)
+        {
+                $data['news_item'] = $this-&gt;news_model-&gt;get_news($slug);
+        }
+}
+</pre> <p>Looking at the code, you may see some similarity with the files we created earlier. First, the <code>__construct()</code> method: it calls the constructor of its parent class (<code>CI_Controller</code>) and loads the model, so it can be used in all other methods in this controller. It also loads a collection of <a class="reference internal" href="../../helpers/url_helper/">URL Helper</a> functions, because we’ll use one of them in a view later.</p> <p>Next, there are two methods to view all news items and one for a specific news item. You can see that the <code>$slug</code> variable is passed to the model’s method in the second method. The model is using this slug to identify the news item to be returned.</p> <p>Now the data is retrieved by the controller through our model, but nothing is displayed yet. The next thing to do is passing this data to the views.</p> <pre data-language="php">public function index()
+{
+        $data['news'] = $this-&gt;news_model-&gt;get_news();
+        $data['title'] = 'News archive';
+
+        $this-&gt;load-&gt;view('templates/header', $data);
+        $this-&gt;load-&gt;view('news/index', $data);
+        $this-&gt;load-&gt;view('templates/footer');
+}
+</pre> <p>The code above gets all news records from the model and assigns it to a variable. The value for the title is also assigned to the <code>$data['title']</code> element and all data is passed to the views. You now need to create a view to render the news items. Create <em>application/views/news/index.php</em> and add the next piece of code.</p> <pre data-language="php">&lt;h2&gt;&lt;?php echo $title; ?&gt;&lt;/h2&gt;
+
+&lt;?php foreach ($news as $news_item): ?&gt;
+
+        &lt;h3&gt;&lt;?php echo $news_item['title']; ?&gt;&lt;/h3&gt;
+        &lt;div class="main"&gt;
+                &lt;?php echo $news_item['text']; ?&gt;
+        &lt;/div&gt;
+        &lt;p&gt;&lt;a href="&lt;?php echo site_url('news/'.$news_item['slug']); ?&gt;"&gt;View article&lt;/a&gt;&lt;/p&gt;
+
+&lt;?php endforeach; ?&gt;
+</pre> <p>Here, each news item is looped and displayed to the user. You can see we wrote our template in PHP mixed with HTML. If you prefer to use a template language, you can use CodeIgniter’s <a class="reference internal" href="../../libraries/parser/">Template Parser</a> class or a third party parser.</p> <p>The news overview page is now done, but a page to display individual news items is still absent. The model created earlier is made in such way that it can easily be used for this functionality. You only need to add some code to the controller and create a new view. Go back to the <code>News</code> controller and update <code>view()</code> with the following:</p> <pre data-language="php">public function view($slug = NULL)
+{
+        $data['news_item'] = $this-&gt;news_model-&gt;get_news($slug);
+
+        if (empty($data['news_item']))
+        {
+                show_404();
+        }
+
+        $data['title'] = $data['news_item']['title'];
+
+        $this-&gt;load-&gt;view('templates/header', $data);
+        $this-&gt;load-&gt;view('news/view', $data);
+        $this-&gt;load-&gt;view('templates/footer');
+}
+</pre> <p>Instead of calling the <code>get_news()</code> method without a parameter, the <code>$slug</code> variable is passed, so it will return the specific news item. The only things left to do is create the corresponding view at <em>application/views/news/view.php</em>. Put the following code in this file.</p> <pre data-language="php">&lt;?php
+echo '&lt;h2&gt;'.$news_item['title'].'&lt;/h2&gt;';
+echo $news_item['text'];
+</pre>   <h2 id="routing">Routing</h2> <p>Because of the wildcard routing rule created earlier, you need an extra route to view the controller that you just made. Modify your routing file (<em>application/config/routes.php</em>) so it looks as follows. This makes sure the requests reaches the <code>News</code> controller instead of going directly to the <code>Pages</code> controller. The first line routes URI’s with a slug to the <code>view()</code> method in the <code>News</code> controller.</p> <pre data-language="php">$route['news/(:any)'] = 'news/view/$1';
+$route['news'] = 'news';
+$route['(:any)'] = 'pages/view/$1';
+$route['default_controller'] = 'pages/view';
+</pre> <p>Point your browser to your document root, followed by index.php/news and watch your news page.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2014–2016 British Columbia Institute of Technology<br>Licensed under the MIT License.<br>
+    <a href="https://www.codeigniter.com/user_guide/tutorial/news_section.html" class="_attribution-link" target="_blank">https://www.codeigniter.com/user_guide/tutorial/news_section.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

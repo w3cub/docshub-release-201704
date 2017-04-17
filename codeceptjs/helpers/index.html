@@ -1,0 +1,218 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Helpers - CodeceptJS - W3cubDocs</title>
+  
+  <meta name="description" content="Helpers is a core concept of CodeceptJS. Helper is a wrapper around various libraries providing unified interface around them. Methods of Helper &hellip;">
+  <meta name="keywords" content="helpers, -, codeceptjs">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/codeceptjs/helpers/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/codeceptjs.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/codeceptjs/" class="_nav-link" title="" style="margin-left:0;">CodeceptJS</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _codeceptjs">
+				
+<h1 id="helpers">Helpers</h1> <p>Helpers is a core concept of CodeceptJS. Helper is a wrapper around various libraries providing unified interface around them. Methods of Helper class will be available in tests in <code>I</code> object. This abstracts test scenarios from the implementation and allows easy switching between backends. Functionality of CodeceptJS should be extended by writing a custom helpers.</p> <p>You can either access core Helpers (and underlying libraries) or create a new from scratch.</p> <h2 id="development">Development</h2> <p>Helpers can be created by running a generator command:</p> <pre data-language="bash">codeceptjs gh
+</pre> <p><em>(or <code>generate helper</code>)</em></p> <p>This command generates a basic helper and appends it to <code>helpers</code> section of config file:</p> <pre data-language="json">"helpers": {
+  "WebDriverIO": {  },
+  "MyHelper": {
+    "require": "./path/to/module.js"
+  }
+}
+</pre> <p>Helpers are ES6 classes inherited from <a href="https://github.com/Codeception/CodeceptJS/blob/master/lib/helper.js" target="_blank">corresponding abstract class</a>. Generated Helper will be added to <code>codecept.json</code> config. It should look like this:</p> <pre data-language="js">'use strict';
+
+let Helper = codecept_helper;
+
+class MyHelper extends Helper {
+
+  // before/after hooks
+  _before() {
+    // remove if not used
+  }
+
+  _after() {
+    // remove if not used
+  }
+
+  // add custom methods here
+  // If you need to access other helpers
+  // use: this.helpers['helperName']
+
+}
+
+module.exports = MyHelper;
+</pre> <p>All methods except those starting from <code>_</code> will be added to <code>I</code> object and treated as test actions. Every method should return a value in order to be appended into promise chain.</p> <p>After writing your own custom helpers here you can always update CodeceptJS TypeScript Type Definitions running:</p> <pre>codeceptjs def .
+</pre> <p>This way, if your tests are written with TypeScript, your IDE will be able to leverage features like autocomplete and so on.</p> <h2 id="webdriverio-example">WebDriverIO Example</h2> <p>Next example demonstrates how to use WebDriverIO library to create your own test action. Method <code>seeAuthentication</code> will use <code>client</code> instance of WebDriverIO to get access to cookies. Standard NodeJS assertion library will be used (you can use any).</p> <pre data-language="js">'use strict';
+let Helper = codecept_helper;
+
+// use any assertion library you like
+let assert = require('assert');
+
+class MyHelper extends Helper {
+  /**
+   * checks that authentication cookie is set
+   */
+  seeAuthentication() {
+    // access current client of WebDriverIO helper
+    let client = this.helpers['WebDriverIO'].browser;
+
+    // get all cookies according to http://webdriver.io/api/protocol/cookie.html
+    // any helper method should return a value in order to be added to promise chain
+    return client.cookie(function(err, res) {
+      // get values
+      let cookies = res.value;
+      for (let k in cookies) {
+        // check for a cookie
+        if (cookies[k].name != 'logged_in') continue;
+        assert.equal(cookies[k].value, 'yes');
+        return;
+      }
+      assert.fail(cookies, 'logged_in', "Auth cookie not set");
+    });
+  }
+}
+
+module.exports = MyHelper;
+</pre> <h2 id="protractor-example">Protractor Example</h2> <p>Protractor example demonstrates usage of global <code>element</code> and <code>by</code> objects. However <code>browser</code> should be accessed from a helper instance via <code>this.helpers['Protractor']</code>; We also use <code>chai-as-promised</code> library to have nice assertions with promises.</p> <pre data-language="js">'use strict';
+let Helper = codecept_helper;
+
+// use any assertion library you like
+var chai = require('chai');
+var chaiAsPromised = require('chai-as-promised');
+chai.use(chaiAsPromised);
+var expect = chai.expect;
+
+class MyHelper extends Helper {
+  /**
+   * checks that authentication cookie is set
+   */
+  seeInHistory(historyPosition, value) {
+    // access browser instance from Protractor helper
+    this.helpers['Protractor'].browser.refresh();
+
+    // you can use `element` as well as in protractor
+    var history = element.all(by.repeater('result in memory'));
+
+    // use chai as promised for better assertions
+    // end your method with `return` to handle promises
+    return expect(history.get(historyPosition).getText()).to.eventually.equal(value);
+  }
+}
+
+module.exports = MyHelper;
+</pre> <h2 id="configuration">Configuration</h2> <p>Helpers should be enabled inside <code>codecept.json</code> or <code>codecept.conf.js</code> files. Command <code>generate helper</code> does that for you, however you can enable them manually by placing helper to <code>helpers</code> section inside config file. You can also pass additional config options to your helper from a config:</p> <pre data-language="js">"helpers": {
+  // here goes standard helpers:
+  // WebDriverIO, Protractor, Nightmare, etc...
+  // and their configuration
+  "MyHelper": {
+    "require": "./my_helper.js", // path to module
+    "defaultHost": "http://mysite.com" // custom config param
+  }
+
+}
+</pre> <p><em>(please note, this example contains comments, while JSON format doesn't support them)</em></p> <p>Config values will be stored inside helper in <code>this.config</code>. To get <code>defaultHost</code> value you can use</p> <pre data-language="js">this.config.defaultHost
+</pre> <p>in any place of your helper. You can also redefine config options inside a constructor:</p> <pre data-language="js">constructor(config) {
+  config.defaultHost += '/api';
+  console.log(config.defaultHost); // http://mysite.com/api
+  super(config);
+}
+</pre> <h2 id="hooks">Hooks</h2> <p>Helpers may contain several hooks you can use to handle events of a test. Implement corresponding methods to them.</p> <ul> <li>
+<code>_init</code> - before all tests</li> <li>
+<code>_before</code> - before a test</li> <li>
+<code>_beforeStep</code> - before each step</li> <li>
+<code>_afterStep</code> - after each step</li> <li>
+<code>_beforeSuite</code> - before each suite</li> <li>
+<code>_afterSuite</code> - after each suite</li> </ul> <p>Each implemented method should return a value as they will be added to global promise chain as well.</p> <h3 id="hook-usage-examples">Hook Usage Examples</h3> <p>1) Failing if JS error occur in WebDriverIO:</p> <pre data-language="js">class JSFailure extends codecept_helper {
+
+  _before() {
+    this.err = null;
+    this.helpers['WebDriverIO'].browser.on('error', (e) =&gt; this.err = e);
+  }
+
+  _afterStep() {
+    if (this.err) throw new Error('Browser JS error '+this.err);
+  }
+}
+
+module.exports = JSFailure;
+</pre> <p>2) Wait for Ajax requests to complete after <code>click</code>:</p> <pre data-language="js">class JSWait extends codecept_helper {
+
+  _afterStep(step) {
+    if (step.name == 'click') {
+      var jqueryActive = () =&gt; jQuery.active == 0;
+      return this.helpers['WebDriverIO'].waitUntil(jqueryActive);
+    }
+  }
+}
+
+module.exports = JSWait;
+</pre> <h3 id="done">done()</h3>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015 DavertMik &lt;davert@codegyre.com&gt; (http://codegyre.com)<br>Licensed under the MIT License.<br>
+    <a href="http://codecept.io/helpers/" class="_attribution-link" target="_blank">http://codecept.io/helpers/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
