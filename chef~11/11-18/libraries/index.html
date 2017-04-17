@@ -1,0 +1,176 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Libraries - Chef 11 - W3cubDocs</title>
+  
+  <meta name="description" content="A library allows arbitrary Ruby code to be included in a cookbook, either as a way of extending the classes that are built-in to the chef-client— &hellip;">
+  <meta name="keywords" content="about, libraries, -, chef, chef~11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/chef~11/11-18/libraries/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/chef~11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/chef~11/" class="_nav-link" title="" style="margin-left:0;">Chef 11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="about-libraries">About Libraries</h1> <p>A library allows arbitrary Ruby code to be included in a cookbook, either as a way of extending the classes that are built-in to the chef-client—<code class="docutils literal">Chef::Recipe</code>, for example—or for implementing entirely new functionality, similar to a mixin in Ruby. A library file is a Ruby file that is located within a cookbook’s <code class="docutils literal">/libraries</code> directory. Because a library is built using Ruby, anything that can be done with Ruby can be done in a library file.</p> <p>Use a library to:</p> <ul class="simple"> <li>Define a custom resource</li> <li>Create a custom class or module; for example, create a subclass of <code class="docutils literal">Chef::Recipe</code>
+</li> <li>Access attributes that are stored in files</li> <li>Connect to a database</li> <li>Talk to an LDAP provider</li> <li>Do anything that can be done with Ruby</li> </ul>  <h2 id="syntax">Syntax</h2> <p>The syntax for a library varies because library files are created using Ruby and are designed to handle custom situations. See the Examples section below for some ideas. Also, the <a class="reference external" href="https://github.com/chef-cookbooks/database" target="_blank">https://github.com/chef-cookbooks/database</a> and <a class="reference external" href="https://github.com/chef-cookbooks/chef-splunk" target="_blank">https://github.com/chef-cookbooks/chef-splunk</a> cookbooks contain more detailed and complex examples.</p>   <h2 id="examples">Examples</h2> <p>The following examples show how to use cookbook libraries.</p>  <h3 id="create-a-namespace">Create a Namespace</h3> <p>A database can contain a list of virtual hosts that are used by customers. A custom namespace could be created that looks something like:</p> <pre class="highlight-ruby" data-language="ruby"># Sample provided by "Arjuna (fujin)". Thank you!
+
+require 'sequel'
+
+class Chef::Recipe::ISP
+  # We can call this with ISP.vhosts
+  def self.vhosts
+    v = []
+    @db = Sequel.mysql(
+      'web',
+      :user =&gt; 'example',
+      :password =&gt; 'example_pw',
+      :host =&gt; 'dbserver.example.com'
+    )
+    @db[
+      "SELECT virtualhost.domainname,
+           usertable.userid,
+           usertable.uid,
+           usertable.gid,
+           usertable.homedir
+       FROM usertable, virtualhost
+       WHERE usertable.userid = virtualhost.user_name"
+      ].all do |query|
+      vhost_data = {
+        :servername   =&gt; query[:domainname],
+        :documentroot =&gt; query[:homedir],
+        :uid          =&gt; query[:uid],
+        :gid          =&gt; query[:gid],
+      }
+      v.push(vhost_data)
+    end
+    Chef::Log.debug('About to provision #{v.length} vhosts')
+    v
+  end
+end</pre> <p>After the custom namespace is created, it could then be used in a recipe, like this:</p> <pre class="highlight-ruby" data-language="ruby">ISP.vhosts.each do |vhost|
+  directory vhost[:documentroot] do
+    owner 'vhost[:uid]'
+    group 'vhost[:gid]'
+    mode '0755'
+    action :create
+  end
+
+  directory '#{vhost[:documentroot]}/#{vhost[:domainname]}' do
+    owner 'vhost[:uid]'
+    group 'vhost[:gid]'
+    mode '0755'
+    action :create
+  end
+end</pre>   <h3 id="extend-a-recipe">Extend a Recipe</h3> <p>A customer record is stored in an attribute file that looks like this:</p> <pre class="highlight-ruby" data-language="ruby">mycompany_customers({
+  :bob =&gt; {
+    :homedir =&gt; '/home/bob',
+    :webdir =&gt; '/home/bob/web'
+  }
+}
+)</pre> <p>A simple recipe may contain something like this:</p> <pre class="highlight-ruby" data-language="ruby">directory node[:mycompany_customers][:bob][:webdir] do
+  owner 'bob'
+  group 'bob'
+  action :create
+end</pre> <p>Or a less verbose version of the same simple recipe:</p> <pre class="highlight-ruby" data-language="ruby">directory customer(:bob)[:webdir] do
+  owner 'bob'
+  group 'bob'
+  action :create
+end</pre> <p>A simple library could be created that extends <code class="docutils literal">Chef::Recipe::</code>, like this:</p> <pre class="highlight-ruby" data-language="ruby">class Chef
+  class Recipe
+    # A shortcut to a customer
+    def customer(name)
+      node[:mycompany_customers][name]
+    end
+  end
+end</pre>   <h3 id="loop-over-a-record">Loop Over a Record</h3> <p>A customer record is stored in an attribute file that looks like this:</p> <pre class="highlight-ruby" data-language="ruby">mycompany_customers({
+  :bob =&gt; {
+    :homedir =&gt; '/home/bob',
+    :webdir =&gt; '/home/bob/web'
+  }
+}
+)</pre> <p>If there are many customer records in an environment, a simple recipe can be used to loop over every customer, like this:</p> <pre class="highlight-ruby" data-language="ruby">all_customers do |name, info|
+  directory info[:webdir] do
+    owner 'name'
+    group 'name'
+    action :create
+  end
+end</pre> <p>A simple library could be created that extends <code class="docutils literal">Chef::Recipe::</code>, like this:</p> <pre class="highlight-ruby" data-language="ruby">class Chef
+  class Recipe
+    def all_customers(&amp;block)
+      node[:mycompany_customers].each do |name, info|
+        block.call(name, info)
+      end
+    end
+  end
+end</pre>   <h3 id="template-helper-modules">Template Helper Modules</h3> <p>A template helper module can be defined in a library. This is useful when extensions need to be reused across recipes or to make it easier to manage code that would otherwise be defined inline on a per-recipe basis.</p> <pre class="highlight-ruby" data-language="ruby">template '/path/to/template.erb' do
+  helpers(MyHelperModule)
+end</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Chef Software, Inc.<br>Licensed under the Creative Commons Attribution 3.0 Unported License.<br>The Chef™ Mark and Chef Logo are either registered trademarks/service marks or trademarks/servicemarks of Chef, in the United States and other countries and are used with Chef Inc's permission.<br>We are not affiliated with, endorsed or sponsored by Chef Inc.<br>
+    <a href="https://docs.chef.io/release/11-18/libraries.html" class="_attribution-link" target="_blank">https://docs.chef.io/release/11-18/libraries.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

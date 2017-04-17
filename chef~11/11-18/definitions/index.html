@@ -1,0 +1,225 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Definitions - Chef 11 - W3cubDocs</title>
+  
+  <meta name="description" content="A definition is code that is reused across recipes, similar to a compile-time macro. A definition is created using arbitrary code wrapped around &hellip;">
+  <meta name="keywords" content="about, definitions, -, chef, chef~11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/chef~11/11-18/definitions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/chef~11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/chef~11/" class="_nav-link" title="" style="margin-left:0;">Chef 11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="about-definitions">About Definitions</h1> <p>A definition is code that is reused across recipes, similar to a compile-time macro. A definition is created using arbitrary code wrapped around built-in chef-client resources—<strong>file</strong>, <strong>execute</strong>, <strong>template</strong>, and so on—by declaring those resources into the definition as if they were declared in a recipe. A definition is then used in one (or more) recipes as if it were a resource.</p> <p>Though a definition behaves like a resource, some key differences exist. A definition:</p> <ul class="simple"> <li>Is not a resource or a custom resource</li> <li>Is defined from within the <code class="docutils literal">/definitions</code> directory of a cookbook</li> <li>Is loaded before resources during the chef-client run; this ensures the definition is available to all of the resources that may need it</li> <li>May not notify resources in the resource collection because a definition is loaded <strong>before</strong> the resource collection itself is created; however, a resource in a definition <strong>may</strong> notify a resource that exists within the same definition</li> <li>Automatically supports why-run mode, unlike custom resources</li> </ul> <p>Use a defintion when repeating patterns exist across resources and/or when a simple, direct approach is desired. There is no limit to the number of resources that may be included in a definition: use as many built-in chef-client resources as necessary.</p>  <h2 id="syntax">Syntax</h2> <p>A definition has four components:</p> <ul class="simple"> <li>A resource name</li> <li>Zero or more arguments that define parameters their default values; if a default value is not specified, it is assumed to be <code class="docutils literal">nil</code>
+</li> <li>A hash that can be used within a definition’s body to provide access to parameters and their values</li> <li>The body of the definition</li> </ul> <p>The basic syntax of a definition is:</p> <pre class="highlight-ruby" data-language="ruby">define :resource_name do
+  body
+end</pre> <p>More commonly, the usage incorporates arguments to the definition:</p> <pre class="highlight-ruby" data-language="ruby">define :resource_name, :parameter =&gt; :argument, :parameter =&gt; :argument do
+  body (likely referencing the params hash)
+end</pre> <p>The following simplistic example shows a definition with no arguments (a parameterless macro in the truest sense):</p> <pre class="highlight-ruby" data-language="ruby">define :prime_myfile do
+  file '/etc/myfile' do
+    content 'some content'
+  end
+end</pre> <p>An example showing the use of parameters, with a parameter named <code class="docutils literal">port</code> that defaults to <code class="docutils literal">4000</code> rendered into a <strong>template</strong> resource, would look like:</p> <blockquote> <div>
+<pre class="highlight-ruby" data-language="ruby">define :prime_myfile, port: 4000 do
+  template '/etc/myfile' do
+    source 'myfile.erb'
+    variables({
+      port: params[:port],
+    })
+  end
+end</pre> </div>
+</blockquote> <p>Or the following definition, which looks like a resource when used in a recipe, but also contains resources—<strong>directory</strong> and <strong>file</strong>—that are repeated, but with slightly different parameters:</p> <pre class="highlight-ruby" data-language="ruby">define :host_porter, :port =&gt; 4000, :hostname =&gt; nil do
+  params[:hostname] ||= params[:name]
+
+  directory '/etc/#{params[:hostname]}' do
+    recursive true
+  end
+
+  file '/etc/#{params[:hostname]}/#{params[:port]}' do
+    content 'some content'
+  end
+end</pre> <p>which is then used in a recipe like this:</p> <pre class="highlight-ruby" data-language="ruby">host_porter node['hostname'] do
+ port 4000
+end
+
+host_porter 'www1' do
+  port 4001
+end</pre>   <h2 id="examples">Examples</h2> <p>The following examples show how to use cookbook definitions.</p>  <h3 id="simplify-repeating-patterns">Simplify Repeating Patterns</h3> <p>A definition file is similar to a macro; use a definition to define reusable code. For example, the following definition defines a common installation scenario, in this case installing Splunk on multiple machines:</p> <pre class="highlight-ruby" data-language="ruby">define :splunk_installer, :url =&gt; nil do
+  cache_dir = Chef::Config[:file_cache_path]
+  package_file = splunk_file(params[:url])
+  cached_package = ::File.join(cache_dir, package_file)
+
+  remote_file cached_package do
+    source params[:url]
+    action :create_if_missing
+  end
+
+  if %w{omnios}.include?(node['platform'])
+    pkgopts = [
+      '-a #{cache_dir}/#{params[:name]}-nocheck',
+      '-r #{cache_dir}/splunk-response'
+    ]
+
+    execute 'uncompress #{cached_package}' do
+      not_if { File.exist?("#{cache_dir}/#{package_file.gsub(/\.Z/, '')}") }
+    end
+
+    cookbook_file '#{cache_dir}/#{params[:name]}-nocheck' do
+      source 'splunk-nocheck'
+    end
+
+    file '#{cache_dir}/splunk-response' do
+      content 'BASEDIR=/opt'
+    end
+  end
+
+  package params[:name] do
+    source cached_package.gsub(/\.Z/, '')
+    case node['platform_family']
+    when 'rhel'
+      provider Chef::Provider::Package::Rpm
+    when 'debian'
+      provider Chef::Provider::Package::Dpkg
+    when 'omnios'
+      provider Chef::Provider::Package::Solaris
+      options pkgopts.join(' ')
+    end
+  end
+end</pre> <p>Once created, this definition is used just like a resource:</p> <pre class="highlight-ruby" data-language="ruby">splunk_installer 'use #1' do
+  url node['splunk']['server']['url']
+end</pre> <p>and then another recipe:</p> <pre class="highlight-ruby" data-language="ruby">splunk_installer 'use #2' do
+  url node['splunk']['forwarder']['url']
+end</pre> <p>and so on.</p>   <h3 id="create-a-resource">Create a Resource</h3> <p>A definition file can be used to create an object that the chef-client can then use like a resource. For example:</p> <pre class="highlight-ruby" data-language="ruby">apache_site Definition
+define :apache_site, :enable =&gt; true do
+  include_recipe 'apache2'
+
+  if params[:enable]
+    execute 'a2ensite #{params[:name]}' do
+      command '/usr/sbin/a2ensite #{params[:name]}'
+      notifies :restart, resources(:service =&gt; 'apache2')
+      not_if do
+        ::File.symlink?('#{node[:apache][:dir]}/sites-enabled/#{params[:name]}') or
+        ::File.symlink?('#{node[:apache][:dir]}/sites-enabled/000-#{params[:name]}')
+      end
+      only_if do ::File.exists?('#{node[:apache][:dir]}/sites-available/#{params[:name]}') end
+    end
+  else
+    execute 'a2dissite #{params[:name]}' do
+      command '/usr/sbin/a2dissite #{params[:name]}'
+      notifies :restart, resources(:service =&gt; 'apache2')
+      only_if do ::File.symlink?('#{node[:apache][:dir]}/sites-enabled/#{params[:name]}') end
+    end
+  end
+end</pre> <p>Once created, the definition can be used by placing it in a recipe:</p> <pre class="highlight-ruby" data-language="ruby">apache_site resource
+# Enable my_site.conf
+apache_site 'my_site.conf' do
+  enable true
+end
+
+# Disable my_site.conf
+apache_site 'my_site.conf' do
+  enable false
+end</pre> <p>The attributes of the new <code class="docutils literal">apache_site</code> object are made accessible with the params hash. Within the context of a chef-client run, the definition will be replaced by all the resources that are specified within the definition. For example, in the <code class="docutils literal">enabled</code> case, the definition will be expanded to:</p> <pre class="highlight-ruby" data-language="ruby">execute 'a2ensite my_site.conf' do
+  command '/usr/sbin/a2ensite my_site.conf'
+  notifies :restart, resources(:service =&gt; 'apache2')
+  not_if do
+    ::File.symlink?('/etc/apache2/sites-enabled/my_site.conf') or
+      ::File.symlink?('/etc/apache2/sites-enabled/000-my_site.conf')
+  end
+end</pre>   <h3 id="many-recipes-one-definition">Many Recipes, One Definition</h3> <p>Data can be passed to a definition from more than one recipe. Use a definition to create a compile-time macro that can be referenced by resources during the converge phase. For example, when both <code class="docutils literal">/etc/aliases</code> and <code class="docutils literal">/etc/sudoers</code> require updates from multiple recipes during a single chef-client run.</p> <p>A definition that reopens resources would look something like:</p> <pre class="highlight-ruby" data-language="ruby">define :email_alias, :recipients =&gt; [] do
+  name       = params[:name]
+  recipients = params[:recipients]
+
+  find_resource(:execute, 'newaliases') do
+    action :nothing
+  end
+
+  t = find_resource(template: '/etc/aliases') do
+    source 'aliases.erb'
+    cookbook 'aliases'
+    variables({:aliases =&gt; {} })
+    notifies :run, 'execute[newaliases]'
+  end
+
+  aliases = t.variables[:aliases]
+
+  if !aliases.has_key?(name)
+    aliases[name] = []
+  end
+  aliases[name].concat(recipients)
+end</pre>   <h3 id="virtual-hosts">Virtual Hosts</h3> <p>Two applications need to be deployed and run on a single node under the same domain and sub-domain. A Ruby on Rails application will reside as the main application at <code class="docutils literal">example.com</code> and a WordPress application will reside at <code class="docutils literal">blog.example.com</code>. The domain is running Apache2 as the web server. The domain is expected to grow, but for now only two <code class="docutils literal">run_list</code> resources are created, with the appropriate roles added to them. At some point in the future, when a new sub-domain is required, a new <code class="docutils literal">run_list</code> resource would also be created.</p> <p>The virtual host on the Apache2 server is only one per node, which can create challenges when a node requires updates. Using a definition helps get around this issue. For example, the <code class="docutils literal">web_app</code> definition exists in the <code class="docutils literal">apache2</code> cookbook, and can be used like this:</p> <pre class="highlight-ruby" data-language="ruby">web_app 'blog_site' do
+  server_name 'blog'
+  server_aliases [ "blog.#{node['domain']}", node['fqdn'] ]
+  docroot '/srv/www/blog_site'
+end</pre> <p>When the chef-client processes a recipe that contains this definition, it will find the <code class="docutils literal">web_app</code> resource and will attempt to recognize it as a resource. Assuming that the <code class="docutils literal">apache2</code> cookbook is available, the resources contained within that cookbook will be found and loaded, replacing the definition.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Chef Software, Inc.<br>Licensed under the Creative Commons Attribution 3.0 Unported License.<br>The Chef™ Mark and Chef Logo are either registered trademarks/service marks or trademarks/servicemarks of Chef, in the United States and other countries and are used with Chef Inc's permission.<br>We are not affiliated with, endorsed or sponsored by Chef Inc.<br>
+    <a href="https://docs.chef.io/release/11-18/definitions.html" class="_attribution-link" target="_blank">https://docs.chef.io/release/11-18/definitions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
