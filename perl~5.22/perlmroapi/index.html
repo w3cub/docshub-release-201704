@@ -1,0 +1,112 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Perlmroapi - Perl 5.22 - W3cubDocs</title>
+  
+  <meta name="description" content=" perlmroapi - Perl method resolution plugin interface ">
+  <meta name="keywords" content="perlmroapi, -, perl, perl~5.22">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/perl~5.22/perlmroapi/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/perl~5.22.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/perl~5.22/" class="_nav-link" title="" style="margin-left:0;">Perl 5.22</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _perl">
+				
+<h1>perlmroapi</h1>  <ul>
+<li><a href="#NAME">NAME</a></li>
+<li><a href="#DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#Callbacks">Callbacks</a></li>
+<li><a href="#Caching">Caching</a></li>
+<li><a href="#Examples">Examples</a></li>
+<li><a href="#AUTHORS">AUTHORS</a></li>
+</ul>
+<h2 id="NAME">NAME</h2> <p>perlmroapi - Perl method resolution plugin interface</p> <h2 id="DESCRIPTION">DESCRIPTION</h2> <p>As of Perl 5.10.1 there is a new interface for plugging and using method resolution orders other than the default (linear depth first search). The C3 method resolution order added in 5.10.0 has been re-implemented as a plugin, without changing its Perl-space interface.</p> <p>Each plugin should register itself by providing the following structure</p> <pre class="verbatim" data-language="perl">struct mro_alg {
+    AV *(*resolve)(pTHX_ HV *stash, U32 level);
+    const char *name;
+    U16 length;
+    U16 kflags;
+    U32 hash;
+};
+</pre>
+<p>and calling <code class="inline"><span class="w">Perl_mro_register</span></code> :</p> <pre class="verbatim" data-language="perl">Perl_mro_register(aTHX_ &amp;my_mro_alg);
+</pre>
+<ul> <li id="resolve">
+<b>resolve</b> <p>Pointer to the linearisation function, described below.</p> </li> <li id="name">
+<b>name</b> <p>Name of the MRO, either in ISO-8859-1 or UTF-8.</p> </li> <li id="length">
+<b>length</b> <p>Length of the name.</p> </li> <li id="kflags">
+<b>kflags</b> <p>If the name is given in UTF-8, set this to <code class="inline"><span class="w">HVhek_UTF8</span></code> . The value is passed direct as the parameter <i>kflags</i> to <code class="inline"><span class="i">hv_common</span><span class="s">(</span><span class="s">)</span></code> .</p> </li> <li id="hash">
+<b>hash</b> <p>A precomputed hash value for the MRO's name, or 0.</p> </li> </ul> <h2 id="Callbacks">Callbacks</h2> <p>The <code class="inline"><span class="w">resolve</span></code> function is called to generate a linearised ISA for the given stash, using this MRO. It is called with a pointer to the stash, and a <i>level</i> of 0. The core always sets <i>level</i> to 0 when it calls your function - the parameter is provided to allow your implementation to track depth if it needs to recurse.</p> <p>The function should return a reference to an array containing the parent classes in order. The names of the classes should be the result of calling <code class="inline"><span class="i">HvENAME</span><span class="s">(</span><span class="s">)</span></code> on the stash. In those cases where <code class="inline"><span class="i">HvENAME</span><span class="s">(</span><span class="s">)</span></code> returns null, <code class="inline"><span class="i">HvNAME</span><span class="s">(</span><span class="s">)</span></code> should be used instead.</p> <p>The caller is responsible for incrementing the reference count of the array returned if it wants to keep the structure. Hence, if you have created a temporary value that you keep no pointer to, <code class="inline"><span class="i">sv_2mortal</span><span class="s">(</span><span class="s">)</span></code> to ensure that it is disposed of correctly. If you have cached your return value, then return a pointer to it without changing the reference count.</p> <h2 id="Caching">Caching</h2> <p>Computing MROs can be expensive. The implementation provides a cache, in which you can store a single <code class="inline"><span class="w">SV</span> *</code> , or anything that can be cast to <code class="inline"><span class="w">SV</span> *</code> , such as <code class="inline"><span class="w">AV</span> *</code> . To read your private value, use the macro <code class="inline"><span class="i">MRO_GET_PRIVATE_DATA</span><span class="s">(</span><span class="s">)</span></code> , passing it the <code class="inline"><span class="w">mro_meta</span></code> structure from the stash, and a pointer to your <code class="inline"><span class="w">mro_alg</span></code> structure:</p> <pre class="verbatim" data-language="perl">meta = HvMROMETA(stash);
+private_sv = MRO_GET_PRIVATE_DATA(meta, &amp;my_mro_alg);
+</pre>
+<p>To set your private value, call <code class="inline"><span class="i">Perl_mro_set_private_data</span><span class="s">(</span><span class="s">)</span></code> :</p> <pre class="verbatim" data-language="perl">Perl_mro_set_private_data(aTHX_ meta, &amp;c3_alg, private_sv);
+</pre>
+<p>The private data cache will take ownership of a reference to private_sv, much the same way that <code class="inline"><span class="i">hv_store</span><span class="s">(</span><span class="s">)</span></code> takes ownership of a reference to the value that you pass it.</p> <h2 id="Examples">Examples</h2> <p>For examples of MRO implementations, see <code class="inline"><span class="i">S_mro_get_linear_isa_c3</span><span class="s">(</span><span class="s">)</span></code> and the <code class="inline"><span class="j">BOOT:</span></code> section of <i>mro/mro.xs</i>, and <code class="inline"><span class="i">S_mro_get_linear_isa_dfs</span><span class="s">(</span><span class="s">)</span></code> in <i>mro.c</i></p> <h2 id="AUTHORS">AUTHORS</h2> <p>The implementation of the C3 MRO and switchable MROs within the perl core was written by Brandon L Black. Nicholas Clark created the pluggable interface, refactored Brandon's implementation to work with it, and wrote this document.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1993–2016 Larry Wall and others<br>Licensed under the GNU General Public License version 1 or later, or the Artistic License.<br>The Perl logo is a trademark of the Perl Foundation.<br>
+    <a href="http://perldoc.perl.org/5.22.0/perlmroapi.html" class="_attribution-link" target="_blank">http://perldoc.perl.org/5.22.0/perlmroapi.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
