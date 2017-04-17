@@ -1,0 +1,106 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Troubleshooting - InfluxData - W3cubDocs</title>
+  
+  <meta name="description" content="This guide will show you how to capture Telegraf’s output, submit sample metrics, and see how Telegraf formats and emits points to its output &hellip;">
+  <meta name="keywords" content="troubleshooting, -, influxdata">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/influxdata/telegraf/v1.2/administration/troubleshooting/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/influxdata.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/influxdata/" class="_nav-link" title="" style="margin-left:0;">InfluxData</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _influxdata">
+				
+<h1>Troubleshooting</h1>     <p>This guide will show you how to capture Telegraf’s output, submit sample metrics, and see how Telegraf formats and emits points to its output plugins.</p> <h2 id="capture-output">Capture output</h2> <p>A quick way to view Telegraf’s output is by enabling a new UDP output plugin to run in parallel with the existing output plugins. Since each output plugin creates its own stream, the already existing outputs will not be affected. Traffic will be replicated to all active outputs.</p> <blockquote> <p><strong>NOTE:</strong> This approach requires Telegraf to be restarted, which will cause a brief interruption to your metrics collection.</p> </blockquote> <p>The minimal Telegraf configuration required to enable a UDP output is:</p> <pre>[[outputs.influxdb]]
+  urls = ["udp://localhost:8089"]
+</pre> <p>This setup utilizes the UDP format of the <a href="https://github.com/influxdata/telegraf/tree/master/plugins/outputs/influxdb" target="_blank">InfluxDB output plugin</a> and emits points formatted in InfluxDB’s <a href="../../../../influxdb/v1.2/concepts/glossary/#line-protocol">line protocol</a>. You will need to append this section to Telegraf’s configuration file and restart Telegraf for the change to take effect.</p> <p>Now you are ready to start listening on the destination port (<code>8089</code> in this example) using a simple tool like <code>netcat</code>:</p> <pre>nc -lu 8089
+</pre> <p><code>nc</code> will print the exact Telegraf output on stdout. You can also direct the output to a file for further inspection:</p> <pre>nc -lu 8089 &gt; telegraf_dump.txt
+</pre> <h2 id="submit-test-inputs">Submit test inputs</h2> <p>Once you have Telegraf’s output arriving to your <code>nc</code> socket, you can enable the <a href="https://github.com/influxdata/telegraf/tree/master/plugins/inputs/tcp_listener" target="_blank">inputs.tcp_listener</a> or the <a href="https://github.com/influxdata/telegraf/tree/master/plugins/inputs/udp_listener" target="_blank">inputs.udp_listener</a> plugins to submit some sample metrics.</p> <p>Append the TCP or UDP input section to Telegraf’s config file and restart Telegraf for the change to take effect.</p> <h3 id="tcp-listener-configuration">TCP listener configuration:</h3> <pre> [[inputs.tcp_listener]]
+   service_address = ":8094"
+   allowed_pending_messages = 10000
+   max_tcp_connections = 250
+   data_format = "influx"
+</pre> <h3 id="udp-listener-configuration">UDP listener configuration:</h3> <pre> [[inputs.udp_listener]]
+   service_address = ":8092"
+   allowed_pending_messages = 10000
+   data_format = "influx"
+</pre> <ul> <li>Submitting sample data to Telegraf’s TCP listener:</li> </ul> <pre>echo "mymeasurement,my_tag_key=mytagvalue my_field=\"my field value\"" | nc localhost 8094
+</pre> <ul> <li>Submitting sample data to Telegraf’s UDP listener:</li> </ul> <pre>echo "mymeasurement,my_tag_key=mytagvalue my_field=\"my field value\"" | nc -u localhost 8092
+</pre> <p>In both cases the output from your <code>netcat</code> listener will look like the following:</p> <pre>mymeasurement,host=kubuntu,my_tag_key=mytagvalue my_field="my field value" 1478106104713745634
+</pre> <h2 id="testing-other-plugins">Testing other plugins</h2> <p>The same approach can be used to test other plugins, like the <a href="https://github.com/influxdata/telegraf/tree/master/plugins/inputs/statsd" target="_blank">inputs.statsd</a> plugin.</p> <p>Here is a basic configuration example of how to set up Telegraf’s statsd input plugin:</p> <pre> [[inputs.statsd]]
+   service_address = ":8125"
+   metric_separator = "_"
+   allowed_pending_messages = 10000
+</pre> <p>Sending a sample metric to Telegraf’s statsd port:</p> <pre>echo "a.b.c:1|g" | nc -u localhost 8125
+</pre> <p>The output from <code>nc</code> will look like the following:</p> <pre>a_b_c,host=myserver,metric_type=gauge value=1 1478106500000000000
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015 InfluxData, Inc.<br>Licensed under the MIT license.<br>
+    <a href="https://docs.influxdata.com/telegraf/v1.2/administration/troubleshooting/" class="_attribution-link" target="_blank">https://docs.influxdata.com/telegraf/v1.2/administration/troubleshooting/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
