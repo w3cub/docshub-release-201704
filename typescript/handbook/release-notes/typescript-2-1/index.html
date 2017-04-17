@@ -1,0 +1,308 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TypeScript 2.1 - TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content="In JavaScript it is fairly common to have APIs that expect property names as parameters, but so far it hasn’t been possible to express the type &hellip;">
+  <meta name="keywords" content="typescript, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/typescript/handbook/release-notes/typescript-2-1/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/typescript/" class="_nav-link" title="" style="margin-left:0;">TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _typescript">
+				
+<h1 class="post-title">TypeScript 2.1</h1>     <h2 id="keyof-and-lookup-types">
+<code>keyof</code> and Lookup Types</h2> <p>In JavaScript it is fairly common to have APIs that expect property names as parameters, but so far it hasn’t been possible to express the type relationships that occur in those APIs.</p> <p>Enter Index Type Query or <code>keyof</code>; An indexed type query <code>keyof T</code> yields the type of permitted property names for <code>T</code>. A <code>keyof T</code> type is considered a subtype of <code>string</code>.</p> <h5 id="example">Example</h5> <pre data-language="typescript">interface Person {
+  name: string;
+  age: number;
+  location: string;
+}
+
+type K1 = keyof Person; // "name" | "age" | "location"
+type K2 = keyof Person[];  // "length" | "push" | "pop" | "concat" | ...
+type K3 = keyof { [x: string]: Person };  // string
+</pre> <p>The dual of this is <em>indexed access types</em>, also called <em>lookup types</em>. Syntactically, they look exactly like an element access, but are written as types:</p> <h5 id="example-1">Example</h5> <pre data-language="typescript">type P1 = Person["name"];  // string
+type P2 = Person["name" | "age"];  // string | number
+type P3 = string["charAt"];  // (pos: number) =&gt; string
+type P4 = string[]["push"];  // (...items: string[]) =&gt; number
+type P5 = string[][0];  // string
+</pre> <p>You can use this pattern with other parts of the type system to get type-safe lookups.</p> <pre data-language="typescript">function getProperty&lt;T, K extends keyof T&gt;(obj: T, key: K) {
+  return obj[key];  // Inferred type is T[K]
+}
+
+function setProperty&lt;T, K extends keyof T&gt;(obj: T, key: K, value: T[K]) {
+  obj[key] = value;
+}
+
+let x = { foo: 10, bar: "hello!" };
+
+let foo = getProperty(x, "foo"); // number
+let bar = getProperty(x, "bar"); // string
+
+let oops = getProperty(x, "wargarbl"); // Error! "wargarbl" is not "foo" | "bar"
+
+setProperty(x, "foo", "string"); // Error!, string expected number
+</pre> <h2 id="mapped-types">Mapped Types</h2> <p>One common task is to take an existing type and make each of its properties entirely optional. Let’s say we have a `Person:</p> <pre data-language="typescript">interface Person {
+  name: string;
+  age: number;
+  location: string;
+}
+</pre> <p>A partial version of it would be:</p> <pre data-language="typescript">interface PartialPerson {
+  name?: string;
+  age?: number;
+  location?: string;
+}
+</pre> <p>with Mapped types, <code>PartialPerson</code> can be written as a generalized transformation on the type <code>Person</code> as:</p> <pre data-language="typescript">type Partial&lt;T&gt; = {
+  [P in keyof T]?: T[P];
+};
+
+type PartialPerson = Partial&lt;Person&gt;;
+</pre> <p>Mapped types are produced by taking a union of literal types, and computing a set of properties for a new object type. They’re like <a href="https://docs.python.org/2/tutorial/datastructures.html#nested-list-comprehensions" target="_blank">list comprehensions in Python</a>, but instead of producing new elements in a list, they produce new properties in a type.</p> <p>In addition to <code>Partial</code>, Mapped Types can express many useful transformations on types:</p> <pre data-language="typescript">// Keep types the same, but make each property to be read-only.
+type Readonly&lt;T&gt; = {
+  readonly [P in keyof T]: T[P];
+};
+
+// Same property names, but make the value a promise instead of a concrete one
+type Deferred&lt;T&gt; = {
+  [P in keyof T]: Promise&lt;T[P]&gt;;
+};
+
+// Wrap proxies around properties of T
+type Proxify&lt;T&gt; = {
+  [P in keyof T]: { get(): T[P]; set(v: T[P]): void }
+};
+</pre> <h2 id="partial-readonly-record-and-pick">
+<code>Partial</code>, <code>Readonly</code>, <code>Record</code>, and <code>Pick</code>
+</h2> <p><code>Partial</code> and <code>Readonly</code>, as described earlier, are very useful constructs. You can use them to describe some common JS routines like:</p> <pre data-language="typescript">function assign&lt;T&gt;(obj: T, props: Partial&lt;T&gt;): void;
+function freeze&lt;T&gt;(obj: T): Readonly&lt;T&gt;;
+</pre> <p>Because of that, they are now included by default in the standard library.</p> <p>We’re also including two other utility types as well: <code>Record</code> and <code>Pick</code>.</p> <pre data-language="typescript">// From T pick a set of properties K
+declare function pick&lt;T, K extends keyof T&gt;(obj: T, ...keys: K[]): Pick&lt;T, K&gt;;
+
+const nameAndAgeOnly = pick(person, "name", "age");  // { name: string, age: number }
+</pre> <pre data-language="typescript">// For every properties K of type T, transform it to U
+function mapObject&lt;K extends string | number, T, U&gt;(obj: Record&lt;K, T&gt;, f: (x: T) =&gt; U): Record&lt;K, U&gt;
+
+const names = { foo: "hello", bar: "world", baz: "bye" };
+const lengths = mapObject(names, s =&gt; s.length);  // { foo: number, bar: number, baz: number }
+</pre> <h2 id="object-spread-and-rest">Object Spread and Rest</h2> <p>TypeScript 2.1 brings support for <a href="https://github.com/sebmarkbage/ecmascript-rest-spread" target="_blank">ES2017 Spread and Rest</a>.</p> <p>Similar to array spread, spreading an object can be handy to get a shallow copy:</p> <pre data-language="typescript">let copy = { ...original };
+</pre> <p>Similarly, you can merge several different objects. In the following example, <code>merged</code> will have properties from <code>foo</code>, <code>bar</code>, and <code>baz</code>.</p> <pre data-language="typescript">let merged = { ...foo, ...bar, ...baz };
+</pre> <p>You can also override existing properties and add new ones:</p> <pre data-language="typescript">let obj = { x: 1, y: "string" };
+var newObj = {...obj, z: 3, y: 4}; // { x: number, y: number, z: number }
+</pre> <p>The order of specifying spread operations determines what properties end up in the resulting object; properties in later spreads “win out” over previously created properties.</p> <p>Object rests are the dual of object spreads, in that they can extract any extra properties that don’t get picked up when destructuring an element:</p> <pre data-language="typescript">let obj = { x: 1, y: 1, z: 1 };
+let { z, ...obj1 } = obj;
+obj1; // {x: number, y:number};
+</pre> <h2 id="downlevel-async-functions">Downlevel Async Functions</h2> <p>This feature was supported before TypeScript 2.1, but only when targeting ES6/ES2015. TypeScript 2.1 brings the capability to ES3 and ES5 run-times, meaning you’ll be free to take advantage of it no matter what environment you’re using.</p> <blockquote> <p>Note: first, we need to make sure our run-time has an ECMAScript-compliant <code>Promise</code> available globally. That might involve grabbing <a href="https://github.com/stefanpenner/es6-promise" target="_blank">a polyfill</a> for <code>Promise</code>, or relying on one that you might have in the run-time that you’re targeting. We also need to make sure that TypeScript knows <code>Promise</code> exists by setting your <code>lib</code> flag to something like <code>"dom", "es2015"</code> or <code>"dom", "es2015.promise", "es5"</code></p> </blockquote> <h5 id="example-2">Example</h5> <h5 id="tsconfigjson">tsconfig.json</h5> <pre data-language="javascripton">{
+  "compilerOptions": {
+    "lib": ["dom", "es2015.promise", "es5"]
+  }
+}
+</pre> <h5 id="dramaticwelcomets">dramaticWelcome.ts</h5> <pre data-language="typescript">function delay(milliseconds: number) {
+  return new Promise&lt;void&gt;(resolve =&gt; {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+async function dramaticWelcome() {
+  console.log("Hello");
+
+  for (let i = 0; i &lt; 3; i++) {
+    await delay(500);
+    console.log(".");
+  }
+
+  console.log("World!");
+}
+
+dramaticWelcome();
+</pre> <p>Compiling and running the output should result in the correct behavior on an ES3/ES5 engine.</p> <h2 id="support-for-external-helpers-library-tslib">Support for external helpers library (<code>tslib</code>)</h2> <p>TypeScript injects a handful of helper functions such as <code>__extends</code> for inheritance, <code>__assign</code> for spread operator in object literals and JSX elements, and <code>__awaiter</code> for async functions.</p> <p>Previously there were two options:</p> <ol> <li>inject helpers in <em>every</em> file that needs them, or</li> <li>no helpers at all with <code>--noEmitHelpers</code>.</li> </ol> <p>The two options left more to be desired; bundling the helpers in every file was a pain point for customers trying to keep their package size small. And not including helpers, meant customers had to maintain their own helpers library.</p> <p>TypeScript 2.1 allows for including these files in your project once in a separate module, and the compiler will emit imports to them as needed.</p> <p>First, install the <a href="https://github.com/Microsoft/tslib" target="_blank"><code>tslib</code></a> utility library:</p> <pre data-language="sh">npm install tslib
+</pre> <p>Second, compile your files using <code>--importHelpers</code>:</p> <pre data-language="sh">tsc --module commonjs --importHelpers a.ts
+</pre> <p>So given the following input, the resulting <code>.js</code> file will include an import to <code>tslib</code> and use the <code>__assign</code> helper from it instead of inlining it.</p> <pre data-language="typescript">export const o = { a: 1, name: "o" };
+export const copy = { ...o };
+</pre> <pre data-language="javascript">"use strict";
+var tslib_1 = require("tslib");
+exports.o = { a: 1, name: "o" };
+exports.copy = tslib_1.__assign({}, exports.o);
+</pre> <h2 id="untyped-imports">Untyped imports</h2> <p>TypeScript has traditionally been overly strict about how you can import modules. This was to avoid typos and prevent users from using modules incorrectly.</p> <p>However, a lot of the time, you might just want to import an existing module that may not have its own <code>.d.ts</code> file. Previously this was an error. Starting with TypeScript 2.1 this is now much easier.</p> <p>With TypeScript 2.1, you can import a JavaScript module without needing a type declaration. A type declaration (such as <code>declare module "foo" { ... }</code> or <code>node_modules/@types/foo</code>) still takes priority if it exists.</p> <p>An import to a module with no declaration file will still be flagged as an error under <code>--noImplicitAny</code>.</p> <h5 id="example-3">Example</h5> <pre data-language="typescript">// Succeeds if `node_modules/asdf/index.js` exists
+import { x } from "asdf";
+</pre> <h2 id="support-for---target-es2016---target-es2017-and---target-esnext">Support for <code>--target ES2016</code>, <code>--target ES2017</code> and <code>--target ESNext</code>
+</h2> <p>TypeScript 2.1 supports three new target values <code>--target ES2016</code>, <code>--target ES2017</code> and <code>--target ESNext</code>.</p> <p>Using target <code>--target ES2016</code> will instruct the compiler not to transform ES2016-specific features, e.g. <code>**</code> operator.</p> <p>Similarly, <code>--target ES2017</code> will instruct the compiler not to transform ES2017-specific features like <code>async</code>/<code>await</code>.</p> <p><code>--target ESNext</code> targets latest supported <a href="https://github.com/tc39/proposals" target="_blank">ES proposed features</a>.</p> <h2 id="improved-any-inference">Improved <code>any</code> Inference</h2> <p>Previously, if TypeScript couldn’t figure out the type of a variable, it would choose the <code>any</code> type.</p> <pre data-language="typescript">let x;    // implicitly 'any'
+let y = []; // implicitly 'any[]'
+
+let z: any; // explicitly 'any'.
+</pre> <p>With TypeScript 2.1, instead of just choosing <code>any</code>, TypeScript will infer types based on what you end up assigning later on.</p> <p>This is only enabled if <code>--noImplicitAny</code> is set.</p> <h5 id="example-4">Example</h5> <pre data-language="typescript">let x;
+
+// You can still assign anything you want to 'x'.
+x = () =&gt; 42;
+
+// After that last assignment, TypeScript 2.1 knows that 'x' has type '() =&gt; number'.
+let y = x();
+
+// Thanks to that, it will now tell you that you can't add a number to a function!
+console.log(x + y);
+//      ~~~~~
+// Error! Operator '+' cannot be applied to types '() =&gt; number' and 'number'.
+
+// TypeScript still allows you to assign anything you want to 'x'.
+x = "Hello world!";
+
+// But now it also knows that 'x' is a 'string'!
+x.toLowerCase();
+</pre> <p>The same sort of tracking is now also done for empty arrays.</p> <p>A variable declared with no type annotation and an initial value of <code>[]</code> is considered an implicit <code>any[]</code> variable. However, each subsequent <code>x.push(value)</code>, <code>x.unshift(value)</code> or <code>x[n] = value</code> operation <em>evolves</em> the type of the variable in accordance with what elements are added to it.</p> <pre data-language="typescript">function f1() {
+  let x = [];
+  x.push(5);
+  x[1] = "hello";
+  x.unshift(true);
+  return x;  // (string | number | boolean)[]
+}
+
+function f2() {
+  let x = null;
+  if (cond()) {
+    x = [];
+    while (cond()) {
+      x.push("hello");
+    }
+  }
+  return x;  // string[] | null
+}
+</pre> <h2 id="implicit-any-errors">Implicit any errors</h2> <p>One great benefit of this is that you’ll see <em>way fewer</em> implicit <code>any</code> errors when running with <code>--noImplicitAny</code>. Implicit <code>any</code> errors are only reported when the compiler is unable to know the type of a variable without a type annotation.</p> <h5 id="example-5">Example</h5> <pre data-language="typescript">function f3() {
+  let x = [];  // Error: Variable 'x' implicitly has type 'any[]' in some locations where its type cannot be determined.
+  x.push(5);
+  function g() {
+    x;  // Error: Variable 'x' implicitly has an 'any[]' type.
+  }
+}
+</pre> <h2 id="better-inference-for-literal-types">Better inference for literal types</h2> <p>String, numeric and boolean literal types (e.g. <code>"abc"</code>, <code>1</code>, and <code>true</code>) were previously inferred only in the presence of an explicit type annotation. Starting with TypeScript 2.1, literal types are <em>always</em> inferred for <code>const</code> variables and <code>readonly</code> properties.</p> <p>The type inferred for a <code>const</code> variable or <code>readonly</code> property without a type annotation is the type of the literal initializer. The type inferred for a <code>let</code> variable, <code>var</code> variable, parameter, or non-<code>readonly</code> property with an initializer and no type annotation is the widened literal type of the initializer. Where the widened type for a string literal type is <code>string</code>, <code>number</code> for numeric literal types, <code>boolean</code> for <code>true</code> or <code>false</code> and the containing enum for enum literal types.</p> <h5 id="example-6">Example</h5> <pre data-language="typescript">const c1 = 1;  // Type 1
+const c2 = c1;  // Type 1
+const c3 = "abc";  // Type "abc"
+const c4 = true;  // Type true
+const c5 = cond ? 1 : "abc";  // Type 1 | "abc"
+
+let v1 = 1;  // Type number
+let v2 = c2;  // Type number
+let v3 = c3;  // Type string
+let v4 = c4;  // Type boolean
+let v5 = c5;  // Type number | string
+</pre> <p>Literal type widening can be controlled through explicit type annotations. Specifically, when an expression of a literal type is inferred for a const location without a type annotation, that <code>const</code> variable gets a widening literal type inferred. But when a <code>const</code> location has an explicit literal type annotation, the <code>const</code> variable gets a non-widening literal type.</p> <h5 id="example-7">Example</h5> <pre data-language="typescript">const c1 = "hello";  // Widening type "hello"
+let v1 = c1;  // Type string
+
+const c2: "hello" = "hello";  // Type "hello"
+let v2 = c2;  // Type "hello"
+</pre> <h2 id="use-returned-values-from-super-calls-as-this">Use returned values from super calls as ‘this’</h2> <p>In ES2015, constructors which return an object implicitly substitute the value of <code>this</code> for any callers of <code>super()</code>. As a result, it is necessary to capture any potential return value of <code>super()</code> and replace it with <code>this</code>. This change enables working with <a href="https://w3c.github.io/webcomponents/spec/custom/#htmlelement-constructor" target="_blank">Custom Elements</a>, which takes advantage of this to initialize browser-allocated elements with user-written constructors.</p> <h5 id="example-8">Example</h5> <pre data-language="typescript">class Base {
+  x: number;
+  constructor() {
+    // return a new object other than `this`
+    return {
+      x: 1,
+    };
+  }
+}
+
+class Derived extends Base {
+  constructor() {
+    super();
+    this.x = 2;
+  }
+}
+</pre> <p>Generates:</p> <pre data-language="javascript">var Derived = (function (_super) {
+  __extends(Derived, _super);
+  function Derived() {
+    var _this = _super.call(this) || this;
+    _this.x = 2;
+    return _this;
+  }
+  return Derived;
+}(Base));
+</pre> <blockquote> <p>This change entails a break in the behavior of extending built-in classes like <code>Error</code>, <code>Array</code>, <code>Map</code>, etc.. Please see the <a href="https://github.com/Microsoft/TypeScript-wiki/blob/master/Breaking-changes.html#extending-built-ins-like-error-array-and-map-may-no-longer-work" target="_blank">extending built-ins breaking change documentation</a> for more details.</p> </blockquote> <h2 id="configuration-inheritance">Configuration inheritance</h2> <p>Often a project has multiple output targets, e.g. <code>ES5</code> and <code>ES2015</code>, debug and production or <code>CommonJS</code> and <code>System</code>; Just a few configuration options change between these two targets, and maintaining multiple <code>tsconfig.json</code> files can be a hassle.</p> <p>TypeScript 2.1 supports inheriting configuration using <code>extends</code>, where:</p> <ul> <li>
+<code>extends</code> is a new top-level property in <code>tsconfig.json</code> (alongside <code>compilerOptions</code>, <code>files</code>, <code>include</code>, and <code>exclude</code>).</li> <li>The value of <code>extends</code> must be a string containing a path to another configuration file to inherit from.</li> <li>The configuration from the base file are loaded first, then overridden by those in the inheriting config file.</li> <li>Circularity between configuration files is not allowed.</li> <li>
+<code>files</code>, <code>include</code> and <code>exclude</code> from the inheriting config file <em>overwrite</em> those from the base config file.</li> <li>All relative paths found in the configuration file will be resolved relative to the configuration file they originated in.</li> </ul> <h5 id="example-9">Example</h5> <p><code>configs/base.json</code>:</p> <pre data-language="javascripton">{
+  "compilerOptions": {
+  "noImplicitAny": true,
+  "strictNullChecks": true
+  }
+}
+</pre> <p><code>tsconfig.json</code>:</p> <pre data-language="javascripton">{
+  "extends": "./configs/base",
+  "files": [
+  "main.ts",
+  "supplemental.ts"
+  ]
+}
+</pre> <p><code>tsconfig.nostrictnull.json</code>:</p> <pre data-language="javascripton">{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+  "strictNullChecks": false
+  }
+}
+</pre> <h2 id="new---alwaysstrict">New <code>--alwaysStrict</code>
+</h2> <p>Invoking the compiler with <code>--alwaysStrict</code> causes:</p> <ol> <li>Parses all the code in strict mode.</li> <li>Writes <code>"use strict";</code> directive atop every generated file.</li> </ol> <p>Modules are parsed automatically in strict mode. The new flag is recommended for non-module code.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Microsoft and other contributors<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-1.html" class="_attribution-link" target="_blank">https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-1.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

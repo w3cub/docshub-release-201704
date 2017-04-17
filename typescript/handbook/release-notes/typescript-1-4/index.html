@@ -1,0 +1,193 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TypeScript 1.4 - TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content="Union types are a powerful way to express a value that can be one of several types. For example, you might have an API for running a program that &hellip;">
+  <meta name="keywords" content="typescript, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/typescript/handbook/release-notes/typescript-1-4/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/typescript/" class="_nav-link" title="" style="margin-left:0;">TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _typescript">
+				
+<h1 class="post-title">TypeScript 1.4</h1>     <h2 id="union-types">Union types</h2> <h3 id="overview">Overview</h3> <p>Union types are a powerful way to express a value that can be one of several types. For example, you might have an API for running a program that takes a commandline as either a <code>string</code>, a <code>string[]</code> or a function that returns a <code>string</code>. You can now write:</p> <pre data-language="typescript">interface RunOptions {
+   program: string;
+   commandline: string[]|string|(() =&gt; string);
+}
+</pre> <p>Assignment to union types works very intuitively – anything you could assign to one of the union type’s members is assignable to the union:</p> <pre data-language="typescript">var opts: RunOptions = /* ... */;
+opts.commandline = '-hello world'; // OK
+opts.commandline = ['-hello', 'world']; // OK
+opts.commandline = [42]; // Error, number is not string or string[]
+</pre> <p>When reading from a union type, you can see any properties that are shared by them:</p> <pre data-language="typescript">if (opts.length === 0) { // OK, string and string[] both have 'length' property
+  console.log("it's empty");
+}
+</pre> <p>Using Type Guards, you can easily work with a variable of a union type:</p> <pre data-language="typescript">function formatCommandline(c: string|string[]) {
+  if (typeof c === 'string') {
+    return c.trim();
+  }
+  else {
+    return c.join(' ');
+  }
+}
+</pre> <h3 id="stricter-generics">Stricter Generics</h3> <p>With union types able to represent a wide range of type scenarios, we’ve decided to improve the strictness of certain generic calls. Previously, code like this would (surprisingly) compile without error:</p> <pre data-language="typescript">function equal&lt;T&gt;(lhs: T, rhs: T): boolean {
+  return lhs === rhs;
+}
+
+// Previously: No error
+// New behavior: Error, no best common type between 'string' and 'number'
+var e = equal(42, 'hello');
+</pre> <p>With union types, you can now specify the desired behavior at both the function declaration site and the call site:</p> <pre data-language="typescript">// 'choose' function where types must match
+function choose1&lt;T&gt;(a: T, b: T): T { return Math.random() &gt; 0.5 ? a : b }
+var a = choose1('hello', 42); // Error
+var b = choose1&lt;string|number&gt;('hello', 42); // OK
+
+// 'choose' function where types need not match
+function choose2&lt;T, U&gt;(a: T, b: U): T|U { return Math.random() &gt; 0.5 ? a : b }
+var c = choose2('bar', 'foo'); // OK, c: string
+var d = choose2('hello', 42); // OK, d: string|number
+</pre> <h3 id="better-type-inference">Better Type Inference</h3> <p>Union types also allow for better type inference in arrays and other places where you might have multiple kinds of values in a collection:</p> <pre data-language="typescript">var x = [1, 'hello']; // x: Array&lt;string|number&gt;
+x[0] = 'world'; // OK
+x[0] = false; // Error, boolean is not string or number
+</pre> <h2 id="let-declarations">
+<code>let</code> declarations</h2> <p>In JavaScript, <code>var</code> declarations are “hoisted” to the top of their enclosing scope. This can result in confusing bugs:</p> <pre data-language="typescript">console.log(x); // meant to write 'y' here
+/* later in the same block */
+var x = 'hello';
+</pre> <p>The new ES6 keyword <code>let</code>, now supported in TypeScript, declares a variable with more intuitive “block” semantics. A <code>let</code> variable can only be referred to after its declaration, and is scoped to the syntactic block where it is defined:</p> <pre data-language="typescript">if (foo) {
+  console.log(x); // Error, cannot refer to x before its declaration
+  let x = 'hello';
+}
+else {
+  console.log(x); // Error, x is not declared in this block
+}
+</pre> <p><code>let</code> is only available when targeting ECMAScript 6 (<code>--target ES6</code>).</p> <h2 id="const-declarations">
+<code>const</code> declarations</h2> <p>The other new ES6 declaration type supported in TypeScript is <code>const</code>. A <code>const</code> variable may not be assigned to, and must be initialized where it is declared. This is useful for declarations where you don’t want to change the value after its initialization:</p> <pre data-language="typescript">const halfPi = Math.PI / 2;
+halfPi = 2; // Error, can't assign to a `const`
+</pre> <p><code>const</code> is only available when targeting ECMAScript 6 (<code>--target ES6</code>).</p> <h2 id="template-strings">Template strings</h2> <p>TypeScript now supports ES6 template strings. These are an easy way to embed arbitrary expressions in strings:</p> <pre data-language="typescript">var name = "TypeScript";
+var greeting  = `Hello, ${name}! Your name has ${name.length} characters`;
+</pre> <p>When compiling to pre-ES6 targets, the string is decomposed:</p> <pre data-language="javascript">var name = "TypeScript!";
+var greeting = "Hello, " + name + "! Your name has " + name.length + " characters";
+</pre> <h2 id="type-guards">Type Guards</h2> <p>A common pattern in JavaScript is to use <code>typeof</code> or <code>instanceof</code> to examine the type of an expression at runtime. TypeScript now understands these conditions and will change type inference accordingly when used in an <code>if</code> block.</p> <p>Using <code>typeof</code> to test a variable:</p> <pre data-language="typescript">var x: any = /* ... */;
+if(typeof x === 'string') {
+  console.log(x.subtr(1)); // Error, 'subtr' does not exist on 'string'
+}
+// x is still any here
+x.unknown(); // OK
+</pre> <p>Using <code>typeof</code> with union types and <code>else</code>:</p> <pre data-language="typescript">var x: string | HTMLElement = /* ... */;
+if(typeof x === 'string') {
+  // x is string here, as shown above
+}
+else {
+  // x is HTMLElement here
+  console.log(x.innerHTML);
+}
+</pre> <p>Using <code>instanceof</code> with classes and union types:</p> <pre data-language="typescript">class Dog { woof() { } }
+class Cat { meow() { } }
+var pet: Dog|Cat = /* ... */;
+if (pet instanceof Dog) {
+  pet.woof(); // OK
+}
+else {
+  pet.woof(); // Error
+}
+</pre> <h2 id="type-aliases">Type Aliases</h2> <p>You can now define an <em>alias</em> for a type using the <code>type</code> keyword:</p> <pre data-language="typescript">type PrimitiveArray = Array&lt;string|number|boolean&gt;;
+type MyNumber = number;
+type NgScope = ng.IScope;
+type Callback = () =&gt; void;
+</pre> <p>Type aliases are exactly the same as their original types; they are simply alternative names.</p> <h2 id="const-enum-completely-inlined-enums">
+<code>const enum</code> (completely inlined enums)</h2> <p>Enums are very useful, but some programs don’t actually need the generated code and would benefit from simply inlining all instances of enum members with their numeric equivalents. The new <code>const enum</code> declaration works just like a regular <code>enum</code> for type safety, but erases completely at compile time.</p> <pre data-language="typescript">const enum Suit { Clubs, Diamonds, Hearts, Spades }
+var d = Suit.Diamonds;
+</pre> <p>Compiles to exactly:</p> <pre data-language="javascript">var d = 1;
+</pre> <p>TypeScript will also now compute enum values when possible:</p> <pre data-language="typescript">enum MyFlags {
+  None = 0,
+  Neat = 1,
+  Cool = 2,
+  Awesome = 4,
+  Best = Neat | Cool | Awesome
+}
+var b = MyFlags.Best; // emits var b = 7;
+</pre> <h2 id="noemitonerror-commandline-option">
+<code>-noEmitOnError</code> commandline option</h2> <p>The default behavior for the TypeScript compiler is to still emit .js files if there were type errors (for example, an attempt to assign a <code>string</code> to a <code>number</code>). This can be undesirable on build servers or other scenarios where only output from a “clean” build is desired. The new flag <code>noEmitOnError</code> prevents the compiler from emitting .js code if there were any errors.</p> <p>This is now the default for MSBuild projects; this allows MSBuild incremental build to work as expected, as outputs are only generated on clean builds.</p> <h2 id="amd-module-names">AMD Module names</h2> <p>By default AMD modules are generated anonymous. This can lead to problems when other tools are used to process the resulting modules like a bundlers (e.g. <code>r.js</code>).</p> <p>The new <code>amd-module name</code> tag allows passing an optional module name to the compiler:</p> <pre data-language="typescript">//// [amdModule.ts]
+///&lt;amd-module name='NamedModule'/&gt;
+export class C {
+}
+</pre> <p>Will result in assigning the name <code>NamedModule</code> to the module as part of calling the AMD <code>define</code>:</p> <pre data-language="javascript">//// [amdModule.js]
+define("NamedModule", ["require", "exports"], function (require, exports) {
+  var C = (function () {
+    function C() {
+    }
+    return C;
+  })();
+  exports.C = C;
+});
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Microsoft and other contributors<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-1-4.html" class="_attribution-link" target="_blank">https://www.typescriptlang.org/docs/handbook/release-notes/typescript-1-4.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

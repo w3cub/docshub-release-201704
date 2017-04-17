@@ -1,0 +1,133 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Twig Internals - Twig 2 - W3cubDocs</title>
+  
+  <meta name="description" content="Twig is very extensible and you can easily hack it. Keep in mind that you should probably try to create an extension before hacking the core, as &hellip;">
+  <meta name="keywords" content="twig, internals, -, twig~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/twig~2/internals/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/twig~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/twig~2/" class="_nav-link" title="" style="margin-left:0;">Twig 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="twig-internals">Twig Internals</h1> <p>Twig is very extensible and you can easily hack it. Keep in mind that you should probably try to create an extension before hacking the core, as most features and enhancements can be handled with extensions. This chapter is also useful for people who want to understand how Twig works under the hood.</p>  <h2 id="how-does-twig-work">How does Twig work?</h2> <p>The rendering of a Twig template can be summarized into four key steps:</p> <ul class="simple"> <li>
+<strong>Load</strong> the template: If the template is already compiled, load it and go to the <em>evaluation</em> step, otherwise:<ul> <li>First, the <strong>lexer</strong> tokenizes the template source code into small pieces for easier processing;</li> <li>Then, the <strong>parser</strong> converts the token stream into a meaningful tree of nodes (the Abstract Syntax Tree);</li> <li>Eventually, the <em>compiler</em> transforms the AST into PHP code.</li> </ul> </li> <li>
+<strong>Evaluate</strong> the template: It basically means calling the <code class="notranslate">display()</code> method of the compiled template and passing it the context.</li> </ul>   <h2 id="the-lexer">The Lexer</h2> <p>The lexer tokenizes a template source code into a token stream (each token is an instance of <code class="notranslate">Twig_Token</code>, and the stream is an instance of <code class="notranslate">Twig_TokenStream</code>). The default lexer recognizes 13 different token types:</p> <ul class="simple"> <li>
+<code class="notranslate">Twig_Token::BLOCK_START_TYPE</code>, <code class="notranslate">Twig_Token::BLOCK_END_TYPE</code>: Delimiters for blocks (<code class="notranslate">{% %}</code>)</li> <li>
+<code class="notranslate">Twig_Token::VAR_START_TYPE</code>, <code class="notranslate">Twig_Token::VAR_END_TYPE</code>: Delimiters for variables (<code class="notranslate">{{ }}</code>)</li> <li>
+<code class="notranslate">Twig_Token::TEXT_TYPE</code>: A text outside an expression;</li> <li>
+<code class="notranslate">Twig_Token::NAME_TYPE</code>: A name in an expression;</li> <li>
+<code class="notranslate">Twig_Token::NUMBER_TYPE</code>: A number in an expression;</li> <li>
+<code class="notranslate">Twig_Token::STRING_TYPE</code>: A string in an expression;</li> <li>
+<code class="notranslate">Twig_Token::OPERATOR_TYPE</code>: An operator;</li> <li>
+<code class="notranslate">Twig_Token::PUNCTUATION_TYPE</code>: A punctuation sign;</li> <li>
+<code class="notranslate">Twig_Token::INTERPOLATION_START_TYPE</code>, <code class="notranslate">Twig_Token::INTERPOLATION_END_TYPE</code>: Delimiters for string interpolation;</li> <li>
+<code class="notranslate">Twig_Token::EOF_TYPE</code>: Ends of template.</li> </ul> <p>You can manually convert a source code into a token stream by calling the <code class="notranslate">tokenize()</code> method of an environment:</p> <pre>$stream = $twig-&gt;tokenize(new Twig_Source($source, $identifier));
+</pre> <p>As the stream has a <code class="notranslate">__toString()</code> method, you can have a textual representation of it by echoing the object:</p> <pre>echo $stream."\n";
+</pre> <p>Here is the output for the <code class="notranslate">Hello {{ name }}</code> template:</p> <pre>TEXT_TYPE(Hello )
+VAR_START_TYPE()
+NAME_TYPE(name)
+VAR_END_TYPE()
+EOF_TYPE()
+</pre>  
+<div class="admonition admonition-note">
+<p class="first admonition-title">Note</p> <p>The default lexer (<code class="notranslate">Twig_Lexer</code>) can be changed by calling the <code class="notranslate">setLexer()</code> method:</p> <pre>$twig-&gt;setLexer($lexer);
+</pre> </div>   <h2 id="the-parser">The Parser</h2> <p>The parser converts the token stream into an AST (Abstract Syntax Tree), or a node tree (an instance of <code class="notranslate">Twig_Node_Module</code>). The core extension defines the basic nodes like: <code class="notranslate">for</code>, <code class="notranslate">if</code>, ... and the expression nodes.</p> <p>You can manually convert a token stream into a node tree by calling the <code class="notranslate">parse()</code> method of an environment:</p> <pre>$nodes = $twig-&gt;parse($stream);
+</pre> <p>Echoing the node object gives you a nice representation of the tree:</p> <pre>echo $nodes."\n";
+</pre> <p>Here is the output for the <code class="notranslate">Hello {{ name }}</code> template:</p> <pre>Twig_Node_Module(
+  Twig_Node_Text(Hello )
+  Twig_Node_Print(
+    Twig_Node_Expression_Name(name)
+  )
+)
+</pre>  
+<div class="admonition admonition-note">
+<p class="first admonition-title">Note</p> <p>The default parser (<code class="notranslate">Twig_TokenParser</code>) can be changed by calling the <code class="notranslate">setParser()</code> method:</p> <pre>$twig-&gt;setParser($parser);
+</pre> </div>   <h2 id="the-compiler">The Compiler</h2> <p>The last step is done by the compiler. It takes a node tree as an input and generates PHP code usable for runtime execution of the template.</p> <p>You can manually compile a node tree to PHP code with the <code class="notranslate">compile()</code> method of an environment:</p> <pre>$php = $twig-&gt;compile($nodes);
+</pre> <p>The generated template for a <code class="notranslate">Hello {{ name }}</code> template reads as follows (the actual output can differ depending on the version of Twig you are using):</p> <pre>/* Hello {{ name }} */
+class __TwigTemplate_1121b6f109fe93ebe8c6e22e3712bceb extends Twig_Template
+{
+    protected function doDisplay(array $context, array $blocks = array())
+    {
+        // line 1
+        echo "Hello ";
+        echo twig_escape_filter($this-&gt;env, isset($context["name"]) ? $context["name"] : null), "html", null, true);
+    }
+
+    // some more code
+}
+</pre>  
+<div class="admonition admonition-note">
+<p class="first admonition-title">Note</p> <p>The default compiler (<code class="notranslate">Twig_Compiler</code>) can be changed by calling the <code class="notranslate">setCompiler()</code> method:</p> <pre>$twig-&gt;setCompiler($compiler);
+</pre> </div>    <div class="navigation" style="text-align: center"> <a accesskey="P" title="Extending Twig" href="../advanced/"> « Extending Twig </a> <span class="separator">|</span> <a accesskey="N" title="Recipes" href="../recipes/"> Recipes » </a> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2017 by the Twig Team<br>Licensed under the three clause BSD license.<br>The Twig logo is © 2010–2017 SensioLabs<br>
+    <a href="http://twig.sensiolabs.org/doc/2.x/internals.html" class="_attribution-link" target="_blank">http://twig.sensiolabs.org/doc/2.x/internals.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

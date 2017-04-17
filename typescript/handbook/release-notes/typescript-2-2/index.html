@@ -1,0 +1,184 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TypeScript 2.2 - TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content="TypeScript 2.2 adds support for the ECMAScript 2015 mixin class pattern (see MDN Mixin description and “Real” Mixins with JavaScript Classes for &hellip;">
+  <meta name="keywords" content="typescript, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/typescript/handbook/release-notes/typescript-2-2/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/typescript/" class="_nav-link" title="" style="margin-left:0;">TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _typescript">
+				
+<h1 class="post-title">TypeScript 2.2</h1>     <h2 id="support-for-mix-in-classes">Support for Mix-in classes</h2> <p>TypeScript 2.2 adds support for the ECMAScript 2015 mixin class pattern (see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes#Mix-ins" target="_blank">MDN Mixin description</a> and <a href="http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/" target="_blank">“Real” Mixins with JavaScript Classes</a> for more details) as well as rules for combining mixin construct signatures with regular construct signatures in intersection types.</p> <h5 id="first-some-terminology">First some terminology</h5> <p>A <strong>mixin constructor type</strong> refers to a type that has a single construct signature with a single rest argument of type <code>any[]</code> and an object-like return type. For example, given an object-like type <code>X</code>, <code>new (...args: any[]) =&gt; X</code> is a mixin constructor type with an instance type <code>X</code>.</p> <p>A <strong>mixin class</strong> is a class declaration or expression that <code>extends</code> an expression of a type parameter type. The following rules apply to mixin class declarations:</p> <ul> <li>The type parameter type of the <code>extends</code> expression must be constrained to a mixin constructor type.</li> <li>The constructor of a mixin class (if any) must have a single rest parameter of type <code>any[]</code> and must use the spread operator to pass those parameters as arguments in a <code>super(...args)</code> call.</li> </ul> <p>Given an expression <code>Base</code> of a parametric type <code>T</code> with a constraint <code>X</code>, a mixin class <code>class C extends Base {...}</code> is processed as if <code>Base</code> had type <code>X</code> and the resulting type is the intersection <code>typeof C &amp; T</code>. In other words, a mixin class is represented as an intersection between the mixin class constructor type and the parametric base class constructor type.</p> <p>When obtaining the construct signatures of an intersection type that contains mixin constructor types, the mixin construct signatures are discarded and their instance types are mixed into the return types of the other construct signatures in the intersection type. For example, the intersection type <code>{ new(...args: any[]) =&gt; A } &amp; { new(s: string) =&gt; B }</code> has a single construct signature <code>new(s: string) =&gt; A &amp; B</code>.</p> <h5 id="putting-all-of-the-above-rules-together-in-an-example">Putting all of the above rules together in an example</h5> <pre data-language="typescript">class Point {
+  constructor(public x: number, public y: number) {}
+}
+
+class Person {
+  constructor(public name: string) {}
+}
+
+type Constructor&lt;T&gt; = new(...args: any[]) =&gt; T;
+
+function Tagged&lt;T extends Constructor&lt;{}&gt;&gt;(Base: T) {
+  return class extends Base {
+    _tag: string;
+    constructor(...args: any[]) {
+      super(...args);
+      this._tag = "";
+    }
+  }
+}
+
+const TaggedPoint = Tagged(Point);
+
+let point = new TaggedPoint(10, 20);
+point._tag = "hello";
+
+class Customer extends Tagged(Person) {
+  accountBalance: number;
+}
+
+let customer = new Customer("Joe");
+customer._tag = "test";
+customer.accountBalance = 0;
+</pre> <p>Mixin classes can constrain the types of classes they can mix into by specifying a construct signature return type in the constraint for the type parameter. For example, the following <code>WithLocation</code> function implements a subclass factory that adds a <code>getLocation</code> method to any class that satisfies the <code>Point</code> interface (i.e. that has <code>x</code> and <code>y</code> properties of type <code>number</code>).</p> <pre data-language="typescript">interface Point {
+  x: number;
+  y: number;
+}
+
+const WithLocation = &lt;T extends Constructor&lt;Point&gt;&gt;(Base: T) =&gt;
+  class extends Base {
+    getLocation(): [number, number] {
+      return [this.x, this.y];
+    }
+  }
+</pre> <h2 id="object-type">
+<code>object</code> type</h2> <p>TypeScript did not have a type that represents the non-primitive type, i.e. any thing that is not <code>number</code>, <code>string</code>, <code>boolean</code>, <code>symbol</code>, <code>null</code>, or <code>undefined</code>. Enter the new <code>object</code> type.</p> <p>With <code>object</code> type, APIs like <code>Object.create</code> can be better represented. For example:</p> <pre data-language="typescript">declare function create(o: object | null): void;
+
+create({ prop: 0 }); // OK
+create(null); // OK
+
+create(42); // Error
+create("string"); // Error
+create(false); // Error
+create(undefined); // Error
+</pre> <h2 id="support-for-newtarget">Support for <code>new.target</code>
+</h2> <p>The <code>new.target</code> meta-property is new syntax introduced in ES2015. When an instance of a constructor is created via <code>new</code>, the value of <code>new.target</code> is set to be a reference to the constructor function initially used to allocate the instance. If a function is called rather than constructed via <code>new</code>, <code>new.target</code> is set to <code>undefined</code>.</p> <p><code>new.target</code> comes in handy when <code>Object.setPrototypeOf</code> or <code>__proto__</code> needs to be set in a class constructor. One such use case is inheriting from <code>Error</code> in NodeJS v4 and higher.</p> <h5 id="example">Example</h5> <pre data-language="typescript">class CustomError extends Error {
+  constructor(message?: string) {
+    super(message); // 'Error' breaks prototype chain here
+    Object.setPrototypeOf(this, new.target.prototype); // restore prototype chain
+  }
+}
+</pre> <p>This results in the generated JS</p> <pre data-language="javascript">var CustomError = (function (_super) {
+  __extends(CustomError, _super);
+  function CustomError() {
+  var _newTarget = this.constructor;
+  var _this = _super.apply(this, arguments);  // 'Error' breaks prototype chain here
+  _this.__proto__ = _newTarget.prototype; // restore prototype chain
+  return _this;
+  }
+  return CustomError;
+})(Error);
+</pre> <p><code>new.target</code> also comes in handy for writing constructable functions, for example:</p> <pre data-language="typescript">function f() {
+  if (new.target) { /* called via 'new' */ }
+}
+</pre> <p>Which translates to:</p> <pre data-language="javascript">function f() {
+  var _newTarget = this &amp;&amp; this instanceof f ? this.constructor : void 0;
+  if (_newTarget) { /* called via 'new' */ }
+}
+</pre> <h2 id="better-checking-for-nullundefined-in-operands-of-expressions">Better checking for <code>null</code>/<code>undefined</code> in operands of expressions</h2> <p>TypeScript 2.2 improves checking of nullable operands in expressions. Specifically, these are now flagged as errors:</p> <ul> <li>If either operand of a <code>+</code> operator is nullable, and neither operand is of type <code>any</code> or <code>string</code>.</li> <li>If either operand of a <code>-</code>, <code>*</code>, <code>**</code>, <code>/</code>, <code>%</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, <code>&gt;&gt;&gt;</code>, <code>&amp;</code>, <code>|</code>, or <code>^</code> operator is nullable.</li> <li>If either operand of a <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, or <code>in</code> operator is nullable.</li> <li>If the right operand of an <code>instanceof</code> operator is nullable.</li> <li>If the operand of a <code>+</code>, <code>-</code>, <code>~</code>, <code>++</code>, or <code>--</code> unary operator is nullable.</li> </ul> <p>An operand is considered nullable if the type of the operand is <code>null</code> or <code>undefined</code> or a union type that includes <code>null</code> or <code>undefined</code>. Note that the union type case only only occurs in <code>--strictNullChecks</code> mode because <code>null</code> and <code>undefined</code> disappear from unions in classic type checking mode.</p> <h2 id="dotted-property-for-types-with-string-index-signatures">Dotted property for types with string index signatures</h2> <p>Types with a string index signature can be indexed using the <code>[]</code> notation, but were not allowed to use the <code>.</code>. Starting with TypeScript 2.2 using either should be allowed.</p> <pre data-language="typescript">interface StringMap&lt;T&gt; {
+  [x: string]: T;
+}
+
+const map: StringMap&lt;number&gt;;
+
+map["prop1"] = 1;
+map.prop2 = 2;
+
+</pre> <p>This only apply to types with an <em>explicit</em> string index signature. It is still an error to access unknown properties on a type using <code>.</code> notation.</p> <h2 id="support-for-spread-operator-on-jsx-element-children">Support for spread operator on JSX element children</h2> <p>TypeScript 2.2 adds support for using spread on a JSX element children. Please see <a href="https://github.com/facebook/jsx/issues/57" target="_blank">facebook/jsx#57</a> for more details.</p> <h5 id="example-1">Example</h5> <pre data-language="typescript">function Todo(prop: { key: number, todo: string }) {
+  return &lt;div&gt;{prop.key.toString() + prop.todo}&lt;/div&gt;;
+}
+
+function TodoList({ todos }: TodoListProps) {
+  return &lt;div&gt;
+    {...todos.map(todo =&gt; &lt;Todo key={todo.id} todo={todo.todo} /&gt;)}
+  &lt;/div&gt;;
+}
+
+let x: TodoListProps;
+
+&lt;TodoList {...x} /&gt;
+</pre> <h2 id="new-jsx-react-native">New <code>jsx: react-native</code>
+</h2> <p>React-native build pipeline expects all files to have a <code>.js</code> extensions even if the file contains JSX syntax. The new <code>--jsx</code> value <code>react-native</code> will persevere the JSX syntax in the output file, but give it a <code>.js</code> extension.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Microsoft and other contributors<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-2.html" class="_attribution-link" target="_blank">https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-2.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
