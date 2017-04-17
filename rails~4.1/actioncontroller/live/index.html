@@ -1,0 +1,157 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActionController&#58;&#58;Live - Ruby on Rails 4.1 - W3cubDocs</title>
+  
+  <meta name="description" content=" Mix this module in to your controller, and all actions in that controller will be able to stream data to the client as it&#39;s written. ">
+  <meta name="keywords" content="module, actioncontroller, live, -, ruby, on, rails, rails~4.1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~4.1/actioncontroller/live/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~4.1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~4.1/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 4.1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-ActionController::Live" class="module"> module ActionController::Live </h1> <section class="description"> <p>Mix this module in to your controller, and all actions in that controller will be able to stream data to the client as it's written.</p> <pre class="ruby" data-language="ruby">class MyController &lt; ActionController::Base
+  include ActionController::Live
+
+  def stream
+    response.headers['Content-Type'] = 'text/event-stream'
+    100.times {
+      response.stream.write "hello world\n"
+      sleep 1
+    }
+  ensure
+    response.stream.close
+  end
+end
+</pre> <p>There are a few caveats with this use. You <strong>cannot</strong> write headers after the response has been committed (Response#committed? will return truthy). Calling <code>write</code> or <code>close</code> on the response stream will cause the response object to be committed. Make sure all headers are set before calling write or close on your stream.</p> <p>You <strong>must</strong> call close on your stream when you're finished, otherwise the socket may be left open forever.</p> <p>The final caveat is that your actions are executed in a separate thread than the main thread. Make sure your actions are thread safe, and this shouldn't be a problem (don't share state across threads, etc).</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-log_error"> <span class="method-name">log_error</span><span class="method-args">(exception)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="log_error-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/live.rb, line 253
+def log_error(exception)
+  logger = ActionController::Base.logger
+  return unless logger
+
+  message = "\n#{exception.class} (#{exception.message}):\n"
+  message &lt;&lt; exception.annoted_source_code.to_s if exception.respond_to?(:annoted_source_code)
+  message &lt;&lt; "  " &lt;&lt; exception.backtrace.join("\n  ")
+  logger.fatal("#{message}\n\n")
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-process"> <span class="method-name">process</span><span class="method-args">(name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="process-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/live.rb, line 212
+def process(name)
+  t1 = Thread.current
+  locals = t1.keys.map { |key| [key, t1[key]] }
+
+  error = nil
+  # This processes the action in a child thread. It lets us return the
+  # response code and headers back up the rack stack, and still process
+  # the body in parallel with sending data to the client
+  Thread.new {
+    t2 = Thread.current
+    t2.abort_on_exception = true
+
+    # Since we're processing the view in a different thread, copy the
+    # thread locals from the main thread to the child thread. :'(
+    locals.each { |k,v| t2[k] = v }
+
+    begin
+      super(name)
+    rescue =&gt; e
+      if @_response.committed?
+        begin
+          @_response.stream.write(ActionView::Base.streaming_completion_on_exception) if request.format == :html
+          @_response.stream.call_on_error
+        rescue =&gt; exception
+          log_error(exception)
+        ensure
+          log_error(e)
+          @_response.stream.close
+        end
+      else
+        error = e
+      end
+    ensure
+      @_response.commit!
+    end
+  }
+
+  @_response.await_commit
+  raise error if error
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-response_body-3D"> <span class="method-name">response_body=</span><span class="method-args">(body)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="response_body-3D-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/live.rb, line 263
+def response_body=(body)
+  super
+  response.close if response
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-set_response-21"> <span class="method-name">set_response!</span><span class="method-args">(request)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="set_response-21-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/live.rb, line 268
+def set_response!(request)
+  if request.env["HTTP_VERSION"] == "HTTP/1.0"
+    super
+  else
+    @_response         = Live::Response.new
+    @_response.request = request
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2016 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

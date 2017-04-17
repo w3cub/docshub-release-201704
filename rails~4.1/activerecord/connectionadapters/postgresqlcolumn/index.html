@@ -1,0 +1,164 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActiveRecord&#58;&#58;ConnectionAdapters&#58;&#58;PostgreSQLColumn - Ruby on Rails 4.1 - W3cubDocs</title>
+  
+  <meta name="description" content=" Extracts the value from a PostgreSQL column default definition. ">
+  <meta name="keywords" content="class, activerecord, connectionadapters, postgresqlcolumn, -, ruby, on, rails, rails~4.1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~4.1/activerecord/connectionadapters/postgresqlcolumn/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~4.1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~4.1/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 4.1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-ActiveRecord::ConnectionAdapters::PostgreSQLColumn" class="class"> class ActiveRecord::ConnectionAdapters::PostgreSQLColumn </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><span>ActiveRecord::ConnectionAdapters::Column</span></dd>
+</dl>  <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-extract_value_from_default"> <span class="method-name">extract_value_from_default</span><span class="method-args">(default)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Extracts the value from a PostgreSQL column default definition.</p> <div class="method-source-code" id="extract_value_from_default-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/postgresql_adapter.rb, line 82
+def self.extract_value_from_default(default)
+  # This is a performance optimization for Ruby 1.9.2 in development.
+  # If the value is nil, we return nil straight away without checking
+  # the regular expressions. If we check each regular expression,
+  # Regexp#=== will call NilClass#to_str, which will trigger
+  # method_missing (defined by whiny nil in ActiveSupport) which
+  # makes this method very very slow.
+  return default unless default
+
+  case default
+    when /\A'(.*)'::(num|date|tstz|ts|int4|int8)range\z/m
+      $1
+    # Numeric types
+    when /\A\(?(-?\d+(\.\d*)?\)?(::bigint)?)\z/
+      $1
+    # Character types
+    when /\A\(?'(.*)'::.*\b(?:character varying|bpchar|text)\z/m
+      $1.gsub(/''/, "'")
+    # Binary data types
+    when /\A'(.*)'::bytea\z/m
+      $1
+    # Date/time types
+    when /\A'(.+)'::(?:time(?:stamp)? with(?:out)? time zone|date)\z/
+      $1
+    when /\A'(.*)'::interval\z/
+      $1
+    # Boolean type
+    when 'true'
+      true
+    when 'false'
+      false
+    # Geometric types
+    when /\A'(.*)'::(?:point|line|lseg|box|"?path"?|polygon|circle)\z/
+      $1
+    # Network address types
+    when /\A'(.*)'::(?:cidr|inet|macaddr)\z/
+      $1
+    # Bit string types
+    when /\AB'(.*)'::"?bit(?: varying)?"?\z/
+      $1
+    # XML type
+    when /\A'(.*)'::xml\z/m
+      $1
+    # Arrays
+    when /\A'(.*)'::"?\D+"?\[\]\z/
+      $1
+    # Hstore
+    when /\A'(.*)'::hstore\z/
+      $1
+    # JSON
+    when /\A'(.*)'::json\z/
+      $1
+    # Object identifier types
+    when /\A-?\d+\z/
+      $1
+    else
+      # Anything else is blank, some user type, or some function
+      # and we can't know the value of that, so return nil.
+      nil
+  end
+end</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-accessor"> <span class="method-name">accessor</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="accessor-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/postgresql_adapter.rb, line 159
+def accessor
+  @oid_type.accessor
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-type_cast"> <span class="method-name">type_cast</span><span class="method-args">(value)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="type_cast-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/postgresql_adapter.rb, line 152
+def type_cast(value)
+  return if value.nil?
+  return super if encoded?
+
+  @oid_type.type_cast value
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-type_cast_for_write"> <span class="method-name">type_cast_for_write</span><span class="method-args">(value)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="type_cast_for_write-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/postgresql_adapter.rb, line 144
+def type_cast_for_write(value)
+  if @oid_type.respond_to?(:type_cast_for_write)
+    @oid_type.type_cast_for_write(value)
+  else
+    super
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2016 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

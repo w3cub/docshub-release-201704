@@ -1,0 +1,248 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActionController&#58;&#58;MimeResponds - Ruby on Rails 4.1 - W3cubDocs</title>
+  
+  <meta name="description" content=" Without web-service support, an action which collects the data for displaying a list of people might look something like this&#58; ">
+  <meta name="keywords" content="module, actioncontroller, mimeresponds, -, ruby, on, rails, rails~4.1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~4.1/actioncontroller/mimeresponds/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~4.1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~4.1/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 4.1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-ActionController::MimeResponds" class="module"> module ActionController::MimeResponds </h1>  <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-respond_to"> <span class="method-name">respond_to</span><span class="method-args">(*mimes, &amp;block)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Without web-service support, an action which collects the data for displaying a list of people might look something like this:</p> <pre class="ruby" data-language="ruby">def index
+  @people = Person.all
+end
+</pre> <p>Here's the same action, with web-service support baked in:</p> <pre class="ruby" data-language="ruby">def index
+  @people = Person.all
+
+  respond_to do |format|
+    format.html
+    format.xml { render xml: @people }
+  end
+end
+</pre> <p>What that says is, “if the client wants <a href="../../html/">HTML</a> in response to this action, just respond as we would have before, but if the client wants XML, return them the list of people in XML format.” (Rails determines the desired response format from the HTTP Accept header submitted by the client.)</p> <p>Supposing you have an action that adds a new person, optionally creating their company (by name) if it does not already exist, without web-services, it might look like this:</p> <pre class="ruby" data-language="ruby">def create
+  @company = Company.find_or_create_by(name: params[:company][:name])
+  @person  = @company.people.create(params[:person])
+
+  redirect_to(person_list_url)
+end
+</pre> <p>Here's the same action, with web-service support baked in:</p> <pre class="ruby" data-language="ruby">def create
+  company  = params[:person].delete(:company)
+  @company = Company.find_or_create_by(name: company[:name])
+  @person  = @company.people.create(params[:person])
+
+  respond_to do |format|
+    format.html { redirect_to(person_list_url) }
+    format.js
+    format.xml  { render xml: @person.to_xml(include: @company) }
+  end
+end
+</pre> <p>If the client wants <a href="../../html/">HTML</a>, we just redirect them back to the person list. If they want JavaScript, then it is an Ajax request and we render the JavaScript template associated with this action. Lastly, if the client wants XML, we render the created person as XML, but with a twist: we also include the person's company in the rendered XML, so you get something like this:</p> <pre>&lt;person&gt;
+  &lt;id&gt;...&lt;/id&gt;
+  ...
+  &lt;company&gt;
+    &lt;id&gt;...&lt;/id&gt;
+    &lt;name&gt;...&lt;/name&gt;
+    ...
+  &lt;/company&gt;
+&lt;/person&gt;</pre> <p>Note, however, the extra bit at the top of that action:</p> <pre class="ruby" data-language="ruby">company  = params[:person].delete(:company)
+@company = Company.find_or_create_by(name: company[:name])
+</pre> <p>This is because the incoming XML document (if a web-service request is in process) can only contain a single root-node. So, we have to rearrange things so that the request looks like this (url-encoded):</p> <pre>person[name]=...&amp;person[company][name]=...&amp;...</pre> <p>And, like this (xml-encoded):</p> <pre>&lt;person&gt;
+  &lt;name&gt;...&lt;/name&gt;
+  &lt;company&gt;
+    &lt;name&gt;...&lt;/name&gt;
+  &lt;/company&gt;
+&lt;/person&gt;</pre> <p>In other words, we make the request so that it operates on a single entity's person. Then, in the action, we extract the company data from the request, find or create the company, and then create the new person with the remaining data.</p> <p>Note that you can define your own XML parameter parser which would allow you to describe multiple entities in a single request (i.e., by wrapping them all in a single root node), but if you just go with the flow and accept Rails' defaults, life will be much easier.</p> <p>If you need to use a MIME type which isn't supported by default, you can register your own handlers in config/initializers/mime_types.rb as follows.</p> <pre class="ruby" data-language="ruby">Mime::Type.register "image/jpg", :jpg
+</pre> <p>Respond to also allows you to specify a common block for different formats by using any:</p> <pre class="ruby" data-language="ruby">def index
+  @people = Person.all
+
+  respond_to do |format|
+    format.html
+    format.any(:xml, :json) { render request.format.to_sym =&gt; @people }
+  end
+end
+</pre> <p>In the example above, if the format is xml, it will render:</p> <pre class="ruby" data-language="ruby">render xml: @people
+</pre> <p>Or if the format is json:</p> <pre class="ruby" data-language="ruby">render json: @people
+</pre> <p>Since this is a common pattern, you can use the class method <a href="../mimeresponds/#method-i-respond_to">#respond_to</a> with the <a href="../mimeresponds/#method-i-respond_with">#respond_with</a> method to have the same results:</p> <pre class="ruby" data-language="ruby">class PeopleController &lt; ApplicationController
+  respond_to :html, :xml, :json
+
+  def index
+    @people = Person.all
+    respond_with(@people)
+  end
+end
+</pre> <p>Formats can have different variants.</p> <p>The request variant is a specialization of the request format, like <code>:tablet</code>, <code>:phone</code>, or <code>:desktop</code>.</p> <p>We often want to render different html/json/xml templates for phones, tablets, and desktop browsers. Variants make it easy.</p> <p>You can set the variant in a <code>before_action</code>:</p> <pre class="ruby" data-language="ruby">request.variant = :tablet if request.user_agent =~ /iPad/
+</pre> <p>Respond to variants in the action just like you respond to formats:</p> <pre>respond_to do |format|
+  format.html do |variant|
+    variant.tablet # renders app/views/projects/show.html+tablet.erb
+    variant.phone { extra_setup; render ... }
+    variant.none  { special_setup } # executed only if there is no variant set
+  end
+end</pre> <p>Provide separate templates for each format and variant:</p> <pre class="ruby" data-language="ruby">app/views/projects/show.html.erb
+app/views/projects/show.html+tablet.erb
+app/views/projects/show.html+phone.erb
+</pre> <p>When you're not sharing any code within the format, you can simplify defining variants using the inline syntax:</p> <pre class="ruby" data-language="ruby">respond_to do |format|
+  format.js         { render "trash" }
+  format.html.phone { redirect_to progress_path }
+  format.html.none  { render "trash" }
+end
+</pre> <p>Variants also support common `any`/`all` block that formats have.</p> <p>It works for both inline:</p> <pre class="ruby" data-language="ruby">respond_to do |format|
+  format.html.any   { render text: "any"   }
+  format.html.phone { render text: "phone" }
+end
+</pre> <p>and block syntax:</p> <pre class="ruby" data-language="ruby">respond_to do |format|
+  format.html do |variant|
+    variant.any(:tablet, :phablet){ render text: "any" }
+    variant.phone { render text: "phone" }
+  end
+end
+</pre> <p>You can also set an array of variants:</p> <pre class="ruby" data-language="ruby">request.variant = [:tablet, :phone]
+</pre> <p>which will work similarly to formats and MIME types negotiation. If there will be no :tablet variant declared, :phone variant will be picked:</p> <pre class="ruby" data-language="ruby">respond_to do |format|
+  format.html.none
+  format.html.phone # this gets rendered
+end
+</pre> <p>Be sure to check the documentation of <code>respond_with</code> and <code>ActionController::MimeResponds.respond_to</code> for more examples.</p> <div class="method-source-code" id="respond_to-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/mime_responds.rb, line 253
+def respond_to(*mimes, &amp;block)
+  raise ArgumentError, "respond_to takes either types or a block, never both" if mimes.any? &amp;&amp; block_given?
+
+  if collector = retrieve_collector_from_mimes(mimes, &amp;block)
+    response = collector.response
+    response ? response.call : render({})
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-respond_with"> <span class="method-name">respond_with</span><span class="method-args">(*resources, &amp;block)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>For a given controller action, <a href="../mimeresponds/#method-i-respond_with">#respond_with</a> generates an appropriate response based on the mime-type requested by the client.</p> <p>If the method is called with just a resource, as in this example -</p> <pre class="ruby" data-language="ruby">class PeopleController &lt; ApplicationController
+  respond_to :html, :xml, :json
+
+  def index
+    @people = Person.all
+    respond_with @people
+  end
+end
+</pre> <p>then the mime-type of the response is typically selected based on the request's Accept header and the set of available formats declared by previous calls to the controller's class method <code>respond_to</code>. Alternatively the mime-type can be selected by explicitly setting <code>request.format</code> in the controller.</p> <p>If an acceptable format is not identified, the application returns a '406 - not acceptable' status. Otherwise, the default response is to render a template named after the current action and the selected format, e.g. <code>index.html.erb</code>. If no template is available, the behavior depends on the selected format:</p> <ul>
+<li> <p>for an html response - if the request method is <code>get</code>, an exception is raised but for other requests such as <code>post</code> the response depends on whether the resource has any validation errors (i.e. assuming that an attempt has been made to save the resource, e.g. by a <code>create</code> action) -</p> <ol>
+<li> <p>If there are no errors, i.e. the resource was saved successfully, the response <code>redirect</code>'s to the resource i.e. its <code>show</code> action.</p> </li>
+<li> <p>If there are validation errors, the response renders a default action, which is <code>:new</code> for a <code>post</code> request or <code>:edit</code> for <code>patch</code> or <code>put</code>.</p> </li>
+</ol> <p>Thus an example like this -</p> <pre class="ruby" data-language="ruby">respond_to :html, :xml
+
+def create
+  @user = User.new(params[:user])
+  flash[:notice] = 'User was successfully created.' if @user.save
+  respond_with(@user)
+end
+</pre> <p>is equivalent, in the absence of <code>create.html.erb</code>, to -</p> <pre class="ruby" data-language="ruby">def create
+  @user = User.new(params[:user])
+  respond_to do |format|
+    if @user.save
+      flash[:notice] = 'User was successfully created.'
+      format.html { redirect_to(@user) }
+      format.xml { render xml: @user }
+    else
+      format.html { render action: "new" }
+      format.xml { render xml: @user }
+    end
+  end
+end
+</pre> </li>
+<li> <p>for a javascript request - if the template isn't found, an exception is raised.</p> </li>
+<li> <p>for other requests - i.e. data formats such as xml, json, csv etc, if the resource passed to <code>respond_with</code> responds to <code>to_&lt;format&gt;</code>, the method attempts to render the resource in the requested format directly, e.g. for an xml request, the response is equivalent to calling <code>render xml: resource</code>.</p> </li>
+</ul> <h3 id="method-i-respond_with-label-Nested+resources">Nested resources</h3> <p>As outlined above, the <code>resources</code> argument passed to <code>respond_with</code> can play two roles. It can be used to generate the redirect url for successful html requests (e.g. for <code>create</code> actions when no template exists), while for formats other than html and javascript it is the object that gets rendered, by being converted directly to the required format (again assuming no template exists).</p> <p>For redirecting successful html requests, <code>respond_with</code> also supports the use of nested resources, which are supplied in the same way as in <code>form_for</code> and <code>polymorphic_url</code>. For example -</p> <pre class="ruby" data-language="ruby">def create
+  @project = Project.find(params[:project_id])
+  @task = @project.comments.build(params[:task])
+  flash[:notice] = 'Task was successfully created.' if @task.save
+  respond_with(@project, @task)
+end
+</pre> <p>This would cause <code>respond_with</code> to redirect to <code>project_task_url</code> instead of <code>task_url</code>. For request formats other than html or javascript, if multiple resources are passed in this way, it is the last one specified that is rendered.</p> <h3 id="method-i-respond_with-label-Customizing+response+behavior">Customizing response behavior</h3> <p>Like <code>respond_to</code>, <code>respond_with</code> may also be called with a block that can be used to overwrite any of the default responses, e.g. -</p> <pre class="ruby" data-language="ruby">def create
+  @user = User.new(params[:user])
+  flash[:notice] = "User was successfully created." if @user.save
+
+  respond_with(@user) do |format|
+    format.html { render }
+  end
+end
+</pre> <p>The argument passed to the block is an <a href="../mimeresponds/collector/">ActionController::MimeResponds::Collector</a> object which stores the responses for the formats defined within the block. Note that formats with responses defined explicitly in this way do not have to first be declared using the class method <code>respond_to</code>.</p> <p>Also, a hash passed to <code>respond_with</code> immediately after the specified resource(s) is interpreted as a set of options relevant to all formats. Any option accepted by <code>render</code> can be used, e.g.</p> <pre class="ruby" data-language="ruby">respond_with @people, status: 200
+</pre> <p>However, note that these options are ignored after an unsuccessful attempt to save a resource, e.g. when automatically rendering <code>:new</code> after a post request.</p> <p>Two additional options are relevant specifically to <code>respond_with</code> -</p> <ol>
+<li> <p><code>:location</code> - overwrites the default redirect location used after a successful html <code>post</code> request.</p> </li>
+<li> <p><code>:action</code> - overwrites the default render action used after an unsuccessful html <code>post</code> request.</p> </li>
+</ol> <div class="method-source-code" id="respond_with-source"> <pre class="ruby" data-language="ruby"># File actionpack/lib/action_controller/metal/mime_responds.rb, line 390
+def respond_with(*resources, &amp;block)
+  if self.class.mimes_for_respond_to.empty?
+    raise "In order to use respond_with, first you need to declare the "            "formats your controller responds to in the class level."
+  end
+
+  if collector = retrieve_collector_from_mimes(&amp;block)
+    options = resources.size == 1 ? {} : resources.extract_options!
+    options = options.clone
+    options[:default_response] = collector.response
+    (options.delete(:responder) || self.class.responder).call(self, resources, options)
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2016 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
