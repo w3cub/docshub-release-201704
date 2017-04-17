@@ -1,0 +1,156 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Measuring and Reducing CPU Usage in SQLite - SQLite - W3cubDocs</title>
+  
+  <meta name="description" content="The graph belows charts the number of CPU cycles used by SQLite on a standard workload, for all versions of SQLite going back about 8 years. As can &hellip;">
+  <meta name="keywords" content="measuring, and, reducing, cpu, usage, sqlite, overview, performance, measurement, workflow, limitations, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/sqlite/cpu/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/sqlite.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/sqlite/" class="_nav-link" title="" style="margin-left:0;">SQLite</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sqlite">
+				
+<h1 class="fancy_title"> Measuring and Reducing CPU Usage in SQLite </h1> <div class="fancy_toc">  <div id="toc_sub">
+<div class="fancy-toc1"><a href="#overview">1. Overview</a></div> <div class="fancy-toc1"><a href="#measuring_performance">2. Measuring Performance</a></div> <div class="fancy-toc2"><a href="#compile_options">2.1. Compile Options</a></div> <div class="fancy-toc2"><a href="#workload">2.2. Workload</a></div> <div class="fancy-toc2"><a href="#performance_measurement">2.3. Performance Measurement</a></div> <div class="fancy-toc2"><a href="#microoptimizations">2.4. Microoptimizations</a></div> <div class="fancy-toc1"><a href="#performance_measurement_workflow">3. Performance Measurement Workflow</a></div> <div class="fancy-toc1"><a href="#limitations">4. Limitations</a></div> </div> </div>   <h1 id="overview">
+<span>1. </span>Overview</h1> <p>The graph belows charts the number of CPU cycles used by SQLite on a standard workload, for all versions of SQLite going back about 8 years. As can be seen, the number of CPU cycles used by SQLite has been halved in just the past three years. </p>
+<p> This article describes how the SQLite developers measure CPU usage, what those measurements actually mean, and the techniques used by SQLite developers on their continuing quest to further reduce the CPU usage of the SQLite library. </p> <center>  <div class="imgcontainer"><img src="https://sqlite.org/images/cpu-usage.jpg"></div>
+<br> Measured using cachegrind on Ubuntu 16.04 on x64 with gcc 5.4.0 and -Os  </center> <h1 id="measuring_performance">
+<span>2. </span>Measuring Performance</h1> <p>In brief, the CPU performance of SQLite is measured as follows: </p>
+
+<ol> <li> Compile SQLite in an as-delivered configuration, without any special telemetry or debugging options. </li>
+<li> Link SQLite against a test program that runs approximately 30,000 SQL statements representing a typical workload. </li>
+<li> Count the number of CPU cycles consumed using <a href="http://valgrind.org/docs/manual/cg-manual.html" target="_blank">cachegrind</a>. </li>
+</ol> <h2 id="compile_options">
+<span>2.1. </span>Compile Options</h2> <p>For performance measurement, SQLite is compiled in approximately the same way as it would be for use in production systems. The compile-time configuration is "approximate" in the sense that every production use of SQLite is different. Compile-time options used by one system are not necessarily the same as those used by others. The key point is that options that significantly impact the generated machine code are avoided. For example, the -DSQLITE_DEBUG option is omitted because that option inserts thousands of assert() statements in the middle of performance critical sections of the SQLite library. The -pg option (on GCC) is omitted because it causes the compiler to emit extra probabilistic performance measuring code which interferes with actual performance measurements. </p>
+<p> For performance measurements, the -Os option is used (optimize for size) rather than -O2 because the -O2 option creates so much code movement that it is difficult to associate specific CPU instructions to C source code lines. </p>
+<h2 id="workload">
+<span>2.2. </span>Workload</h2> <p> The "typical" workload is generated by the <a href="https://www.sqlite.org/src/file/test/speedtest1.c" target="_blank">speedtest1.c</a> program in the canonical SQLite source tree. This program strives to exercise the SQLite library in a way that is typical of real-world applications. Of course, every application is different, and so no test program can exactly mirror the behavior of all applications. </p>
+<p> The speedtest1.c program is updated from time to time as the SQLite developers' understanding of what constitutes "typical" usage evolves. </p>
+<h2 id="performance_measurement">
+<span>2.3. </span>Performance Measurement</h2> <p id="microopt"> <a href="http://valgrind.org/docs/manual/cg-manual.html" target="_blank">Cachegrind</a> is used to measure performance because it gives answers that are repeatable to 7 or more significant digits. In comparison, actual (wall-clock) run times are scarcely repeatable beyond one significant digit.  </p>
+<h2 id="microoptimizations">
+<span>2.4. </span>Microoptimizations</h2> <p> The high repeatability of cachegrind allows the SQLite developers to implement and measure "microoptimizations". A microoptimization is a change to the code that results in a very small performance increase. Typical micro-optimizations reduce the number of CPU cycles by 0.1% or 0.05% or even less. Such improvements are impossible to measure with real-world timings. But hundreds or thousands of microoptimizations add up, resulting in measurable real-world performance gains. </p>
+<h1 id="performance_measurement_workflow">
+<span>3. </span>Performance Measurement Workflow</h1> <p> As SQLite developers edit the SQLite source code, they run the <a href="https://www.sqlite.org/src/file/tool/speed-check.sh" target="_blank">speed-check.sh</a> shell script to track the performance impact of changes. This script compiles the speedtest1.c program, runs it under cachegrind, processes the cachegrind output using the <a href="https://www.sqlite.org/src/file/tool/cg_anno.tcl" target="_blank">cg_anno.tcl</a> TCL script, then saves the results in a series of text files. Typical output from the speed-check.sh script looks like this: </p>
+<pre data-language="sql">
+==16429== I   refs:      1,291,005,499
+==16429== I1  misses:       24,688,182
+==16429== LLi misses:            5,027
+==16429== I1  miss rate:          1.91%
+==16429== LLi miss rate:          0.00%
+==16429== 
+==16429== D   refs:        663,242,182  (418,445,823 rd   + 244,796,359 wr)
+==16429== D1  misses:        5,958,032  (  3,902,273 rd   +   2,055,759 wr)
+==16429== LLd misses:           45,636  (     14,803 rd   +      30,833 wr)
+==16429== D1  miss rate:           0.8% (        0.9%     +         0.8%  )
+==16429== LLd miss rate:           0.0% (        0.0%     +         0.0%  )
+==16429== 
+==16429== LL refs:          30,646,214  ( 28,590,455 rd   +   2,055,759 wr)
+==16429== LL misses:            50,663  (     19,830 rd   +      30,833 wr)
+==16429== LL miss rate:            0.0% (        0.0%     +         0.0%  )
+   text	   data	    bss	    dec	    hex	filename
+ 466711	   6256	   1864	 474831	  73ecf	sqlite3.o
+ 199979  914462 7026217 sqlite3.c
+</pre> <p>The important parts of the output (the parts that the developers pay the most attention to) are shown in red. Basically, the developers want to know the size of the compiled SQLite library and how many CPU cycles were needed to run the performance test. </p>
+<p>The output from the <a href="https://www.sqlite.org/src/file/tool/cg_anno.tcl" target="_blank">cg_anno.tcl</a> script shows the number of CPU cycles spent on each line of code. The report is approximately 80,000 lines long. The following is a brief snippet taken from the middle of the report to show what it looks like: </p> <pre data-language="sql">
+         .  SQLITE_PRIVATE int sqlite3BtreeNext(BtCursor *pCur, int *pRes){
+         .    MemPage *pPage;
+         .    assert( cursorOwnsBtShared(pCur) );
+         .    assert( pRes!=0 );
+         .    assert( *pRes==0 || *pRes==1 );
+         .    assert( pCur-&gt;skipNext==0 || pCur-&gt;eState!=CURSOR_VALID );
+   369,648    pCur-&gt;info.nSize = 0;
+   369,648    pCur-&gt;curFlags &amp;= ~(BTCF_ValidNKey|BTCF_ValidOvfl);
+   369,648    *pRes = 0;
+   739,296    if( pCur-&gt;eState!=CURSOR_VALID ) return btreeNext(pCur, pRes);
+ 1,473,580    pPage = pCur-&gt;apPage[pCur-&gt;iPage];
+ 1,841,975    if( (++pCur-&gt;aiIdx[pCur-&gt;iPage])&gt;=pPage-&gt;nCell ){
+     4,340      pCur-&gt;aiIdx[pCur-&gt;iPage]--;
+     5,593      return btreeNext(pCur, pRes);
+         .    }
+   728,110    if( pPage-&gt;leaf ){
+         .      return SQLITE_OK;
+         .    }else{
+     3,117      return moveToLeftmost(pCur);
+         .    }
+   721,876  }
+</pre>  <p> The numbers on the left are the CPU cycle counts for that line of code, of course. </p>
+<p> The cg_anno.tcl script removes extraneous details from the default cachegrind annotation output so that before-and-after reports can be compared using a side-by-side diff to view specific details of how a micro-optimization attempt affected performance. </p>
+<h1 id="limitations">
+<span>4. </span>Limitations</h1> <p>The use of the standardized speedtest1.c workload and cachegrind has enabled significant performance improvement. However, it is important to recognize the limitations of this approach: </p>
+<ul> <li><p> Performance measurements are done with a single compiler (gcc 5.4.0), optimization setting (-Os), and on a single platform (Ubuntu 16.04 LTS on x64). The performance of other compilers and processors may vary. </p></li>
+<li><p> The speedtest1.c workload that is being measured tries to be representative of a wide range of typical uses of SQLite. But every application is different. The speedtest1.c workload might not be a good proxy for the kinds of activities performed by some applications. The SQLite developers are constantly working to improve the speedtest1.c program, to make it a better proxy for actual SQLite usage. Community feedback is welcomed. </p></li>
+<li><p> The cycle counts provided by cachegrind are a good proxy for actual performance, but they are not 100% accurate. </p></li>
+<li><p> Only CPU cycle counts are being measured here. CPU cycle counts are a good proxy for energy consumption, but do not necessary correlate well with real-world timings. Time spent doing I/O is not reflected in the CPU cycle counts, and I/O time predominates in many SQLite usage scenarios. </p></li>
+</ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    SQLite is in the Public Domain.<br>
+    <a href="https://sqlite.org/cpu.html" class="_attribution-link" target="_blank">https://sqlite.org/cpu.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
