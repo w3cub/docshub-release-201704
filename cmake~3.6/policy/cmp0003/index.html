@@ -1,0 +1,99 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>CMP0003 - CMake 3.6 - W3cubDocs</title>
+  
+  <meta name="description" content=" Libraries linked via full path no longer produce linker search paths. ">
+  <meta name="keywords" content="cmp, -, cmake, cmake~3.6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/cmake~3.6/policy/cmp0003/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/cmake~3.6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/cmake~3.6/" class="_nav-link" title="" style="margin-left:0;">CMake 3.6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="policy:CMP0003">CMP0003</h1> <p id="cmp0003">Libraries linked via full path no longer produce linker search paths.</p> <p>This policy affects how libraries whose full paths are NOT known are found at link time, but was created due to a change in how CMake deals with libraries whose full paths are known. Consider the code</p> <pre data-language="python">target_link_libraries(myexe /path/to/libA.so)
+</pre> <p>CMake 2.4 and below implemented linking to libraries whose full paths are known by splitting them on the link line into separate components consisting of the linker search path and the library name. The example code might have produced something like</p> <pre data-language="python">... -L/path/to -lA ...
+</pre> <p>in order to link to library A. An analysis was performed to order multiple link directories such that the linker would find library A in the desired location, but there are cases in which this does not work. CMake versions 2.6 and above use the more reliable approach of passing the full path to libraries directly to the linker in most cases. The example code now produces something like</p> <pre data-language="python">... /path/to/libA.so ....
+</pre> <p>Unfortunately this change can break code like</p> <pre data-language="python">target_link_libraries(myexe /path/to/libA.so B)
+</pre> <p>where “B” is meant to find “/path/to/libB.so”. This code is wrong because the user is asking the linker to find library B but has not provided a linker search path (which may be added with the link_directories command). However, with the old linking implementation the code would work accidentally because the linker search path added for library A allowed library B to be found.</p> <p>In order to support projects depending on linker search paths added by linking to libraries with known full paths, the OLD behavior for this policy will add the linker search paths even though they are not needed for their own libraries. When this policy is set to OLD, CMake will produce a link line such as</p> <pre data-language="python">... -L/path/to /path/to/libA.so -lB ...
+</pre> <p>which will allow library B to be found as it was previously. When this policy is set to NEW, CMake will produce a link line such as</p> <pre data-language="python">... /path/to/libA.so -lB ...
+</pre> <p>which more accurately matches what the project specified.</p> <p>The setting for this policy used when generating the link line is that in effect when the target is created by an add_executable or add_library command. For the example described above, the code</p> <pre data-language="python">cmake_policy(SET CMP0003 OLD) # or cmake_policy(VERSION 2.4)
+add_executable(myexe myexe.c)
+target_link_libraries(myexe /path/to/libA.so B)
+</pre> <p>will work and suppress the warning for this policy. It may also be updated to work with the corrected linking approach:</p> <pre data-language="python">cmake_policy(SET CMP0003 NEW) # or cmake_policy(VERSION 2.6)
+link_directories(/path/to) # needed to find library B
+add_executable(myexe myexe.c)
+target_link_libraries(myexe /path/to/libA.so B)
+</pre> <p>Even better, library B may be specified with a full path:</p> <pre data-language="python">add_executable(myexe myexe.c)
+target_link_libraries(myexe /path/to/libA.so /path/to/libB.so)
+</pre> <p>When all items on the link line have known paths CMake does not check this policy so it has no effect.</p> <p>Note that the warning for this policy will be issued for at most one target. This avoids flooding users with messages for every target when setting the policy once will probably fix all targets.</p> <p>This policy was introduced in CMake version 2.6.0. CMake version 3.6.3 warns when the policy is not set and uses OLD behavior. Use the cmake_policy command to set it to OLD or NEW explicitly.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The <code>OLD</code> behavior of a policy is <a class="reference internal" href="../../manual/cmake-policies.7/#manual:cmake-policies(7)" title="cmake-policies(7)" id="index-0-manual:cmake-policies(7)"><code>deprecated by definition</code></a> and may be removed in a future version of CMake.</p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2000–2016 Kitware, Inc.<br>© 2000–2011 Insight Software Consortium<br>Licensed under the BSD 3-clause License.<br>
+    <a href="https://cmake.org/cmake/help/v3.6/policy/CMP0003.html" class="_attribution-link" target="_blank">https://cmake.org/cmake/help/v3.6/policy/CMP0003.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
