@@ -1,0 +1,108 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Index Access Method&#58; Index Cost Estimation Functions - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="The amcostestimate function is given information describing a possible index scan, including lists of WHERE and ORDER BY clauses that have been &hellip;">
+  <meta name="keywords" content="index, cost, estimation, functions, access, method, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/index-cost-estimation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INDEX-COST-ESTIMATION">55.6. Index Cost Estimation Functions</h1> <p>The <code class="FUNCTION">amcostestimate</code> function is given information describing a possible index scan, including lists of WHERE and ORDER BY clauses that have been determined to be usable with the index. It must return estimates of the cost of accessing the index and the selectivity of the WHERE clauses (that is, the fraction of parent-table rows that will be retrieved during the index scan). For simple cases, nearly all the work of the cost estimator can be done by calling standard routines in the optimizer; the point of having an <code class="FUNCTION">amcostestimate</code> function is to allow index access methods to provide index-type-specific knowledge, in case it is possible to improve on the standard estimates.</p> <p>Each <code class="FUNCTION">amcostestimate</code> function must have the signature:</p> <pre class="PROGRAMLISTING" data-language="sql">
+void
+amcostestimate (PlannerInfo *root,
+                IndexPath *path,
+                double loop_count,
+                Cost *indexStartupCost,
+                Cost *indexTotalCost,
+                Selectivity *indexSelectivity,
+                double *indexCorrelation);
+</pre> <p>The first three parameters are inputs:</p> <div class="VARIABLELIST"> <dl> <dt><code class="PARAMETER">root</code></dt> <dd> <p>The planner's information about the query being processed.</p> </dd> <dt><code class="PARAMETER">path</code></dt> <dd> <p>The index access path being considered. All fields except cost and selectivity values are valid.</p> </dd> <dt><code class="PARAMETER">loop_count</code></dt> <dd> <p>The number of repetitions of the index scan that should be factored into the cost estimates. This will typically be greater than one when considering a parameterized scan for use in the inside of a nestloop join. Note that the cost estimates should still be for just one scan; a larger <code class="PARAMETER">loop_count</code> means that it may be appropriate to allow for some caching effects across multiple scans.</p> </dd> </dl> </div> <p>The last four parameters are pass-by-reference outputs:</p> <div class="VARIABLELIST"> <dl> <dt><code class="PARAMETER">*indexStartupCost</code></dt> <dd> <p>Set to cost of index start-up processing</p> </dd> <dt><code class="PARAMETER">*indexTotalCost</code></dt> <dd> <p>Set to total cost of index processing</p> </dd> <dt><code class="PARAMETER">*indexSelectivity</code></dt> <dd> <p>Set to index selectivity</p> </dd> <dt><code class="PARAMETER">*indexCorrelation</code></dt> <dd> <p>Set to correlation coefficient between index scan order and underlying table's order</p> </dd> </dl> </div> <p>Note that cost estimate functions must be written in C, not in SQL or any available procedural language, because they must access internal data structures of the planner/optimizer.</p> <p>The index access costs should be computed using the parameters used by <code class="FILENAME">src/backend/optimizer/path/costsize.c</code>: a sequential disk block fetch has cost <code class="VARNAME">seq_page_cost</code>, a nonsequential fetch has cost <code class="VARNAME">random_page_cost</code>, and the cost of processing one index row should usually be taken as <code class="VARNAME">cpu_index_tuple_cost</code>. In addition, an appropriate multiple of <code class="VARNAME">cpu_operator_cost</code> should be charged for any comparison operators invoked during index processing (especially evaluation of the indexquals themselves).</p> <p>The access costs should include all disk and CPU costs associated with scanning the index itself, but <span class="emphasis EMPHASIS c2">not</span> the costs of retrieving or processing the parent-table rows that are identified by the index.</p> <p>The <span class="QUOTE">"start-up cost"</span> is the part of the total scan cost that must be expended before we can begin to fetch the first row. For most indexes this can be taken as zero, but an index type with a high start-up cost might want to set it nonzero.</p> <p>The <code class="PARAMETER">indexSelectivity</code> should be set to the estimated fraction of the parent table rows that will be retrieved during the index scan. In the case of a lossy query, this will typically be higher than the fraction of rows that actually pass the given qual conditions.</p> <p>The <code class="PARAMETER">indexCorrelation</code> should be set to the correlation (ranging between -1.0 and 1.0) between the index order and the table order. This is used to adjust the estimate for the cost of fetching rows from the parent table.</p> <p>When <code class="PARAMETER">loop_count</code> is greater than one, the returned numbers should be averages expected for any one scan of the index.</p> <div class="PROCEDURE"> <p class="c3">Cost Estimation</p> <p>A typical cost estimator will proceed as follows:</p> <ol type="1"> <li class="STEP"> <p>Estimate and return the fraction of parent-table rows that will be visited based on the given qual conditions. In the absence of any index-type-specific knowledge, use the standard optimizer function <code class="FUNCTION">clauselist_selectivity()</code>:</p> <pre class="PROGRAMLISTING" data-language="sql">
+*indexSelectivity = clauselist_selectivity(root, path-&gt;indexquals,
+                                           path-&gt;indexinfo-&gt;rel-&gt;relid,
+                                           JOIN_INNER, NULL);
+</pre> </li> <li class="STEP"> <p>Estimate the number of index rows that will be visited during the scan. For many index types this is the same as <code class="PARAMETER">indexSelectivity</code> times the number of rows in the index, but it might be more. (Note that the index's size in pages and rows is available from the <code class="LITERAL">path-&gt;indexinfo</code> struct.)</p> </li> <li class="STEP"> <p>Estimate the number of index pages that will be retrieved during the scan. This might be just <code class="PARAMETER">indexSelectivity</code> times the index's size in pages.</p> </li> <li class="STEP"> <p>Compute the index access cost. A generic estimator might do this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+/*
+ * Our generic assumption is that the index pages will be read
+ * sequentially, so they cost seq_page_cost each, not random_page_cost.
+ * Also, we charge for evaluation of the indexquals at each index row.
+ * All the costs are assumed to be paid incrementally during the scan.
+ */
+cost_qual_eval(&amp;index_qual_cost, path-&gt;indexquals, root);
+*indexStartupCost = index_qual_cost.startup;
+*indexTotalCost = seq_page_cost * numIndexPages +
+    (cpu_index_tuple_cost + index_qual_cost.per_tuple) * numIndexTuples;
+</pre> <p>However, the above does not account for amortization of index reads across repeated index scans.</p> </li> <li class="STEP"> <p>Estimate the index correlation. For a simple ordered index on a single field, this can be retrieved from pg_statistic. If the correlation is not known, the conservative estimate is zero (no correlation).</p> </li> </ol> </div> <p>Examples of cost estimator functions can be found in <code class="FILENAME">src/backend/utils/adt/selfuncs.c</code>.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../index-unique-checks/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="https://www.postgresql.org/docs/9.4/static/gist.html" accesskey="N" target="_blank">Next</a></td> </tr> <tr> <td width="33%" align="left">Index Uniqueness Checks</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/indexam.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">GiST Indexes</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/index-cost-estimation.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/index-cost-estimation.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

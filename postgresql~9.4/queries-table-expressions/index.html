@@ -1,0 +1,340 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Table Expressions - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="A table expression computes a table. The table expression contains a FROM clause that is optionally followed by WHERE, GROUP BY, and HAVING clauses &hellip;">
+  <meta name="keywords" content="table, expressions, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/queries-table-expressions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="QUERIES-TABLE-EXPRESSIONS">7.2. Table Expressions</h1> <p>A <i class="FIRSTTERM">table expression</i> computes a table. The table expression contains a <code class="LITERAL">FROM</code> clause that is optionally followed by <code class="LITERAL">WHERE</code>, <code class="LITERAL">GROUP BY</code>, and <code class="LITERAL">HAVING</code> clauses. Trivial table expressions simply refer to a table on disk, a so-called base table, but more complex expressions can be used to modify or combine base tables in various ways.</p> <p>The optional <code class="LITERAL">WHERE</code>, <code class="LITERAL">GROUP BY</code>, and <code class="LITERAL">HAVING</code> clauses in the table expression specify a pipeline of successive transformations performed on the table derived in the <code class="LITERAL">FROM</code> clause. All these transformations produce a virtual table that provides the rows that are passed to the select list to compute the output rows of the query.</p> <div class="SECT2"> <h2 class="SECT2" id="QUERIES-FROM">7.2.1. The <code class="LITERAL">FROM</code> Clause</h2> <p>The <a class="c2" href="../sql-select/#SQL-FROM">FROM Clause</a> derives a table from one or more other tables given in a comma-separated table reference list.</p> <pre class="SYNOPSIS" data-language="sql">
+FROM table_reference [, table_reference [, ...]]
+</pre> <p>A table reference can be a table name (possibly schema-qualified), or a derived table such as a subquery, a <code class="LITERAL">JOIN</code> construct, or complex combinations of these. If more than one table reference is listed in the <code class="LITERAL">FROM</code> clause, the tables are cross-joined (that is, the Cartesian product of their rows is formed; see below). The result of the <code class="LITERAL">FROM</code> list is an intermediate virtual table that can then be subject to transformations by the <code class="LITERAL">WHERE</code>, <code class="LITERAL">GROUP BY</code>, and <code class="LITERAL">HAVING</code> clauses and is finally the result of the overall table expression.</p> <p>When a table reference names a table that is the parent of a table inheritance hierarchy, the table reference produces rows of not only that table but all of its descendant tables, unless the key word <code class="LITERAL">ONLY</code> precedes the table name. However, the reference produces only the columns that appear in the named table — any columns added in subtables are ignored.</p> <p>Instead of writing <code class="LITERAL">ONLY</code> before the table name, you can write <code class="LITERAL">*</code> after the table name to explicitly specify that descendant tables are included. Writing <code class="LITERAL">*</code> is not necessary since that behavior is the default (unless you have changed the setting of the <a href="../runtime-config-compatible/#GUC-SQL-INHERITANCE">sql_inheritance</a> configuration option). However writing <code class="LITERAL">*</code> might be useful to emphasize that additional tables will be searched.</p> <div class="SECT3"> <h3 class="SECT3" id="QUERIES-JOIN">7.2.1.1. Joined Tables</h3> <p>A joined table is a table derived from two other (real or derived) tables according to the rules of the particular join type. Inner, outer, and cross-joins are available. The general syntax of a joined table is</p> <pre class="SYNOPSIS" data-language="sql">
+T1 join_type T2 [ join_condition ]
+</pre> <p>Joins of all types can be chained together, or nested: either or both <code class="REPLACEABLE c3">T1</code> and <code class="REPLACEABLE c3">T2</code> can be joined tables. Parentheses can be used around <code class="LITERAL">JOIN</code> clauses to control the join order. In the absence of parentheses, <code class="LITERAL">JOIN</code> clauses nest left-to-right.</p> <div class="VARIABLELIST"> <p class="c4">Join Types</p> <dl> <dt>Cross join</dt> <dd> <pre class="SYNOPSIS" data-language="sql">
+T1 CROSS JOIN T2
+</pre> <p>For every possible combination of rows from <code class="REPLACEABLE c3">T1</code> and <code class="REPLACEABLE c3">T2</code> (i.e., a Cartesian product), the joined table will contain a row consisting of all columns in <code class="REPLACEABLE c3">T1</code> followed by all columns in <code class="REPLACEABLE c3">T2</code>. If the tables have N and M rows respectively, the joined table will have N * M rows.</p> <p><code class="LITERAL">FROM <code class="REPLACEABLE c3">T1</code> CROSS JOIN <code class="REPLACEABLE c3">T2</code></code> is equivalent to <code class="LITERAL">FROM <code class="REPLACEABLE c3">T1</code> INNER JOIN <code class="REPLACEABLE c3">T2</code> ON TRUE</code> (see below). It is also equivalent to <code class="LITERAL">FROM <code class="REPLACEABLE c3">T1</code>, <code class="REPLACEABLE c3">T2</code></code>.</p>  <blockquote class="NOTE"> <p><b>Note:</b> This latter equivalence does not hold exactly when more than two tables appear, because <code class="LITERAL">JOIN</code> binds more tightly than comma. For example <code class="LITERAL">FROM <code class="REPLACEABLE c3">T1</code> CROSS JOIN <code class="REPLACEABLE c3">T2</code> INNER JOIN <code class="REPLACEABLE c3">T3</code> ON <code class="REPLACEABLE c3">condition</code></code> is not the same as <code class="LITERAL">FROM <code class="REPLACEABLE c3">T1</code>, <code class="REPLACEABLE c3">T2</code> INNER JOIN <code class="REPLACEABLE c3">T3</code> ON <code class="REPLACEABLE c3">condition</code></code> because the <code class="REPLACEABLE c3">condition</code> can reference <code class="REPLACEABLE c3">T1</code> in the first case but not the second.</p> </blockquote>  </dd> <dt>Qualified joins</dt> <dd> <pre class="SYNOPSIS" data-language="sql">
+T1 { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2 ON boolean_expression
+T1 { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2 USING ( join column list )
+T1 NATURAL { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2
+</pre> <p>The words <code class="LITERAL">INNER</code> and <code class="LITERAL">OUTER</code> are optional in all forms. <code class="LITERAL">INNER</code> is the default; <code class="LITERAL">LEFT</code>, <code class="LITERAL">RIGHT</code>, and <code class="LITERAL">FULL</code> imply an outer join.</p> <p>The <i class="FIRSTTERM">join condition</i> is specified in the <code class="LITERAL">ON</code> or <code class="LITERAL">USING</code> clause, or implicitly by the word <code class="LITERAL">NATURAL</code>. The join condition determines which rows from the two source tables are considered to <span class="QUOTE">"match"</span>, as explained in detail below.</p> <p>The possible types of qualified join are:</p> <div class="VARIABLELIST"> <dl> <dt><code class="LITERAL" id="inner32join">INNER JOIN</code></dt> <dd> <p>For each row R1 of T1, the joined table has a row for each row in T2 that satisfies the join condition with R1.</p> </dd> <dt><code class="LITERAL" id="left32outer32join">LEFT OUTER JOIN</code></dt> <dd> <p>First, an inner join is performed. Then, for each row in T1 that does not satisfy the join condition with any row in T2, a joined row is added with null values in columns of T2. Thus, the joined table always has at least one row for each row in T1.</p> </dd> <dt><code class="LITERAL" id="right32outer32join">RIGHT OUTER JOIN</code></dt> <dd> <p>First, an inner join is performed. Then, for each row in T2 that does not satisfy the join condition with any row in T1, a joined row is added with null values in columns of T1. This is the converse of a left join: the result table will always have a row for each row in T2.</p> </dd> <dt><code class="LITERAL" id="full32outer32join">FULL OUTER JOIN</code></dt> <dd> <p>First, an inner join is performed. Then, for each row in T1 that does not satisfy the join condition with any row in T2, a joined row is added with null values in columns of T2. Also, for each row of T2 that does not satisfy the join condition with any row in T1, a joined row with null values in the columns of T1 is added.</p> </dd> </dl> </div> <p>The <code class="LITERAL">ON</code> clause is the most general kind of join condition: it takes a Boolean value expression of the same kind as is used in a <code class="LITERAL">WHERE</code> clause. A pair of rows from <code class="REPLACEABLE c3">T1</code> and <code class="REPLACEABLE c3">T2</code> match if the <code class="LITERAL">ON</code> expression evaluates to true.</p> <p>The <code class="LITERAL">USING</code> clause is a shorthand that allows you to take advantage of the specific situation where both sides of the join use the same name for the joining column(s). It takes a comma-separated list of the shared column names and forms a join condition that includes an equality comparison for each one. For example, joining <code class="REPLACEABLE c3">T1</code> and <code class="REPLACEABLE c3">T2</code> with <code class="LITERAL">USING (a, b)</code> produces the join condition <code class="LITERAL">ON <code class="REPLACEABLE c3">T1</code>.a = <code class="REPLACEABLE c3">T2</code>.a AND <code class="REPLACEABLE c3">T1</code>.b = <code class="REPLACEABLE c3">T2</code>.b</code>.</p> <p>Furthermore, the output of <code class="LITERAL">JOIN USING</code> suppresses redundant columns: there is no need to print both of the matched columns, since they must have equal values. While <code class="LITERAL">JOIN ON</code> produces all columns from <code class="REPLACEABLE c3">T1</code> followed by all columns from <code class="REPLACEABLE c3">T2</code>, <code class="LITERAL">JOIN USING</code> produces one output column for each of the listed column pairs (in the listed order), followed by any remaining columns from <code class="REPLACEABLE c3">T1</code>, followed by any remaining columns from <code class="REPLACEABLE c3">T2</code>.</p> <p>Finally, <code class="LITERAL">NATURAL</code> is a shorthand form of <code class="LITERAL">USING</code>: it forms a <code class="LITERAL">USING</code> list consisting of all column names that appear in both input tables. As with <code class="LITERAL">USING</code>, these columns appear only once in the output table. If there are no common column names, <code class="LITERAL">NATURAL</code> behaves like <code class="LITERAL">CROSS JOIN</code>.</p>  <blockquote class="NOTE"> <p><b>Note:</b> <code class="LITERAL">USING</code> is reasonably safe from column changes in the joined relations since only the listed columns are combined. <code class="LITERAL">NATURAL</code> is considerably more risky since any schema changes to either relation that cause a new matching column name to be present will cause the join to combine that new column as well.</p> </blockquote>  </dd> </dl> </div> <p>To put this together, assume we have tables <code class="LITERAL">t1</code>:</p> <pre class="PROGRAMLISTING" data-language="sql">
+ num | name
+-----+------
+   1 | a
+   2 | b
+   3 | c
+</pre> <p>and <code class="LITERAL">t2</code>:</p> <pre class="PROGRAMLISTING" data-language="sql">
+ num | value
+-----+-------
+   1 | xxx
+   3 | yyy
+   5 | zzz
+</pre> <p>then we get the following results for the various joins:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 CROSS JOIN t2;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   1 | a    |   3 | yyy
+   1 | a    |   5 | zzz
+   2 | b    |   1 | xxx
+   2 | b    |   3 | yyy
+   2 | b    |   5 | zzz
+   3 | c    |   1 | xxx
+   3 | c    |   3 | yyy
+   3 | c    |   5 | zzz
+(9 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 INNER JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   3 | c    |   3 | yyy
+(2 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 INNER JOIN t2 USING (num);
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   3 | c    | yyy
+(2 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 NATURAL INNER JOIN t2;
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   3 | c    | yyy
+(2 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |   3 | yyy
+(3 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 LEFT JOIN t2 USING (num);
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   2 | b    |
+   3 | c    | yyy
+(3 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 RIGHT JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   3 | c    |   3 | yyy
+     |      |   5 | zzz
+(3 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 FULL JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |   3 | yyy
+     |      |   5 | zzz
+(4 rows)
+</pre> <p>The join condition specified with <code class="LITERAL">ON</code> can also contain conditions that do not relate directly to the join. This can prove useful for some queries but needs to be thought out carefully. For example:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num AND t2.value = 'xxx';
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |     |
+(3 rows)
+</pre> <p>Notice that placing the restriction in the <code class="LITERAL">WHERE</code> clause produces a different result:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num WHERE t2.value = 'xxx';
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+(1 row)
+</pre> <p>This is because a restriction placed in the <code class="LITERAL">ON</code> clause is processed <span class="emphasis EMPHASIS c5">before</span> the join, while a restriction placed in the <code class="LITERAL">WHERE</code> clause is processed <span class="emphasis EMPHASIS c5">after</span> the join. That does not matter with inner joins, but it matters a lot with outer joins.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="QUERIES-TABLE-ALIASES">7.2.1.2. Table and Column Aliases</h3> <p>A temporary name can be given to tables and complex table references to be used for references to the derived table in the rest of the query. This is called a <i class="FIRSTTERM">table alias</i>.</p> <p>To create a table alias, write</p> <pre class="SYNOPSIS" data-language="sql">
+FROM table_reference AS alias
+</pre> <p>or</p> <pre class="SYNOPSIS" data-language="sql">
+FROM table_reference alias
+</pre> <p>The <code class="LITERAL">AS</code> key word is optional noise. <code class="REPLACEABLE c3">alias</code> can be any identifier.</p> <p>A typical application of table aliases is to assign short identifiers to long table names to keep the join clauses readable. For example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM some_very_long_table_name s JOIN another_fairly_long_name a ON s.id = a.num;
+</pre> <p>The alias becomes the new name of the table reference so far as the current query is concerned — it is not allowed to refer to the table by the original name elsewhere in the query. Thus, this is not valid:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM my_table AS m WHERE my_table.a &gt; 5;    -- wrong
+</pre> <p>Table aliases are mainly for notational convenience, but it is necessary to use them when joining a table to itself, e.g.:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM people AS mother JOIN people AS child ON mother.id = child.mother_id;
+</pre> <p>Additionally, an alias is required if the table reference is a subquery (see <a href="../queries-table-expressions/#QUERIES-SUBQUERIES">Section 7.2.1.3</a>).</p> <p>Parentheses are used to resolve ambiguities. In the following example, the first statement assigns the alias <code class="LITERAL">b</code> to the second instance of <code class="LITERAL">my_table</code>, but the second statement assigns the alias to the result of the join:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM my_table AS a CROSS JOIN my_table AS b ...
+SELECT * FROM (my_table AS a CROSS JOIN my_table) AS b ...
+</pre> <p>Another form of table aliasing gives temporary names to the columns of the table, as well as the table itself:</p> <pre class="SYNOPSIS" data-language="sql">
+FROM table_reference [AS] alias ( column1 [, column2 [, ...]] )
+</pre> <p>If fewer column aliases are specified than the actual table has columns, the remaining columns are not renamed. This syntax is especially useful for self-joins or subqueries.</p> <p>When an alias is applied to the output of a <code class="LITERAL">JOIN</code> clause, the alias hides the original name(s) within the <code class="LITERAL">JOIN</code>. For example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT a.* FROM my_table AS a JOIN your_table AS b ON ...
+</pre> <p>is valid SQL, but:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT a.* FROM (my_table AS a JOIN your_table AS b ON ...) AS c
+</pre> <p>is not valid; the table alias <code class="LITERAL">a</code> is not visible outside the alias <code class="LITERAL">c</code>.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="QUERIES-SUBQUERIES">7.2.1.3. Subqueries</h3> <p>Subqueries specifying a derived table must be enclosed in parentheses and <span class="emphasis EMPHASIS c5">must</span> be assigned a table alias name (as in <a href="../queries-table-expressions/#QUERIES-TABLE-ALIASES">Section 7.2.1.2</a>). For example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+FROM (SELECT * FROM table1) AS alias_name
+</pre> <p>This example is equivalent to <code class="LITERAL">FROM table1 AS alias_name</code>. More interesting cases, which cannot be reduced to a plain join, arise when the subquery involves grouping or aggregation.</p> <p>A subquery can also be a <code class="COMMAND">VALUES</code> list:</p> <pre class="PROGRAMLISTING" data-language="sql">
+FROM (VALUES ('anne', 'smith'), ('bob', 'jones'), ('joe', 'blow'))
+     AS names(first, last)
+</pre> <p>Again, a table alias is required. Assigning alias names to the columns of the <code class="COMMAND">VALUES</code> list is optional, but is good practice. For more information see <a href="../queries-values/">Section 7.7</a>.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="QUERIES-TABLEFUNCTIONS">7.2.1.4. Table Functions</h3> <p>Table functions are functions that produce a set of rows, made up of either base data types (scalar types) or composite data types (table rows). They are used like a table, view, or subquery in the <code class="LITERAL">FROM</code> clause of a query. Columns returned by table functions can be included in <code class="LITERAL">SELECT</code>, <code class="LITERAL">JOIN</code>, or <code class="LITERAL">WHERE</code> clauses in the same manner as columns of a table, view, or subquery.</p> <p>Table functions may also be combined using the <code class="LITERAL">ROWS FROM</code> syntax, with the results returned in parallel columns; the number of result rows in this case is that of the largest function result, with smaller results padded with null values to match.</p> <pre class="SYNOPSIS" data-language="sql">
+function_call [WITH ORDINALITY] [[AS] table_alias [(column_alias [, ... ])]]
+ROWS FROM( function_call [, ... ] ) [WITH ORDINALITY] [[AS] table_alias [(column_alias [, ... ])]]
+</pre> <p>If the <code class="LITERAL">WITH ORDINALITY</code> clause is specified, an additional column of type <code class="TYPE">bigint</code> will be added to the function result columns. This column numbers the rows of the function result set, starting from 1. (This is a generalization of the SQL-standard syntax for <code class="LITERAL">UNNEST ... WITH ORDINALITY</code>.) By default, the ordinal column is called <code class="LITERAL">ordinality</code>, but a different column name can be assigned to it using an <code class="LITERAL">AS</code> clause.</p> <p>The special table function <code class="LITERAL">UNNEST</code> may be called with any number of array parameters, and it returns a corresponding number of columns, as if <code class="LITERAL">UNNEST</code> (<a href="../functions-array/">Section 9.18</a>) had been called on each parameter separately and combined using the <code class="LITERAL">ROWS FROM</code> construct.</p> <pre class="SYNOPSIS" data-language="sql">
+UNNEST( array_expression [, ... ] ) [WITH ORDINALITY] [[AS] table_alias [(column_alias [, ... ])]]
+</pre> <p>If no <code class="REPLACEABLE c3">table_alias</code> is specified, the function name is used as the table name; in the case of a <code class="LITERAL">ROWS FROM()</code> construct, the first function's name is used.</p> <p>If column aliases are not supplied, then for a function returning a base data type, the column name is also the same as the function name. For a function returning a composite type, the result columns get the names of the individual attributes of the type.</p> <p>Some examples:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE foo (fooid int, foosubid int, fooname text);
+
+CREATE FUNCTION getfoo(int) RETURNS SETOF foo AS $$
+    SELECT * FROM foo WHERE fooid = $1;
+$$ LANGUAGE SQL;
+
+SELECT * FROM getfoo(1) AS t1;
+
+SELECT * FROM foo
+    WHERE foosubid IN (
+                        SELECT foosubid
+                        FROM getfoo(foo.fooid) z
+                        WHERE z.fooid = foo.fooid
+                      );
+
+CREATE VIEW vw_getfoo AS SELECT * FROM getfoo(1);
+
+SELECT * FROM vw_getfoo;
+</pre> <p>In some cases it is useful to define table functions that can return different column sets depending on how they are invoked. To support this, the table function can be declared as returning the pseudotype <code class="TYPE">record</code>. When such a function is used in a query, the expected row structure must be specified in the query itself, so that the system can know how to parse and plan the query. This syntax looks like:</p> <pre class="SYNOPSIS" data-language="sql">
+function_call [AS] alias (column_definition [, ... ])
+function_call AS [alias] (column_definition [, ... ])
+ROWS FROM( ... function_call AS (column_definition [, ... ]) [, ... ] )
+</pre> <p>When not using the <code class="LITERAL">ROWS FROM()</code> syntax, the <code class="REPLACEABLE c3">column_definition</code> list replaces the column alias list that could otherwise be attached to the <code class="LITERAL">FROM</code> item; the names in the column definitions serve as column aliases. When using the <code class="LITERAL">ROWS FROM()</code> syntax, a <code class="REPLACEABLE c3">column_definition</code> list can be attached to each member function separately; or if there is only one member function and no <code class="LITERAL">WITH ORDINALITY</code> clause, a <code class="REPLACEABLE c3">column_definition</code> list can be written in place of a column alias list following <code class="LITERAL">ROWS FROM()</code>.</p> <p>Consider this example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT *
+    FROM dblink('dbname=mydb', 'SELECT proname, prosrc FROM pg_proc')
+      AS t1(proname name, prosrc text)
+    WHERE proname LIKE 'bytea%';
+</pre> <p>The <a href="https://www.postgresql.org/docs/9.4/static/contrib-dblink-function.html" target="_blank">dblink</a> function (part of the <a href="https://www.postgresql.org/docs/9.4/static/dblink.html" target="_blank">dblink</a> module) executes a remote query. It is declared to return <code class="TYPE">record</code> since it might be used for any kind of query. The actual column set must be specified in the calling query so that the parser knows, for example, what <code class="LITERAL">*</code> should expand to.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="QUERIES-LATERAL">7.2.1.5. <code class="LITERAL">LATERAL</code> Subqueries</h3> <p>Subqueries appearing in <code class="LITERAL">FROM</code> can be preceded by the key word <code class="LITERAL">LATERAL</code>. This allows them to reference columns provided by preceding <code class="LITERAL">FROM</code> items. (Without <code class="LITERAL">LATERAL</code>, each subquery is evaluated independently and so cannot cross-reference any other <code class="LITERAL">FROM</code> item.)</p> <p>Table functions appearing in <code class="LITERAL">FROM</code> can also be preceded by the key word <code class="LITERAL">LATERAL</code>, but for functions the key word is optional; the function's arguments can contain references to columns provided by preceding <code class="LITERAL">FROM</code> items in any case.</p> <p>A <code class="LITERAL">LATERAL</code> item can appear at top level in the <code class="LITERAL">FROM</code> list, or within a <code class="LITERAL">JOIN</code> tree. In the latter case it can also refer to any items that are on the left-hand side of a <code class="LITERAL">JOIN</code> that it is on the right-hand side of.</p> <p>When a <code class="LITERAL">FROM</code> item contains <code class="LITERAL">LATERAL</code> cross-references, evaluation proceeds as follows: for each row of the <code class="LITERAL">FROM</code> item providing the cross-referenced column(s), or set of rows of multiple <code class="LITERAL">FROM</code> items providing the columns, the <code class="LITERAL">LATERAL</code> item is evaluated using that row or row set's values of the columns. The resulting row(s) are joined as usual with the rows they were computed from. This is repeated for each row or set of rows from the column source table(s).</p> <p>A trivial example of <code class="LITERAL">LATERAL</code> is</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM foo, LATERAL (SELECT * FROM bar WHERE bar.id = foo.bar_id) ss;
+</pre> <p>This is not especially useful since it has exactly the same result as the more conventional</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT * FROM foo, bar WHERE bar.id = foo.bar_id;
+</pre> <p><code class="LITERAL">LATERAL</code> is primarily useful when the cross-referenced column is necessary for computing the row(s) to be joined. A common application is providing an argument value for a set-returning function. For example, supposing that <code class="FUNCTION">vertices(polygon)</code> returns the set of vertices of a polygon, we could identify close-together vertices of polygons stored in a table with:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT p1.id, p2.id, v1, v2
+FROM polygons p1, polygons p2,
+     LATERAL vertices(p1.poly) v1,
+     LATERAL vertices(p2.poly) v2
+WHERE (v1 &lt;-&gt; v2) &lt; 10 AND p1.id != p2.id;
+</pre> <p>This query could also be written</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT p1.id, p2.id, v1, v2
+FROM polygons p1 CROSS JOIN LATERAL vertices(p1.poly) v1,
+     polygons p2 CROSS JOIN LATERAL vertices(p2.poly) v2
+WHERE (v1 &lt;-&gt; v2) &lt; 10 AND p1.id != p2.id;
+</pre> <p>or in several other equivalent formulations. (As already mentioned, the <code class="LITERAL">LATERAL</code> key word is unnecessary in this example, but we use it for clarity.)</p> <p>It is often particularly handy to <code class="LITERAL">LEFT JOIN</code> to a <code class="LITERAL">LATERAL</code> subquery, so that source rows will appear in the result even if the <code class="LITERAL">LATERAL</code> subquery produces no rows for them. For example, if <code class="FUNCTION">get_product_names()</code> returns the names of products made by a manufacturer, but some manufacturers in our table currently produce no products, we could find out which ones those are like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT m.name
+FROM manufacturers m LEFT JOIN LATERAL get_product_names(m.id) pname ON true
+WHERE pname IS NULL;
+</pre> </div> </div> <div class="SECT2"> <h2 class="SECT2" id="QUERIES-WHERE">7.2.2. The <code class="LITERAL">WHERE</code> Clause</h2> <p>The syntax of the <a class="c2" href="../sql-select/#SQL-WHERE">WHERE Clause</a> is</p> <pre class="SYNOPSIS" data-language="sql">
+WHERE search_condition
+</pre> <p>where <code class="REPLACEABLE c3">search_condition</code> is any value expression (see <a href="../sql-expressions/">Section 4.2</a>) that returns a value of type <code class="TYPE">boolean</code>.</p> <p>After the processing of the <code class="LITERAL">FROM</code> clause is done, each row of the derived virtual table is checked against the search condition. If the result of the condition is true, the row is kept in the output table, otherwise (i.e., if the result is false or null) it is discarded. The search condition typically references at least one column of the table generated in the <code class="LITERAL">FROM</code> clause; this is not required, but otherwise the <code class="LITERAL">WHERE</code> clause will be fairly useless.</p>  <blockquote class="NOTE"> <p><b>Note:</b> The join condition of an inner join can be written either in the <code class="LITERAL">WHERE</code> clause or in the <code class="LITERAL">JOIN</code> clause. For example, these table expressions are equivalent:</p> <pre class="PROGRAMLISTING" data-language="sql">
+FROM a, b WHERE a.id = b.id AND b.val &gt; 5
+</pre> <p>and:</p> <pre class="PROGRAMLISTING" data-language="sql">
+FROM a INNER JOIN b ON (a.id = b.id) WHERE b.val &gt; 5
+</pre> <p>or perhaps even:</p> <pre class="PROGRAMLISTING" data-language="sql">
+FROM a NATURAL JOIN b WHERE b.val &gt; 5
+</pre> <p>Which one of these you use is mainly a matter of style. The <code class="LITERAL">JOIN</code> syntax in the <code class="LITERAL">FROM</code> clause is probably not as portable to other SQL database management systems, even though it is in the SQL standard. For outer joins there is no choice: they must be done in the <code class="LITERAL">FROM</code> clause. The <code class="LITERAL">ON</code> or <code class="LITERAL">USING</code> clause of an outer join is <span class="emphasis EMPHASIS c5">not</span> equivalent to a <code class="LITERAL">WHERE</code> condition, because it results in the addition of rows (for unmatched input rows) as well as the removal of rows in the final result.</p> </blockquote>  <p>Here are some examples of <code class="LITERAL">WHERE</code> clauses:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT ... FROM fdt WHERE c1 &gt; 5
+
+SELECT ... FROM fdt WHERE c1 IN (1, 2, 3)
+
+SELECT ... FROM fdt WHERE c1 IN (SELECT c1 FROM t2)
+
+SELECT ... FROM fdt WHERE c1 IN (SELECT c3 FROM t2 WHERE c2 = fdt.c1 + 10)
+
+SELECT ... FROM fdt WHERE c1 BETWEEN (SELECT c3 FROM t2 WHERE c2 = fdt.c1 + 10) AND 100
+
+SELECT ... FROM fdt WHERE EXISTS (SELECT c1 FROM t2 WHERE c2 &gt; fdt.c1)
+</pre> <p><code class="LITERAL">fdt</code> is the table derived in the <code class="LITERAL">FROM</code> clause. Rows that do not meet the search condition of the <code class="LITERAL">WHERE</code> clause are eliminated from <code class="LITERAL">fdt</code>. Notice the use of scalar subqueries as value expressions. Just like any other query, the subqueries can employ complex table expressions. Notice also how <code class="LITERAL">fdt</code> is referenced in the subqueries. Qualifying <code class="LITERAL">c1</code> as <code class="LITERAL">fdt.c1</code> is only necessary if <code class="LITERAL">c1</code> is also the name of a column in the derived input table of the subquery. But qualifying the column name adds clarity even when it is not needed. This example shows how the column naming scope of an outer query extends into its inner queries.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="QUERIES-GROUP">7.2.3. The <code class="LITERAL">GROUP BY</code> and <code class="LITERAL">HAVING</code> Clauses</h2> <p>After passing the <code class="LITERAL">WHERE</code> filter, the derived input table might be subject to grouping, using the <code class="LITERAL">GROUP BY</code> clause, and elimination of group rows using the <code class="LITERAL">HAVING</code> clause.</p> <pre class="SYNOPSIS" data-language="sql">
+SELECT select_list
+    FROM ...
+    [WHERE ...]
+    GROUP BY grouping_column_reference [, grouping_column_reference]...
+</pre> <p>The <a class="c2" href="../sql-select/#SQL-GROUPBY">GROUP BY Clause</a> is used to group together those rows in a table that have the same values in all the columns listed. The order in which the columns are listed does not matter. The effect is to combine each set of rows having common values into one group row that represents all rows in the group. This is done to eliminate redundancy in the output and/or compute aggregates that apply to these groups. For instance:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT * FROM test1;
+ x | y
+---+---
+ a | 3
+ c | 2
+ b | 5
+ a | 1
+(4 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT x FROM test1 GROUP BY x;
+ x
+---
+ a
+ b
+ c
+(3 rows)
+</pre> <p>In the second query, we could not have written <code class="LITERAL">SELECT * FROM test1 GROUP BY x</code>, because there is no single value for the column <code class="LITERAL">y</code> that could be associated with each group. The grouped-by columns can be referenced in the select list since they have a single value in each group.</p> <p>In general, if a table is grouped, columns that are not listed in <code class="LITERAL">GROUP BY</code> cannot be referenced except in aggregate expressions. An example with aggregate expressions is:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT x, sum(y) FROM test1 GROUP BY x;
+ x | sum
+---+-----
+ a |   4
+ b |   5
+ c |   2
+(3 rows)
+</pre> <p>Here <code class="LITERAL">sum</code> is an aggregate function that computes a single value over the entire group. More information about the available aggregate functions can be found in <a href="../functions-aggregate/">Section 9.20</a>.</p> <div class="TIP"> <blockquote class="TIP"> <p><b>Tip:</b> Grouping without aggregate expressions effectively calculates the set of distinct values in a column. This can also be achieved using the <code class="LITERAL">DISTINCT</code> clause (see <a href="../queries-select-lists/#QUERIES-DISTINCT">Section 7.3.3</a>).</p> </blockquote> </div> <p>Here is another example: it calculates the total sales for each product (rather than the total sales of all products):</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
+    FROM products p LEFT JOIN sales s USING (product_id)
+    GROUP BY product_id, p.name, p.price;
+</pre> <p>In this example, the columns <code class="LITERAL">product_id</code>, <code class="LITERAL">p.name</code>, and <code class="LITERAL">p.price</code> must be in the <code class="LITERAL">GROUP BY</code> clause since they are referenced in the query select list (but see below). The column <code class="LITERAL">s.units</code> does not have to be in the <code class="LITERAL">GROUP BY</code> list since it is only used in an aggregate expression (<code class="LITERAL">sum(...)</code>), which represents the sales of a product. For each product, the query returns a summary row about all sales of the product.</p> <p>If the products table is set up so that, say, <code class="LITERAL">product_id</code> is the primary key, then it would be enough to group by <code class="LITERAL">product_id</code> in the above example, since name and price would be <i class="FIRSTTERM">functionally dependent</i> on the product ID, and so there would be no ambiguity about which name and price value to return for each product ID group.</p> <p>In strict SQL, <code class="LITERAL">GROUP BY</code> can only group by columns of the source table but <span class="PRODUCTNAME">PostgreSQL</span> extends this to also allow <code class="LITERAL">GROUP BY</code> to group by columns in the select list. Grouping by value expressions instead of simple column names is also allowed.</p> <p>If a table has been grouped using <code class="LITERAL">GROUP BY</code>, but only certain groups are of interest, the <code class="LITERAL">HAVING</code> clause can be used, much like a <code class="LITERAL">WHERE</code> clause, to eliminate groups from the result. The syntax is:</p> <pre class="SYNOPSIS" data-language="sql">
+SELECT select_list FROM ... [WHERE ...] GROUP BY ... HAVING boolean_expression
+</pre> <p>Expressions in the <code class="LITERAL">HAVING</code> clause can refer both to grouped expressions and to ungrouped expressions (which necessarily involve an aggregate function).</p> <p>Example:</p> <pre class="SCREEN">
+<samp class="PROMPT">=&gt;</samp> SELECT x, sum(y) FROM test1 GROUP BY x HAVING sum(y) &gt; 3;
+ x | sum
+---+-----
+ a |   4
+ b |   5
+(2 rows)
+
+<samp class="PROMPT">=&gt;</samp> SELECT x, sum(y) FROM test1 GROUP BY x HAVING x &lt; 'c';
+ x | sum
+---+-----
+ a |   4
+ b |   5
+(2 rows)
+</pre> <p>Again, a more realistic example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT product_id, p.name, (sum(s.units) * (p.price - p.cost)) AS profit
+    FROM products p LEFT JOIN sales s USING (product_id)
+    WHERE s.date &gt; CURRENT_DATE - INTERVAL '4 weeks'
+    GROUP BY product_id, p.name, p.price, p.cost
+    HAVING sum(p.price * s.units) &gt; 5000;
+</pre> <p>In the example above, the <code class="LITERAL">WHERE</code> clause is selecting rows by a column that is not grouped (the expression is only true for sales during the last four weeks), while the <code class="LITERAL">HAVING</code> clause restricts the output to groups with total gross sales over 5000. Note that the aggregate expressions do not necessarily need to be the same in all parts of the query.</p> <p>If a query contains aggregate function calls, but no <code class="LITERAL">GROUP BY</code> clause, grouping still occurs: the result is a single group row (or perhaps no rows at all, if the single row is then eliminated by <code class="LITERAL">HAVING</code>). The same is true if it contains a <code class="LITERAL">HAVING</code> clause, even without any aggregate function calls or <code class="LITERAL">GROUP BY</code> clause.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="QUERIES-WINDOW">7.2.4. Window Function Processing</h2> <p>If the query contains any window functions (see <a href="../tutorial-window/">Section 3.5</a>, <a href="../functions-window/">Section 9.21</a> and <a href="../sql-expressions/#SYNTAX-WINDOW-FUNCTIONS">Section 4.2.8</a>), these functions are evaluated after any grouping, aggregation, and <code class="LITERAL">HAVING</code> filtering is performed. That is, if the query uses any aggregates, <code class="LITERAL">GROUP BY</code>, or <code class="LITERAL">HAVING</code>, then the rows seen by the window functions are the group rows instead of the original table rows from <code class="LITERAL">FROM</code>/<code class="LITERAL">WHERE</code>.</p> <p>When multiple window functions are used, all the window functions having syntactically equivalent <code class="LITERAL">PARTITION BY</code> and <code class="LITERAL">ORDER BY</code> clauses in their window definitions are guaranteed to be evaluated in a single pass over the data. Therefore they will see the same sort ordering, even if the <code class="LITERAL">ORDER BY</code> does not uniquely determine an ordering. However, no guarantees are made about the evaluation of functions having different <code class="LITERAL">PARTITION BY</code> or <code class="LITERAL">ORDER BY</code> specifications. (In such cases a sort step is typically required between the passes of window function evaluations, and the sort is not guaranteed to preserve ordering of rows that its <code class="LITERAL">ORDER BY</code> sees as equivalent.)</p> <p>Currently, window functions always require presorted data, and so the query output will be ordered according to one or another of the window functions' <code class="LITERAL">PARTITION BY</code>/<code class="LITERAL">ORDER BY</code> clauses. It is not recommended to rely on this, however. Use an explicit top-level <code class="LITERAL">ORDER BY</code> clause if you want to be sure the results are sorted in a particular way.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../queries-overview/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../queries-select-lists/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Overview</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/queries.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Select Lists</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/queries-table-expressions.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/queries-table-expressions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

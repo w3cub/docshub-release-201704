@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>System Columns - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="Every table has several system columns that are implicitly defined by the system. Therefore, these names cannot be used as names of user-defined &hellip;">
+  <meta name="keywords" content="system, columns, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/ddl-system-columns/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="DDL-SYSTEM-COLUMNS">5.4. System Columns</h1> <p>Every table has several <i class="FIRSTTERM">system columns</i> that are implicitly defined by the system. Therefore, these names cannot be used as names of user-defined columns. (Note that these restrictions are separate from whether the name is a key word or not; quoting a name will not allow you to escape these restrictions.) You do not really need to be concerned about these columns; just know they exist.</p> <div class="VARIABLELIST"> <dl> <dt><code class="STRUCTFIELD">oid</code></dt> <dd> <p>The object identifier (object ID) of a row. This column is only present if the table was created using <code class="LITERAL">WITH OIDS</code>, or if the <a href="../runtime-config-compatible/#GUC-DEFAULT-WITH-OIDS">default_with_oids</a> configuration variable was set at the time. This column is of type <code class="TYPE">oid</code> (same name as the column); see <a href="../datatype-oid/">Section 8.18</a> for more information about the type.</p> </dd> <dt><code class="STRUCTFIELD">tableoid</code></dt> <dd> <p>The OID of the table containing this row. This column is particularly handy for queries that select from inheritance hierarchies (see <a href="../ddl-inherit/">Section 5.9</a>), since without it, it's difficult to tell which individual table a row came from. The <code class="STRUCTFIELD">tableoid</code> can be joined against the <code class="STRUCTFIELD">oid</code> column of <code class="STRUCTNAME">pg_class</code> to obtain the table name.</p> </dd> <dt><code class="STRUCTFIELD">xmin</code></dt> <dd> <p>The identity (transaction ID) of the inserting transaction for this row version. (A row version is an individual state of a row; each update of a row creates a new row version for the same logical row.)</p> </dd> <dt><code class="STRUCTFIELD">cmin</code></dt> <dd> <p>The command identifier (starting at zero) within the inserting transaction.</p> </dd> <dt><code class="STRUCTFIELD">xmax</code></dt> <dd> <p>The identity (transaction ID) of the deleting transaction, or zero for an undeleted row version. It is possible for this column to be nonzero in a visible row version. That usually indicates that the deleting transaction hasn't committed yet, or that an attempted deletion was rolled back.</p> </dd> <dt><code class="STRUCTFIELD">cmax</code></dt> <dd> <p>The command identifier within the deleting transaction, or zero.</p> </dd> <dt><code class="STRUCTFIELD">ctid</code></dt> <dd> <p>The physical location of the row version within its table. Note that although the <code class="STRUCTFIELD">ctid</code> can be used to locate the row version very quickly, a row's <code class="STRUCTFIELD">ctid</code> will change if it is updated or moved by <code class="COMMAND">VACUUM FULL</code>. Therefore <code class="STRUCTFIELD">ctid</code> is useless as a long-term row identifier. The OID, or even better a user-defined serial number, should be used to identify logical rows.</p> </dd> </dl> </div> <p>OIDs are 32-bit quantities and are assigned from a single cluster-wide counter. In a large or long-lived database, it is possible for the counter to wrap around. Hence, it is bad practice to assume that OIDs are unique, unless you take steps to ensure that this is the case. If you need to identify the rows in a table, using a sequence generator is strongly recommended. However, OIDs can be used as well, provided that a few additional precautions are taken:</p> <ul> <li> <p>A unique constraint should be created on the OID column of each table for which the OID will be used to identify rows. When such a unique constraint (or unique index) exists, the system takes care not to generate an OID matching an already-existing row. (Of course, this is only possible if the table contains fewer than 2<sup>32</sup> (4 billion) rows, and in practice the table size had better be much less than that, or performance might suffer.)</p> </li> <li> <p>OIDs should never be assumed to be unique across tables; use the combination of <code class="STRUCTFIELD">tableoid</code> and row OID if you need a database-wide identifier.</p> </li> <li> <p>Of course, the tables in question must be created <code class="LITERAL">WITH OIDS</code>. As of <span class="PRODUCTNAME">PostgreSQL</span> 8.1, <code class="LITERAL">WITHOUT OIDS</code> is the default.</p> </li> </ul> <p>Transaction identifiers are also 32-bit quantities. In a long-lived database it is possible for transaction IDs to wrap around. This is not a fatal problem given appropriate maintenance procedures; see <a href="https://www.postgresql.org/docs/9.5/static/maintenance.html" target="_blank">Chapter 23</a> for details. It is unwise, however, to depend on the uniqueness of transaction IDs over the long term (more than one billion transactions).</p> <p>Command identifiers are also 32-bit quantities. This creates a hard limit of 2<sup>32</sup> (4 billion) <acronym class="ACRONYM">SQL</acronym> commands within a single transaction. In practice this limit is not a problem — note that the limit is on the number of <acronym class="ACRONYM">SQL</acronym> commands, not the number of rows processed. Also, only commands that actually modify the database contents will consume a command identifier.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../ddl-constraints/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../ddl-alter/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Constraints</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/ddl.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Modifying Tables</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/ddl-system-columns.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/ddl-system-columns.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

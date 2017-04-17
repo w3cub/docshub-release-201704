@@ -1,0 +1,404 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>XML Functions - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="The functions and function-like expressions described in this section operate on values of type xml. Check Section 8.13 for information about the &hellip;">
+  <meta name="keywords" content="xml, functions, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/functions-xml/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="FUNCTIONS-XML">9.14. XML Functions</h1> <p>The functions and function-like expressions described in this section operate on values of type <code class="TYPE">xml</code>. Check <a href="../datatype-xml/">Section 8.13</a> for information about the <code class="TYPE">xml</code> type. The function-like expressions <code class="FUNCTION">xmlparse</code> and <code class="FUNCTION">xmlserialize</code> for converting to and from type <code class="TYPE">xml</code> are not repeated here. Use of most of these functions requires the installation to have been built with <code class="COMMAND">configure --with-libxml</code>.</p> <div class="SECT2"> <h2 class="SECT2" id="FUNCTIONS-PRODUCING-XML">9.14.1. Producing XML Content</h2> <p>A set of functions and function-like expressions are available for producing XML content from SQL data. As such, they are particularly suitable for formatting query results into XML documents for processing in client applications.</p> <div class="SECT3"> <h3 class="SECT3" id="AEN16902">9.14.1.1. <code class="LITERAL">xmlcomment</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlcomment(text)
+</pre> <p>The function <code class="FUNCTION">xmlcomment</code> creates an XML value containing an XML comment with the specified text as content. The text cannot contain <span class="QUOTE">"<code class="LITERAL">--</code>"</span> or end with a <span class="QUOTE">"<code class="LITERAL">-</code>"</span> so that the resulting construct is a valid XML comment. If the argument is null, the result is null.</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xmlcomment('hello');
+
+  xmlcomment
+--------------
+ &lt;!--hello--&gt;
+</pre> </div> <div class="SECT3"> <h3 class="SECT3" id="AEN16918">9.14.1.2. <code class="LITERAL">xmlconcat</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlconcat(xml[, ...])
+</pre> <p>The function <code class="FUNCTION">xmlconcat</code> concatenates a list of individual XML values to create a single value containing an XML content fragment. Null values are omitted; the result is only null if there are no nonnull arguments.</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xmlconcat('&lt;abc/&gt;', '&lt;bar&gt;foo&lt;/bar&gt;');
+
+      xmlconcat
+----------------------
+ &lt;abc/&gt;&lt;bar&gt;foo&lt;/bar&gt;
+</pre> <p>XML declarations, if present, are combined as follows. If all argument values have the same XML version declaration, that version is used in the result, else no version is used. If all argument values have the standalone declaration value <span class="QUOTE">"yes"</span>, then that value is used in the result. If all argument values have a standalone declaration value and at least one is <span class="QUOTE">"no"</span>, then that is used in the result. Else the result will have no standalone declaration. If the result is determined to require a standalone declaration but no version declaration, a version declaration with version 1.0 will be used because XML requires an XML declaration to contain a version declaration. Encoding declarations are ignored and removed in all cases.</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xmlconcat('&lt;?xml version="1.1"?&gt;&lt;foo/&gt;', '&lt;?xml version="1.1" standalone="no"?&gt;&lt;bar/&gt;');
+
+             xmlconcat
+-----------------------------------
+ &lt;?xml version="1.1"?&gt;&lt;foo/&gt;&lt;bar/&gt;
+</pre> </div> <div class="SECT3"> <h3 class="SECT3" id="AEN16936">9.14.1.3. <code class="LITERAL">xmlelement</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlelement(name name [, xmlattributes(value [AS attname] [, ... ])] [, content, ...])
+</pre> <p>The <code class="FUNCTION">xmlelement</code> expression produces an XML element with the given name, attributes, and content.</p> <p>Examples:</p> <pre class="SCREEN">
+SELECT xmlelement(name foo);
+
+ xmlelement
+------------
+ &lt;foo/&gt;
+
+SELECT xmlelement(name foo, xmlattributes('xyz' as bar));
+
+    xmlelement
+------------------
+ &lt;foo bar="xyz"/&gt;
+
+SELECT xmlelement(name foo, xmlattributes(current_date as bar), 'cont', 'ent');
+
+             xmlelement
+-------------------------------------
+ &lt;foo bar="2007-01-26"&gt;content&lt;/foo&gt;
+</pre> <p>Element and attribute names that are not valid XML names are escaped by replacing the offending characters by the sequence <code class="LITERAL">_x<code class="REPLACEABLE c2">HHHH</code>_</code>, where <code class="REPLACEABLE c2">HHHH</code> is the character's Unicode codepoint in hexadecimal notation. For example:</p> <pre class="SCREEN">
+SELECT xmlelement(name "foo$bar", xmlattributes('xyz' as "a&amp;b"));
+
+            xmlelement
+----------------------------------
+ &lt;foo_x0024_bar a_x0026_b="xyz"/&gt;
+</pre> <p>An explicit attribute name need not be specified if the attribute value is a column reference, in which case the column's name will be used as the attribute name by default. In other cases, the attribute must be given an explicit name. So this example is valid:</p> <pre class="SCREEN">
+CREATE TABLE test (a xml, b xml);
+SELECT xmlelement(name test, xmlattributes(a, b)) FROM test;
+</pre> <p>But these are not:</p> <pre class="SCREEN">
+SELECT xmlelement(name test, xmlattributes('constant'), a, b) FROM test;
+SELECT xmlelement(name test, xmlattributes(func(a, b))) FROM test;
+</pre> <p>Element content, if specified, will be formatted according to its data type. If the content is itself of type <code class="TYPE">xml</code>, complex XML documents can be constructed. For example:</p> <pre class="SCREEN">
+SELECT xmlelement(name foo, xmlattributes('xyz' as bar),
+                            xmlelement(name abc),
+                            xmlcomment('test'),
+                            xmlelement(name xyz));
+
+                  xmlelement
+----------------------------------------------
+ &lt;foo bar="xyz"&gt;&lt;abc/&gt;&lt;!--test--&gt;&lt;xyz/&gt;&lt;/foo&gt;
+</pre> <p>Content of other types will be formatted into valid XML character data. This means in particular that the characters &lt;, &gt;, and &amp; will be converted to entities. Binary data (data type <code class="TYPE">bytea</code>) will be represented in base64 or hex encoding, depending on the setting of the configuration parameter <a href="../runtime-config-client/#GUC-XMLBINARY">xmlbinary</a>. The particular behavior for individual data types is expected to evolve in order to align the SQL and PostgreSQL data types with the XML Schema specification, at which point a more precise description will appear.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="AEN16968">9.14.1.4. <code class="LITERAL">xmlforest</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlforest(content [AS name] [, ...])
+</pre> <p>The <code class="FUNCTION">xmlforest</code> expression produces an XML forest (sequence) of elements using the given names and content.</p> <p>Examples:</p> <pre class="SCREEN">
+SELECT xmlforest('abc' AS foo, 123 AS bar);
+
+          xmlforest
+------------------------------
+ &lt;foo&gt;abc&lt;/foo&gt;&lt;bar&gt;123&lt;/bar&gt;
+
+
+SELECT xmlforest(table_name, column_name)
+FROM information_schema.columns
+WHERE table_schema = 'pg_catalog';
+
+                                         xmlforest
+-------------------------------------------------------------------------------------------
+ &lt;table_name&gt;pg_authid&lt;/table_name&gt;&lt;column_name&gt;rolname&lt;/column_name&gt;
+ &lt;table_name&gt;pg_authid&lt;/table_name&gt;&lt;column_name&gt;rolsuper&lt;/column_name&gt;
+ ...
+</pre> <p>As seen in the second example, the element name can be omitted if the content value is a column reference, in which case the column name is used by default. Otherwise, a name must be specified.</p> <p>Element names that are not valid XML names are escaped as shown for <code class="FUNCTION">xmlelement</code> above. Similarly, content data is escaped to make valid XML content, unless it is already of type <code class="TYPE">xml</code>.</p> <p>Note that XML forests are not valid XML documents if they consist of more than one element, so it might be useful to wrap <code class="FUNCTION">xmlforest</code> expressions in <code class="FUNCTION">xmlelement</code>.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="AEN16989">9.14.1.5. <code class="LITERAL">xmlpi</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlpi(name target [, content])
+</pre> <p>The <code class="FUNCTION">xmlpi</code> expression creates an XML processing instruction. The content, if present, must not contain the character sequence <code class="LITERAL">?&gt;</code>.</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xmlpi(name php, 'echo "hello world";');
+
+            xmlpi
+-----------------------------
+ &lt;?php echo "hello world";?&gt;
+</pre> </div> <div class="SECT3"> <h3 class="SECT3" id="AEN17004">9.14.1.6. <code class="LITERAL">xmlroot</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlroot(xml, version text | no value [, standalone yes|no|no value])
+</pre> <p>The <code class="FUNCTION">xmlroot</code> expression alters the properties of the root node of an XML value. If a version is specified, it replaces the value in the root node's version declaration; if a standalone setting is specified, it replaces the value in the root node's standalone declaration.</p> <pre class="SCREEN">
+SELECT xmlroot(xmlparse(document '&lt;?xml version="1.1"?&gt;&lt;content&gt;abc&lt;/content&gt;'),
+               version '1.0', standalone yes);
+
+                xmlroot
+----------------------------------------
+ &lt;?xml version="1.0" standalone="yes"?&gt;
+ &lt;content&gt;abc&lt;/content&gt;
+</pre> </div> <div class="SECT3"> <h3 class="SECT3" id="FUNCTIONS-XML-XMLAGG">9.14.1.7. <code class="LITERAL">xmlagg</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xmlagg(xml)
+</pre> <p>The function <code class="FUNCTION">xmlagg</code> is, unlike the other functions described here, an aggregate function. It concatenates the input values to the aggregate function call, much like <code class="FUNCTION">xmlconcat</code> does, except that concatenation occurs across rows rather than across expressions in a single row. See <a href="../functions-aggregate/">Section 9.20</a> for additional information about aggregate functions.</p> <p>Example:</p> <pre class="SCREEN">
+CREATE TABLE test (y int, x xml);
+INSERT INTO test VALUES (1, '&lt;foo&gt;abc&lt;/foo&gt;');
+INSERT INTO test VALUES (2, '&lt;bar/&gt;');
+SELECT xmlagg(x) FROM test;
+        xmlagg
+----------------------
+ &lt;foo&gt;abc&lt;/foo&gt;&lt;bar/&gt;
+</pre> <p>To determine the order of the concatenation, an <code class="LITERAL">ORDER BY</code> clause may be added to the aggregate call as described in <a href="../sql-expressions/#SYNTAX-AGGREGATES">Section 4.2.7</a>. For example:</p> <pre class="SCREEN">
+SELECT xmlagg(x ORDER BY y DESC) FROM test;
+        xmlagg
+----------------------
+ &lt;bar/&gt;&lt;foo&gt;abc&lt;/foo&gt;
+</pre> <p>The following non-standard approach used to be recommended in previous versions, and may still be useful in specific cases:</p> <pre class="SCREEN">
+SELECT xmlagg(x) FROM (SELECT * FROM test ORDER BY y DESC) AS tab;
+        xmlagg
+----------------------
+ &lt;bar/&gt;&lt;foo&gt;abc&lt;/foo&gt;
+</pre> </div> </div> <div class="SECT2"> <h2 class="SECT2" id="FUNCTIONS-XML-PREDICATES">9.14.2. XML Predicates</h2> <p>The expressions described in this section check properties of <code class="TYPE">xml</code> values.</p> <div class="SECT3"> <h3 class="SECT3" id="AEN17042">9.14.2.1. <code class="LITERAL">IS DOCUMENT</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xml IS DOCUMENT
+</pre> <p>The expression <code class="LITERAL">IS DOCUMENT</code> returns true if the argument XML value is a proper XML document, false if it is not (that is, it is a content fragment), or null if the argument is null. See <a href="../datatype-xml/">Section 8.13</a> about the difference between documents and content fragments.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="XML-EXISTS">9.14.2.2. <code class="LITERAL">XMLEXISTS</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+XMLEXISTS(text PASSING [BY REF] xml [BY REF])
+</pre> <p>The function <code class="FUNCTION">xmlexists</code> returns true if the XPath expression in the first argument returns any nodes, and false otherwise. (If either argument is null, the result is null.)</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xmlexists('//town[text() = ''Toronto'']' PASSING BY REF '&lt;towns&gt;&lt;town&gt;Toronto&lt;/town&gt;&lt;town&gt;Ottawa&lt;/town&gt;&lt;/towns&gt;');
+
+ xmlexists
+------------
+ t
+(1 row)
+</pre> <p>The <code class="LITERAL">BY REF</code> clauses have no effect in PostgreSQL, but are allowed for SQL conformance and compatibility with other implementations. Per SQL standard, the first <code class="LITERAL">BY REF</code> is required, the second is optional. Also note that the SQL standard specifies the <code class="FUNCTION">xmlexists</code> construct to take an XQuery expression as first argument, but PostgreSQL currently only supports XPath, which is a subset of XQuery.</p> </div> <div class="SECT3"> <h3 class="SECT3" id="XML-IS-WELL-FORMED">9.14.2.3. <code class="LITERAL">xml_is_well_formed</code>
+</h3> <pre class="SYNOPSIS" data-language="sql">
+xml_is_well_formed(text)
+xml_is_well_formed_document(text)
+xml_is_well_formed_content(text)
+</pre> <p>These functions check whether a <code class="TYPE">text</code> string is well-formed XML, returning a Boolean result. <code class="FUNCTION">xml_is_well_formed_document</code> checks for a well-formed document, while <code class="FUNCTION">xml_is_well_formed_content</code> checks for well-formed content. <code class="FUNCTION">xml_is_well_formed</code> does the former if the <a href="../runtime-config-client/#GUC-XMLOPTION">xmloption</a> configuration parameter is set to <code class="LITERAL">DOCUMENT</code>, or the latter if it is set to <code class="LITERAL">CONTENT</code>. This means that <code class="FUNCTION">xml_is_well_formed</code> is useful for seeing whether a simple cast to type <code class="TYPE">xml</code> will succeed, whereas the other two functions are useful for seeing whether the corresponding variants of <code class="FUNCTION">XMLPARSE</code> will succeed.</p> <p>Examples:</p> <pre class="SCREEN">
+SET xmloption TO DOCUMENT;
+SELECT xml_is_well_formed('&lt;&gt;');
+ xml_is_well_formed 
+--------------------
+ f
+(1 row)
+
+SELECT xml_is_well_formed('&lt;abc/&gt;');
+ xml_is_well_formed 
+--------------------
+ t
+(1 row)
+
+SET xmloption TO CONTENT;
+SELECT xml_is_well_formed('abc');
+ xml_is_well_formed 
+--------------------
+ t
+(1 row)
+
+SELECT xml_is_well_formed_document('&lt;pg:foo xmlns:pg="http://postgresql.org/stuff"&gt;bar&lt;/pg:foo&gt;');
+ xml_is_well_formed_document 
+-----------------------------
+ t
+(1 row)
+
+SELECT xml_is_well_formed_document('&lt;pg:foo xmlns:pg="http://postgresql.org/stuff"&gt;bar&lt;/my:foo&gt;');
+ xml_is_well_formed_document 
+-----------------------------
+ f
+(1 row)
+</pre> <p>The last example shows that the checks include whether namespaces are correctly matched.</p> </div> </div> <div class="SECT2"> <h2 class="SECT2" id="FUNCTIONS-XML-PROCESSING">9.14.3. Processing XML</h2> <p>To process values of data type <code class="TYPE">xml</code>, PostgreSQL offers the functions <code class="FUNCTION">xpath</code> and <code class="FUNCTION">xpath_exists</code>, which evaluate XPath 1.0 expressions.</p> <pre class="SYNOPSIS" data-language="sql">
+xpath(xpath, xml [, nsarray])
+</pre> <p>The function <code class="FUNCTION">xpath</code> evaluates the XPath expression <code class="REPLACEABLE c2">xpath</code> (a <code class="TYPE">text</code> value) against the XML value <code class="REPLACEABLE c2">xml</code>. It returns an array of XML values corresponding to the node set produced by the XPath expression. If the XPath expression returns a scalar value rather than a node set, a single-element array is returned.</p> <p>The second argument must be a well formed XML document. In particular, it must have a single root node element.</p> <p>The optional third argument of the function is an array of namespace mappings. This array should be a two-dimensional <code class="TYPE">text</code> array with the length of the second axis being equal to 2 (i.e., it should be an array of arrays, each of which consists of exactly 2 elements). The first element of each array entry is the namespace name (alias), the second the namespace URI. It is not required that aliases provided in this array be the same as those being used in the XML document itself (in other words, both in the XML document and in the <code class="FUNCTION">xpath</code> function context, aliases are <span class="emphasis EMPHASIS c3">local</span>).</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xpath('/my:a/text()', '&lt;my:a xmlns:my="http://example.com"&gt;test&lt;/my:a&gt;',
+             ARRAY[ARRAY['my', 'http://example.com']]);
+
+ xpath  
+--------
+ {test}
+(1 row)
+</pre> <p>To deal with default (anonymous) namespaces, do something like this:</p> <pre class="SCREEN">
+SELECT xpath('//mydefns:b/text()', '&lt;a xmlns="http://example.com"&gt;&lt;b&gt;test&lt;/b&gt;&lt;/a&gt;',
+             ARRAY[ARRAY['mydefns', 'http://example.com']]);
+
+ xpath
+--------
+ {test}
+(1 row)
+</pre> <pre class="SYNOPSIS" data-language="sql">
+xpath_exists(xpath, xml [, nsarray])
+</pre> <p>The function <code class="FUNCTION">xpath_exists</code> is a specialized form of the <code class="FUNCTION">xpath</code> function. Instead of returning the individual XML values that satisfy the XPath, this function returns a Boolean indicating whether the query was satisfied or not. This function is equivalent to the standard <code class="LITERAL">XMLEXISTS</code> predicate, except that it also offers support for a namespace mapping argument.</p> <p>Example:</p> <pre class="SCREEN">
+SELECT xpath_exists('/my:a/text()', '&lt;my:a xmlns:my="http://example.com"&gt;test&lt;/my:a&gt;',
+                     ARRAY[ARRAY['my', 'http://example.com']]);
+
+ xpath_exists  
+--------------
+ t
+(1 row)
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="FUNCTIONS-XML-MAPPING">9.14.4. Mapping Tables to XML</h2> <p>The following functions map the contents of relational tables to XML values. They can be thought of as XML export functionality:</p> <pre class="SYNOPSIS" data-language="sql">
+table_to_xml(tbl regclass, nulls boolean, tableforest boolean, targetns text)
+query_to_xml(query text, nulls boolean, tableforest boolean, targetns text)
+cursor_to_xml(cursor refcursor, count int, nulls boolean,
+              tableforest boolean, targetns text)
+</pre> <p>The return type of each function is <code class="TYPE">xml</code>.</p> <p><code class="FUNCTION">table_to_xml</code> maps the content of the named table, passed as parameter <code class="PARAMETER">tbl</code>. The <code class="TYPE">regclass</code> type accepts strings identifying tables using the usual notation, including optional schema qualifications and double quotes. <code class="FUNCTION">query_to_xml</code> executes the query whose text is passed as parameter <code class="PARAMETER">query</code> and maps the result set. <code class="FUNCTION">cursor_to_xml</code> fetches the indicated number of rows from the cursor specified by the parameter <code class="PARAMETER">cursor</code>. This variant is recommended if large tables have to be mapped, because the result value is built up in memory by each function.</p> <p>If <code class="PARAMETER">tableforest</code> is false, then the resulting XML document looks like this:</p> <pre class="SCREEN">
+&lt;tablename&gt;
+  &lt;row&gt;
+    &lt;columnname1&gt;data&lt;/columnname1&gt;
+    &lt;columnname2&gt;data&lt;/columnname2&gt;
+  &lt;/row&gt;
+
+  &lt;row&gt;
+    ...
+  &lt;/row&gt;
+
+  ...
+&lt;/tablename&gt;
+</pre> <p>If <code class="PARAMETER">tableforest</code> is true, the result is an XML content fragment that looks like this:</p> <pre class="SCREEN">
+&lt;tablename&gt;
+  &lt;columnname1&gt;data&lt;/columnname1&gt;
+  &lt;columnname2&gt;data&lt;/columnname2&gt;
+&lt;/tablename&gt;
+
+&lt;tablename&gt;
+  ...
+&lt;/tablename&gt;
+
+...
+</pre> <p>If no table name is available, that is, when mapping a query or a cursor, the string <code class="LITERAL">table</code> is used in the first format, <code class="LITERAL">row</code> in the second format.</p> <p>The choice between these formats is up to the user. The first format is a proper XML document, which will be important in many applications. The second format tends to be more useful in the <code class="FUNCTION">cursor_to_xml</code> function if the result values are to be reassembled into one document later on. The functions for producing XML content discussed above, in particular <code class="FUNCTION">xmlelement</code>, can be used to alter the results to taste.</p> <p>The data values are mapped in the same way as described for the function <code class="FUNCTION">xmlelement</code> above.</p> <p>The parameter <code class="PARAMETER">nulls</code> determines whether null values should be included in the output. If true, null values in columns are represented as:</p> <pre class="SCREEN">
+&lt;columnname xsi:nil="true"/&gt;
+</pre> <p>where <code class="LITERAL">xsi</code> is the XML namespace prefix for XML Schema Instance. An appropriate namespace declaration will be added to the result value. If false, columns containing null values are simply omitted from the output.</p> <p>The parameter <code class="PARAMETER">targetns</code> specifies the desired XML namespace of the result. If no particular namespace is wanted, an empty string should be passed.</p> <p>The following functions return XML Schema documents describing the mappings performed by the corresponding functions above:</p> <pre class="SYNOPSIS" data-language="sql">
+table_to_xmlschema(tbl regclass, nulls boolean, tableforest boolean, targetns text)
+query_to_xmlschema(query text, nulls boolean, tableforest boolean, targetns text)
+cursor_to_xmlschema(cursor refcursor, nulls boolean, tableforest boolean, targetns text)
+</pre> <p>It is essential that the same parameters are passed in order to obtain matching XML data mappings and XML Schema documents.</p> <p>The following functions produce XML data mappings and the corresponding XML Schema in one document (or forest), linked together. They can be useful where self-contained and self-describing results are wanted:</p> <pre class="SYNOPSIS" data-language="sql">
+table_to_xml_and_xmlschema(tbl regclass, nulls boolean, tableforest boolean, targetns text)
+query_to_xml_and_xmlschema(query text, nulls boolean, tableforest boolean, targetns text)
+</pre> <p>In addition, the following functions are available to produce analogous mappings of entire schemas or the entire current database:</p> <pre class="SYNOPSIS" data-language="sql">
+schema_to_xml(schema name, nulls boolean, tableforest boolean, targetns text)
+schema_to_xmlschema(schema name, nulls boolean, tableforest boolean, targetns text)
+schema_to_xml_and_xmlschema(schema name, nulls boolean, tableforest boolean, targetns text)
+
+database_to_xml(nulls boolean, tableforest boolean, targetns text)
+database_to_xmlschema(nulls boolean, tableforest boolean, targetns text)
+database_to_xml_and_xmlschema(nulls boolean, tableforest boolean, targetns text)
+</pre> <p>Note that these potentially produce a lot of data, which needs to be built up in memory. When requesting content mappings of large schemas or databases, it might be worthwhile to consider mapping the tables separately instead, possibly even through a cursor.</p> <p>The result of a schema content mapping looks like this:</p> <pre class="SCREEN">
+&lt;schemaname&gt;
+
+table1-mapping
+
+table2-mapping
+
+...
+
+&lt;/schemaname&gt;
+</pre> <p>where the format of a table mapping depends on the <code class="PARAMETER">tableforest</code> parameter as explained above.</p> <p>The result of a database content mapping looks like this:</p> <pre class="SCREEN">
+&lt;dbname&gt;
+
+&lt;schema1name&gt;
+  ...
+&lt;/schema1name&gt;
+
+&lt;schema2name&gt;
+  ...
+&lt;/schema2name&gt;
+
+...
+
+&lt;/dbname&gt;
+</pre> <p>where the schema mapping is as above.</p> <p>As an example of using the output produced by these functions, <a href="../functions-xml/#XSLT-XML-HTML">Figure 9-1</a> shows an XSLT stylesheet that converts the output of <code class="FUNCTION">table_to_xml_and_xmlschema</code> to an HTML document containing a tabular rendition of the table data. In a similar manner, the results from these functions can be converted into other XML-based formats.</p> <div class="FIGURE" id="XSLT-XML-HTML">  <p class="c4">Figure 9-1. XSLT Stylesheet for Converting SQL/XML Output to HTML</p> <pre class="PROGRAMLISTING" data-language="sql">
+&lt;?xml version="1.0"?&gt;
+&lt;xsl:stylesheet version="1.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns="http://www.w3.org/1999/xhtml"
+&gt;
+
+  &lt;xsl:output method="xml"
+      doctype-system="http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"
+      doctype-public="-//W3C/DTD XHTML 1.0 Strict//EN"
+      indent="yes"/&gt;
+
+  &lt;xsl:template match="/*"&gt;
+    &lt;xsl:variable name="schema" select="//xsd:schema"/&gt;
+    &lt;xsl:variable name="tabletypename"
+                  select="$schema/xsd:element[@name=name(current())]/@type"/&gt;
+    &lt;xsl:variable name="rowtypename"
+                  select="$schema/xsd:complexType[@name=$tabletypename]/xsd:sequence/xsd:element[@name='row']/@type"/&gt;
+
+    &lt;html&gt;
+      &lt;head&gt;
+        &lt;title&gt;&lt;xsl:value-of select="name(current())"/&gt;&lt;/title&gt;
+      &lt;/head&gt;
+      &lt;body&gt;
+        &lt;table&gt;
+          &lt;tr&gt;
+            &lt;xsl:for-each select="$schema/xsd:complexType[@name=$rowtypename]/xsd:sequence/xsd:element/@name"&gt;
+              &lt;th&gt;&lt;xsl:value-of select="."/&gt;&lt;/th&gt;
+            &lt;/xsl:for-each&gt;
+          &lt;/tr&gt;
+
+          &lt;xsl:for-each select="row"&gt;
+            &lt;tr&gt;
+              &lt;xsl:for-each select="*"&gt;
+                &lt;td&gt;&lt;xsl:value-of select="."/&gt;&lt;/td&gt;
+              &lt;/xsl:for-each&gt;
+            &lt;/tr&gt;
+          &lt;/xsl:for-each&gt;
+        &lt;/table&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  &lt;/xsl:template&gt;
+
+&lt;/xsl:stylesheet&gt;
+</pre> </div> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../functions-textsearch/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../functions-json/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Text Search Functions and Operators</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/functions.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">JSON Functions and Operators</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/functions-xml.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/functions-xml.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

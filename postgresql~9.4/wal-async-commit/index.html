@@ -1,0 +1,85 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Asynchronous Commit - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="Asynchronous commit is an option that allows transactions to complete more quickly, at the cost that the most recent transactions may be lost if the &hellip;">
+  <meta name="keywords" content="asynchronous, commit, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/wal-async-commit/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="WAL-ASYNC-COMMIT">29.3. Asynchronous Commit</h1> <p><i class="FIRSTTERM">Asynchronous commit</i> is an option that allows transactions to complete more quickly, at the cost that the most recent transactions may be lost if the database should crash. In many applications this is an acceptable trade-off.</p> <p>As described in the previous section, transaction commit is normally <i class="FIRSTTERM">synchronous</i>: the server waits for the transaction's <acronym class="ACRONYM">WAL</acronym> records to be flushed to permanent storage before returning a success indication to the client. The client is therefore guaranteed that a transaction reported to be committed will be preserved, even in the event of a server crash immediately after. However, for short transactions this delay is a major component of the total transaction time. Selecting asynchronous commit mode means that the server returns success as soon as the transaction is logically completed, before the <acronym class="ACRONYM">WAL</acronym> records it generated have actually made their way to disk. This can provide a significant boost in throughput for small transactions.</p> <p>Asynchronous commit introduces the risk of data loss. There is a short time window between the report of transaction completion to the client and the time that the transaction is truly committed (that is, it is guaranteed not to be lost if the server crashes). Thus asynchronous commit should not be used if the client will take external actions relying on the assumption that the transaction will be remembered. As an example, a bank would certainly not use asynchronous commit for a transaction recording an ATM's dispensing of cash. But in many scenarios, such as event logging, there is no need for a strong guarantee of this kind.</p> <p>The risk that is taken by using asynchronous commit is of data loss, not data corruption. If the database should crash, it will recover by replaying <acronym class="ACRONYM">WAL</acronym> up to the last record that was flushed. The database will therefore be restored to a self-consistent state, but any transactions that were not yet flushed to disk will not be reflected in that state. The net effect is therefore loss of the last few transactions. Because the transactions are replayed in commit order, no inconsistency can be introduced — for example, if transaction B made changes relying on the effects of a previous transaction A, it is not possible for A's effects to be lost while B's effects are preserved.</p> <p>The user can select the commit mode of each transaction, so that it is possible to have both synchronous and asynchronous commit transactions running concurrently. This allows flexible trade-offs between performance and certainty of transaction durability. The commit mode is controlled by the user-settable parameter <a href="../runtime-config-wal/#GUC-SYNCHRONOUS-COMMIT">synchronous_commit</a>, which can be changed in any of the ways that a configuration parameter can be set. The mode used for any one transaction depends on the value of <code class="VARNAME">synchronous_commit</code> when transaction commit begins.</p> <p>Certain utility commands, for instance <code class="COMMAND">DROP TABLE</code>, are forced to commit synchronously regardless of the setting of <code class="VARNAME">synchronous_commit</code>. This is to ensure consistency between the server's file system and the logical state of the database. The commands supporting two-phase commit, such as <code class="COMMAND">PREPARE TRANSACTION</code>, are also always synchronous.</p> <p>If the database crashes during the risk window between an asynchronous commit and the writing of the transaction's <acronym class="ACRONYM">WAL</acronym> records, then changes made during that transaction <span class="emphasis EMPHASIS c2">will</span> be lost. The duration of the risk window is limited because a background process (the <span class="QUOTE">"WAL writer"</span>) flushes unwritten <acronym class="ACRONYM">WAL</acronym> records to disk every <a href="../runtime-config-wal/#GUC-WAL-WRITER-DELAY">wal_writer_delay</a> milliseconds. The actual maximum duration of the risk window is three times <code class="VARNAME">wal_writer_delay</code> because the WAL writer is designed to favor writing whole pages at a time during busy periods.</p> <blockquote class="CAUTION"> <p><strong>Caution:</strong> An immediate-mode shutdown is equivalent to a server crash, and will therefore cause loss of any unflushed asynchronous commits.</p> </blockquote> <p>Asynchronous commit provides behavior different from setting <a href="../runtime-config-wal/#GUC-FSYNC">fsync</a> = off. <code class="VARNAME">fsync</code> is a server-wide setting that will alter the behavior of all transactions. It disables all logic within <span class="PRODUCTNAME">PostgreSQL</span> that attempts to synchronize writes to different portions of the database, and therefore a system crash (that is, a hardware or operating system crash, not a failure of <span class="PRODUCTNAME">PostgreSQL</span> itself) could result in arbitrarily bad corruption of the database state. In many scenarios, asynchronous commit provides most of the performance improvement that could be obtained by turning off <code class="VARNAME">fsync</code>, but without the risk of data corruption.</p> <p><a href="../runtime-config-wal/#GUC-COMMIT-DELAY">commit_delay</a> also sounds very similar to asynchronous commit, but it is actually a synchronous commit method (in fact, <code class="VARNAME">commit_delay</code> is ignored during an asynchronous commit). <code class="VARNAME">commit_delay</code> causes a delay just before a transaction flushes <acronym class="ACRONYM">WAL</acronym> to disk, in the hope that a single flush executed by one such transaction can also serve other transactions committing at about the same time. The setting can be thought of as a way of increasing the time window in which transactions can join a group about to participate in a single flush, to amortize the cost of the flush among multiple transactions.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../wal-intro/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../wal-configuration/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Write-Ahead Logging (<acronym class="ACRONYM">WAL</acronym>)</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/wal.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">
+<acronym class="ACRONYM">WAL</acronym> Configuration</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/wal-async-commit.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/wal-async-commit.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

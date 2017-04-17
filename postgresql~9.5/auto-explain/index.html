@@ -1,0 +1,119 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Auto_explain - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="The auto_explain module provides a means for logging execution plans of slow statements automatically, without having to run EXPLAIN by hand. This &hellip;">
+  <meta name="keywords" content="f, auto, explain, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/auto-explain/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="AUTO-EXPLAIN">F.3. auto_explain</h1> <p>The <code class="FILENAME">auto_explain</code> module provides a means for logging execution plans of slow statements automatically, without having to run <a href="../sql-explain/">EXPLAIN</a> by hand. This is especially helpful for tracking down un-optimized queries in large applications.</p> <p>The module provides no SQL-accessible functions. To use it, simply load it into the server. You can load it into an individual session:</p> <pre class="PROGRAMLISTING" data-language="sql">
+LOAD 'auto_explain';
+</pre> <p>(You must be superuser to do that.) More typical usage is to preload it into some or all sessions by including <code class="LITERAL">auto_explain</code> in <a href="../runtime-config-client/#GUC-SESSION-PRELOAD-LIBRARIES">session_preload_libraries</a> or <a href="../runtime-config-client/#GUC-SHARED-PRELOAD-LIBRARIES">shared_preload_libraries</a> in <code class="FILENAME">postgresql.conf</code>. Then you can track unexpectedly slow queries no matter when they happen. Of course there is a price in overhead for that.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN170739">F.3.1. Configuration Parameters</h2> <p>There are several configuration parameters that control the behavior of <code class="FILENAME">auto_explain</code>. Note that the default behavior is to do nothing, so you must set at least <code class="VARNAME">auto_explain.log_min_duration</code> if you want any results.</p> <div class="VARIABLELIST"> <dl> <dt>
+<code class="VARNAME">auto_explain.log_min_duration</code> (<code class="TYPE">integer</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_min_duration</code> is the minimum statement execution time, in milliseconds, that will cause the statement's plan to be logged. Setting this to zero logs all plans. Minus-one (the default) disables logging of plans. For example, if you set it to <code class="LITERAL">250ms</code> then all statements that run 250ms or longer will be logged. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_analyze</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_analyze</code> causes <code class="COMMAND">EXPLAIN ANALYZE</code> output, rather than just <code class="COMMAND">EXPLAIN</code> output, to be printed when an execution plan is logged. This parameter is off by default. Only superusers can change this setting.</p>  <blockquote class="NOTE"> <p><b>Note:</b> When this parameter is on, per-plan-node timing occurs for all statements executed, whether or not they run long enough to actually get logged. This can have an extremely negative impact on performance. Turning off <code class="VARNAME">auto_explain.log_timing</code> ameliorates the performance cost, at the price of obtaining less information.</p> </blockquote>  </dd> <dt>
+<code class="VARNAME">auto_explain.log_buffers</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_buffers</code> controls whether buffer usage statistics are printed when an execution plan is logged; it's equivalent to the <code class="LITERAL">BUFFERS</code> option of <code class="COMMAND">EXPLAIN</code>. This parameter has no effect unless <code class="VARNAME">auto_explain.log_analyze</code> is enabled. This parameter is off by default. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_timing</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_timing</code> controls whether per-node timing information is printed when an execution plan is logged; it's equivalent to the <code class="LITERAL">TIMING</code> option of <code class="COMMAND">EXPLAIN</code>. The overhead of repeatedly reading the system clock can slow down queries significantly on some systems, so it may be useful to set this parameter to off when only actual row counts, and not exact times, are needed. This parameter has no effect unless <code class="VARNAME">auto_explain.log_analyze</code> is enabled. This parameter is on by default. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_triggers</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_triggers</code> causes trigger execution statistics to be included when an execution plan is logged. This parameter has no effect unless <code class="VARNAME">auto_explain.log_analyze</code> is enabled. This parameter is off by default. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_verbose</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_verbose</code> controls whether verbose details are printed when an execution plan is logged; it's equivalent to the <code class="LITERAL">VERBOSE</code> option of <code class="COMMAND">EXPLAIN</code>. This parameter is off by default. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_format</code> (<code class="TYPE">enum</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_format</code> selects the <code class="COMMAND">EXPLAIN</code> output format to be used. The allowed values are <code class="LITERAL">text</code>, <code class="LITERAL">xml</code>, <code class="LITERAL">json</code>, and <code class="LITERAL">yaml</code>. The default is text. Only superusers can change this setting.</p> </dd> <dt>
+<code class="VARNAME">auto_explain.log_nested_statements</code> (<code class="TYPE">boolean</code>)</dt> <dd> <p><code class="VARNAME">auto_explain.log_nested_statements</code> causes nested statements (statements executed inside a function) to be considered for logging. When it is off, only top-level query plans are logged. This parameter is off by default. Only superusers can change this setting.</p> </dd> </dl> </div> <p>In ordinary usage, these parameters are set in <code class="FILENAME">postgresql.conf</code>, although superusers can alter them on-the-fly within their own sessions. Typical usage might be:</p> <pre class="PROGRAMLISTING" data-language="sql">
+# postgresql.conf
+session_preload_libraries = 'auto_explain'
+
+auto_explain.log_min_duration = '3s'
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN170848">F.3.2. Example</h2> <pre class="PROGRAMLISTING" data-language="sql">
+postgres=# LOAD 'auto_explain';
+postgres=# SET auto_explain.log_min_duration = 0;
+postgres=# SET auto_explain.log_analyze = true;
+postgres=# SELECT count(*)
+           FROM pg_class, pg_index
+           WHERE oid = indrelid AND indisunique;
+</pre> <p>This might produce log output such as:</p> <pre class="SCREEN">
+LOG:  duration: 3.651 ms  plan:
+  Query Text: SELECT count(*)
+              FROM pg_class, pg_index
+              WHERE oid = indrelid AND indisunique;
+  Aggregate  (cost=16.79..16.80 rows=1 width=0) (actual time=3.626..3.627 rows=1 loops=1)
+    -&gt;  Hash Join  (cost=4.17..16.55 rows=92 width=0) (actual time=3.349..3.594 rows=92 loops=1)
+          Hash Cond: (pg_class.oid = pg_index.indrelid)
+          -&gt;  Seq Scan on pg_class  (cost=0.00..9.55 rows=255 width=4) (actual time=0.016..0.140 rows=255 loops=1)
+          -&gt;  Hash  (cost=3.02..3.02 rows=92 width=4) (actual time=3.238..3.238 rows=92 loops=1)
+                Buckets: 1024  Batches: 1  Memory Usage: 4kB
+                -&gt;  Seq Scan on pg_index  (cost=0.00..3.02 rows=92 width=4) (actual time=0.008..3.187 rows=92 loops=1)
+                      Filter: indisunique
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN170853">F.3.3. Author</h2> <p>Takahiro Itagaki <code class="EMAIL">&lt;<a href="../mailto:itagaki.takahiro@oss.ntt.co.jp/">itagaki.takahiro@oss.ntt.co.jp</a>&gt;</code></p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../auth-delay/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../btree-gin/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">auth_delay</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">btree_gin</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/auto-explain.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/auto-explain.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

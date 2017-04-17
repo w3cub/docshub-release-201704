@@ -1,0 +1,204 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Pageinspect - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="The pageinspect module provides functions that allow you to inspect the contents of database pages at a low level, which is useful for debugging &hellip;">
+  <meta name="keywords" content="f, pageinspect, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/pageinspect/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="PAGEINSPECT">F.21. pageinspect</h1> <p>The <code class="FILENAME">pageinspect</code> module provides functions that allow you to inspect the contents of database pages at a low level, which is useful for debugging purposes. All of these functions may be used only by superusers.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN174405">F.21.1. Functions</h2> <div class="VARIABLELIST"> <dl> <dt><code class="FUNCTION">get_raw_page(relname text, fork
+        text, blkno int) returns bytea</code></dt> <dd> <p><code class="FUNCTION">get_raw_page</code> reads the specified block of the named relation and returns a copy as a <code class="TYPE">bytea</code> value. This allows a single time-consistent copy of the block to be obtained. <code class="REPLACEABLE c2">fork</code> should be <code class="LITERAL">'main'</code> for the main data fork, <code class="LITERAL">'fsm'</code> for the free space map, <code class="LITERAL">'vm'</code> for the visibility map, or <code class="LITERAL">'init'</code> for the initialization fork.</p> </dd> <dt><code class="FUNCTION">get_raw_page(relname text, blkno
+        int) returns bytea</code></dt> <dd> <p>A shorthand version of <code class="FUNCTION">get_raw_page</code>, for reading from the main fork. Equivalent to <code class="LITERAL">get_raw_page(relname, 'main', blkno)</code></p> </dd> <dt><code class="FUNCTION">page_header(page bytea) returns
+        record</code></dt> <dd> <p><code class="FUNCTION">page_header</code> shows fields that are common to all <span class="PRODUCTNAME">PostgreSQL</span> heap and index pages.</p> <p>A page image obtained with <code class="FUNCTION">get_raw_page</code> should be passed as argument. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM page_header(get_raw_page('pg_class', 0));
+    lsn    | checksum | flags  | lower | upper | special | pagesize | version | prune_xid
+-----------+----------+--------+-------+-------+---------+----------+---------+-----------
+ 0/24A1B50 |        1 |      1 |   232 |   368 |    8192 |     8192 |       4 |         0
+</pre> <p>The returned columns correspond to the fields in the <code class="STRUCTNAME">PageHeaderData</code> struct. See <code class="FILENAME">src/include/storage/bufpage.h</code> for details.</p> </dd> <dt><code class="FUNCTION">heap_page_items(page bytea)
+        returns setof record</code></dt> <dd> <p><code class="FUNCTION">heap_page_items</code> shows all line pointers on a heap page. For those line pointers that are in use, tuple headers are also shown. All tuples are shown, whether or not the tuples were visible to an MVCC snapshot at the time the raw page was copied.</p> <p>A heap page image obtained with <code class="FUNCTION">get_raw_page</code> should be passed as argument. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM heap_page_items(get_raw_page('pg_class', 0));
+</pre> <p>See <code class="FILENAME">src/include/storage/itemid.h</code> and <code class="FILENAME">src/include/access/htup_details.h</code> for explanations of the fields returned.</p> </dd> <dt><code class="FUNCTION">bt_metap(relname text) returns
+        record</code></dt> <dd> <p><code class="FUNCTION">bt_metap</code> returns information about a B-tree index's metapage. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM bt_metap('pg_cast_oid_index');
+-[ RECORD 1 ]-----
+magic     | 340322
+version   | 2
+root      | 1
+level     | 0
+fastroot  | 1
+fastlevel | 0
+</pre> </dd> <dt><code class="FUNCTION">bt_page_stats(relname text,
+        blkno int) returns record</code></dt> <dd> <p><code class="FUNCTION">bt_page_stats</code> returns summary information about single pages of B-tree indexes. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM bt_page_stats('pg_cast_oid_index', 1);
+-[ RECORD 1 ]-+-----
+blkno         | 1
+type          | l
+live_items    | 256
+dead_items    | 0
+avg_item_size | 12
+page_size     | 8192
+free_size     | 4056
+btpo_prev     | 0
+btpo_next     | 0
+btpo          | 0
+btpo_flags    | 3
+</pre> </dd> <dt><code class="FUNCTION">bt_page_items(relname text,
+        blkno int) returns setof record</code></dt> <dd> <p><code class="FUNCTION">bt_page_items</code> returns detailed information about all of the items on a B-tree index page. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM bt_page_items('pg_cast_oid_index', 1);
+ itemoffset |  ctid   | itemlen | nulls | vars |    data
+------------+---------+---------+-------+------+-------------
+          1 | (0,1)   |      12 | f     | f    | 23 27 00 00
+          2 | (0,2)   |      12 | f     | f    | 24 27 00 00
+          3 | (0,3)   |      12 | f     | f    | 25 27 00 00
+          4 | (0,4)   |      12 | f     | f    | 26 27 00 00
+          5 | (0,5)   |      12 | f     | f    | 27 27 00 00
+          6 | (0,6)   |      12 | f     | f    | 28 27 00 00
+          7 | (0,7)   |      12 | f     | f    | 29 27 00 00
+          8 | (0,8)   |      12 | f     | f    | 2a 27 00 00
+</pre> <p>In a B-tree leaf page, <code class="STRUCTFIELD">ctid</code> points to a heap tuple. In an internal page, the block number part of <code class="STRUCTFIELD">ctid</code> points to another page in the index itself, while the offset part (the second number) is ignored and is usually 1.</p> <p>Note that the first item on any non-rightmost page (any page with a non-zero value in the <code class="STRUCTFIELD">btpo_next</code> field) is the page's <span class="QUOTE">"high key"</span>, meaning its <code class="STRUCTFIELD">data</code> serves as an upper bound on all items appearing on the page, while its <code class="STRUCTFIELD">ctid</code> field is meaningless. Also, on non-leaf pages, the first real data item (the first item that is not a high key) is a <span class="QUOTE">"minus infinity"</span> item, with no actual value in its <code class="STRUCTFIELD">data</code> field. Such an item does have a valid downlink in its <code class="STRUCTFIELD">ctid</code> field, however.</p> </dd> <dt><code class="FUNCTION">brin_page_type(page bytea)
+        returns text</code></dt> <dd> <p><code class="FUNCTION">brin_page_type</code> returns the page type of the given <acronym class="ACRONYM">BRIN</acronym> index page, or throws an error if the page is not a valid <acronym class="ACRONYM">BRIN</acronym> page. For example:</p> <pre class="SCREEN">
+test=# SELECT brin_page_type(get_raw_page('brinidx', 0));
+ brin_page_type 
+----------------
+ meta
+</pre> </dd> <dt><code class="FUNCTION">brin_metapage_info(page bytea)
+        returns record</code></dt> <dd> <p><code class="FUNCTION">brin_metapage_info</code> returns assorted information about a <acronym class="ACRONYM">BRIN</acronym> index metapage. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM brin_metapage_info(get_raw_page('brinidx', 0));
+   magic    | version | pagesperrange | lastrevmappage 
+------------+---------+---------------+----------------
+ 0xA8109CFA |       1 |             4 |              2
+</pre> </dd> <dt><code class="FUNCTION">brin_revmap_data(page bytea)
+        returns setof tid</code></dt> <dd> <p><code class="FUNCTION">brin_revmap_data</code> returns the list of tuple identifiers in a <acronym class="ACRONYM">BRIN</acronym> index range map page. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM brin_revmap_data(get_raw_page('brinidx', 2)) limit 5;
+  pages  
+---------
+ (6,137)
+ (6,138)
+ (6,139)
+ (6,140)
+ (6,141)
+</pre> </dd> <dt><code class="FUNCTION">brin_page_items(page bytea,
+        index oid) returns setof record</code></dt> <dd> <p><code class="FUNCTION">brin_page_items</code> returns the data stored in the <acronym class="ACRONYM">BRIN</acronym> data page. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM brin_page_items(get_raw_page('brinidx', 5),
+                                     'brinidx')
+       ORDER BY blknum, attnum LIMIT 6;
+ itemoffset | blknum | attnum | allnulls | hasnulls | placeholder |    value     
+------------+--------+--------+----------+----------+-------------+--------------
+        137 |      0 |      1 | t        | f        | f           | 
+        137 |      0 |      2 | f        | f        | f           | {1 .. 88}
+        138 |      4 |      1 | t        | f        | f           | 
+        138 |      4 |      2 | f        | f        | f           | {89 .. 176}
+        139 |      8 |      1 | t        | f        | f           | 
+        139 |      8 |      2 | f        | f        | f           | {177 .. 264}
+</pre> <p>The returned columns correspond to the fields in the <code class="STRUCTNAME">BrinMemTuple</code> and <code class="STRUCTNAME">BrinValues</code> structs. See <code class="FILENAME">src/include/access/brin_tuple.h</code> for details.</p> </dd> <dt><code class="FUNCTION">gin_metapage_info(page bytea)
+        returns record</code></dt> <dd> <p><code class="FUNCTION">gin_metapage_info</code> returns information about a <acronym class="ACRONYM">GIN</acronym> index metapage. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM gin_metapage_info(get_raw_page('gin_index', 0));
+-[ RECORD 1 ]----+-----------
+pending_head     | 4294967295
+pending_tail     | 4294967295
+tail_free_size   | 0
+n_pending_pages  | 0
+n_pending_tuples | 0
+n_total_pages    | 7
+n_entry_pages    | 6
+n_data_pages     | 0
+n_entries        | 693
+version          | 2
+</pre> </dd> <dt><code class="FUNCTION">gin_page_opaque_info(page bytea)
+        returns record</code></dt> <dd> <p><code class="FUNCTION">gin_page_opaque_info</code> returns information about a <acronym class="ACRONYM">GIN</acronym> index opaque area, like the page type. For example:</p> <pre class="SCREEN">
+test=# SELECT * FROM gin_page_opaque_info(get_raw_page('gin_index', 2));
+ rightlink | maxoff |         flags
+-----------+--------+------------------------
+         5 |      0 | {data,leaf,compressed}
+(1 row)
+</pre> </dd> <dt><code class="FUNCTION">gin_leafpage_items(page bytea)
+        returns setof record</code></dt> <dd> <p><code class="FUNCTION">gin_leafpage_items</code> returns information about the data stored in a <acronym class="ACRONYM">GIN</acronym> leaf page. For example:</p> <pre class="SCREEN">
+test=# SELECT first_tid, nbytes, tids[0:5] as some_tids
+        FROM gin_leafpage_items(get_raw_page('gin_test_idx', 2));
+ first_tid | nbytes |                        some_tids
+-----------+--------+----------------------------------------------------------
+ (8,41)    |    244 | {"(8,41)","(8,43)","(8,44)","(8,45)","(8,46)"}
+ (10,45)   |    248 | {"(10,45)","(10,46)","(10,47)","(10,48)","(10,49)"}
+ (12,52)   |    248 | {"(12,52)","(12,53)","(12,54)","(12,55)","(12,56)"}
+ (14,59)   |    320 | {"(14,59)","(14,60)","(14,61)","(14,62)","(14,63)"}
+ (167,16)  |    376 | {"(167,16)","(167,17)","(167,18)","(167,19)","(167,20)"}
+ (170,30)  |    376 | {"(170,30)","(170,31)","(170,32)","(170,33)","(170,34)"}
+ (173,44)  |    197 | {"(173,44)","(173,45)","(173,46)","(173,47)","(173,48)"}
+(7 rows)
+</pre> </dd> <dt><code class="FUNCTION">fsm_page_contents(page bytea)
+        returns text</code></dt> <dd> <p><code class="FUNCTION">fsm_page_contents</code> shows the internal node structure of a FSM page. The output is a multiline string, with one line per node in the binary tree within the page. Only those nodes that are not zero are printed. The so-called "next" pointer, which points to the next slot to be returned from the page, is also printed.</p> <p>See <code class="FILENAME">src/backend/storage/freespace/README</code> for more information on the structure of an FSM page.</p> </dd> </dl> </div> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../ltree/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../passwordcheck/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">ltree</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">passwordcheck</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/pageinspect.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/pageinspect.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

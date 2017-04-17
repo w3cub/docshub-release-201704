@@ -1,0 +1,108 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Type Conversion&#58; UNION, CASE, and Related Constructs - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="SQL UNION constructs must match up possibly dissimilar types to become a single result set. The resolution algorithm is applied separately to each &hellip;">
+  <meta name="keywords" content="union, case, and, related, constructs, type, conversion, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/typeconv-union-case/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TYPECONV-UNION-CASE">10.5. UNION, CASE, and Related Constructs</h1> <p>SQL <code class="LITERAL">UNION</code> constructs must match up possibly dissimilar types to become a single result set. The resolution algorithm is applied separately to each output column of a union query. The <code class="LITERAL">INTERSECT</code> and <code class="LITERAL">EXCEPT</code> constructs resolve dissimilar types in the same way as <code class="LITERAL">UNION</code>. The <code class="LITERAL">CASE</code>, <code class="LITERAL">ARRAY</code>, <code class="LITERAL">VALUES</code>, <code class="FUNCTION">GREATEST</code> and <code class="FUNCTION">LEAST</code> constructs use the identical algorithm to match up their component expressions and select a result data type.</p> <div class="PROCEDURE"> <p class="c2">Type Resolution for <code class="LITERAL">UNION</code>, <code class="LITERAL">CASE</code>, and Related Constructs</p> <ol type="1"> <li class="STEP"> <p>If all inputs are of the same type, and it is not <code class="TYPE">unknown</code>, resolve as that type.</p> </li> <li class="STEP"> <p id="AEN23284">If any input is of a domain type, treat it as being of the domain's base type for all subsequent steps. <span class="footnote">[1]</span></p> </li> <li class="STEP"> <p>If all inputs are of type <code class="TYPE">unknown</code>, resolve as type <code class="TYPE">text</code> (the preferred type of the string category). Otherwise, <code class="TYPE">unknown</code> inputs are ignored.</p> </li> <li class="STEP"> <p>If the non-unknown inputs are not all of the same type category, fail.</p> </li> <li class="STEP"> <p>Choose the first non-unknown input type which is a preferred type in that category, if there is one.</p> </li> <li class="STEP"> <p>Otherwise, choose the last non-unknown input type that allows all the preceding non-unknown inputs to be implicitly converted to it. (There always is such a type, since at least the first type in the list must satisfy this condition.)</p> </li> <li class="STEP"> <p>Convert all inputs to the selected type. Fail if there is not a conversion from a given input to the selected type.</p> </li> </ol> </div> <p>Some examples follow.</p> <div class="EXAMPLE" id="AEN23301">  <p class="c2">Example 10-9. Type Resolution with Underspecified Types in a Union</p> <pre class="SCREEN">
+SELECT text 'a' AS "text" UNION SELECT 'b';
+
+ text
+------
+ a
+ b
+(2 rows)
+</pre> <p>Here, the unknown-type literal <code class="LITERAL">'b'</code> will be resolved to type <code class="TYPE">text</code>.</p> </div> <div class="EXAMPLE" id="AEN23307">  <p class="c2">Example 10-10. Type Resolution in a Simple Union</p> <pre class="SCREEN">
+SELECT 1.2 AS "numeric" UNION SELECT 1;
+
+ numeric
+---------
+       1
+     1.2
+(2 rows)
+</pre> <p>The literal <code class="LITERAL">1.2</code> is of type <code class="TYPE">numeric</code>, and the <code class="TYPE">integer</code> value <code class="LITERAL">1</code> can be cast implicitly to <code class="TYPE">numeric</code>, so that type is used.</p> </div> <div class="EXAMPLE" id="AEN23316">  <p class="c2">Example 10-11. Type Resolution in a Transposed Union</p> <pre class="SCREEN">
+SELECT 1 AS "real" UNION SELECT CAST('2.2' AS REAL);
+
+ real
+------
+    1
+  2.2
+(2 rows)
+</pre> <p>Here, since type <code class="TYPE">real</code> cannot be implicitly cast to <code class="TYPE">integer</code>, but <code class="TYPE">integer</code> can be implicitly cast to <code class="TYPE">real</code>, the union result type is resolved as <code class="TYPE">real</code>.</p> </div>  <h3 class="FOOTNOTES">Notes</h3> <table class="FOOTNOTES"> <tr> <td align="left" width="5%" id="FTN.AEN23284"><span class="footnote">[1]</span></td> <td align="left" width="95%"> <p>Somewhat like the treatment of domain inputs for operators and functions, this behavior allows a domain type to be preserved through a <code class="LITERAL">UNION</code> or similar construct, so long as the user is careful to ensure that all inputs are implicitly or explicitly of that exact type. Otherwise the domain's base type will be preferred.</p> </td> </tr> </table> <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../typeconv-query/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="https://www.postgresql.org/docs/9.4/static/indexes.html" accesskey="N" target="_blank">Next</a></td> </tr> <tr> <td width="33%" align="left">Value Storage</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/typeconv.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Indexes</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/typeconv-union-case.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/typeconv-union-case.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

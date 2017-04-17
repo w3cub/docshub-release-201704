@@ -1,0 +1,91 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Spi - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="The spi module provides several workable examples of using SPI and triggers. While these functions are of some value in their own right, they are &hellip;">
+  <meta name="keywords" content="f, spi, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/contrib-spi/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="CONTRIB-SPI">F.35. spi</h1> <p>The <span class="APPLICATION">spi</span> module provides several workable examples of using SPI and triggers. While these functions are of some value in their own right, they are even more useful as examples to modify for your own purposes. The functions are general enough to be used with any table, but you have to specify table and field names (as described below) while creating a trigger.</p> <p>Each of the groups of functions described below is provided as a separately-installable extension.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN167710">F.35.1. refint — Functions for Implementing Referential Integrity</h2> <p><code class="FUNCTION">check_primary_key()</code> and <code class="FUNCTION">check_foreign_key()</code> are used to check foreign key constraints. (This functionality is long since superseded by the built-in foreign key mechanism, of course, but the module is still useful as an example.)</p> <p><code class="FUNCTION">check_primary_key()</code> checks the referencing table. To use, create a <code class="LITERAL">BEFORE INSERT OR UPDATE</code> trigger using this function on a table referencing another table. Specify as the trigger arguments: the referencing table's column name(s) which form the foreign key, the referenced table name, and the column names in the referenced table which form the primary/unique key. To handle multiple foreign keys, create a trigger for each reference.</p> <p><code class="FUNCTION">check_foreign_key()</code> checks the referenced table. To use, create a <code class="LITERAL">BEFORE DELETE OR UPDATE</code> trigger using this function on a table referenced by other table(s). Specify as the trigger arguments: the number of referencing tables for which the function has to perform checking, the action if a referencing key is found (<code class="LITERAL">cascade</code> — to delete the referencing row, <code class="LITERAL">restrict</code> — to abort transaction if referencing keys exist, <code class="LITERAL">setnull</code> — to set referencing key fields to null), the triggered table's column names which form the primary/unique key, then the referencing table name and column names (repeated for as many referencing tables as were specified by first argument). Note that the primary/unique key columns should be marked NOT NULL and should have a unique index.</p> <p>There are examples in <code class="FILENAME">refint.example</code>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN167726">F.35.2. timetravel — Functions for Implementing Time Travel</h2> <p>Long ago, <span class="PRODUCTNAME">PostgreSQL</span> had a built-in time travel feature that kept the insert and delete times for each tuple. This can be emulated using these functions. To use these functions, you must add to a table two columns of <code class="TYPE">abstime</code> type to store the date when a tuple was inserted (start_date) and changed/deleted (stop_date):</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE mytab (
+        ...             ...
+        start_date      abstime,
+        stop_date       abstime
+        ...             ...
+);
+</pre> <p>The columns can be named whatever you like, but in this discussion we'll call them start_date and stop_date.</p> <p>When a new row is inserted, start_date should normally be set to current time, and stop_date to <code class="LITERAL">infinity</code>. The trigger will automatically substitute these values if the inserted data contains nulls in these columns. Generally, inserting explicit non-null data in these columns should only be done when re-loading dumped data.</p> <p>Tuples with stop_date equal to <code class="LITERAL">infinity</code> are <span class="QUOTE">"valid now"</span>, and can be modified. Tuples with a finite stop_date cannot be modified anymore — the trigger will prevent it. (If you need to do that, you can turn off time travel as shown below.)</p> <p>For a modifiable row, on update only the stop_date in the tuple being updated will be changed (to current time) and a new tuple with the modified data will be inserted. Start_date in this new tuple will be set to current time and stop_date to <code class="LITERAL">infinity</code>.</p> <p>A delete does not actually remove the tuple but only sets its stop_date to current time.</p> <p>To query for tuples <span class="QUOTE">"valid now"</span>, include <code class="LITERAL">stop_date = 'infinity'</code> in the query's WHERE condition. (You might wish to incorporate that in a view.) Similarly, you can query for tuples valid at any past time with suitable conditions on start_date and stop_date.</p> <p><code class="FUNCTION">timetravel()</code> is the general trigger function that supports this behavior. Create a <code class="LITERAL">BEFORE INSERT OR UPDATE OR DELETE</code> trigger using this function on each time-traveled table. Specify two trigger arguments: the actual names of the start_date and stop_date columns. Optionally, you can specify one to three more arguments, which must refer to columns of type <code class="TYPE">text</code>. The trigger will store the name of the current user into the first of these columns during INSERT, the second column during UPDATE, and the third during DELETE.</p> <p><code class="FUNCTION">set_timetravel()</code> allows you to turn time-travel on or off for a table. <code class="LITERAL">set_timetravel('mytab', 1)</code> will turn TT ON for table <code class="LITERAL">mytab</code>. <code class="LITERAL">set_timetravel('mytab', 0)</code> will turn TT OFF for table <code class="LITERAL">mytab</code>. In both cases the old status is reported. While TT is off, you can modify the start_date and stop_date columns freely. Note that the on/off status is local to the current database session — fresh sessions will always start out with TT ON for all tables.</p> <p><code class="FUNCTION">get_timetravel()</code> returns the TT state for a table without changing it.</p> <p>There is an example in <code class="FILENAME">timetravel.example</code>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN167757">F.35.3. autoinc — Functions for Autoincrementing Fields</h2> <p><code class="FUNCTION">autoinc()</code> is a trigger that stores the next value of a sequence into an integer field. This has some overlap with the built-in <span class="QUOTE">"serial column"</span> feature, but it is not the same: <code class="FUNCTION">autoinc()</code> will override attempts to substitute a different field value during inserts, and optionally it can be used to increment the field during updates, too.</p> <p>To use, create a <code class="LITERAL">BEFORE INSERT</code> (or optionally <code class="LITERAL">BEFORE INSERT OR UPDATE</code>) trigger using this function. Specify two trigger arguments: the name of the integer column to be modified, and the name of the sequence object that will supply values. (Actually, you can specify any number of pairs of such names, if you'd like to update more than one autoincrementing column.)</p> <p>There is an example in <code class="FILENAME">autoinc.example</code>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN167768">F.35.4. insert_username — Functions for Tracking Who Changed a Table</h2> <p><code class="FUNCTION">insert_username()</code> is a trigger that stores the current user's name into a text field. This can be useful for tracking who last modified a particular row within a table.</p> <p>To use, create a <code class="LITERAL">BEFORE INSERT</code> and/or <code class="LITERAL">UPDATE</code> trigger using this function. Specify a single trigger argument: the name of the text column to be modified.</p> <p>There is an example in <code class="FILENAME">insert_username.example</code>.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN167777">F.35.5. moddatetime — Functions for Tracking Last Modification Time</h2> <p><code class="FUNCTION">moddatetime()</code> is a trigger that stores the current time into a <code class="TYPE">timestamp</code> field. This can be useful for tracking the last modification time of a particular row within a table.</p> <p>To use, create a <code class="LITERAL">BEFORE UPDATE</code> trigger using this function. Specify a single trigger argument: the name of the column to be modified. The column must be of type <code class="TYPE">timestamp</code> or <code class="TYPE">timestamp with time zone</code>.</p> <p>There is an example in <code class="FILENAME">moddatetime.example</code>.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../sepgsql/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../sslinfo/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">sepgsql</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">sslinfo</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/contrib-spi.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/contrib-spi.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

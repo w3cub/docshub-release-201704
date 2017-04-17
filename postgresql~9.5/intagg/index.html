@@ -1,0 +1,108 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Intagg - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="The intagg module provides an integer aggregator and an enumerator. intagg is now obsolete, because there are built-in functions that provide a &hellip;">
+  <meta name="keywords" content="f, intagg, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/intagg/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INTAGG">F.16. intagg</h1> <p>The <code class="FILENAME">intagg</code> module provides an integer aggregator and an enumerator. <code class="FILENAME">intagg</code> is now obsolete, because there are built-in functions that provide a superset of its capabilities. However, the module is still provided as a compatibility wrapper around the built-in functions.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN173203">F.16.1. Functions</h2> <p>The aggregator is an aggregate function <code class="FUNCTION">int_array_aggregate(integer)</code> that produces an integer array containing exactly the integers it is fed. This is a wrapper around <code class="FUNCTION">array_agg</code>, which does the same thing for any array type.</p> <p>The enumerator is a function <code class="FUNCTION">int_array_enum(integer[])</code> that returns <code class="TYPE">setof integer</code>. It is essentially the reverse operation of the aggregator: given an array of integers, expand it into a set of rows. This is a wrapper around <code class="FUNCTION">unnest</code>, which does the same thing for any array type.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN173218">F.16.2. Sample Uses</h2> <p>Many database systems have the notion of a one to many table. Such a table usually sits between two indexed tables, for example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE left (id INT PRIMARY KEY, ...);
+CREATE TABLE right (id INT PRIMARY KEY, ...);
+CREATE TABLE one_to_many(left INT REFERENCES left, right INT REFERENCES right);
+</pre> <p>It is typically used like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT right.* from right JOIN one_to_many ON (right.id = one_to_many.right)
+  WHERE one_to_many.left = item;
+</pre> <p>This will return all the items in the right hand table for an entry in the left hand table. This is a very common construct in SQL.</p> <p>Now, this methodology can be cumbersome with a very large number of entries in the <code class="STRUCTNAME">one_to_many</code> table. Often, a join like this would result in an index scan and a fetch for each right hand entry in the table for a particular left hand entry. If you have a very dynamic system, there is not much you can do. However, if you have some data which is fairly static, you can create a summary table with the aggregator.</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE summary AS
+  SELECT left, int_array_aggregate(right) AS right
+  FROM one_to_many
+  GROUP BY left;
+</pre> <p>This will create a table with one row per left item, and an array of right items. Now this is pretty useless without some way of using the array; that's why there is an array enumerator. You can do</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT left, int_array_enum(right) FROM summary WHERE left = item;
+</pre> <p>The above query using <code class="FUNCTION">int_array_enum</code> produces the same results as</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT left, right FROM one_to_many WHERE left = item;
+</pre> <p>The difference is that the query against the summary table has to get only one row from the table, whereas the direct query against <code class="STRUCTNAME">one_to_many</code> must index scan and fetch a row for each entry.</p> <p>On one system, an <code class="COMMAND">EXPLAIN</code> showed a query with a cost of 8488 was reduced to a cost of 329. The original query was a join involving the <code class="STRUCTNAME">one_to_many</code> table, which was replaced by:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT right, count(right) FROM
+  ( SELECT left, int_array_enum(right) AS right
+    FROM summary JOIN (SELECT left FROM left_table WHERE left = item) AS lefts
+         ON (summary.left = lefts.left)
+  ) AS list
+  GROUP BY right
+  ORDER BY count DESC;
+</pre> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../hstore/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../intarray/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">hstore</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">intarray</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/intagg.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/intagg.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Index Access Method&#58; Catalog Entries for Indexes - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="Each index access method is described by a row in the pg_am system catalog (see Section 48.3). The principal contents of a pg_am row are references &hellip;">
+  <meta name="keywords" content="catalog, entries, for, indexes, index, access, method, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/index-catalog/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INDEX-CATALOG">55.1. Catalog Entries for Indexes</h1> <p>Each index access method is described by a row in the <code class="STRUCTNAME">pg_am</code> system catalog (see <a href="../catalog-pg-am/">Section 48.3</a>). The principal contents of a <code class="STRUCTNAME">pg_am</code> row are references to <a href="../catalog-pg-proc/"><code class="STRUCTNAME">pg_proc</code></a> entries that identify the index access functions supplied by the access method. The APIs for these functions are defined later in this chapter. In addition, the <code class="STRUCTNAME">pg_am</code> row specifies a few fixed properties of the access method, such as whether it can support multicolumn indexes. There is not currently any special support for creating or deleting <code class="STRUCTNAME">pg_am</code> entries; anyone able to write a new access method is expected to be competent to insert an appropriate row for themselves.</p> <p>To be useful, an index access method must also have one or more <i class="FIRSTTERM">operator families</i> and <i class="FIRSTTERM">operator classes</i> defined in <a href="../catalog-pg-opfamily/"><code class="STRUCTNAME">pg_opfamily</code></a>, <a href="../catalog-pg-opclass/"><code class="STRUCTNAME">pg_opclass</code></a>, <a href="../catalog-pg-amop/"><code class="STRUCTNAME">pg_amop</code></a>, and <a href="../catalog-pg-amproc/"><code class="STRUCTNAME">pg_amproc</code></a>. These entries allow the planner to determine what kinds of query qualifications can be used with indexes of this access method. Operator families and classes are described in <a href="https://www.postgresql.org/docs/9.4/static/xindex.html" target="_blank">Section 35.14</a>, which is prerequisite material for reading this chapter.</p> <p>An individual index is defined by a <a href="../catalog-pg-class/"><code class="STRUCTNAME">pg_class</code></a> entry that describes it as a physical relation, plus a <a href="../catalog-pg-index/"><code class="STRUCTNAME">pg_index</code></a> entry that shows the logical content of the index — that is, the set of index columns it has and the semantics of those columns, as captured by the associated operator classes. The index columns (key values) can be either simple columns of the underlying table or expressions over the table rows. The index access method normally has no interest in where the index key values come from (it is always handed precomputed key values) but it will be very interested in the operator class information in <code class="STRUCTNAME">pg_index</code>. Both of these catalog entries can be accessed as part of the <code class="STRUCTNAME">Relation</code> data structure that is passed to all operations on the index.</p> <p>Some of the flag columns of <code class="STRUCTNAME">pg_am</code> have nonobvious implications. The requirements of <code class="STRUCTFIELD">amcanunique</code> are discussed in <a href="../index-unique-checks/">Section 55.5</a>. The <code class="STRUCTFIELD">amcanmulticol</code> flag asserts that the access method supports multicolumn indexes, while <code class="STRUCTFIELD">amoptionalkey</code> asserts that it allows scans where no indexable restriction clause is given for the first index column. When <code class="STRUCTFIELD">amcanmulticol</code> is false, <code class="STRUCTFIELD">amoptionalkey</code> essentially says whether the access method supports full-index scans without any restriction clause. Access methods that support multiple index columns <span class="emphasis EMPHASIS c2">must</span> support scans that omit restrictions on any or all of the columns after the first; however they are permitted to require some restriction to appear for the first index column, and this is signaled by setting <code class="STRUCTFIELD">amoptionalkey</code> false. One reason that an index AM might set <code class="STRUCTFIELD">amoptionalkey</code> false is if it doesn't index null values. Since most indexable operators are strict and hence cannot return true for null inputs, it is at first sight attractive to not store index entries for null values: they could never be returned by an index scan anyway. However, this argument fails when an index scan has no restriction clause for a given index column. In practice this means that indexes that have <code class="STRUCTFIELD">amoptionalkey</code> true must index nulls, since the planner might decide to use such an index with no scan keys at all. A related restriction is that an index access method that supports multiple index columns <span class="emphasis EMPHASIS c2">must</span> support indexing null values in columns after the first, because the planner will assume the index can be used for queries that do not restrict these columns. For example, consider an index on (a,b) and a query with <code class="LITERAL">WHERE a = 4</code>. The system will assume the index can be used to scan for rows with <code class="LITERAL">a = 4</code>, which is wrong if the index omits rows where <code class="LITERAL">b</code> is null. It is, however, OK to omit rows where the first indexed column is null. An index access method that does index nulls may also set <code class="STRUCTFIELD">amsearchnulls</code>, indicating that it supports <code class="LITERAL">IS NULL</code> and <code class="LITERAL">IS NOT NULL</code> clauses as search conditions.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.4/static/indexam.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../index-functions/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Index Access Method Interface Definition</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/indexam.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Index Access Method Functions</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/index-catalog.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/index-catalog.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

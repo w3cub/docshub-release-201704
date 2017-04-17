@@ -1,0 +1,97 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>GIN Indexes&#58; Extensibility - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="The GIN interface has a high level of abstraction, requiring the access method implementer only to implement the semantics of the data type being &hellip;">
+  <meta name="keywords" content="extensibility, gin, indexes, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/gin-extensibility/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="GIN-EXTENSIBILITY">58.3. Extensibility</h1> <p>The <acronym class="ACRONYM">GIN</acronym> interface has a high level of abstraction, requiring the access method implementer only to implement the semantics of the data type being accessed. The <acronym class="ACRONYM">GIN</acronym> layer itself takes care of concurrency, logging and searching the tree structure.</p> <p>All it takes to get a <acronym class="ACRONYM">GIN</acronym> access method working is to implement a few user-defined methods, which define the behavior of keys in the tree and the relationships between keys, indexed items, and indexable queries. In short, <acronym class="ACRONYM">GIN</acronym> combines extensibility with generality, code reuse, and a clean interface.</p> <p>There are three methods that an operator class for <acronym class="ACRONYM">GIN</acronym> must provide:</p> <div class="VARIABLELIST"> <dl> <dt><code class="FUNCTION">int compare(Datum a, Datum
+      b)</code></dt> <dd> <p>Compares two keys (not indexed items!) and returns an integer less than zero, zero, or greater than zero, indicating whether the first key is less than, equal to, or greater than the second. Null keys are never passed to this function.</p> </dd> <dt><code class="FUNCTION">Datum *extractValue(Datum
+      itemValue, int32 *nkeys, bool **nullFlags)</code></dt> <dd> <p>Returns a palloc'd array of keys given an item to be indexed. The number of returned keys must be stored into <code class="LITERAL">*nkeys</code>. If any of the keys can be null, also palloc an array of <code class="LITERAL">*nkeys</code> <code class="TYPE">bool</code> fields, store its address at <code class="LITERAL">*nullFlags</code>, and set these null flags as needed. <code class="LITERAL">*nullFlags</code> can be left <code class="SYMBOL">NULL</code> (its initial value) if all keys are non-null. The return value can be <code class="SYMBOL">NULL</code> if the item contains no keys.</p> </dd> <dt><code class="FUNCTION">Datum *extractQuery(Datum query,
+      int32 *nkeys, StrategyNumber n, bool **pmatch, Pointer
+      **extra_data, bool **nullFlags, int32
+      *searchMode)</code></dt> <dd> <p>Returns a palloc'd array of keys given a value to be queried; that is, <code class="LITERAL">query</code> is the value on the right-hand side of an indexable operator whose left-hand side is the indexed column. <code class="LITERAL">n</code> is the strategy number of the operator within the operator class (see <a href="https://www.postgresql.org/docs/9.4/static/xindex.html#XINDEX-STRATEGIES" target="_blank">Section 35.14.2</a>). Often, <code class="FUNCTION">extractQuery</code> will need to consult <code class="LITERAL">n</code> to determine the data type of <code class="LITERAL">query</code> and the method it should use to extract key values. The number of returned keys must be stored into <code class="LITERAL">*nkeys</code>. If any of the keys can be null, also palloc an array of <code class="LITERAL">*nkeys</code> <code class="TYPE">bool</code> fields, store its address at <code class="LITERAL">*nullFlags</code>, and set these null flags as needed. <code class="LITERAL">*nullFlags</code> can be left <code class="SYMBOL">NULL</code> (its initial value) if all keys are non-null. The return value can be <code class="SYMBOL">NULL</code> if the <code class="LITERAL">query</code> contains no keys.</p> <p><code class="LITERAL">searchMode</code> is an output argument that allows <code class="FUNCTION">extractQuery</code> to specify details about how the search will be done. If <code class="LITERAL">*searchMode</code> is set to <code class="LITERAL">GIN_SEARCH_MODE_DEFAULT</code> (which is the value it is initialized to before call), only items that match at least one of the returned keys are considered candidate matches. If <code class="LITERAL">*searchMode</code> is set to <code class="LITERAL">GIN_SEARCH_MODE_INCLUDE_EMPTY</code>, then in addition to items containing at least one matching key, items that contain no keys at all are considered candidate matches. (This mode is useful for implementing is-subset-of operators, for example.) If <code class="LITERAL">*searchMode</code> is set to <code class="LITERAL">GIN_SEARCH_MODE_ALL</code>, then all non-null items in the index are considered candidate matches, whether they match any of the returned keys or not. (This mode is much slower than the other two choices, since it requires scanning essentially the entire index, but it may be necessary to implement corner cases correctly. An operator that needs this mode in most cases is probably not a good candidate for a GIN operator class.) The symbols to use for setting this mode are defined in <code class="FILENAME">access/gin.h</code>.</p> <p><code class="LITERAL">pmatch</code> is an output argument for use when partial match is supported. To use it, <code class="FUNCTION">extractQuery</code> must allocate an array of <code class="LITERAL">*nkeys</code> booleans and store its address at <code class="LITERAL">*pmatch</code>. Each element of the array should be set to TRUE if the corresponding key requires partial match, FALSE if not. If <code class="LITERAL">*pmatch</code> is set to <code class="SYMBOL">NULL</code> then GIN assumes partial match is not required. The variable is initialized to <code class="SYMBOL">NULL</code> before call, so this argument can simply be ignored by operator classes that do not support partial match.</p> <p><code class="LITERAL">extra_data</code> is an output argument that allows <code class="FUNCTION">extractQuery</code> to pass additional data to the <code class="FUNCTION">consistent</code> and <code class="FUNCTION">comparePartial</code> methods. To use it, <code class="FUNCTION">extractQuery</code> must allocate an array of <code class="LITERAL">*nkeys</code> pointers and store its address at <code class="LITERAL">*extra_data</code>, then store whatever it wants to into the individual pointers. The variable is initialized to <code class="SYMBOL">NULL</code> before call, so this argument can simply be ignored by operator classes that do not require extra data. If <code class="LITERAL">*extra_data</code> is set, the whole array is passed to the <code class="FUNCTION">consistent</code> method, and the appropriate element to the <code class="FUNCTION">comparePartial</code> method.</p> </dd> </dl> </div> <p>An operator class must also provide a function to check if an indexed item matches the query. It comes in two flavors, a boolean <code class="FUNCTION">consistent</code> function, and a ternary <code class="FUNCTION">triConsistent</code> function. <code class="FUNCTION">triConsistent</code> covers the functionality of both, so providing triConsistent alone is sufficient. However, if the boolean variant is significantly cheaper to calculate, it can be advantageous to provide both. If only the boolean variant is provided, some optimizations that depend on refuting index items before fetching all the keys are disabled.</p> <div class="VARIABLELIST"> <dl> <dt><code class="FUNCTION">bool consistent(bool check[],
+      StrategyNumber n, Datum query, int32 nkeys, Pointer
+      extra_data[], bool *recheck, Datum queryKeys[], bool
+      nullFlags[])</code></dt> <dd> <p>Returns TRUE if an indexed item satisfies the query operator with strategy number <code class="LITERAL">n</code> (or might satisfy it, if the recheck indication is returned). This function does not have direct access to the indexed item's value, since <acronym class="ACRONYM">GIN</acronym> does not store items explicitly. Rather, what is available is knowledge about which key values extracted from the query appear in a given indexed item. The <code class="LITERAL">check</code> array has length <code class="LITERAL">nkeys</code>, which is the same as the number of keys previously returned by <code class="FUNCTION">extractQuery</code> for this <code class="LITERAL">query</code> datum. Each element of the <code class="LITERAL">check</code> array is TRUE if the indexed item contains the corresponding query key, i.e., if (check[i] == TRUE) the i-th key of the <code class="FUNCTION">extractQuery</code> result array is present in the indexed item. The original <code class="LITERAL">query</code> datum is passed in case the <code class="FUNCTION">consistent</code> method needs to consult it, and so are the <code class="LITERAL">queryKeys[]</code> and <code class="LITERAL">nullFlags[]</code> arrays previously returned by <code class="FUNCTION">extractQuery</code>. <code class="LITERAL">extra_data</code> is the extra-data array returned by <code class="FUNCTION">extractQuery</code>, or <code class="SYMBOL">NULL</code> if none.</p> <p>When <code class="FUNCTION">extractQuery</code> returns a null key in <code class="LITERAL">queryKeys[]</code>, the corresponding <code class="LITERAL">check[]</code> element is TRUE if the indexed item contains a null key; that is, the semantics of <code class="LITERAL">check[]</code> are like <code class="LITERAL">IS NOT DISTINCT FROM</code>. The <code class="FUNCTION">consistent</code> function can examine the corresponding <code class="LITERAL">nullFlags[]</code> element if it needs to tell the difference between a regular value match and a null match.</p> <p>On success, <code class="LITERAL">*recheck</code> should be set to TRUE if the heap tuple needs to be rechecked against the query operator, or FALSE if the index test is exact. That is, a FALSE return value guarantees that the heap tuple does not match the query; a TRUE return value with <code class="LITERAL">*recheck</code> set to FALSE guarantees that the heap tuple does match the query; and a TRUE return value with <code class="LITERAL">*recheck</code> set to TRUE means that the heap tuple might match the query, so it needs to be fetched and rechecked by evaluating the query operator directly against the originally indexed item.</p> </dd> <dt><code class="FUNCTION">GinTernaryValue
+      triConsistent(GinTernaryValue check[], StrategyNumber n,
+      Datum query, int32 nkeys, Pointer extra_data[], Datum
+      queryKeys[], bool nullFlags[])</code></dt> <dd> <p><code class="FUNCTION">triConsistent</code> is similar to <code class="FUNCTION">consistent</code>, but instead of a boolean <code class="LITERAL">check[]</code>, there are three possible values for each key: <code class="LITERAL">GIN_TRUE</code>, <code class="LITERAL">GIN_FALSE</code> and <code class="LITERAL">GIN_MAYBE</code>. <code class="LITERAL">GIN_FALSE</code> and <code class="LITERAL">GIN_TRUE</code> have the same meaning as regular boolean values. <code class="LITERAL">GIN_MAYBE</code> means that the presence of that key is not known. When <code class="LITERAL">GIN_MAYBE</code> values are present, the function should only return GIN_TRUE if the item matches whether or not the index item contains the corresponding query keys. Likewise, the function must return GIN_FALSE only if the item does not match, whether or not it contains the GIN_MAYBE keys. If the result depends on the GIN_MAYBE entries, i.e. the match cannot be confirmed or refuted based on the known query keys, the function must return GIN_MAYBE.</p> <p>When there are no GIN_MAYBE values in the <code class="LITERAL">check</code> vector, <code class="LITERAL">GIN_MAYBE</code> return value is equivalent of setting <code class="LITERAL">recheck</code> flag in the boolean <code class="FUNCTION">consistent</code> function.</p> </dd> </dl> </div> <p>Optionally, an operator class for <acronym class="ACRONYM">GIN</acronym> can supply the following method:</p> <div class="VARIABLELIST"> <dl> <dt><code class="FUNCTION">int comparePartial(Datum
+      partial_key, Datum key, StrategyNumber n, Pointer
+      extra_data)</code></dt> <dd> <p>Compare a partial-match query key to an index key. Returns an integer whose sign indicates the result: less than zero means the index key does not match the query, but the index scan should continue; zero means that the index key does match the query; greater than zero indicates that the index scan should stop because no more matches are possible. The strategy number <code class="LITERAL">n</code> of the operator that generated the partial match query is provided, in case its semantics are needed to determine when to end the scan. Also, <code class="LITERAL">extra_data</code> is the corresponding element of the extra-data array made by <code class="FUNCTION">extractQuery</code>, or <code class="SYMBOL">NULL</code> if none. Null keys are never passed to this function.</p> </dd> </dl> </div> <p>To support <span class="QUOTE">"partial match"</span> queries, an operator class must provide the <code class="FUNCTION">comparePartial</code> method, and its <code class="FUNCTION">extractQuery</code> method must set the <code class="LITERAL">pmatch</code> parameter when a partial-match query is encountered. See <a href="../gin-implementation/#GIN-PARTIAL-MATCH">Section 58.4.2</a> for details.</p> <p>The actual data types of the various <code class="LITERAL">Datum</code> values mentioned above vary depending on the operator class. The item values passed to <code class="FUNCTION">extractValue</code> are always of the operator class's input type, and all key values must be of the class's <code class="LITERAL">STORAGE</code> type. The type of the <code class="LITERAL">query</code> argument passed to <code class="FUNCTION">extractQuery</code>, <code class="FUNCTION">consistent</code> and <code class="FUNCTION">triConsistent</code> is whatever is specified as the right-hand input type of the class member operator identified by the strategy number. This need not be the same as the item type, so long as key values of the correct type can be extracted from it.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../gin-builtin-opclasses/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../gin-implementation/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Built-in Operator Classes</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/gin.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right"> Implementation</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/gin-extensibility.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/gin-extensibility.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,88 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Template Databases - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="CREATE DATABASE actually works by copying an existing database. By default, it copies the standard system database named template1. Thus that &hellip;">
+  <meta name="keywords" content="template, databases, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/manage-ag-templatedbs/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="MANAGE-AG-TEMPLATEDBS">21.3. Template Databases</h1> <p><code class="COMMAND">CREATE DATABASE</code> actually works by copying an existing database. By default, it copies the standard system database named <code class="LITERAL">template1</code>. Thus that database is the <span class="QUOTE">"template"</span> from which new databases are made. If you add objects to <code class="LITERAL">template1</code>, these objects will be copied into subsequently created user databases. This behavior allows site-local modifications to the standard set of objects in databases. For example, if you install the procedural language <span class="APPLICATION">PL/Perl</span> in <code class="LITERAL">template1</code>, it will automatically be available in user databases without any extra action being taken when those databases are created.</p> <p>There is a second standard system database named <code class="LITERAL">template0</code>. This database contains the same data as the initial contents of <code class="LITERAL">template1</code>, that is, only the standard objects predefined by your version of <span class="PRODUCTNAME">PostgreSQL</span>. <code class="LITERAL">template0</code> should never be changed after the database cluster has been initialized. By instructing <code class="COMMAND">CREATE DATABASE</code> to copy <code class="LITERAL">template0</code> instead of <code class="LITERAL">template1</code>, you can create a <span class="QUOTE">"virgin"</span> user database that contains none of the site-local additions in <code class="LITERAL">template1</code>. This is particularly handy when restoring a <code class="LITERAL">pg_dump</code> dump: the dump script should be restored in a virgin database to ensure that one recreates the correct contents of the dumped database, without conflicting with objects that might have been added to <code class="LITERAL">template1</code> later on.</p> <p>Another common reason for copying <code class="LITERAL">template0</code> instead of <code class="LITERAL">template1</code> is that new encoding and locale settings can be specified when copying <code class="LITERAL">template0</code>, whereas a copy of <code class="LITERAL">template1</code> must use the same settings it does. This is because <code class="LITERAL">template1</code> might contain encoding-specific or locale-specific data, while <code class="LITERAL">template0</code> is known not to.</p> <p>To create a database by copying <code class="LITERAL">template0</code>, use:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE DATABASE dbname TEMPLATE template0;
+</pre> <p>from the SQL environment, or:</p> <pre class="PROGRAMLISTING" data-language="sql">
+createdb -T template0 dbname
+</pre> <p>from the shell.</p> <p>It is possible to create additional template databases, and indeed one can copy any database in a cluster by specifying its name as the template for <code class="COMMAND">CREATE DATABASE</code>. It is important to understand, however, that this is not (yet) intended as a general-purpose <span class="QUOTE">"<code class="COMMAND">COPY DATABASE</code>"</span> facility. The principal limitation is that no other sessions can be connected to the source database while it is being copied. <code class="COMMAND">CREATE DATABASE</code> will fail if any other connection exists when it starts; during the copy operation, new connections to the source database are prevented.</p> <p>Two useful flags exist in <code class="LITERAL">pg_database</code> for each database: the columns <code class="LITERAL">datistemplate</code> and <code class="LITERAL">datallowconn</code>. <code class="LITERAL">datistemplate</code> can be set to indicate that a database is intended as a template for <code class="COMMAND">CREATE DATABASE</code>. If this flag is set, the database can be cloned by any user with <code class="LITERAL">CREATEDB</code> privileges; if it is not set, only superusers and the owner of the database can clone it. If <code class="LITERAL">datallowconn</code> is false, then no new connections to that database will be allowed (but existing sessions are not terminated simply by setting the flag false). The <code class="LITERAL">template0</code> database is normally marked <code class="LITERAL">datallowconn = false</code> to prevent its modification. Both <code class="LITERAL">template0</code> and <code class="LITERAL">template1</code> should always be marked with <code class="LITERAL">datistemplate = true</code>.</p>  <blockquote class="NOTE"> <p><b>Note:</b> <code class="LITERAL">template1</code> and <code class="LITERAL">template0</code> do not have any special status beyond the fact that the name <code class="LITERAL">template1</code> is the default source database name for <code class="COMMAND">CREATE DATABASE</code>. For example, one could drop <code class="LITERAL">template1</code> and recreate it from <code class="LITERAL">template0</code> without any ill effects. This course of action might be advisable if one has carelessly added a bunch of junk in <code class="LITERAL">template1</code>. (To delete <code class="LITERAL">template1</code>, it must have <code class="LITERAL">pg_database.datistemplate = false</code>.)</p> <p>The <code class="LITERAL">postgres</code> database is also created when a database cluster is initialized. This database is meant as a default database for users and applications to connect to. It is simply a copy of <code class="LITERAL">template1</code> and can be dropped and recreated if necessary.</p> </blockquote>   <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../manage-ag-createdb/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../manage-ag-config/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Creating a Database</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/managing-databases.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Database Configuration</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/manage-ag-templatedbs.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/manage-ag-templatedbs.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

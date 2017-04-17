@@ -1,0 +1,123 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Type Conversion&#58; Functions - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content=" The specific function that is referenced by a function call is determined using the following procedure. ">
+  <meta name="keywords" content="functions, type, conversion, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/typeconv-func/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TYPECONV-FUNC">10.3. Functions</h1> <p>The specific function that is referenced by a function call is determined using the following procedure.</p> <div class="PROCEDURE"> <p class="c2">Function Type Resolution</p> <ol type="1"> <li class="STEP"> <p>Select the functions to be considered from the <code class="CLASSNAME">pg_proc</code> system catalog. If a non-schema-qualified function name was used, the functions considered are those with the matching name and argument count that are visible in the current search path (see <a href="../ddl-schemas/#DDL-SCHEMAS-PATH">Section 5.8.3</a>). If a qualified function name was given, only functions in the specified schema are considered.</p> <ol class="SUBSTEPS" type="a"> <li class="STEP"> <p>If the search path finds multiple functions of identical argument types, only the one appearing earliest in the path is considered. Functions of different argument types are considered on an equal footing regardless of search path position.</p> </li> <li class="STEP"> <p>If a function is declared with a <code class="LITERAL">VARIADIC</code> array parameter, and the call does not use the <code class="LITERAL">VARIADIC</code> keyword, then the function is treated as if the array parameter were replaced by one or more occurrences of its element type, as needed to match the call. After such expansion the function might have effective argument types identical to some non-variadic function. In that case the function appearing earlier in the search path is used, or if the two functions are in the same schema, the non-variadic one is preferred.</p> </li> <li class="STEP"> <p>Functions that have default values for parameters are considered to match any call that omits zero or more of the defaultable parameter positions. If more than one such function matches a call, the one appearing earliest in the search path is used. If there are two or more such functions in the same schema with identical parameter types in the non-defaulted positions (which is possible if they have different sets of defaultable parameters), the system will not be able to determine which to prefer, and so an <span class="QUOTE">"ambiguous function call"</span> error will result if no better match to the call can be found.</p> </li> </ol> </li> <li class="STEP"> <p>Check for a function accepting exactly the input argument types. If one exists (there can be only one exact match in the set of functions considered), use it. (Cases involving <code class="TYPE">unknown</code> will never find a match at this step.)</p> </li> <li class="STEP"> <p id="AEN24180">If no exact match is found, see if the function call appears to be a special type conversion request. This happens if the function call has just one argument and the function name is the same as the (internal) name of some data type. Furthermore, the function argument must be either an unknown-type literal, or a type that is binary-coercible to the named data type, or a type that could be converted to the named data type by applying that type's I/O functions (that is, the conversion is either to or from one of the standard string types). When these conditions are met, the function call is treated as a form of <code class="LITERAL">CAST</code> specification. <span class="footnote">[1]</span></p> </li> <li class="STEP"> <p>Look for the best match.</p> <ol class="SUBSTEPS" type="a"> <li class="STEP"> <p>Discard candidate functions for which the input types do not match and cannot be converted (using an implicit conversion) to match. <code class="TYPE">unknown</code> literals are assumed to be convertible to anything for this purpose. If only one candidate remains, use it; else continue to the next step.</p> </li> <li class="STEP"> <p>If any input argument is of a domain type, treat it as being of the domain's base type for all subsequent steps. This ensures that domains act like their base types for purposes of ambiguous-function resolution.</p> </li> <li class="STEP"> <p>Run through all candidates and keep those with the most exact matches on input types. Keep all candidates if none have exact matches. If only one candidate remains, use it; else continue to the next step.</p> </li> <li class="STEP"> <p>Run through all candidates and keep those that accept preferred types (of the input data type's type category) at the most positions where type conversion will be required. Keep all candidates if none accept preferred types. If only one candidate remains, use it; else continue to the next step.</p> </li> <li class="STEP"> <p>If any input arguments are <code class="TYPE">unknown</code>, check the type categories accepted at those argument positions by the remaining candidates. At each position, select the <code class="TYPE">string</code> category if any candidate accepts that category. (This bias towards string is appropriate since an unknown-type literal looks like a string.) Otherwise, if all the remaining candidates accept the same type category, select that category; otherwise fail because the correct choice cannot be deduced without more clues. Now discard candidates that do not accept the selected type category. Furthermore, if any candidate accepts a preferred type in that category, discard candidates that accept non-preferred types for that argument. Keep all candidates if none survive these tests. If only one candidate remains, use it; else continue to the next step.</p> </li> <li class="STEP"> <p>If there are both <code class="TYPE">unknown</code> and known-type arguments, and all the known-type arguments have the same type, assume that the <code class="TYPE">unknown</code> arguments are also of that type, and check which candidates can accept that type at the <code class="TYPE">unknown</code>-argument positions. If exactly one candidate passes this test, use it. Otherwise, fail.</p> </li> </ol> </li> </ol> </div> <p>Note that the <span class="QUOTE">"best match"</span> rules are identical for operator and function type resolution. Some examples follow.</p> <div class="EXAMPLE" id="AEN24206">  <p class="c2">Example 10-6. Rounding Function Argument Type Resolution</p> <p>There is only one <code class="FUNCTION">round</code> function that takes two arguments; it takes a first argument of type <code class="TYPE">numeric</code> and a second argument of type <code class="TYPE">integer</code>. So the following query automatically converts the first argument of type <code class="TYPE">integer</code> to <code class="TYPE">numeric</code>:</p> <pre class="SCREEN">
+SELECT round(4, 4);
+
+ round
+--------
+ 4.0000
+(1 row)
+</pre> <p>That query is actually transformed by the parser to:</p> <pre class="SCREEN">
+SELECT round(CAST (4 AS numeric), 4);
+</pre> <p>Since numeric constants with decimal points are initially assigned the type <code class="TYPE">numeric</code>, the following query will require no type conversion and therefore might be slightly more efficient:</p> <pre class="SCREEN">
+SELECT round(4.0, 4);
+</pre> </div> <div class="EXAMPLE" id="AEN24219">  <p class="c2">Example 10-7. Substring Function Type Resolution</p> <p>There are several <code class="FUNCTION">substr</code> functions, one of which takes types <code class="TYPE">text</code> and <code class="TYPE">integer</code>. If called with a string constant of unspecified type, the system chooses the candidate function that accepts an argument of the preferred category <code class="LITERAL">string</code> (namely of type <code class="TYPE">text</code>).</p> <pre class="SCREEN">
+SELECT substr('1234', 3);
+
+ substr
+--------
+     34
+(1 row)
+</pre> <p>If the string is declared to be of type <code class="TYPE">varchar</code>, as might be the case if it comes from a table, then the parser will try to convert it to become <code class="TYPE">text</code>:</p> <pre class="SCREEN">
+SELECT substr(varchar '1234', 3);
+
+ substr
+--------
+     34
+(1 row)
+</pre> <p>This is transformed by the parser to effectively become:</p> <pre class="SCREEN">
+SELECT substr(CAST (varchar '1234' AS text), 3);
+</pre>  <blockquote class="NOTE"> <p><b>Note:</b> The parser learns from the <code class="STRUCTNAME">pg_cast</code> catalog that <code class="TYPE">text</code> and <code class="TYPE">varchar</code> are binary-compatible, meaning that one can be passed to a function that accepts the other without doing any physical conversion. Therefore, no type conversion call is really inserted in this case.</p> </blockquote>  <p>And, if the function is called with an argument of type <code class="TYPE">integer</code>, the parser will try to convert that to <code class="TYPE">text</code>:</p> <pre class="SCREEN">
+SELECT substr(1234, 3);
+ERROR:  function substr(integer, integer) does not exist
+HINT:  No function matches the given name and argument types. You might need
+to add explicit type casts.
+</pre> <p>This does not work because <code class="TYPE">integer</code> does not have an implicit cast to <code class="TYPE">text</code>. An explicit cast will work, however:</p> <pre class="SCREEN">
+SELECT substr(CAST (1234 AS text), 3);
+
+ substr
+--------
+     34
+(1 row)
+</pre> </div>  <h3 class="FOOTNOTES">Notes</h3> <table class="FOOTNOTES"> <tr> <td align="left" width="5%" id="FTN.AEN24180"><span class="footnote">[1]</span></td> <td align="left" width="95%"> <p>The reason for this step is to support function-style cast specifications in cases where there is not an actual cast function. If there is a cast function, it is conventionally named after its output type, and so there is no need to have a special case. See <a href="../sql-createcast/">CREATE CAST</a> for additional commentary.</p> </td> </tr> </table> <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../typeconv-oper/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../typeconv-query/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Operators</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/typeconv.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Value Storage</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/typeconv-func.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/typeconv-func.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

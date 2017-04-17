@@ -1,0 +1,143 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Enumerated Types - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="Enumerated (enum) types are data types that comprise a static, ordered set of values. They are equivalent to the enum types supported in a number of &hellip;">
+  <meta name="keywords" content="enumerated, types, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/datatype-enum/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="DATATYPE-ENUM">8.7. Enumerated Types</h1> <p>Enumerated (enum) types are data types that comprise a static, ordered set of values. They are equivalent to the <code class="TYPE">enum</code> types supported in a number of programming languages. An example of an enum type might be the days of the week, or a set of status values for a piece of data.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN6707">8.7.1. Declaration of Enumerated Types</h2> <p>Enum types are created using the <a href="../sql-createtype/">CREATE TYPE</a> command, for example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+</pre> <p>Once created, the enum type can be used in table and function definitions much like any other type:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+CREATE TABLE person (
+    name text,
+    current_mood mood
+);
+INSERT INTO person VALUES ('Moe', 'happy');
+SELECT * FROM person WHERE current_mood = 'happy';
+ name | current_mood 
+------+--------------
+ Moe  | happy
+(1 row)
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN6713">8.7.2. Ordering</h2> <p>The ordering of the values in an enum type is the order in which the values were listed when the type was created. All standard comparison operators and related aggregate functions are supported for enums. For example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+INSERT INTO person VALUES ('Larry', 'sad');
+INSERT INTO person VALUES ('Curly', 'ok');
+SELECT * FROM person WHERE current_mood &gt; 'sad';
+ name  | current_mood 
+-------+--------------
+ Moe   | happy
+ Curly | ok
+(2 rows)
+
+SELECT * FROM person WHERE current_mood &gt; 'sad' ORDER BY current_mood;
+ name  | current_mood 
+-------+--------------
+ Curly | ok
+ Moe   | happy
+(2 rows)
+
+SELECT name
+FROM person
+WHERE current_mood = (SELECT MIN(current_mood) FROM person);
+ name  
+-------
+ Larry
+(1 row)
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN6717">8.7.3. Type Safety</h2> <p>Each enumerated data type is separate and cannot be compared with other enumerated types. See this example:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TYPE happiness AS ENUM ('happy', 'very happy', 'ecstatic');
+CREATE TABLE holidays (
+    num_weeks integer,
+    happiness happiness
+);
+INSERT INTO holidays(num_weeks,happiness) VALUES (4, 'happy');
+INSERT INTO holidays(num_weeks,happiness) VALUES (6, 'very happy');
+INSERT INTO holidays(num_weeks,happiness) VALUES (8, 'ecstatic');
+INSERT INTO holidays(num_weeks,happiness) VALUES (2, 'sad');
+ERROR:  invalid input value for enum happiness: "sad"
+SELECT person.name, holidays.num_weeks FROM person, holidays
+  WHERE person.current_mood = holidays.happiness;
+ERROR:  operator does not exist: mood = happiness
+</pre> <p>If you really need to do something like that, you can either write a custom operator or add explicit casts to your query:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT person.name, holidays.num_weeks FROM person, holidays
+  WHERE person.current_mood::text = holidays.happiness::text;
+ name | num_weeks 
+------+-----------
+ Moe  |         4
+(1 row)
+</pre> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN6723">8.7.4. Implementation Details</h2> <p>An enum value occupies four bytes on disk. The length of an enum value's textual label is limited by the <code class="SYMBOL">NAMEDATALEN</code> setting compiled into <span class="PRODUCTNAME">PostgreSQL</span>; in standard builds this means at most 63 bytes.</p> <p>Enum labels are case sensitive, so <code class="TYPE">'happy'</code> is not the same as <code class="TYPE">'HAPPY'</code>. White space in the labels is significant too.</p> <p>The translations from internal enum values to textual labels are kept in the system catalog <a href="../catalog-pg-enum/"><code class="STRUCTNAME">pg_enum</code></a>. Querying this catalog directly can be useful.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../datatype-boolean/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../datatype-geometric/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Boolean Type</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/datatype.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Geometric Types</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/datatype-enum.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/datatype-enum.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

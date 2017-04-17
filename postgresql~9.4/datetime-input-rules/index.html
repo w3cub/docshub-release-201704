@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Date&#47;Time Input Interpretation - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" The date&#47;time type inputs are all decoded using the following procedure. ">
+  <meta name="keywords" content="b, date, time, input, interpretation, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/datetime-input-rules/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="DATETIME-INPUT-RULES">B.1. Date/Time Input Interpretation</h1> <p>The date/time type inputs are all decoded using the following procedure.</p> <div class="PROCEDURE"> <ol type="1"> <li class="STEP"> <p>Break the input string into tokens and categorize each token as a string, time, time zone, or number.</p> <ol class="SUBSTEPS" type="a"> <li class="STEP"> <p>If the numeric token contains a colon (<code class="LITERAL">:</code>), this is a time string. Include all subsequent digits and colons.</p> </li> <li class="STEP"> <p>If the numeric token contains a dash (<code class="LITERAL">-</code>), slash (<code class="LITERAL">/</code>), or two or more dots (<code class="LITERAL">.</code>), this is a date string which might have a text month. If a date token has already been seen, it is instead interpreted as a time zone name (e.g., <code class="LITERAL">America/New_York</code>).</p> </li> <li class="STEP"> <p>If the token is numeric only, then it is either a single field or an ISO 8601 concatenated date (e.g., <code class="LITERAL">19990113</code> for January 13, 1999) or time (e.g., <code class="LITERAL">141516</code> for 14:15:16).</p> </li> <li class="STEP"> <p>If the token starts with a plus (<code class="LITERAL">+</code>) or minus (<code class="LITERAL">-</code>), then it is either a numeric time zone or a special field.</p> </li> </ol> </li> <li class="STEP"> <p>If the token is a text string, match up with possible strings:</p> <ol class="SUBSTEPS" type="a"> <li class="STEP"> <p>Do a binary-search table lookup for the token as a time zone abbreviation.</p> </li> <li class="STEP"> <p>If not found, do a similar binary-search table lookup to match the token as either a special string (e.g., <code class="LITERAL">today</code>), day (e.g., <code class="LITERAL">Thursday</code>), month (e.g., <code class="LITERAL">January</code>), or noise word (e.g., <code class="LITERAL">at</code>, <code class="LITERAL">on</code>).</p> </li> <li class="STEP"> <p>If still not found, throw an error.</p> </li> </ol> </li> <li class="STEP"> <p>When the token is a number or number field:</p> <ol class="SUBSTEPS" type="a"> <li class="STEP"> <p>If there are eight or six digits, and if no other date fields have been previously read, then interpret as a <span class="QUOTE">"concatenated date"</span> (e.g., <code class="LITERAL">19990118</code> or <code class="LITERAL">990118</code>). The interpretation is <code class="LITERAL">YYYYMMDD</code> or <code class="LITERAL">YYMMDD</code>.</p> </li> <li class="STEP"> <p>If the token is three digits and a year has already been read, then interpret as day of year.</p> </li> <li class="STEP"> <p>If four or six digits and a year has already been read, then interpret as a time (<code class="LITERAL">HHMM</code> or <code class="LITERAL">HHMMSS</code>).</p> </li> <li class="STEP"> <p>If three or more digits and no date fields have yet been found, interpret as a year (this forces yy-mm-dd ordering of the remaining date fields).</p> </li> <li class="STEP"> <p>Otherwise the date field ordering is assumed to follow the <code class="VARNAME">DateStyle</code> setting: mm-dd-yy, dd-mm-yy, or yy-mm-dd. Throw an error if a month or day field is found to be out of range.</p> </li> </ol> </li> <li class="STEP"> <p>If BC has been specified, negate the year and add one for internal storage. (There is no year zero in the Gregorian calendar, so numerically 1 BC becomes year zero.)</p> </li> <li class="STEP"> <p>If BC was not specified, and if the year field was two digits in length, then adjust the year to four digits. If the field is less than 70, then add 2000, otherwise add 1900.</p> <div class="TIP"> <blockquote class="TIP"> <p><b>Tip:</b> Gregorian years AD 1-99 can be entered by using 4 digits with leading zeros (e.g., <code class="LITERAL">0099</code> is AD 99).</p> </blockquote> </div> </li> </ol> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.4/static/datetime-appendix.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../datetime-keywords/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Date/Time Support</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/datetime-appendix.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Date/Time Key Words</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/datetime-input-rules.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/datetime-input-rules.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

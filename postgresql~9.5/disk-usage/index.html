@@ -1,0 +1,127 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Monitoring&#58; Determining Disk Usage - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="Each table has a primary heap disk file where most of the data is stored. If the table has any columns with potentially-wide values, there also &hellip;">
+  <meta name="keywords" content="determining, disk, usage, monitoring, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/disk-usage/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="DISK-USAGE">28.1. Determining Disk Usage</h1> <p>Each table has a primary heap disk file where most of the data is stored. If the table has any columns with potentially-wide values, there also might be a <acronym class="ACRONYM">TOAST</acronym> file associated with the table, which is used to store values too wide to fit comfortably in the main table (see <a href="../storage-toast/">Section 63.2</a>). There will be one valid index on the <acronym class="ACRONYM">TOAST</acronym> table, if present. There also might be indexes associated with the base table. Each table and index is stored in a separate disk file — possibly more than one file, if the file would exceed one gigabyte. Naming conventions for these files are described in <a href="../storage-file-layout/">Section 63.1</a>.</p> <p>You can monitor disk space in three ways: using the SQL functions listed in <a href="../functions-admin/#FUNCTIONS-ADMIN-DBSIZE">Table 9-73</a>, using the <a href="https://www.postgresql.org/docs/9.5/static/oid2name.html" target="_blank">oid2name</a> module, or using manual inspection of the system catalogs. The SQL functions are the easiest to use and are generally recommended. The remainder of this section shows how to do it by inspection of the system catalogs.</p> <p>Using <span class="APPLICATION">psql</span> on a recently vacuumed or analyzed database, you can issue queries to see the disk usage of any table:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT pg_relation_filepath(oid), relpages FROM pg_class WHERE relname = 'customer';
+
+ pg_relation_filepath | relpages
+----------------------+----------
+ base/16384/16806     |       60
+(1 row)
+</pre> <p>Each page is typically 8 kilobytes. (Remember, <code class="STRUCTFIELD">relpages</code> is only updated by <code class="COMMAND">VACUUM</code>, <code class="COMMAND">ANALYZE</code>, and a few DDL commands such as <code class="COMMAND">CREATE INDEX</code>.) The file path name is of interest if you want to examine the table's disk file directly.</p> <p>To show the space used by <acronym class="ACRONYM">TOAST</acronym> tables, use a query like the following:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT relname, relpages
+FROM pg_class,
+     (SELECT reltoastrelid
+      FROM pg_class
+      WHERE relname = 'customer') AS ss
+WHERE oid = ss.reltoastrelid OR
+      oid = (SELECT indexrelid
+             FROM pg_index
+             WHERE indrelid = ss.reltoastrelid)
+ORDER BY relname;
+
+       relname        | relpages
+----------------------+----------
+ pg_toast_16806       |        0
+ pg_toast_16806_index |        1
+</pre> <p>You can easily display index sizes, too:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT c2.relname, c2.relpages
+FROM pg_class c, pg_class c2, pg_index i
+WHERE c.relname = 'customer' AND
+      c.oid = i.indrelid AND
+      c2.oid = i.indexrelid
+ORDER BY c2.relname;
+
+       relname        | relpages
+----------------------+----------
+ customer_id_indexdex |       26
+</pre> <p>It is easy to find your largest tables and indexes using this information:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT relname, relpages
+FROM pg_class
+ORDER BY relpages DESC;
+
+       relname        | relpages
+----------------------+----------
+ bigtable             |     3290
+ customer             |     3144
+</pre>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="https://www.postgresql.org/docs/9.5/static/diskusage.html" accesskey="P" target="_blank">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../disk-full/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Monitoring Disk Usage</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/diskusage.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Disk Full Failure</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/disk-usage.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/disk-usage.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

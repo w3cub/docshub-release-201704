@@ -1,0 +1,98 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ORDER by - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="After a query has produced an output table (after the select list has been processed) it can optionally be sorted. If sorting is not chosen, the &hellip;">
+  <meta name="keywords" content="sorting, rows, order, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/queries-order/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="QUERIES-ORDER">7.5. Sorting Rows</h1> <p>After a query has produced an output table (after the select list has been processed) it can optionally be sorted. If sorting is not chosen, the rows will be returned in an unspecified order. The actual order in that case will depend on the scan and join plan types and the order on disk, but it must not be relied on. A particular output ordering can only be guaranteed if the sort step is explicitly chosen.</p> <p>The <code class="LITERAL">ORDER BY</code> clause specifies the sort order:</p> <pre class="SYNOPSIS" data-language="sql">
+SELECT select_list
+    FROM table_expression
+    ORDER BY sort_expression1 [ASC | DESC] [NULLS { FIRST | LAST }]
+             [, sort_expression2 [ASC | DESC] [NULLS { FIRST | LAST }] ...]
+</pre> <p>The sort expression(s) can be any expression that would be valid in the query's select list. An example is:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT a, b FROM table1 ORDER BY a + b, c;
+</pre> <p id="AEN4424">When more than one expression is specified, the later values are used to sort rows that are equal according to the earlier values. Each expression can be followed by an optional <code class="LITERAL">ASC</code> or <code class="LITERAL">DESC</code> keyword to set the sort direction to ascending or descending. <code class="LITERAL">ASC</code> order is the default. Ascending order puts smaller values first, where <span class="QUOTE">"smaller"</span> is defined in terms of the <code class="LITERAL">&lt;</code> operator. Similarly, descending order is determined with the <code class="LITERAL">&gt;</code> operator. <span class="footnote">[1]</span></p> <p>The <code class="LITERAL">NULLS FIRST</code> and <code class="LITERAL">NULLS LAST</code> options can be used to determine whether nulls appear before or after non-null values in the sort ordering. By default, null values sort as if larger than any non-null value; that is, <code class="LITERAL">NULLS FIRST</code> is the default for <code class="LITERAL">DESC</code> order, and <code class="LITERAL">NULLS LAST</code> otherwise.</p> <p>Note that the ordering options are considered independently for each sort column. For example <code class="LITERAL">ORDER BY x, y DESC</code> means <code class="LITERAL">ORDER BY x ASC, y DESC</code>, which is not the same as <code class="LITERAL">ORDER BY x DESC, y DESC</code>.</p> <p>A <code class="REPLACEABLE c2">sort_expression</code> can also be the column label or number of an output column, as in:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT a + b AS sum, c FROM table1 ORDER BY sum;
+SELECT a, max(b) FROM table1 GROUP BY a ORDER BY 1;
+</pre> <p>both of which sort by the first output column. Note that an output column name has to stand alone, that is, it cannot be used in an expression — for example, this is <span class="emphasis EMPHASIS c3">not</span> correct:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT a + b AS sum, c FROM table1 ORDER BY sum + c;          -- wrong
+</pre> <p>This restriction is made to reduce ambiguity. There is still ambiguity if an <code class="LITERAL">ORDER BY</code> item is a simple name that could match either an output column name or a column from the table expression. The output column is used in such cases. This would only cause confusion if you use <code class="LITERAL">AS</code> to rename an output column to match some other table column's name.</p> <p><code class="LITERAL">ORDER BY</code> can be applied to the result of a <code class="LITERAL">UNION</code>, <code class="LITERAL">INTERSECT</code>, or <code class="LITERAL">EXCEPT</code> combination, but in this case it is only permitted to sort by output column names or numbers, not by expressions.</p>  <h3 class="FOOTNOTES">Notes</h3> <table class="FOOTNOTES"> <tr> <td align="left" width="5%" id="FTN.AEN4424"><span class="footnote">[1]</span></td> <td align="left" width="95%"> <p>Actually, <span class="PRODUCTNAME">PostgreSQL</span> uses the <i class="FIRSTTERM">default B-tree operator class</i> for the expression's data type to determine the sort ordering for <code class="LITERAL">ASC</code> and <code class="LITERAL">DESC</code>. Conventionally, data types will be set up so that the <code class="LITERAL">&lt;</code> and <code class="LITERAL">&gt;</code> operators correspond to this sort ordering, but a user-defined data type's designer could choose to do something different.</p> </td> </tr> </table> <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../queries-union/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../queries-limit/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Combining Queries</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/queries.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">
+<code class="LITERAL">LIMIT</code> and <code class="LITERAL">OFFSET</code>
+</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/queries-order.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/queries-order.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

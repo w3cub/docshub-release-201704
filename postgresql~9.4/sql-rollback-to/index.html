@@ -1,0 +1,109 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ROLLBACK to SAVEPOINT - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content="Roll back all commands that were executed after the savepoint was established. The savepoint remains valid and can be rolled back to again later, if &hellip;">
+  <meta name="keywords" content="rollback, savepoint, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/sql-rollback-to/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 id="SQL-ROLLBACK-TO">ROLLBACK TO SAVEPOINT</h1> <div class="REFNAMEDIV" id="AEN83241">  <h2>Name</h2>ROLLBACK TO SAVEPOINT -- roll back to a savepoint </div> <div class="REFSYNOPSISDIV" id="AEN83244">  <h2>Synopsis</h2> <pre class="SYNOPSIS" data-language="sql">
+ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
+</pre> </div> <div class="REFSECT1" id="AEN83247">  <h2>Description</h2> <p>Roll back all commands that were executed after the savepoint was established. The savepoint remains valid and can be rolled back to again later, if needed.</p> <p><code class="COMMAND">ROLLBACK TO SAVEPOINT</code> implicitly destroys all savepoints that were established after the named savepoint.</p> </div> <div class="REFSECT1" id="AEN83252">  <h2>Parameters</h2> <div class="VARIABLELIST"> <dl> <dt><code class="REPLACEABLE c2">savepoint_name</code></dt> <dd> <p>The savepoint to roll back to.</p> </dd> </dl> </div> </div> <div class="REFSECT1" id="AEN83260">  <h2>Notes</h2> <p>Use <a href="../sql-release-savepoint/">RELEASE SAVEPOINT</a> to destroy a savepoint without discarding the effects of commands executed after it was established.</p> <p>Specifying a savepoint name that has not been established is an error.</p> <p>Cursors have somewhat non-transactional behavior with respect to savepoints. Any cursor that is opened inside a savepoint will be closed when the savepoint is rolled back. If a previously opened cursor is affected by a <code class="COMMAND">FETCH</code> or <code class="COMMAND">MOVE</code> command inside a savepoint that is later rolled back, the cursor remains at the position that <code class="COMMAND">FETCH</code> left it pointing to (that is, the cursor motion caused by <code class="COMMAND">FETCH</code> is not rolled back). Closing a cursor is not undone by rolling back, either. However, other side-effects caused by the cursor's query (such as side-effects of volatile functions called by the query) <span class="emphasis EMPHASIS c3">are</span> rolled back if they occur during a savepoint that is later rolled back. A cursor whose execution causes a transaction to abort is put in a cannot-execute state, so while the transaction can be restored using <code class="COMMAND">ROLLBACK TO SAVEPOINT</code>, the cursor can no longer be used.</p> </div> <div class="REFSECT1" id="AEN83272">  <h2>Examples</h2> <p>To undo the effects of the commands executed after <code class="LITERAL">my_savepoint</code> was established:</p> <pre class="PROGRAMLISTING" data-language="sql">
+ROLLBACK TO SAVEPOINT my_savepoint;
+</pre> <p>Cursor positions are not affected by savepoint rollback:</p> <pre class="PROGRAMLISTING" data-language="sql">
+BEGIN;
+
+DECLARE foo CURSOR FOR SELECT 1 UNION SELECT 2;
+
+SAVEPOINT foo;
+
+FETCH 1 FROM foo;
+ ?column? 
+----------
+        1
+
+ROLLBACK TO SAVEPOINT foo;
+
+FETCH 1 FROM foo;
+ ?column? 
+----------
+        2
+
+COMMIT;
+</pre> </div> <div class="REFSECT1" id="AEN83279">  <h2>Compatibility</h2> <p>The <acronym class="ACRONYM">SQL</acronym> standard specifies that the key word <code class="LITERAL">SAVEPOINT</code> is mandatory, but <span class="PRODUCTNAME">PostgreSQL</span> and <span class="PRODUCTNAME">Oracle</span> allow it to be omitted. SQL allows only <code class="LITERAL">WORK</code>, not <code class="LITERAL">TRANSACTION</code>, as a noise word after <code class="LITERAL">ROLLBACK</code>. Also, SQL has an optional clause <code class="LITERAL">AND [ NO ] CHAIN</code> which is not currently supported by <span class="PRODUCTNAME">PostgreSQL</span>. Otherwise, this command conforms to the SQL standard.</p> </div> <div class="REFSECT1" id="AEN83291">  <h2>See Also</h2>
+<a href="../sql-begin/">BEGIN</a>, <a href="../sql-commit/">COMMIT</a>, <a href="../sql-release-savepoint/">RELEASE SAVEPOINT</a>, <a href="../sql-rollback/">ROLLBACK</a>, <a href="../sql-savepoint/">SAVEPOINT</a> </div> <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../sql-rollback-prepared/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../sql-savepoint/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">ROLLBACK PREPARED</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/sql-commands.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">SAVEPOINT</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/sql-rollback-to.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/sql-rollback-to.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

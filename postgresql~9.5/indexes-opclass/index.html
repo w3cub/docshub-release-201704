@@ -1,0 +1,114 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Operator Classes and Operator Families - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content=" An index definition can specify an operator class for each column of an index. ">
+  <meta name="keywords" content="operator, classes, and, families, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/indexes-opclass/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="INDEXES-OPCLASS">11.9. Operator Classes and Operator Families</h1> <p>An index definition can specify an <i class="FIRSTTERM">operator class</i> for each column of an index.</p> <pre class="SYNOPSIS" data-language="sql">
+CREATE INDEX name ON table (column opclass [sort options] [, ...]);
+</pre> <p>The operator class identifies the operators to be used by the index for that column. For example, a B-tree index on the type <code class="TYPE">int4</code> would use the <code class="LITERAL">int4_ops</code> class; this operator class includes comparison functions for values of type <code class="TYPE">int4</code>. In practice the default operator class for the column's data type is usually sufficient. The main reason for having operator classes is that for some data types, there could be more than one meaningful index behavior. For example, we might want to sort a complex-number data type either by absolute value or by real part. We could do this by defining two operator classes for the data type and then selecting the proper class when making an index. The operator class determines the basic sort ordering (which can then be modified by adding sort options <code class="LITERAL">COLLATE</code>, <code class="LITERAL">ASC</code>/<code class="LITERAL">DESC</code> and/or <code class="LITERAL">NULLS FIRST</code>/<code class="LITERAL">NULLS LAST</code>).</p> <p>There are also some built-in operator classes besides the default ones:</p> <ul> <li> <p>The operator classes <code class="LITERAL">text_pattern_ops</code>, <code class="LITERAL">varchar_pattern_ops</code>, and <code class="LITERAL">bpchar_pattern_ops</code> support B-tree indexes on the types <code class="TYPE">text</code>, <code class="TYPE">varchar</code>, and <code class="TYPE">char</code> respectively. The difference from the default operator classes is that the values are compared strictly character by character rather than according to the locale-specific collation rules. This makes these operator classes suitable for use by queries involving pattern matching expressions (<code class="LITERAL">LIKE</code> or POSIX regular expressions) when the database does not use the standard <span class="QUOTE">"C"</span> locale. As an example, you might index a <code class="TYPE">varchar</code> column like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE INDEX test_index ON test_table (col varchar_pattern_ops);
+</pre> <p>Note that you should also create an index with the default operator class if you want queries involving ordinary <code class="LITERAL">&lt;</code>, <code class="LITERAL">&lt;=</code>, <code class="LITERAL">&gt;</code>, or <code class="LITERAL">&gt;=</code> comparisons to use an index. Such queries cannot use the <code class="LITERAL"><code class="REPLACEABLE c2">xxx</code>_pattern_ops</code> operator classes. (Ordinary equality comparisons can use these operator classes, however.) It is possible to create multiple indexes on the same column with different operator classes. If you do use the C locale, you do not need the <code class="LITERAL"><code class="REPLACEABLE c2">xxx</code>_pattern_ops</code> operator classes, because an index with the default operator class is usable for pattern-matching queries in the C locale.</p> </li> </ul> <p>The following query shows all defined operator classes:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc
+    WHERE opc.opcmethod = am.oid
+    ORDER BY index_method, opclass_name;
+</pre> <p>An operator class is actually just a subset of a larger structure called an <i class="FIRSTTERM">operator family</i>. In cases where several data types have similar behaviors, it is frequently useful to define cross-data-type operators and allow these to work with indexes. To do this, the operator classes for each of the types must be grouped into the same operator family. The cross-type operators are members of the family, but are not associated with any single class within the family.</p> <p>This expanded version of the previous query shows the operator family each operator class belongs to:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opf.opfname AS opfamily_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc, pg_opfamily opf
+    WHERE opc.opcmethod = am.oid AND
+          opc.opcfamily = opf.oid
+    ORDER BY index_method, opclass_name;
+</pre> <p>This query shows all defined operator families and all the operators included in each family:</p> <pre class="PROGRAMLISTING" data-language="sql">
+SELECT am.amname AS index_method,
+       opf.opfname AS opfamily_name,
+       amop.amopopr::regoperator AS opfamily_operator
+    FROM pg_am am, pg_opfamily opf, pg_amop amop
+    WHERE opf.opfmethod = am.oid AND
+          amop.amopfamily = opf.oid
+    ORDER BY index_method, opfamily_name, opfamily_operator;
+</pre>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../indexes-partial/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../indexes-collations/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Partial Indexes</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/indexes.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Indexes and Collations</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/indexes-opclass.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/indexes-opclass.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

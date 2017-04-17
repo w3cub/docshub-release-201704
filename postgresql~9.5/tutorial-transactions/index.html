@@ -1,0 +1,111 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4. Transactions - PostgreSQL 9.5 - W3cubDocs</title>
+  
+  <meta name="description" content="Transactions are a fundamental concept of all database systems. The essential point of a transaction is that it bundles multiple steps into a single &hellip;">
+  <meta name="keywords" content="transactions, -, postgresql, postgresql~9.5">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.5/tutorial-transactions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.5.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.5/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.5</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="TUTORIAL-TRANSACTIONS">3.4. Transactions</h1> <p><i class="FIRSTTERM">Transactions</i> are a fundamental concept of all database systems. The essential point of a transaction is that it bundles multiple steps into a single, all-or-nothing operation. The intermediate states between the steps are not visible to other concurrent transactions, and if some failure occurs that prevents the transaction from completing, then none of the steps affect the database at all.</p> <p>For example, consider a bank database that contains balances for various customer accounts, as well as total deposit balances for branches. Suppose that we want to record a payment of $100.00 from Alice's account to Bob's account. Simplifying outrageously, the SQL commands for this might look like:</p> <pre class="PROGRAMLISTING" data-language="sql">
+UPDATE accounts SET balance = balance - 100.00
+    WHERE name = 'Alice';
+UPDATE branches SET balance = balance - 100.00
+    WHERE name = (SELECT branch_name FROM accounts WHERE name = 'Alice');
+UPDATE accounts SET balance = balance + 100.00
+    WHERE name = 'Bob';
+UPDATE branches SET balance = balance + 100.00
+    WHERE name = (SELECT branch_name FROM accounts WHERE name = 'Bob');
+</pre> <p>The details of these commands are not important here; the important point is that there are several separate updates involved to accomplish this rather simple operation. Our bank's officers will want to be assured that either all these updates happen, or none of them happen. It would certainly not do for a system failure to result in Bob receiving $100.00 that was not debited from Alice. Nor would Alice long remain a happy customer if she was debited without Bob being credited. We need a guarantee that if something goes wrong partway through the operation, none of the steps executed so far will take effect. Grouping the updates into a <i class="FIRSTTERM">transaction</i> gives us this guarantee. A transaction is said to be <i class="FIRSTTERM">atomic</i>: from the point of view of other transactions, it either happens completely or not at all.</p> <p>We also want a guarantee that once a transaction is completed and acknowledged by the database system, it has indeed been permanently recorded and won't be lost even if a crash ensues shortly thereafter. For example, if we are recording a cash withdrawal by Bob, we do not want any chance that the debit to his account will disappear in a crash just after he walks out the bank door. A transactional database guarantees that all the updates made by a transaction are logged in permanent storage (i.e., on disk) before the transaction is reported complete.</p> <p>Another important property of transactional databases is closely related to the notion of atomic updates: when multiple transactions are running concurrently, each one should not be able to see the incomplete changes made by others. For example, if one transaction is busy totalling all the branch balances, it would not do for it to include the debit from Alice's branch but not the credit to Bob's branch, nor vice versa. So transactions must be all-or-nothing not only in terms of their permanent effect on the database, but also in terms of their visibility as they happen. The updates made so far by an open transaction are invisible to other transactions until the transaction completes, whereupon all the updates become visible simultaneously.</p> <p>In <span class="PRODUCTNAME">PostgreSQL</span>, a transaction is set up by surrounding the SQL commands of the transaction with <code class="COMMAND">BEGIN</code> and <code class="COMMAND">COMMIT</code> commands. So our banking transaction would actually look like:</p> <pre class="PROGRAMLISTING" data-language="sql">
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00
+    WHERE name = 'Alice';
+-- etc etc
+COMMIT;
+</pre> <p>If, partway through the transaction, we decide we do not want to commit (perhaps we just noticed that Alice's balance went negative), we can issue the command <code class="COMMAND">ROLLBACK</code> instead of <code class="COMMAND">COMMIT</code>, and all our updates so far will be canceled.</p> <p><span class="PRODUCTNAME">PostgreSQL</span> actually treats every SQL statement as being executed within a transaction. If you do not issue a <code class="COMMAND">BEGIN</code> command, then each individual statement has an implicit <code class="COMMAND">BEGIN</code> and (if successful) <code class="COMMAND">COMMIT</code> wrapped around it. A group of statements surrounded by <code class="COMMAND">BEGIN</code> and <code class="COMMAND">COMMIT</code> is sometimes called a <i class="FIRSTTERM">transaction block</i>.</p>  <blockquote class="NOTE"> <p><b>Note:</b> Some client libraries issue <code class="COMMAND">BEGIN</code> and <code class="COMMAND">COMMIT</code> commands automatically, so that you might get the effect of transaction blocks without asking. Check the documentation for the interface you are using.</p> </blockquote>  <p>It's possible to control the statements in a transaction in a more granular fashion through the use of <i class="FIRSTTERM">savepoints</i>. Savepoints allow you to selectively discard parts of the transaction, while committing the rest. After defining a savepoint with <code class="COMMAND">SAVEPOINT</code>, you can if needed roll back to the savepoint with <code class="COMMAND">ROLLBACK TO</code>. All the transaction's database changes between defining the savepoint and rolling back to it are discarded, but changes earlier than the savepoint are kept.</p> <p>After rolling back to a savepoint, it continues to be defined, so you can roll back to it several times. Conversely, if you are sure you won't need to roll back to a particular savepoint again, it can be released, so the system can free some resources. Keep in mind that either releasing or rolling back to a savepoint will automatically release all savepoints that were defined after it.</p> <p>All this is happening within the transaction block, so none of it is visible to other database sessions. When and if you commit the transaction block, the committed actions become visible as a unit to other sessions, while the rolled-back actions never become visible at all.</p> <p>Remembering the bank database, suppose we debit $100.00 from Alice's account, and credit Bob's account, only to find later that we should have credited Wally's account. We could do it using savepoints like this:</p> <pre class="PROGRAMLISTING" data-language="sql">
+BEGIN;
+UPDATE accounts SET balance = balance - 100.00
+    WHERE name = 'Alice';
+SAVEPOINT my_savepoint;
+UPDATE accounts SET balance = balance + 100.00
+    WHERE name = 'Bob';
+-- oops ... forget that and use Wally's account
+ROLLBACK TO my_savepoint;
+UPDATE accounts SET balance = balance + 100.00
+    WHERE name = 'Wally';
+COMMIT;
+</pre> <p>This example is, of course, oversimplified, but there's a lot of control possible in a transaction block through the use of savepoints. Moreover, <code class="COMMAND">ROLLBACK TO</code> is the only way to regain control of a transaction block that was put in aborted state by the system due to an error, short of rolling it back completely and starting again.</p>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../tutorial-fk/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../tutorial-window/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">Foreign Keys</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.5/static/tutorial-advanced.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">Window Functions</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.5/static/tutorial-transactions.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.5/static/tutorial-transactions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

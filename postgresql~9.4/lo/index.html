@@ -1,0 +1,89 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Lo - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" The lo module provides support for managing Large Objects (also called LOs or BLOBs). This includes a data type lo and a trigger lo_manage. ">
+  <meta name="keywords" content="f, lo, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/lo/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="LO">F.20. lo</h1> <p>The <code class="FILENAME">lo</code> module provides support for managing Large Objects (also called LOs or BLOBs). This includes a data type <code class="TYPE">lo</code> and a trigger <code class="FUNCTION">lo_manage</code>.</p> <div class="SECT2"> <h2 class="SECT2" id="AEN164441">F.20.1. Rationale</h2> <p>One of the problems with the JDBC driver (and this affects the ODBC driver also), is that the specification assumes that references to BLOBs (Binary Large OBjects) are stored within a table, and if that entry is changed, the associated BLOB is deleted from the database.</p> <p>As <span class="PRODUCTNAME">PostgreSQL</span> stands, this doesn't occur. Large objects are treated as objects in their own right; a table entry can reference a large object by OID, but there can be multiple table entries referencing the same large object OID, so the system doesn't delete the large object just because you change or remove one such entry.</p> <p>Now this is fine for <span class="PRODUCTNAME">PostgreSQL</span>-specific applications, but standard code using JDBC or ODBC won't delete the objects, resulting in orphan objects — objects that are not referenced by anything, and simply occupy disk space.</p> <p>The <code class="FILENAME">lo</code> module allows fixing this by attaching a trigger to tables that contain LO reference columns. The trigger essentially just does a <code class="FUNCTION">lo_unlink</code> whenever you delete or modify a value referencing a large object. When you use this trigger, you are assuming that there is only one database reference to any large object that is referenced in a trigger-controlled column!</p> <p>The module also provides a data type <code class="TYPE">lo</code>, which is really just a domain of the <code class="TYPE">oid</code> type. This is useful for differentiating database columns that hold large object references from those that are OIDs of other things. You don't have to use the <code class="TYPE">lo</code> type to use the trigger, but it may be convenient to use it to keep track of which columns in your database represent large objects that you are managing with the trigger. It is also rumored that the ODBC driver gets confused if you don't use <code class="TYPE">lo</code> for BLOB columns.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN164456">F.20.2. How to Use It</h2> <p>Here's a simple example of usage:</p> <pre class="PROGRAMLISTING" data-language="sql">
+CREATE TABLE image (title TEXT, raster lo);
+
+CREATE TRIGGER t_raster BEFORE UPDATE OR DELETE ON image
+    FOR EACH ROW EXECUTE PROCEDURE lo_manage(raster);
+</pre> <p>For each column that will contain unique references to large objects, create a <code class="LITERAL">BEFORE UPDATE OR DELETE</code> trigger, and give the column name as the sole trigger argument. You can also restrict the trigger to only execute on updates to the column by using <code class="LITERAL">BEFORE UPDATE OF</code> <code class="REPLACEABLE c2">column_name</code>. If you need multiple <code class="TYPE">lo</code> columns in the same table, create a separate trigger for each one, remembering to give a different name to each trigger on the same table.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN164465">F.20.3. Limitations</h2> <ul> <li> <p>Dropping a table will still orphan any objects it contains, as the trigger is not executed. You can avoid this by preceding the <code class="COMMAND">DROP TABLE</code> with <code class="COMMAND">DELETE FROM <code class="REPLACEABLE c2">table</code></code>.</p> <p><code class="COMMAND">TRUNCATE</code> has the same hazard.</p> <p>If you already have, or suspect you have, orphaned large objects, see the <a href="https://www.postgresql.org/docs/9.4/static/vacuumlo.html" target="_blank"><span class="APPLICATION">vacuumlo</span></a> module to help you clean them up. It's a good idea to run <span class="APPLICATION">vacuumlo</span> occasionally as a back-stop to the <code class="FUNCTION">lo_manage</code> trigger.</p> </li> <li> <p>Some frontends may create their own tables, and will not create the associated trigger(s). Also, users may not remember (or know) to create the triggers.</p> </li> </ul> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN164481">F.20.4. Author</h2> <p>Peter Mount <code class="EMAIL">&lt;<a href="../mailto:peter@retep.org.uk/">peter@retep.org.uk</a>&gt;</code></p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../isn/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../ltree/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">isn</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/contrib.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">ltree</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/lo.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/lo.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

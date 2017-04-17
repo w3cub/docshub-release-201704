@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Internals&#58; Parser Stage - PostgreSQL 9.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" The parser stage consists of two parts&#58; ">
+  <meta name="keywords" content="parser, stage, internals, -, postgresql, postgresql~9.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/postgresql~9.4/parser-stage/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/postgresql~9.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/postgresql~9.4/" class="_nav-link" title="" style="margin-left:0;">PostgreSQL 9.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _postgres">
+				
+<h1 class="SECT1" id="PARSER-STAGE">47.3. The Parser Stage</h1> <p>The <i class="FIRSTTERM">parser stage</i> consists of two parts:</p> <ul> <li> <p>The <i class="FIRSTTERM">parser</i> defined in <code class="FILENAME">gram.y</code> and <code class="FILENAME">scan.l</code> is built using the Unix tools <span class="APPLICATION">bison</span> and <span class="APPLICATION">flex</span>.</p> </li> <li> <p>The <i class="FIRSTTERM">transformation process</i> does modifications and augmentations to the data structures returned by the parser.</p> </li> </ul> <div class="SECT2"> <h2 class="SECT2" id="AEN94869">47.3.1. Parser</h2> <p>The parser has to check the query string (which arrives as plain text) for valid syntax. If the syntax is correct a <i class="FIRSTTERM">parse tree</i> is built up and handed back; otherwise an error is returned. The parser and lexer are implemented using the well-known Unix tools <span class="APPLICATION">bison</span> and <span class="APPLICATION">flex</span>.</p> <p>The <i class="FIRSTTERM">lexer</i> is defined in the file <code class="FILENAME">scan.l</code> and is responsible for recognizing <i class="FIRSTTERM">identifiers</i>, the <i class="FIRSTTERM">SQL key words</i> etc. For every key word or identifier that is found, a <i class="FIRSTTERM">token</i> is generated and handed to the parser.</p> <p>The parser is defined in the file <code class="FILENAME">gram.y</code> and consists of a set of <i class="FIRSTTERM">grammar rules</i> and <i class="FIRSTTERM">actions</i> that are executed whenever a rule is fired. The code of the actions (which is actually C code) is used to build up the parse tree.</p> <p>The file <code class="FILENAME">scan.l</code> is transformed to the C source file <code class="FILENAME">scan.c</code> using the program <span class="APPLICATION">flex</span> and <code class="FILENAME">gram.y</code> is transformed to <code class="FILENAME">gram.c</code> using <span class="APPLICATION">bison</span>. After these transformations have taken place a normal C compiler can be used to create the parser. Never make any changes to the generated C files as they will be overwritten the next time <span class="APPLICATION">flex</span> or <span class="APPLICATION">bison</span> is called.</p>  <blockquote class="NOTE"> <p><b>Note:</b> The mentioned transformations and compilations are normally done automatically using the <i class="FIRSTTERM">makefiles</i> shipped with the <span class="PRODUCTNAME">PostgreSQL</span> source distribution.</p> </blockquote>  <p>A detailed description of <span class="APPLICATION">bison</span> or the grammar rules given in <code class="FILENAME">gram.y</code> would be beyond the scope of this paper. There are many books and documents dealing with <span class="APPLICATION">flex</span> and <span class="APPLICATION">bison</span>. You should be familiar with <span class="APPLICATION">bison</span> before you start to study the grammar given in <code class="FILENAME">gram.y</code> otherwise you won't understand what happens there.</p> </div> <div class="SECT2"> <h2 class="SECT2" id="AEN94905">47.3.2. Transformation Process</h2> <p>The parser stage creates a parse tree using only fixed rules about the syntactic structure of SQL. It does not make any lookups in the system catalogs, so there is no possibility to understand the detailed semantics of the requested operations. After the parser completes, the <i class="FIRSTTERM">transformation process</i> takes the tree handed back by the parser as input and does the semantic interpretation needed to understand which tables, functions, and operators are referenced by the query. The data structure that is built to represent this information is called the <i class="FIRSTTERM">query tree</i>.</p> <p>The reason for separating raw parsing from semantic analysis is that system catalog lookups can only be done within a transaction, and we do not wish to start a transaction immediately upon receiving a query string. The raw parsing stage is sufficient to identify the transaction control commands (<code class="COMMAND">BEGIN</code>, <code class="COMMAND">ROLLBACK</code>, etc), and these can then be correctly executed without any further analysis. Once we know that we are dealing with an actual query (such as <code class="COMMAND">SELECT</code> or <code class="COMMAND">UPDATE</code>), it is okay to start a transaction if we're not already in one. Only then can the transformation process be invoked.</p> <p>The query tree created by the transformation process is structurally similar to the raw parse tree in most places, but it has many differences in detail. For example, a <code class="STRUCTNAME">FuncCall</code> node in the parse tree represents something that looks syntactically like a function call. This might be transformed to either a <code class="STRUCTNAME">FuncExpr</code> or <code class="STRUCTNAME">Aggref</code> node depending on whether the referenced name turns out to be an ordinary function or an aggregate function. Also, information about the actual data types of columns and expression results is added to the query tree.</p> </div>  <div class="NAVFOOTER">  <table summary="Footer navigation table"> <tr> <td width="33%" align="left"><a href="../connect-estab/" accesskey="P">Prev</a></td> <td width="34%" align="center"></td> <td width="33%" align="right"><a href="../rule-system/" accesskey="N">Next</a></td> </tr> <tr> <td width="33%" align="left">How Connections are Established</td> <td width="34%" align="center"><a href="https://www.postgresql.org/docs/9.4/static/overview.html" accesskey="U" target="_blank">Up</a></td> <td width="33%" align="right">The <span class="PRODUCTNAME">PostgreSQL</span> Rule System</td> </tr> </table> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1996–2017 The PostgreSQL Global Development Group<br>Licensed under the PostgreSQL License.<br>
+    <a href="https://www.postgresql.org/docs/9.4/static/parser-stage.html" class="_attribution-link" target="_blank">https://www.postgresql.org/docs/9.4/static/parser-stage.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
