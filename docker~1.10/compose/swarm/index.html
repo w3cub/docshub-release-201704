@@ -1,0 +1,156 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Using Compose With Swarm - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Compose and Docker Swarm aim to have full integration, meaning you can point a Compose app at a Swarm cluster and have it all just work as if &hellip;">
+  <meta name="keywords" content="using, compose, with, swarm, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/compose/swarm/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="using-compose-with-swarm">Using Compose with Swarm</h1> <p>Docker Compose and <a href="../../swarm/overview/">Docker Swarm</a> aim to have full integration, meaning you can point a Compose app at a Swarm cluster and have it all just work as if you were using a single Docker host.</p> <p>The actual extent of integration depends on which version of the <a href="../compose-file/#versioning">Compose file format</a> you are using:</p> <ol> <li><p>If you’re using version 1 along with <code>links</code>, your app will work, but Swarm will schedule all containers on one host, because links between containers do not work across hosts with the old networking system.</p></li> <li>
+<p>If you’re using version 2, your app should work with no changes:</p> <ul> <li><p>subject to the <a href="#limitations">limitations</a> described below,</p></li> <li><p>as long as the Swarm cluster is configured to use the <a href="../../engine/userguide/networking/#an-overlay-network">overlay driver</a>, or a custom driver which supports multi-host networking.</p></li> </ul>
+</li> </ol> <p>Read the <a href="../../engine/userguide/networking/get-started-overlay/">Getting started with multi-host networking</a> to see how to set up a Swarm cluster with <a href="../../machine/overview/">Docker Machine</a> and the overlay driver. Once you’ve got it running, deploying your app to it should be as simple as:</p> <pre>$ eval "$(docker-machine env --swarm &lt;name of swarm master machine&gt;)"
+$ docker-compose up
+</pre> <h2 id="limitations">Limitations</h2> <h3 id="building-images">Building images</h3> <p>Swarm can build an image from a Dockerfile just like a single-host Docker instance can, but the resulting image will only live on a single node and won’t be distributed to other nodes.</p> <p>If you want to use Compose to scale the service in question to multiple nodes, you’ll have to build it yourself, push it to a registry (e.g. the Docker Hub) and reference it from <code>docker-compose.yml</code>:</p> <pre>$ docker build -t myusername/web .
+$ docker push myusername/web
+
+$ cat docker-compose.yml
+web:
+  image: myusername/web
+
+$ docker-compose up -d
+$ docker-compose scale web=3
+</pre> <h3 id="multiple-dependencies">Multiple dependencies</h3> <p>If a service has multiple dependencies of the type which force co-scheduling (see <a href="#automatic-scheduling">Automatic scheduling</a> below), it’s possible that Swarm will schedule the dependencies on different nodes, making the dependent service impossible to schedule. For example, here <code>foo</code> needs to be co-scheduled with <code>bar</code> and <code>baz</code>:</p> <pre>version: "2"
+services:
+  foo:
+    image: foo
+    volumes_from: ["bar"]
+    network_mode: "service:baz"
+  bar:
+    image: bar
+  baz:
+    image: baz
+</pre> <p>The problem is that Swarm might first schedule <code>bar</code> and <code>baz</code> on different nodes (since they’re not dependent on one another), making it impossible to pick an appropriate node for <code>foo</code>.</p> <p>To work around this, use <a href="#manual-scheduling">manual scheduling</a> to ensure that all three services end up on the same node:</p> <pre>version: "2"
+services:
+  foo:
+    image: foo
+    volumes_from: ["bar"]
+    network_mode: "service:baz"
+    environment:
+      - "constraint:node==node-1"
+  bar:
+    image: bar
+    environment:
+      - "constraint:node==node-1"
+  baz:
+    image: baz
+    environment:
+      - "constraint:node==node-1"
+</pre> <h3 id="host-ports-and-recreating-containers">Host ports and recreating containers</h3> <p>If a service maps a port from the host, e.g. <code>80:8000</code>, then you may get an error like this when running <code>docker-compose up</code> on it after the first time:</p> <pre>docker: Error response from daemon: unable to find a node that satisfies
+container==6ab2dfe36615ae786ef3fc35d641a260e3ea9663d6e69c5b70ce0ca6cb373c02.
+</pre> <p>The usual cause of this error is that the container has a volume (defined either in its image or in the Compose file) without an explicit mapping, and so in order to preserve its data, Compose has directed Swarm to schedule the new container on the same node as the old container. This results in a port clash.</p> <p>There are two viable workarounds for this problem:</p> <ul> <li>
+<p>Specify a named volume, and use a volume driver which is capable of mounting the volume into the container regardless of what node it’s scheduled on.</p> <p>Compose does not give Swarm any specific scheduling instructions if a service uses only named volumes.</p> <pre>version: "2"
+
+services:
+  web:
+    build: .
+    ports:
+      - "80:8000"
+    volumes:
+      - web-logs:/var/log/web
+
+volumes:
+  web-logs:
+    driver: custom-volume-driver
+</pre>
+</li> <li>
+<p>Remove the old container before creating the new one. You will lose any data in the volume.</p> <pre>$ docker-compose stop web
+$ docker-compose rm -f web
+$ docker-compose up web
+</pre>
+</li> </ul> <h2 id="scheduling-containers">Scheduling containers</h2> <h3 id="automatic-scheduling">Automatic scheduling</h3> <p>Some configuration options will result in containers being automatically scheduled on the same Swarm node to ensure that they work correctly. These are:</p> <ul> <li><p><code>network_mode: "service:..."</code> and <code>network_mode: "container:..."</code> (and <code>net: "container:..."</code> in the version 1 file format).</p></li> <li><p><code>volumes_from</code></p></li> <li><p><code>links</code></p></li> </ul> <h3 id="manual-scheduling">Manual scheduling</h3> <p>Swarm offers a rich set of scheduling and affinity hints, enabling you to control where containers are located. They are specified via container environment variables, so you can use Compose’s <code>environment</code> option to set them.</p> <pre># Schedule containers on a specific node
+environment:
+  - "constraint:node==node-1"
+
+# Schedule containers on a node that has the 'storage' label set to 'ssd'
+environment:
+  - "constraint:storage==ssd"
+
+# Schedule containers where the 'redis' image is already pulled
+environment:
+  - "affinity:image==redis"
+</pre> <p>For the full set of available filters and expressions, see the <a href="../../swarm/scheduler/filter/">Swarm documentation</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/compose/swarm/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/compose/swarm/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

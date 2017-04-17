@@ -1,0 +1,163 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>High Availability in Swarm - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="In Docker Swarm, the Swarm manager is responsible for the entire cluster and manages the resources of multiple Docker hosts at scale. If the Swarm &hellip;">
+  <meta name="keywords" content="high, availability, docker, swarm, -, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/swarm/multi-manager-setup/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="high-availability-in-docker-swarm">High availability in Docker Swarm</h1> <p>In Docker Swarm, the <strong>Swarm manager</strong> is responsible for the entire cluster and manages the resources of multiple <em>Docker hosts</em> at scale. If the Swarm manager dies, you must create a new one and deal with an interruption of service.</p> <p>The <em>High Availability</em> feature allows a Docker Swarm to gracefully handle the failover of a manager instance. Using this feature, you can create a single <strong>primary manager</strong> instance and multiple <strong>replica</strong> instances.</p> <p>A primary manager is the main point of contact with the Docker Swarm cluster. You can also create and talk to replica instances that will act as backups. Requests issued on a replica are automatically proxied to the primary manager. If the primary manager fails, a replica takes away the lead. In this way, you always keep a point of contact with the cluster.</p> <h2 id="setup-primary-and-replicas">Setup primary and replicas</h2> <p>This section explains how to set up Docker Swarm using multiple <strong>managers</strong>.</p> <h3 id="assumptions">Assumptions</h3> <p>You need either a <code>Consul</code>, <code>etcd</code>, or <code>Zookeeper</code> cluster. This procedure is written assuming a <code>Consul</code> server running on address <code>192.168.42.10:8500</code>. All hosts will have a Docker Engine configured to listen on port 2375. We will be configuring the Managers to operate on port 4000. The sample Swarm configuration has three machines:</p> <ul> <li>
+<code>manager-1</code> on <code>192.168.42.200</code>
+</li> <li>
+<code>manager-2</code> on <code>192.168.42.201</code>
+</li> <li>
+<code>manager-3</code> on <code>192.168.42.202</code>
+</li> </ul> <h3 id="create-the-primary-manager">Create the primary manager</h3> <p>You use the <code>swarm manage</code> command with the <code>--replication</code> and <code>--advertise</code> flags to create a primary manager.</p> <pre>  user@manager-1 $ swarm manage -H :4000 &lt;tls-config-flags&gt; --replication --advertise 192.168.42.200:4000 consul://192.168.42.10:8500/nodes
+  INFO[0000] Listening for HTTP addr=:4000 proto=tcp
+  INFO[0000] Cluster leadership acquired
+  INFO[0000] New leader elected: 192.168.42.200:4000
+  [...]
+</pre> <p>The <code>--replication</code> flag tells Swarm that the manager is part of a multi-manager configuration and that this primary manager competes with other manager instances for the primary role. The primary manager has the authority to manage cluster, replicate logs, and replicate events happening inside the cluster.</p> <p>The <code>--advertise</code> option specifies the primary manager address. Swarm uses this address to advertise to the cluster when the node is elected as the primary. As you see in the command’s output, the address you provided now appears to be the one of the elected Primary manager.</p> <h3 id="create-two-replicas">Create two replicas</h3> <p>Now that you have a primary manager, you can create replicas.</p> <pre>user@manager-2 $ swarm manage -H :4000 &lt;tls-config-flags&gt; --replication --advertise 192.168.42.201:4000 consul://192.168.42.10:8500/nodes
+INFO[0000] Listening for HTTP                            addr=:4000 proto=tcp
+INFO[0000] Cluster leadership lost
+INFO[0000] New leader elected: 192.168.42.200:4000
+[...]
+</pre> <p>This command creates a replica manager on <code>192.168.42.201:4000</code> which is looking at <code>192.168.42.200:4000</code> as the primary manager.</p> <p>Create an additional, third <em>manager</em> instance:</p> <pre>user@manager-3 $ swarm manage -H :4000 &lt;tls-config-flags&gt; --replication --advertise 192.168.42.202:4000 consul://192.168.42.10:8500/nodes
+INFO[0000] Listening for HTTP                            addr=:4000 proto=tcp
+INFO[0000] Cluster leadership lost
+INFO[0000] New leader elected: 192.168.42.200:4000
+[...]
+</pre> <p>Once you have established your primary manager and the replicas, create <strong>Swarm agents</strong> as you normally would.</p> <h3 id="list-machines-in-the-cluster">List machines in the cluster</h3> <p>Typing <code>docker info</code> should give you an output similar to the following:</p> <pre>user@my-machine $ export DOCKER_HOST=192.168.42.200:4000 # Points to manager-1
+user@my-machine $ docker info
+Containers: 0
+Images: 25
+Storage Driver:
+Role: Primary  &lt;--------- manager-1 is the Primary manager
+Primary: 192.168.42.200
+Strategy: spread
+Filters: affinity, health, constraint, port, dependency
+Nodes: 3
+ swarm-agent-0: 192.168.42.100:2375
+  └ Containers: 0
+  └ Reserved CPUs: 0 / 1
+  └ Reserved Memory: 0 B / 2.053 GiB
+  └ Labels: executiondriver=native-0.2, kernelversion=3.13.0-49-generic, operatingsystem=Ubuntu 14.04.2 LTS, storagedriver=aufs
+ swarm-agent-1: 192.168.42.101:2375
+  └ Containers: 0
+  └ Reserved CPUs: 0 / 1
+  └ Reserved Memory: 0 B / 2.053 GiB
+  └ Labels: executiondriver=native-0.2, kernelversion=3.13.0-49-generic, operatingsystem=Ubuntu 14.04.2 LTS, storagedriver=aufs
+ swarm-agent-2: 192.168.42.102:2375
+  └ Containers: 0
+  └ Reserved CPUs: 0 / 1
+  └ Reserved Memory: 0 B / 2.053 GiB
+  └ Labels: executiondriver=native-0.2, kernelversion=3.13.0-49-generic, operatingsystem=Ubuntu 14.04.2 LTS, storagedriver=aufs
+Execution Driver:
+Kernel Version:
+Operating System:
+CPUs: 3
+Total Memory: 6.158 GiB
+Name:
+ID:
+Http Proxy:
+Https Proxy:
+No Proxy:
+</pre> <p>This information shows that <code>manager-1</code> is the current primary and supplies the address to use to contact this primary.</p> <h2 id="test-the-failover-mechanism">Test the failover mechanism</h2> <p>To test the failover mechanism, you shut down the designated primary manager. Issue a <code>Ctrl-C</code> or <code>kill</code> the current primary manager (<code>manager-1</code>) to shut it down.</p> <h3 id="wait-for-automated-failover">Wait for automated failover</h3> <p>After a short time, the other instances detect the failure and a replica takes the <em>lead</em> to become the primary manager.</p> <p>For example, look at <code>manager-2</code>’s logs:</p> <pre>user@manager-2 $ swarm manage -H :4000 &lt;tls-config-flags&gt; --replication --advertise 192.168.42.201:4000 consul://192.168.42.10:8500/nodes
+INFO[0000] Listening for HTTP                            addr=:4000 proto=tcp
+INFO[0000] Cluster leadership lost
+INFO[0000] New leader elected: 192.168.42.200:4000
+INFO[0038] New leader elected: 192.168.42.201:4000
+INFO[0038] Cluster leadership acquired               &lt;--- We have been elected as the new Primary Manager
+[...]
+</pre> <p>Because the primary manager, <code>manager-1</code>, failed right after it was elected, the replica with the address <code>192.168.42.201:4000</code>, <code>manager-2</code>, recognized the failure and attempted to take away the lead. Because <code>manager-2</code> was fast enough, the process was effectively elected as the primary manager. As a result, <code>manager-2</code> became the primary manager of the cluster.</p> <p>If we take a look at <code>manager-3</code> we should see those <code>logs</code>:</p> <pre>user@manager-3 $ swarm manage -H :4000 &lt;tls-config-flags&gt; --replication --advertise 192.168.42.202:4000 consul://192.168.42.10:8500/nodes
+INFO[0000] Listening for HTTP                            addr=:4000 proto=tcp
+INFO[0000] Cluster leadership lost
+INFO[0000] New leader elected: 192.168.42.200:4000
+INFO[0036] New leader elected: 192.168.42.201:4000   &lt;--- manager-2 sees the new Primary Manager
+[...]
+</pre> <p>At this point, we need to export the new <code>DOCKER_HOST</code> value.</p> <h3 id="switch-the-primary">Switch the primary</h3> <p>To switch the <code>DOCKER_HOST</code> to use <code>manager-2</code> as the primary, you do the following:</p> <pre>user@my-machine $ export DOCKER_HOST=192.168.42.201:4000 # Points to manager-2
+user@my-machine $ docker info
+Containers: 0
+Images: 25
+Storage Driver:
+Role: Replica  &lt;--------- manager-2 is a Replica
+Primary: 192.168.42.200
+Strategy: spread
+Filters: affinity, health, constraint, port, dependency
+Nodes: 3
+</pre> <p>You can use the <code>docker</code> command on any Docker Swarm primary manager or any replica.</p> <p>If you like, you can use custom mechanisms to always point <code>DOCKER_HOST</code> to the current primary manager. Then, you never lose contact with your Docker Swarm in the event of a failover.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/swarm/multi-manager-setup/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/swarm/multi-manager-setup/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

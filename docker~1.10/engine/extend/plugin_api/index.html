@@ -1,0 +1,100 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Plugins API (Engine) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content=" Docker plugins are out-of-process extensions which add capabilities to the Docker Engine. ">
+  <meta name="keywords" content="docker, plugin, api, plugins, engine, -, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/engine/extend/plugin_api/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="docker-plugin-api">Docker Plugin API</h1> <p>Docker plugins are out-of-process extensions which add capabilities to the Docker Engine.</p> <p>This page is intended for people who want to develop their own Docker plugin. If you just want to learn about or use Docker plugins, look <a href="../plugins/">here</a>.</p> <h2 id="what-plugins-are">What plugins are</h2> <p>A plugin is a process running on the same docker host as the docker daemon, which registers itself by placing a file in one of the plugin directories described in <a href="#plugin-discovery">Plugin discovery</a>.</p> <p>Plugins have human-readable names, which are short, lowercase strings. For example, <code>flocker</code> or <code>weave</code>.</p> <p>Plugins can run inside or outside containers. Currently running them outside containers is recommended.</p> <h2 id="plugin-discovery">Plugin discovery</h2> <p>Docker discovers plugins by looking for them in the plugin directory whenever a user or container tries to use one by name.</p> <p>There are three types of files which can be put in the plugin directory.</p> <ul> <li>
+<code>.sock</code> files are UNIX domain sockets.</li> <li>
+<code>.spec</code> files are text files containing a URL, such as <code>unix:///other.sock</code>.</li> <li>
+<code>.json</code> files are text files containing a full json specification for the plugin.</li> </ul> <p>UNIX domain socket files must be located under <code>/run/docker/plugins</code>, whereas spec files can be located either under <code>/etc/docker/plugins</code> or <code>/usr/lib/docker/plugins</code>.</p> <p>The name of the file (excluding the extension) determines the plugin name.</p> <p>For example, the <code>flocker</code> plugin might create a UNIX socket at <code>/run/docker/plugins/flocker.sock</code>.</p> <p>You can define each plugin into a separated subdirectory if you want to isolate definitions from each other. For example, you can create the <code>flocker</code> socket under <code>/run/docker/plugins/flocker/flocker.sock</code> and only mount <code>/run/docker/plugins/flocker</code> inside the <code>flocker</code> container.</p> <p>Docker always searches for unix sockets in <code>/run/docker/plugins</code> first. It checks for spec or json files under <code>/etc/docker/plugins</code> and <code>/usr/lib/docker/plugins</code> if the socket doesn’t exist. The directory scan stops as soon as it finds the first plugin definition with the given name.</p> <h3 id="json-specification">JSON specification</h3> <p>This is the JSON format for a plugin:</p> <pre>{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin",
+  "TLSConfig": {
+    "InsecureSkipVerify": false,
+    "CAFile": "/usr/shared/docker/certs/example-ca.pem",
+    "CertFile": "/usr/shared/docker/certs/example-cert.pem",
+    "KeyFile": "/usr/shared/docker/certs/example-key.pem",
+  }
+}
+</pre> <p>The <code>TLSConfig</code> field is optional and TLS will only be verified if this configuration is present.</p> <h2 id="plugin-lifecycle">Plugin lifecycle</h2> <p>Plugins should be started before Docker, and stopped after Docker. For example, when packaging a plugin for a platform which supports <code>systemd</code>, you might use <a href="http://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=" target="_blank"><code>systemd</code> dependencies</a> to manage startup and shutdown order.</p> <p>When upgrading a plugin, you should first stop the Docker daemon, upgrade the plugin, then start Docker again.</p> <h2 id="plugin-activation">Plugin activation</h2> <p>When a plugin is first referred to -- either by a user referring to it by name (e.g. <code>docker run --volume-driver=foo</code>) or a container already configured to use a plugin being started -- Docker looks for the named plugin in the plugin directory and activates it with a handshake. See Handshake API below.</p> <p>Plugins are <em>not</em> activated automatically at Docker daemon startup. Rather, they are activated only lazily, or on-demand, when they are needed.</p> <h2 id="api-design">API design</h2> <p>The Plugin API is RPC-style JSON over HTTP, much like webhooks.</p> <p>Requests flow <em>from</em> the Docker daemon <em>to</em> the plugin. So the plugin needs to implement an HTTP server and bind this to the UNIX socket mentioned in the “plugin discovery” section.</p> <p>All requests are HTTP <code>POST</code> requests.</p> <p>The API is versioned via an Accept header, which currently is always set to <code>application/vnd.docker.plugins.v1+json</code>.</p> <h2 id="handshake-api">Handshake API</h2> <p>Plugins are activated via the following “handshake” API call.</p> <h3 id="plugin-activate">/Plugin.Activate</h3> <p><strong>Request:</strong> empty body</p> <p><strong>Response:</strong></p> <pre>{
+    "Implements": ["VolumeDriver"]
+}
+</pre> <p>Responds with a list of Docker subsystems which this plugin implements. After activation, the plugin will then be sent events from this subsystem.</p> <p>Possible values are: - <a href="../authorization/"><code>authz</code></a> - <a href="../plugins_network/"><code>NetworkDriver</code></a> - <a href="../plugins_volume/"><code>VolumeDriver</code></a></p> <h2 id="plugin-retries">Plugin retries</h2> <p>Attempts to call a method on a plugin are retried with an exponential backoff for up to 30 seconds. This may help when packaging plugins as containers, since it gives plugin containers a chance to start up before failing any user containers which depend on them.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/engine/extend/plugin_api/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/engine/extend/plugin_api/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

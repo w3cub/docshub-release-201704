@@ -1,0 +1,145 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Btrfs Storage in Practice (Engine) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="Btrfs is a next generation copy-on-write filesystem that supports many advanced storage technologies that make it a good fit for Docker. Btrfs is &hellip;">
+  <meta name="keywords" content="docker, and, btrfs, practice, storage, engine, -, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/engine/userguide/storagedriver/btrfs-driver/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="docker-and-btrfs-in-practice">Docker and Btrfs in practice</h1> <p>Btrfs is a next generation copy-on-write filesystem that supports many advanced storage technologies that make it a good fit for Docker. Btrfs is included in the mainline Linux kernel and its on-disk-format is now considered stable. However, many of its features are still under heavy development and users should consider it a fast-moving target.</p> <p>Docker’s <code>btrfs</code> storage driver leverages many Btrfs features for image and container management. Among these features are thin provisioning, copy-on-write, and snapshotting.</p> <p>This article refers to Docker’s Btrfs storage driver as <code>btrfs</code> and the overall Btrfs Filesystem as Btrfs.</p> <blockquote> <p><strong>Note</strong>: The <a href="https://www.docker.com/compatibility-maintenance" target="_blank">Commercially Supported Docker Engine (CS-Engine)</a> does not currently support the <code>btrfs</code> storage driver.</p> </blockquote> <h2 id="the-future-of-btrfs">The future of Btrfs</h2> <p>Btrfs has been long hailed as the future of Linux filesystems. With full support in the mainline Linux kernel, a stable on-disk-format, and active development with a focus on stability, this is now becoming more of a reality.</p> <p>As far as Docker on the Linux platform goes, many people see the <code>btrfs</code> storage driver as a potential long-term replacement for the <code>devicemapper</code> storage driver. However, at the time of writing, the <code>devicemapper</code> storage driver should be considered safer, more stable, and more <em>production ready</em>. You should only consider the <code>btrfs</code> driver for production deployments if you understand it well and have existing experience with Btrfs.</p> <h2 id="image-layering-and-sharing-with-btrfs">Image layering and sharing with Btrfs</h2> <p>Docker leverages Btrfs <em>subvolumes</em> and <em>snapshots</em> for managing the on-disk components of image and container layers. Btrfs subvolumes look and feel like a normal Unix filesystem. As such, they can have their own internal directory structure that hooks into the wider Unix filesystem.</p> <p>Subvolumes are natively copy-on-write and have space allocated to them on-demand from an underlying storage pool. They can also be nested and snapped. The diagram blow shows 4 subvolumes. ‘Subvolume 2’ and ‘Subvolume 3’ are nested, whereas ‘Subvolume 4’ shows its own internal directory tree.</p> <p><img src="https://docs.docker.com/v1.10/engine/userguide/storagedriver/images/btfs_subvolume.jpg" alt=""></p> <p>Snapshots are a point-in-time read-write copy of an entire subvolume. They exist directly below the subvolume they were created from. You can create snapshots of snapshots as shown in the diagram below.</p> <p><img src="https://docs.docker.com/v1.10/engine/userguide/storagedriver/images/btfs_snapshots.jpg" alt=""></p> <p>Btfs allocates space to subvolumes and snapshots on demand from an underlying pool of storage. The unit of allocation is referred to as a <em>chunk</em>, and <em>chunks</em> are normally ~1GB in size.</p> <p>Snapshots are first-class citizens in a Btrfs filesystem. This means that they look, feel, and operate just like regular subvolumes. The technology required to create them is built directly into the Btrfs filesystem thanks to its native copy-on-write design. This means that Btrfs snapshots are space efficient with little or no performance overhead. The diagram below shows a subvolume and its snapshot sharing the same data.</p> <p><img src="https://docs.docker.com/v1.10/engine/userguide/storagedriver/images/btfs_pool.jpg" alt=""></p> <p>Docker’s <code>btrfs</code> storage driver stores every image layer and container in its own Btrfs subvolume or snapshot. The base layer of an image is stored as a subvolume whereas child image layers and containers are stored as snapshots. This is shown in the diagram below.</p> <p><img src="https://docs.docker.com/v1.10/engine/userguide/storagedriver/images/btfs_container_layer.jpg" alt=""></p> <p>The high level process for creating images and containers on Docker hosts running the <code>btrfs</code> driver is as follows:</p> <ol> <li><p>The image’s base layer is stored in a Btrfs <em>subvolume</em> under <code>/var/lib/docker/btrfs/subvolumes</code>.</p></li> <li>
+<p>Subsequent image layers are stored as a Btrfs <em>snapshot</em> of the parent layer’s subvolume or snapshot.</p> <p>The diagram below shows a three-layer image. The base layer is a subvolume. Layer 1 is a snapshot of the base layer’s subvolume. Layer 2 is a snapshot of Layer 1’s snapshot.</p> <p><img src="https://docs.docker.com/v1.10/engine/userguide/storagedriver/images/btfs_constructs.jpg" alt=""></p>
+</li> </ol> <p>As of Docker 1.10, image layer IDs no longer correspond to directory names under <code>/var/lib/docker/</code>.</p> <h2 id="image-and-container-on-disk-constructs">Image and container on-disk constructs</h2> <p>Image layers and containers are visible in the Docker host’s filesystem at <code>/var/lib/docker/btrfs/subvolumes/</code>. However, as previously stated, directory names no longer correspond to image layer IDs. That said, directories for containers are present even for containers with a stopped status. This is because the <code>btrfs</code> storage driver mounts a default, top-level subvolume at <code>/var/lib/docker/subvolumes</code>. All other subvolumes and snapshots exist below that as Btrfs filesystem objects and not as individual mounts.</p> <p>Because Btrfs works at the filesystem level and not the block level, each image and container layer can be browsed in the filesystem using normal Unix commands. The example below shows a truncated output of an <code>ls -l</code> command an image layer:</p> <pre>$ ls -l /var/lib/docker/btrfs/subvolumes/0a17decee4139b0de68478f149cc16346f5e711c5ae3bb969895f22dd6723751/
+total 0
+drwxr-xr-x 1 root root 1372 Oct  9 08:39 bin
+drwxr-xr-x 1 root root    0 Apr 10  2014 boot
+drwxr-xr-x 1 root root  882 Oct  9 08:38 dev
+drwxr-xr-x 1 root root 2040 Oct 12 17:27 etc
+drwxr-xr-x 1 root root    0 Apr 10  2014 home
+...output truncated...
+</pre> <h2 id="container-reads-and-writes-with-btrfs">Container reads and writes with Btrfs</h2> <p>A container is a space-efficient snapshot of an image. Metadata in the snapshot points to the actual data blocks in the storage pool. This is the same as with a subvolume. Therefore, reads performed against a snapshot are essentially the same as reads performed against a subvolume. As a result, no performance overhead is incurred from the Btrfs driver.</p> <p>Writing a new file to a container invokes an allocate-on-demand operation to allocate new data block to the container’s snapshot. The file is then written to this new space. The allocate-on-demand operation is native to all writes with Btrfs and is the same as writing new data to a subvolume. As a result, writing new files to a container’s snapshot operate at native Btrfs speeds.</p> <p>Updating an existing file in a container causes a copy-on-write operation (technically <em>redirect-on-write</em>). The driver leaves the original data and allocates new space to the snapshot. The updated data is written to this new space. Then, the driver updates the filesystem metadata in the snapshot to point to this new data. The original data is preserved in-place for subvolumes and snapshots further up the tree. This behavior is native to copy-on-write filesystems like Btrfs and incurs very little overhead.</p> <p>With Btfs, writing and updating lots of small files can result in slow performance. More on this later.</p> <h2 id="configuring-docker-with-btrfs">Configuring Docker with Btrfs</h2> <p>The <code>btrfs</code> storage driver only operates on a Docker host where <code>/var/lib/docker</code> is mounted as a Btrfs filesystem. The following procedure shows how to configure Btrfs on Ubuntu 14.04 LTS.</p> <h3 id="prerequisites">Prerequisites</h3> <p>If you have already used the Docker daemon on your Docker host and have images you want to keep, <code>push</code> them to Docker Hub or your private Docker Trusted Registry before attempting this procedure.</p> <p>Stop the Docker daemon. Then, ensure that you have a spare block device at <code>/dev/xvdb</code>. The device identifier may be different in your environment and you should substitute your own values throughout the procedure.</p> <p>The procedure also assumes your kernel has the appropriate Btrfs modules loaded. To verify this, use the following command:</p> <pre>$ cat /proc/filesystems | grep btrfs
+</pre> <h3 id="configure-btrfs-on-ubuntu-14-04-lts">Configure Btrfs on Ubuntu 14.04 LTS</h3> <p>Assuming your system meets the prerequisites, do the following:</p> <ol> <li>
+<p>Install the “btrfs-tools” package.</p> <pre>$ sudo apt-get install btrfs-tools
+Reading package lists... Done
+Building dependency tree
+&lt;output truncated&gt;
+</pre>
+</li> <li>
+<p>Create the Btrfs storage pool.</p> <p>Btrfs storage pools are created with the <code>mkfs.btrfs</code> command. Passing multiple devices to the <code>mkfs.btrfs</code> command creates a pool across all of those devices. Here you create a pool with a single device at <code>/dev/xvdb</code>.</p> <pre>$ sudo mkfs.btrfs -f /dev/xvdb
+WARNING! - Btrfs v3.12 IS EXPERIMENTAL
+WARNING! - see http://btrfs.wiki.kernel.org before using
+
+Turning ON incompat feature 'extref': increased hardlink limit per file to 65536
+fs created label (null) on /dev/xvdb
+    nodesize 16384 leafsize 16384 sectorsize 4096 size 4.00GiB
+Btrfs v3.12
+</pre> <p>Be sure to substitute <code>/dev/xvdb</code> with the appropriate device(s) on your system.</p> <blockquote> <p><strong>Warning</strong>: Take note of the warning about Btrfs being experimental. As noted earlier, Btrfs is not currently recommended for production deployments unless you already have extensive experience.</p> </blockquote>
+</li> <li>
+<p>If it does not already exist, create a directory for the Docker host’s local storage area at <code>/var/lib/docker</code>.</p> <pre>$ sudo mkdir /var/lib/docker
+</pre>
+</li> <li>
+<p>Configure the system to automatically mount the Btrfs filesystem each time the system boots.</p> <p>a. Obtain the Btrfs filesystem’s UUID.</p> <pre>$ sudo blkid /dev/xvdb
+/dev/xvdb: UUID="a0ed851e-158b-4120-8416-c9b072c8cf47" UUID_SUB="c3927a64-4454-4eef-95c2-a7d44ac0cf27" TYPE="btrfs"
+</pre> <p>b. Create an <code>/etc/fstab</code> entry to automatically mount <code>/var/lib/docker</code> each time the system boots. Either of the following lines will work, just remember to substitute the UUID value with the value obtained from the previous command.</p> <pre>/dev/xvdb /var/lib/docker btrfs defaults 0 0
+UUID="a0ed851e-158b-4120-8416-c9b072c8cf47" /var/lib/docker btrfs defaults 0 0
+</pre>
+</li> <li>
+<p>Mount the new filesystem and verify the operation.</p> <pre>$ sudo mount -a
+$ mount
+/dev/xvda1 on / type ext4 (rw,discard)
+&lt;output truncated&gt;
+/dev/xvdb on /var/lib/docker type btrfs (rw)
+</pre> <p>The last line in the output above shows the <code>/dev/xvdb</code> mounted at <code>/var/lib/docker</code> as Btrfs.</p>
+</li> </ol> <p>Now that you have a Btrfs filesystem mounted at <code>/var/lib/docker</code>, the daemon should automatically load with the <code>btrfs</code> storage driver.</p> <ol> <li>
+<p>Start the Docker daemon.</p> <pre>$ sudo service docker start
+docker start/running, process 2315
+</pre> <p>The procedure for starting the Docker daemon may differ depending on the Linux distribution you are using.</p> <p>You can force the the Docker daemon to start with the <code>btrfs</code> storage driver by either passing the <code>--storage-driver=btrfs</code> flag to the <code>docker 
+daemon</code> at startup, or adding it to the <code>DOCKER_OPTS</code> line to the Docker config file.</p>
+</li> <li>
+<p>Verify the storage driver with the <code>docker info</code> command.</p> <pre>$ sudo docker info
+Containers: 0
+Images: 0
+Storage Driver: btrfs
+[...]
+</pre>
+</li> </ol> <p>Your Docker host is now configured to use the <code>btrfs</code> storage driver.</p> <h2 id="btrfs-and-docker-performance">Btrfs and Docker performance</h2> <p>There are several factors that influence Docker’s performance under the <code>btrfs</code> storage driver.</p> <ul> <li><p><strong>Page caching</strong>. Btrfs does not support page cache sharing. This means that <em>n</em> containers accessing the same file require <em>n</em> copies to be cached. As a result, the <code>btrfs</code> driver may not be the best choice for PaaS and other high density container use cases.</p></li> <li>
+<p><strong>Small writes</strong>. Containers performing lots of small writes (including Docker hosts that start and stop many containers) can lead to poor use of Btrfs chunks. This can ultimately lead to out-of-space conditions on your Docker host and stop it working. This is currently a major drawback to using current versions of Btrfs.</p> <p>If you use the <code>btrfs</code> storage driver, closely monitor the free space on your Btrfs filesystem using the <code>btrfs filesys show</code> command. Do not trust the output of normal Unix commands such as <code>df</code>; always use the Btrfs native commands.</p>
+</li> <li><p><strong>Sequential writes</strong>. Btrfs writes data to disk via journaling technique. This can impact sequential writes, where performance can be up to half.</p></li> <li>
+<p><strong>Fragmentation</strong>. Fragmentation is a natural byproduct of copy-on-write filesystems like Btrfs. Many small random writes can compound this issue. It can manifest as CPU spikes on Docker hosts using SSD media and head thrashing on Docker hosts using spinning media. Both of these result in poor performance.</p> <p>Recent versions of Btrfs allow you to specify <code>autodefrag</code> as a mount option. This mode attempts to detect random writes and defragment them. You should perform your own tests before enabling this option on your Docker hosts. Some tests have shown this option has a negative performance impact on Docker hosts performing lots of small writes (including systems that start and stop many containers).</p>
+</li> <li>
+<p><strong>Solid State Devices (SSD)</strong>. Btrfs has native optimizations for SSD media. To enable these, mount with the <code>-o ssd</code> mount option. These optimizations include enhanced SSD write performance by avoiding things like <em>seek optimizations</em> that have no use on SSD media.</p> <p>Btfs also supports the TRIM/Discard primitives. However, mounting with the <code>-o discard</code> mount option can cause performance issues. Therefore, it is recommended you perform your own tests before using this option.</p>
+</li> <li><p><strong>Use Data Volumes</strong>. Data volumes provide the best and most predictable performance. This is because they bypass the storage driver and do not incur any of the potential overheads introduced by thin provisioning and copy-on-write. For this reason, you should place heavy write workloads on data volumes.</p></li> </ul> <h2 id="related-information">Related Information</h2> <ul> <li><a href="../imagesandcontainers/">Understand images, containers, and storage drivers</a></li> <li><a href="../selectadriver/">Select a storage driver</a></li> <li><a href="../aufs-driver/">AUFS storage driver in practice</a></li> <li><a href="../device-mapper-driver/">Device Mapper storage driver in practice</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/engine/userguide/storagedriver/btrfs-driver/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/engine/userguide/storagedriver/btrfs-driver/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

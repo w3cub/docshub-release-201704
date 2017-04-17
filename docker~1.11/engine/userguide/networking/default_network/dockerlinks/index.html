@@ -1,0 +1,134 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Legacy Container Links (Engine) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="The information in this section explains legacy container links within the Docker default bridge. This is a bridge network named bridge created &hellip;">
+  <meta name="keywords" content="legacy, container, linksrelated, information, links, engine, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/engine/userguide/networking/default_network/dockerlinks/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="legacy-container-links">Legacy container links</h1> <p>The information in this section explains legacy container links within the Docker default bridge. This is a <code>bridge</code> network named <code>bridge</code> created automatically when you install Docker.</p> <p>Before the <a href="../../">Docker networks feature</a>, you could use the Docker link feature to allow containers to discover each other and securely transfer information about one container to another container. With the introduction of the Docker networks feature, you can still create links but they behave differently between default <code>bridge</code> network and <a href="../../work-with-networks/#linking-containers-in-user-defined-networks">user defined networks</a></p> <p>This section briefly discusses connecting via a network port and then goes into detail on container linking in default <code>bridge</code> network.</p> <h2 id="connect-using-network-port-mapping">Connect using network port mapping</h2> <p>In <a href="../../../containers/usingdocker/">the Using Docker section</a>, you created a container that ran a Python Flask application:</p> <pre>$ docker run -d -P training/webapp python app.py
+</pre> <blockquote> <p><strong>Note:</strong> Containers have an internal network and an IP address (as we saw when we used the <code>docker inspect</code> command to show the container’s IP address in the <a href="../../../containers/usingdocker/">Using Docker</a> section). Docker can have a variety of network configurations. You can see more information on Docker networking <a href="../../">here</a>.</p> </blockquote> <p>When that container was created, the <code>-P</code> flag was used to automatically map any network port inside it to a random high port within an <em>ephemeral port range</em> on your Docker host. Next, when <code>docker ps</code> was run, you saw that port 5000 in the container was bound to port 49155 on the host.</p> <pre>$ docker ps nostalgic_morse
+CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
+bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155-&gt;5000/tcp  nostalgic_morse
+</pre> <p>You also saw how you can bind a container’s ports to a specific port using the <code>-p</code> flag. Here port 80 of the host is mapped to port 5000 of the container:</p> <pre>$ docker run -d -p 80:5000 training/webapp python app.py
+</pre> <p>And you saw why this isn’t such a great idea because it constrains you to only one container on that specific port.</p> <p>Instead, you may specify a range of host ports to bind a container port to that is different than the default <em>ephemeral port range</em>:</p> <pre>$ docker run -d -p 8000-9000:5000 training/webapp python app.py
+</pre> <p>This would bind port 5000 in the container to a randomly available port between 8000 and 9000 on the host.</p> <p>There are also a few other ways you can configure the <code>-p</code> flag. By default the <code>-p</code> flag will bind the specified port to all interfaces on the host machine. But you can also specify a binding to a specific interface, for example only to the <code>localhost</code>.</p> <pre>$ docker run -d -p 127.0.0.1:80:5000 training/webapp python app.py
+</pre> <p>This would bind port 5000 inside the container to port 80 on the <code>localhost</code> or <code>127.0.0.1</code> interface on the host machine.</p> <p>Or, to bind port 5000 of the container to a dynamic port but only on the <code>localhost</code>, you could use:</p> <pre>$ docker run -d -p 127.0.0.1::5000 training/webapp python app.py
+</pre> <p>You can also bind UDP ports by adding a trailing <code>/udp</code>. For example:</p> <pre>$ docker run -d -p 127.0.0.1:80:5000/udp training/webapp python app.py
+</pre> <p>You also learned about the useful <code>docker port</code> shortcut which showed us the current port bindings. This is also useful for showing you specific port configurations. For example, if you’ve bound the container port to the <code>localhost</code> on the host machine, then the <code>docker port</code> output will reflect that.</p> <pre>$ docker port nostalgic_morse 5000
+127.0.0.1:49155
+</pre> <blockquote> <p><strong>Note:</strong> The <code>-p</code> flag can be used multiple times to configure multiple ports.</p> </blockquote> <h2 id="connect-with-the-linking-system">Connect with the linking system</h2> <blockquote> <p><strong>Note</strong>: This section covers the legacy link feature in the default <code>bridge</code> network. Please refer to <a href="../../work-with-networks/#linking-containers-in-user-defined-networks">linking containers in user-defined networks</a> for more information on links in user-defined networks.</p> </blockquote> <p>Network port mappings are not the only way Docker containers can connect to one another. Docker also has a linking system that allows you to link multiple containers together and send connection information from one to another. When containers are linked, information about a source container can be sent to a recipient container. This allows the recipient to see selected data describing aspects of the source container.</p> <h3 id="the-importance-of-naming">The importance of naming</h3> <p>To establish links, Docker relies on the names of your containers. You’ve already seen that each container you create has an automatically created name; indeed you’ve become familiar with our old friend <code>nostalgic_morse</code> during this guide. You can also name containers yourself. This naming provides two useful functions:</p> <ol> <li><p>It can be useful to name containers that do specific functions in a way that makes it easier for you to remember them, for example naming a container containing a web application <code>web</code>.</p></li> <li><p>It provides Docker with a reference point that allows it to refer to other containers, for example, you can specify to link the container <code>web</code> to container <code>db</code>.</p></li> </ol> <p>You can name your container by using the <code>--name</code> flag, for example:</p> <pre>$ docker run -d -P --name web training/webapp python app.py
+</pre> <p>This launches a new container and uses the <code>--name</code> flag to name the container <code>web</code>. You can see the container’s name using the <code>docker ps</code> command.</p> <pre>$ docker ps -l
+CONTAINER ID  IMAGE                  COMMAND        CREATED       STATUS       PORTS                    NAMES
+aed84ee21bde  training/webapp:latest python app.py  12 hours ago  Up 2 seconds 0.0.0.0:49154-&gt;5000/tcp  web
+</pre> <p>You can also use <code>docker inspect</code> to return the container’s name.</p> <blockquote> <p><strong>Note:</strong> Container names have to be unique. That means you can only call one container <code>web</code>. If you want to re-use a container name you must delete the old container (with <code>docker rm</code>) before you can create a new container with the same name. As an alternative you can use the <code>--rm</code> flag with the <code>docker run</code> command. This will delete the container immediately after it is stopped.</p> </blockquote> <h2 id="communication-across-links">Communication across links</h2> <p>Links allow containers to discover each other and securely transfer information about one container to another container. When you set up a link, you create a conduit between a source container and a recipient container. The recipient can then access select data about the source. To create a link, you use the <code>--link</code> flag. First, create a new container, this time one containing a database.</p> <pre>$ docker run -d --name db training/postgres
+</pre> <p>This creates a new container called <code>db</code> from the <code>training/postgres</code> image, which contains a PostgreSQL database.</p> <p>Now, you need to delete the <code>web</code> container you created previously so you can replace it with a linked one:</p> <pre>$ docker rm -f web
+</pre> <p>Now, create a new <code>web</code> container and link it with your <code>db</code> container.</p> <pre>$ docker run -d -P --name web --link db:db training/webapp python app.py
+</pre> <p>This will link the new <code>web</code> container with the <code>db</code> container you created earlier. The <code>--link</code> flag takes the form:</p> <pre>--link &lt;name or id&gt;:alias
+</pre> <p>Where <code>name</code> is the name of the container we’re linking to and <code>alias</code> is an alias for the link name. You’ll see how that alias gets used shortly. The <code>--link</code> flag also takes the form:</p> <pre>--link &lt;name or id&gt;
+</pre> <p>In which case the alias will match the name. You could have written the previous example as:</p> <pre>$ docker run -d -P --name web --link db training/webapp python app.py
+</pre> <p>Next, inspect your linked containers with <code>docker inspect</code>:</p> <pre>$ docker inspect -f "{{ .HostConfig.Links }}" web
+[/db:/web/db]
+</pre> <p>You can see that the <code>web</code> container is now linked to the <code>db</code> container <code>web/db</code>. Which allows it to access information about the <code>db</code> container.</p> <p>So what does linking the containers actually do? You’ve learned that a link allows a source container to provide information about itself to a recipient container. In our example, the recipient, <code>web</code>, can access information about the source <code>db</code>. To do this, Docker creates a secure tunnel between the containers that doesn’t need to expose any ports externally on the container; you’ll note when we started the <code>db</code> container we did not use either the <code>-P</code> or <code>-p</code> flags. That’s a big benefit of linking: we don’t need to expose the source container, here the PostgreSQL database, to the network.</p> <p>Docker exposes connectivity information for the source container to the recipient container in two ways:</p> <ul> <li>Environment variables,</li> <li>Updating the <code>/etc/hosts</code> file.</li> </ul> <h3 id="environment-variables">Environment variables</h3> <p>Docker creates several environment variables when you link containers. Docker automatically creates environment variables in the target container based on the <code>--link</code> parameters. It will also expose all environment variables originating from Docker from the source container. These include variables from:</p> <ul> <li>the <code>ENV</code> commands in the source container’s Dockerfile</li> <li>the <code>-e</code>, <code>--env</code> and <code>--env-file</code> options on the <code>docker run</code> command when the source container is started</li> </ul> <p>These environment variables enable programmatic discovery from within the target container of information related to the source container.</p> <blockquote> <p><strong>Warning</strong>: It is important to understand that <em>all</em> environment variables originating from Docker within a container are made available to <em>any</em> container that links to it. This could have serious security implications if sensitive data is stored in them.</p> </blockquote> <p>Docker sets an <code>&lt;alias&gt;_NAME</code> environment variable for each target container listed in the <code>--link</code> parameter. For example, if a new container called <code>web</code> is linked to a database container called <code>db</code> via <code>--link db:webdb</code>, then Docker creates a <code>WEBDB_NAME=/web/webdb</code> variable in the <code>web</code> container.</p> <p>Docker also defines a set of environment variables for each port exposed by the source container. Each variable has a unique prefix in the form:</p> <p><code>&lt;name&gt;_PORT_&lt;port&gt;_&lt;protocol&gt;</code></p> <p>The components in this prefix are:</p> <ul> <li>the alias <code>&lt;name&gt;</code> specified in the <code>--link</code> parameter (for example, <code>webdb</code>)</li> <li>the <code>&lt;port&gt;</code> number exposed</li> <li>a <code>&lt;protocol&gt;</code> which is either TCP or UDP</li> </ul> <p>Docker uses this prefix format to define three distinct environment variables:</p> <ul> <li>The <code>prefix_ADDR</code> variable contains the IP Address from the URL, for example <code>WEBDB_PORT_5432_TCP_ADDR=172.17.0.82</code>.</li> <li>The <code>prefix_PORT</code> variable contains just the port number from the URL for example <code>WEBDB_PORT_5432_TCP_PORT=5432</code>.</li> <li>The <code>prefix_PROTO</code> variable contains just the protocol from the URL for example <code>WEBDB_PORT_5432_TCP_PROTO=tcp</code>.</li> </ul> <p>If the container exposes multiple ports, an environment variable set is defined for each one. This means, for example, if a container exposes 4 ports that Docker creates 12 environment variables, 3 for each port.</p> <p>Additionally, Docker creates an environment variable called <code>&lt;alias&gt;_PORT</code>. This variable contains the URL of the source container’s first exposed port. The ‘first’ port is defined as the exposed port with the lowest number. For example, consider the <code>WEBDB_PORT=tcp://172.17.0.82:5432</code> variable. If that port is used for both tcp and udp, then the tcp one is specified.</p> <p>Finally, Docker also exposes each Docker originated environment variable from the source container as an environment variable in the target. For each variable Docker creates an <code>&lt;alias&gt;_ENV_&lt;name&gt;</code> variable in the target container. The variable’s value is set to the value Docker used when it started the source container.</p> <p>Returning back to our database example, you can run the <code>env</code> command to list the specified container’s environment variables.</p> <pre>    $ docker run --rm --name web2 --link db:db training/webapp env
+    . . .
+    DB_NAME=/web2/db
+    DB_PORT=tcp://172.17.0.5:5432
+    DB_PORT_5432_TCP=tcp://172.17.0.5:5432
+    DB_PORT_5432_TCP_PROTO=tcp
+    DB_PORT_5432_TCP_PORT=5432
+    DB_PORT_5432_TCP_ADDR=172.17.0.5
+    . . .
+</pre> <p>You can see that Docker has created a series of environment variables with useful information about the source <code>db</code> container. Each variable is prefixed with <code>DB_</code>, which is populated from the <code>alias</code> you specified above. If the <code>alias</code> were <code>db1</code>, the variables would be prefixed with <code>DB1_</code>. You can use these environment variables to configure your applications to connect to the database on the <code>db</code> container. The connection will be secure and private; only the linked <code>web</code> container will be able to talk to the <code>db</code> container.</p> <h3 id="important-notes-on-docker-environment-variables">Important notes on Docker environment variables</h3> <p>Unlike host entries in the <a href="#updating-the-etchosts-file"><code>/etc/hosts</code> file</a>, IP addresses stored in the environment variables are not automatically updated if the source container is restarted. We recommend using the host entries in <code>/etc/hosts</code> to resolve the IP address of linked containers.</p> <p>These environment variables are only set for the first process in the container. Some daemons, such as <code>sshd</code>, will scrub them when spawning shells for connection.</p> <h3 id="updating-the-etc-hosts-file">Updating the <code>/etc/hosts</code> file</h3> <p>In addition to the environment variables, Docker adds a host entry for the source container to the <code>/etc/hosts</code> file. Here’s an entry for the <code>web</code> container:</p> <pre>$ docker run -t -i --rm --link db:webdb training/webapp /bin/bash
+root@aed84ee21bde:/opt/webapp# cat /etc/hosts
+172.17.0.7  aed84ee21bde
+. . .
+172.17.0.5  webdb 6e5cdeb2d300 db
+</pre> <p>You can see two relevant host entries. The first is an entry for the <code>web</code> container that uses the Container ID as a host name. The second entry uses the link alias to reference the IP address of the <code>db</code> container. In addition to the alias you provide, the linked container’s name--if unique from the alias provided to the <code>--link</code> parameter--and the linked container’s hostname will also be added in <code>/etc/hosts</code> for the linked container’s IP address. You can ping that host now via any of these entries:</p> <pre>root@aed84ee21bde:/opt/webapp# apt-get install -yqq inetutils-ping
+root@aed84ee21bde:/opt/webapp# ping webdb
+PING webdb (172.17.0.5): 48 data bytes
+56 bytes from 172.17.0.5: icmp_seq=0 ttl=64 time=0.267 ms
+56 bytes from 172.17.0.5: icmp_seq=1 ttl=64 time=0.250 ms
+56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms
+</pre> <blockquote> <p><strong>Note:</strong> In the example, you’ll note you had to install <code>ping</code> because it was not included in the container initially.</p> </blockquote> <p>Here, you used the <code>ping</code> command to ping the <code>db</code> container using its host entry, which resolves to <code>172.17.0.5</code>. You can use this host entry to configure an application to make use of your <code>db</code> container.</p> <blockquote> <p><strong>Note:</strong> You can link multiple recipient containers to a single source. For example, you could have multiple (differently named) web containers attached to your <code>db</code> container.</p> </blockquote> <p>If you restart the source container, the linked containers <code>/etc/hosts</code> files will be automatically updated with the source container’s new IP address, allowing linked communication to continue.</p> <pre>$ docker restart db
+db
+$ docker run -t -i --rm --link db:db training/webapp /bin/bash
+root@aed84ee21bde:/opt/webapp# cat /etc/hosts
+172.17.0.7  aed84ee21bde
+. . .
+172.17.0.9  db
+</pre> <h1 id="related-information">Related information</h1>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/engine/userguide/networking/default_network/dockerlinks/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/engine/userguide/networking/default_network/dockerlinks/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

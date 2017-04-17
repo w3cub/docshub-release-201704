@@ -1,0 +1,91 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Learn the Application Architecture (Swarm) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="On this page, you learn about the Swarm at scale example. Make sure you have read through the introduction to get an idea of the skills and time &hellip;">
+  <meta name="keywords" content="learn, application, architecture, swarm, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/swarm/swarm_at_scale/01-about/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="learn-the-application-architecture">Learn the application architecture</h1> <p>On this page, you learn about the Swarm at scale example. Make sure you have read through <a href="https://docs.docker.com/v1.10/swarm/swarm_at_scale/" target="_blank">the introduction</a> to get an idea of the skills and time required first.</p> <h2 id="learn-the-example-back-story">Learn the example back story</h2> <p>Your company is a pet food company that has bought an commercial during the Superbowl. The commercial drives viewers to a web survey that asks users to vote – cats or dogs. You are developing the web survey.</p> <p>Your survey must ensure that millions of people can vote concurrently without your website becoming unavailable. You don’t need real-time results, a company press release announces the results. However, you do need confidence that every vote is counted.</p> <h2 id="understand-the-application-architecture">Understand the application architecture</h2> <p>The voting application is a dockerized microservice application. It uses a parallel web frontend that sends jobs to asynchronous background workers. The application’s design can accommodate arbitrarily large scale. The diagram below shows the high level architecture of the application.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/app-architecture.jpg" alt=""></p> <p>The application is fully dockerized with all services running inside of containers.</p> <p>The frontend consists of an Interlock load balancer with <em>N</em> frontend web servers and associated queues. The load balancer can handle an arbitrary number of web containers behind it (<code>frontend01</code>- <code>frontendN</code>). The web containers run a simple Python Flask application. Each web container accepts votes and queues them to a Redis container on the same node. Each web container and Redis queue pair operates independently.</p> <p>The load balancer together with the independent pairs allows the entire application to scale to an arbitrary size as needed to meet demand.</p> <p>Behind the frontend is a worker tier which runs on separate nodes. This tier:</p> <ul> <li>scans the Redis containers</li> <li>dequeues votes</li> <li>deduplicates votes to prevent double voting</li> <li>commits the results to a Postgres container running on a separate node</li> </ul> <p>Just like the front end, the worker tier can also scale arbitrarily. The worker count and frontend count are independent from each other.</p> <h2 id="swarm-cluster-architecture">Swarm Cluster Architecture</h2> <p>To support the application, the design calls for a Swarm cluster with a single Swarm manager and four nodes as shown below.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/swarm-cluster-arch.jpg" alt=""></p> <p>All four nodes in the cluster are running the Docker daemon, as is the Swarm manager and the Interlock load balancer. The Swarm manager exists on a Docker Engine host that is part of the cluster and is considered out of band for the application. The Interlock load balancer could be placed inside of the cluster, but for this demonstration it is not.</p> <p>A container network is overlayed on top of the Swarm cluster using the container overlay feature of Docker engine. The dockerized microservices are deployed to this network. After completing the example and deploying your application, this is what your environment should look like.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/final-result.jpg" alt=""></p> <p>As the previous diagram shows, each node in the cluster runs the following containers:</p> <ul> <li>
+<code>frontend01</code>: <ul> <li>Container: Python flask web app (frontend01)</li> <li>Container: Redis (redis01)</li> </ul>
+</li> <li>
+<code>frontend02</code>: <ul> <li>Container: Python flask web app (frontend02)</li> <li>Container: Redis (redis02)</li> </ul>
+</li> <li>
+<code>worker01</code>: vote worker app (worker01)</li> <li>
+<code>store</code>: <ul> <li>Container: Postgres (pg)</li> <li>Container: results app (results-app)</li> </ul>
+</li> </ul> <p>After you deploy the application, you’ll configure your local system so that you can test the application from your local browser. In production, of course, this step wouldn’t be needed.</p> <h2 id="the-network-infrastructure">The network infrastructure</h2> <p>The example assumes you are deploying the application to a Docker Swarm cluster running on top of Amazon Web Services (AWS). AWS is an example only. There is nothing about this application or deployment that requires it. You could deploy the application to a Docker Swarm cluster running on; a different cloud provider such as Microsoft Azure, on premises in your own physical data center, or in a development environment on your laptop.</p> <h2 id="next-step">Next step</h2> <p>Now that you understand the application architecture, you need to deploy a network configuration that can support it. In the next step, you use AWS to <a href="../02-deploy-infra/">deploy network infrastructure</a> for use in this sample.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/swarm/swarm_at_scale/01-about/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/swarm/swarm_at_scale/01-about/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

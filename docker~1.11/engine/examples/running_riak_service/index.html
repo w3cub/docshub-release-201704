@@ -1,0 +1,127 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerizing a Riak Service (Engine) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content=" The goal of this example is to show you how to build a Docker image with Riak pre-installed. ">
+  <meta name="keywords" content="dockerizing, riak, service, engine, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/engine/examples/running_riak_service/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="dockerizing-a-riak-service">Dockerizing a Riak service</h1> <p>The goal of this example is to show you how to build a Docker image with Riak pre-installed.</p> <h2 id="creating-a-dockerfile">Creating a Dockerfile</h2> <p>Create an empty file called <code>Dockerfile</code>:</p> <pre>$ touch Dockerfile
+</pre> <p>Next, define the parent image you want to use to build your image on top of. We’ll use <a href="https://hub.docker.com/_/ubuntu/" target="_blank">Ubuntu</a> (tag: <code>trusty</code>), which is available on <a href="https://hub.docker.com" target="_blank">Docker Hub</a>:</p> <pre># Riak
+#
+# VERSION       0.1.1
+
+# Use the Ubuntu base image provided by dotCloud
+FROM ubuntu:trusty
+MAINTAINER Hector Castro hector@basho.com
+</pre> <p>After that, we install the curl which is used to download the repository setup script and we download the setup script and run it.</p> <pre># Install Riak repository before we do apt-get update, so that update happens
+# in a single step
+RUN apt-get install -q -y curl &amp;&amp; \
+    curl -fsSL https://packagecloud.io/install/repositories/basho/riak/script.deb | sudo bash
+</pre> <p>Then we install and setup a few dependencies:</p> <ul> <li>
+<code>supervisor</code> is used manage the Riak processes</li> <li>
+<code>riak=2.0.5-1</code> is the Riak package coded to version 2.0.5</li> </ul>  <pre># Install and setup project dependencies
+RUN apt-get update &amp;&amp; \
+    apt-get install -y supervisor riak=2.0.5-1
+
+RUN mkdir -p /var/log/supervisor
+
+RUN locale-gen en_US en_US.UTF-8
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+</pre> <p>After that, we modify Riak’s configuration:</p> <pre># Configure Riak to accept connections from any host
+RUN sed -i "s|listener.http.internal = 127.0.0.1:8098|listener.http.internal = 0.0.0.0:8098|" /etc/riak/riak.conf
+RUN sed -i "s|listener.protobuf.internal = 127.0.0.1:8087|listener.protobuf.internal = 0.0.0.0:8087|" /etc/riak/riak.conf
+</pre> <p>Then, we expose the Riak Protocol Buffers and HTTP interfaces:</p> <pre># Expose Riak Protocol Buffers and HTTP interfaces
+EXPOSE 8087 8098
+</pre> <p>Finally, run <code>supervisord</code> so that Riak is started:</p> <pre>CMD ["/usr/bin/supervisord"]
+</pre> <h2 id="create-a-supervisord-configuration-file">Create a supervisord configuration file</h2> <p>Create an empty file called <code>supervisord.conf</code>. Make sure it’s at the same directory level as your <code>Dockerfile</code>:</p> <pre>touch supervisord.conf
+</pre> <p>Populate it with the following program definitions:</p> <pre>[supervisord]
+nodaemon=true
+
+[program:riak]
+command=bash -c "/usr/sbin/riak console"
+numprocs=1
+autostart=true
+autorestart=true
+user=riak
+environment=HOME="/var/lib/riak"
+stdout_logfile=/var/log/supervisor/%(program_name)s.log
+stderr_logfile=/var/log/supervisor/%(program_name)s.log
+</pre> <h2 id="build-the-docker-image-for-riak">Build the Docker image for Riak</h2> <p>Now you should be able to build a Docker image for Riak:</p> <pre>$ docker build -t "&lt;yourname&gt;/riak" .
+</pre> <h2 id="next-steps">Next steps</h2> <p>Riak is a distributed database. Many production deployments consist of <a href="http://basho.com/why-your-riak-cluster-should-have-at-least-five-nodes/" target="_blank">at least five nodes</a>. See the <a href="https://github.com/hectcastro/docker-riak" target="_blank">docker-riak</a> project details on how to deploy a Riak cluster using Docker and Pipework.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/engine/examples/running_riak_service/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/engine/examples/running_riak_service/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

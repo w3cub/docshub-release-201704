@@ -1,0 +1,168 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerizing a Node.js Web App (Engine) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content=" Note&#58; - If you don’t like sudo then see Giving non-root access ">
+  <meta name="keywords" content="dockerizing, node, js, web, app, engine, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/engine/examples/nodejs_web_app/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="dockerizing-a-node-js-web-app">Dockerizing a Node.js web app</h1> <blockquote> <p><strong>Note</strong>: - <strong>If you don’t like sudo</strong> then see <a href="../../installation/binaries/#giving-non-root-access"><em>Giving non-root access</em></a></p> </blockquote> <p>The goal of this example is to show you how you can build your own Docker images from a parent image using a <code>Dockerfile</code> . We will do that by making a simple Node.js hello world web application running on CentOS. You can get the full source code at<a href="https://github.com/enokd/docker-node-hello/" target="_blank">https://github.com/enokd/docker-node-hello/</a>.</p> <h2 id="create-node-js-app">Create Node.js app</h2> <p>First, create a directory <code>src</code> where all the files would live. Then create a <code>package.json</code> file that describes your app and its dependencies:</p> <pre>{
+  "name": "docker-centos-hello",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Node.js Hello world app on CentOS using docker",
+  "author": "Daniel Gasienica &lt;daniel@gasienica.ch&gt;",
+  "dependencies": {
+    "express": "3.2.4"
+  }
+}
+</pre> <p>Then, create an <code>index.js</code> file that defines a web app using the <a href="http://expressjs.com/" target="_blank">Express.js</a> framework:</p> <pre>var express = require('express');
+
+// Constants
+var PORT = 8080;
+
+// App
+var app = express();
+app.get('/', function (req, res) {
+  res.send('Hello world\n');
+});
+
+app.listen(PORT);
+console.log('Running on http://localhost:' + PORT);
+</pre> <p>In the next steps, we’ll look at how you can run this app inside a CentOS container using Docker. First, you’ll need to build a Docker image of your app.</p> <h2 id="creating-a-dockerfile">Creating a Dockerfile</h2> <p>Create an empty file called <code>Dockerfile</code>:</p> <pre>touch Dockerfile
+</pre> <p>Open the <code>Dockerfile</code> in your favorite text editor</p> <p>Define the parent image you want to use to build your own image on top of. Here, we’ll use <a href="https://registry.hub.docker.com/_/centos/" target="_blank">CentOS</a> (tag: <code>centos6</code>) available on the <a href="https://hub.docker.com/" target="_blank">Docker Hub</a>:</p> <pre>FROM    centos:centos6
+</pre> <p>Since we’re building a Node.js app, you’ll have to install Node.js as well as npm on your CentOS image. Node.js is required to run your app and npm is required to install your app’s dependencies defined in <code>package.json</code>. To install the right package for CentOS, we’ll use the instructions from the <a href="#">Node.js wiki</a>:</p> <pre># Enable Extra Packages for Enterprise Linux (EPEL) for CentOS
+RUN     yum install -y epel-release
+# Install Node.js and npm
+RUN     yum install -y nodejs npm
+</pre> <p>Install your app dependencies using the <code>npm</code> binary:</p> <pre># Install app dependencies
+COPY package.json /src/package.json
+RUN cd /src; npm install --production
+</pre> <p>To bundle your app’s source code inside the Docker image, use the <code>COPY</code> instruction:</p> <pre># Bundle app source
+COPY . /src
+</pre> <p>Your app binds to port <code>8080</code> so you’ll use the <code>EXPOSE</code> instruction to have it mapped by the <code>docker</code> daemon:</p> <pre>EXPOSE  8080
+</pre> <p>Last but not least, define the command to run your app using <code>CMD</code> which defines your runtime, i.e. <code>node</code>, and the path to our app, i.e. <code>src/index.js</code> (see the step where we added the source to the container):</p> <pre>CMD ["node", "/src/index.js"]
+</pre> <p>Your <code>Dockerfile</code> should now look like this:</p> <pre>FROM    centos:centos6
+
+# Enable Extra Packages for Enterprise Linux (EPEL) for CentOS
+RUN     yum install -y epel-release
+# Install Node.js and npm
+RUN     yum install -y nodejs npm
+
+# Install app dependencies
+COPY package.json /src/package.json
+RUN cd /src; npm install --production
+
+# Bundle app source
+COPY . /src
+
+EXPOSE  8080
+CMD ["node", "/src/index.js"]
+</pre> <h2 id="building-your-image">Building your image</h2> <p>Go to the directory that has your <code>Dockerfile</code> and run the following command to build a Docker image. The <code>-t</code> flag lets you tag your image so it’s easier to find later using the <code>docker images</code> command:</p> <pre>$ docker build -t &lt;your username&gt;/centos-node-hello .
+</pre> <p>Your image will now be listed by Docker:</p> <pre>$ docker images
+
+# Example
+REPOSITORY                          TAG        ID              CREATED
+centos                              centos6    539c0211cd76    8 weeks ago
+&lt;your username&gt;/centos-node-hello   latest     d64d3505b0d2    2 hours ago
+</pre> <h2 id="run-the-image">Run the image</h2> <p>Running your image with <code>-d</code> runs the container in detached mode, leaving the container running in the background. The <code>-p</code> flag redirects a public port to a private port in the container. Run the image you previously built:</p> <pre>$ docker run -p 49160:8080 -d &lt;your username&gt;/centos-node-hello
+</pre> <p>Print the output of your app:</p> <pre># Get container ID
+$ docker ps
+
+# Print app output
+$ docker logs &lt;container id&gt;
+
+# Example
+Running on http://localhost:8080
+</pre> <h2 id="test">Test</h2> <p>To test your app, get the port of your app that Docker mapped:</p> <pre>$ docker ps
+
+# Example
+ID            IMAGE                                     COMMAND              ...   PORTS
+ecce33b30ebf  &lt;your username&gt;/centos-node-hello:latest  node /src/index.js         49160-&gt;8080
+</pre> <p>In the example above, Docker mapped the <code>8080</code> port of the container to <code>49160</code>.</p> <p>Now you can call your app using <code>curl</code> (install if needed via: <code>sudo apt-get install curl</code>):</p> <pre>$ curl -i localhost:49160
+
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: text/html; charset=utf-8
+Content-Length: 12
+Date: Sun, 02 Jun 2013 03:53:22 GMT
+Connection: keep-alive
+
+Hello world
+</pre> <p>If you use Docker Machine on OS X, the port is actually mapped to the Docker host VM, and you should use the following command:</p> <pre>$ curl $(docker-machine ip VM_NAME):49160
+</pre> <p>We hope this tutorial helped you get up and running with Node.js and CentOS on Docker. You can get the full source code at <a href="https://github.com/enokd/docker-node-hello/" target="_blank">https://github.com/enokd/docker-node-hello/</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/engine/examples/nodejs_web_app/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/engine/examples/nodejs_web_app/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Troubleshoot the Application (Swarm) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="It’s a fact of life that things fail. With this in mind, it’s important to understand what happens when failures occur and how to mitigate them. The &hellip;">
+  <meta name="keywords" content="troubleshoot, application, swarm, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/swarm/swarm_at_scale/troubleshoot/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="troubleshoot-the-application">Troubleshoot the application</h1> <p>It’s a fact of life that things fail. With this in mind, it’s important to understand what happens when failures occur and how to mitigate them. The following sections cover different failure scenarios:</p> <ul> <li><a href="#swarm-manager-failures">Swarm manager failures</a></li> <li><a href="#consul-discovery-backend-failures">Consul (discovery backend) failures</a></li> <li><a href="#interlock-load-balancer-failures">Interlock load balancer failures</a></li> <li><a href="#web-voting-app-failures">Web (voting-app) failures</a></li> <li><a href="#redis-failures">Redis failures</a></li> <li><a href="#worker-vote-worker-failures">Worker (vote-worker) failures</a></li> <li><a href="#postgres-failures">Postgres failures</a></li> <li><a href="#results-app-failures">Results-app failures</a></li> <li><a href="#infrastructure-failures">Infrastructure failures</a></li> </ul> <h2 id="swarm-manager-failures">Swarm manager failures</h2> <p>In it’s current configuration, the Swarm cluster only has single manager container running on a single node. If the container exits or the node fails, you will not be able to administer the cluster until you either; fix it, or replace it.</p> <p>If the failure is the Swarm manager container unexpectedly exiting, Docker will automatically attempt to restart it. This is because the container was started with the <code>--restart=unless-stopped</code> switch.</p> <p>While the Swarm manager is unavailable, the application will continue to work in its current configuration. However, you will not be able to provision more nodes or containers until you have a working Swarm manager.</p> <p>Docker Swarm supports high availability for Swarm managers. This allows a single Swarm cluster to have two or more managers. One manager is elected as the primary manager and all others operate as secondaries. In the event that the primary manager fails, one of the secondaries is elected as the new primary, and cluster operations continue gracefully. If you are deploying multiple Swarm managers for high availability, you should consider spreading them across multiple failure domains within your infrastructure.</p> <h2 id="consul-discovery-backend-failures">Consul (discovery backend) failures</h2> <p>The Swarm cluster that you have deployed has a single Consul container on a single node performing the cluster discovery service. In this setup, if the Consul container exits or the node fails, the application will continue to operate in its current configuration. However, certain cluster management operations will fail. These include registering new containers in the cluster and making lookups against the cluster configuration.</p> <p>If the failure is the <code>consul</code> container unexpectedly exiting, Docker will automatically attempt to restart it. This is because the container was started with the <code>--restart=unless-stopped</code> switch.</p> <p>The <code>Consul</code>, <code>etcd</code>, and <code>Zookeeper</code> discovery service backends support various options for high availability. These include Paxos/Raft quorums. You should follow existing best practices for deploying HA configurations of your chosen discover service backend. If you are deploying multiple discovery service instances for high availability, you should consider spreading them across multiple failure domains within your infrastructure.</p> <p>If you operate your Swarm cluster with a single discovery backend service and this service fails and is unrecoverable, you can start a new empty instance of the discovery backend and the Swarm agents on each node in the cluster will repopulate it.</p> <h3 id="handling-failures">Handling failures</h3> <p>There are many reasons why containers can fail. However, Swarm does not attempt to restart failed containers.</p> <p>One way to automatically restart failed containers is to explicitly start them with the <code>--restart=unless-stopped</code> flag. This will tell the local Docker daemon to attempt to restart the container if it unexpectedly exits. This will only work in situations where the node hosting the container and it’s Docker daemon are still up. This cannot restart a container if the node hosting it has failed, or if the Docker daemon itself has failed.</p> <p>Another way is to have an external tool (external to the cluster) monitor the state of your application, and make sure that certain service levels are maintained. These service levels can include things like “have at least 10 web server containers running”. In this scenario, if the number of web containers drops below 10, the tool will attempt to start more.</p> <p>In our simple voting-app example, the front-end is scalable and serviced by a load balancer. In the event that on the of the two web containers fails (or the node that is hosting it), the load balancer will stop routing requests to it and send all requests the surviving web container. This solution is highly scalable meaning you can have up to <em>n</em> web containers behind the load balancer.</p> <h2 id="interlock-load-balancer-failures">Interlock load balancer failures</h2> <p>The environment that you have provisioned has a single <a href="https://github.com/ehazlett/interlock" target="_blank">interlock</a> load balancer container running on a single node. In this setup, if the container exits or node fails, the application will no longer be able to service incoming requests and the application will be unavailable.</p> <p>If the failure is the <code>interlock</code> container unexpectedly exiting, Docker will automatically attempt to restart it. This is because the container was started with the <code>--restart=unless-stopped</code> switch.</p> <p>It is possible to build an HA Interlock load balancer configuration. One such way is to have multiple Interlock containers on multiple nodes. You can then use DNS round robin, or other technologies, to load balance across each Interlock container. That way, if one Interlock container or node goes down, the others will continue to service requests.</p> <p>If you deploy multiple interlock load balancers, you should consider spreading them across multiple failure domains within your infrastructure.</p> <h2 id="web-voting-app-failures">Web (voting-app) failures</h2> <p>The environment that you have configured has two voting-app containers running on two separate nodes. They operate behind an Interlock load balancer that distributes incoming connections across both.</p> <p>In the event that one of the web containers or nodes fails, the load balancer will start directing all incoming requests to surviving instance. Once the failed instance is back up, or a replacement is added, the load balancer will add it to the configuration and start sending a portion of the incoming requests to it.</p> <p>For highest availability you should deploy the two frontend web services (<code>frontend01</code> and <code>frontend02</code>) in different failure zones within your infrastructure. You should also consider deploying more.</p> <h2 id="redis-failures">Redis failures</h2> <p>If the a <code>redis</code> container fails, it’s partnered <code>voting-app</code> container will not function correctly. The best solution in this instance might be to configure health monitoring that verifies the ability to write to each Redis instance. If an unhealthy <code>redis</code> instance is encountered, remove the <code>voting-app</code> and <code>redis</code> combination and attempt remedial actions.</p> <h2 id="worker-vote-worker-failures">Worker (vote-worker) failures</h2> <p>If the worker container exits, or the node that is hosting it fails, the redis containers will queue votes until the worker container comes back up. This situation can prevail indefinitely, though a worker needs to come back at some point and process the votes.</p> <p>If the failure is the <code>worker01</code> container unexpectedly exiting, Docker will automatically attempt to restart it. This is because the container was started with the <code>--restart=unless-stopped</code> switch.</p> <h2 id="postgres-failures">Postgres failures</h2> <p>This application does not implement any for of HA or replication for Postgres. Therefore losing the Postgres container would cause the application to fail and potential lose or corrupt data. A better solution would be to implement some form of Postgres HA or replication.</p> <h2 id="results-app-failures">Results-app failures</h2> <p>If the results-app container exits, you will not be able to browse to the results of the poll until the container is back up and running. Results will continue to be collected and counted, you will just not be able to view results until the container is back up and running.</p> <p>The results-app container was started with the <code>--restart=unless-stopped</code> flag meaning that the Docker daemon will automatically attempt to restart it unless it was administratively stopped.</p> <h2 id="infrastructure-failures">Infrastructure failures</h2> <p>There are many ways in which the infrastructure underpinning your applications can fail. However, there are a few best practices that can be followed to help mitigate and offset these failures.</p> <p>One of these is to deploy infrastructure components over as many failure domains as possible. On a service such as AWS, this often translates into balancing infrastructure and services across multiple AWS Availability Zones (AZ) within a Region.</p> <p>To increase the availability of our Swarm cluster you could:</p> <ul> <li>Configure the Swarm manager for HA and deploy HA nodes in different AZs</li> <li>Configure the Consul discovery service for HA and deploy HA nodes in different AZs</li> <li>Deploy all scalable components of the application across multiple AZs</li> </ul> <p>This configuration is shown in the diagram below.</p> <p><img src="https://docs.docker.com/v1.11/swarm/images/infrastructure-failures.jpg" alt=""></p> <p>This will allow us to lose an entire AZ and still have our cluster and application operate.</p> <p>But it doesn’t have to stop there. Some applications can be balanced across AWS Regions. It’s even becoming possible to deploy services across cloud providers, or have balance services across public cloud providers and your on premises date centers!</p> <p>The diagram below shows parts of the application and infrastructure deployed across AWS and Microsoft Azure. But you could just as easily replace one of those cloud providers with your own on premises data center. In these scenarios, network latency and reliability is key to a smooth and workable solution.</p> <p><img src="https://docs.docker.com/v1.11/swarm/images/deployed-across.jpg" alt=""></p> <h2 id="related-information">Related information</h2> <p>The application in this example could be deployed on Docker Universal Control Plane (UCP) which is currently in Beta release. To try the application on UCP in your environment, <a href="https://www.docker.com/products/docker-universal-control-plane" target="_blank">request access to the UCP Beta release</a>. Other useful documentation:</p> <ul> <li><a href="../../plan-for-production/">Plan for Swarm in production</a></li> <li><a href="../../networking/">Swarm and container networks</a></li> <li><a href="../../multi-manager-setup/">High availability in Docker Swarm</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/swarm/swarm_at_scale/troubleshoot/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/swarm/swarm_at_scale/troubleshoot/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

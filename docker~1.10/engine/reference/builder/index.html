@@ -1,0 +1,389 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerfile Reference (Engine) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker can build images automatically by reading the instructions from a Dockerfile. A Dockerfile is a text document that contains all the commands &hellip;">
+  <meta name="keywords" content="dockerfile, reference, engine, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/engine/reference/builder/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="dockerfile-reference">Dockerfile reference</h1> <p>Docker can build images automatically by reading the instructions from a <code>Dockerfile</code>. A <code>Dockerfile</code> is a text document that contains all the commands a user could call on the command line to assemble an image. Using <code>docker build</code> users can create an automated build that executes several command-line instructions in succession.</p> <p>This page describes the commands you can use in a <code>Dockerfile</code>. When you are done reading this page, refer to the <a href="../../userguide/eng-image/dockerfile_best-practices/"><code>Dockerfile</code> Best Practices</a> for a tip-oriented guide.</p> <h2 id="usage">Usage</h2> <p>The <a href="../commandline/build/"><code>docker build</code></a> command builds an image from a <code>Dockerfile</code> and a <em>context</em>. The build’s context is the files at a specified location <code>PATH</code> or <code>URL</code>. The <code>PATH</code> is a directory on your local filesystem. The <code>URL</code> is a the location of a Git repository.</p> <p>A context is processed recursively. So, a <code>PATH</code> includes any subdirectories and the <code>URL</code> includes the repository and its submodules. A simple build command that uses the current directory as context:</p> <pre>$ docker build .
+Sending build context to Docker daemon  6.51 MB
+...
+</pre> <p>The build is run by the Docker daemon, not by the CLI. The first thing a build process does is send the entire context (recursively) to the daemon. In most cases, it’s best to start with an empty directory as context and keep your Dockerfile in that directory. Add only the files needed for building the Dockerfile.</p> <blockquote> <p><strong>Warning</strong>: Do not use your root directory, <code>/</code>, as the <code>PATH</code> as it causes the build to transfer the entire contents of your hard drive to the Docker daemon.</p> </blockquote> <p>To use a file in the build context, the <code>Dockerfile</code> refers to the file specified in an instruction, for example, a <code>COPY</code> instruction. To increase the build’s performance, exclude files and directories by adding a <code>.dockerignore</code> file to the context directory. For information about how to <a href="#dockerignore-file">create a <code>.dockerignore</code> file</a> see the documentation on this page.</p> <p>Traditionally, the <code>Dockerfile</code> is called <code>Dockerfile</code> and located in the root of the context. You use the <code>-f</code> flag with <code>docker build</code> to point to a Dockerfile anywhere in your file system.</p> <pre>$ docker build -f /path/to/a/Dockerfile .
+</pre> <p>You can specify a repository and tag at which to save the new image if the build succeeds:</p> <pre>$ docker build -t shykes/myapp .
+</pre> <p>To tag the image into multiple repositories after the build, add multiple <code>-t</code> parameters when you run the <code>build</code> command:</p> <pre>$ docker build -t shykes/myapp:1.0.2 -t shykes/myapp:latest .
+</pre> <p>The Docker daemon runs the instructions in the <code>Dockerfile</code> one-by-one, committing the result of each instruction to a new image if necessary, before finally outputting the ID of your new image. The Docker daemon will automatically clean up the context you sent.</p> <p>Note that each instruction is run independently, and causes a new image to be created - so <code>RUN cd /tmp</code> will not have any effect on the next instructions.</p> <p>Whenever possible, Docker will re-use the intermediate images (cache), to accelerate the <code>docker build</code> process significantly. This is indicated by the <code>Using cache</code> message in the console output. (For more information, see the <a href="../../userguide/eng-image/dockerfile_best-practices/#build-cache">Build cache section</a>) in the <code>Dockerfile</code> best practices guide:</p> <pre>$ docker build -t svendowideit/ambassador .
+Sending build context to Docker daemon 15.36 kB
+Step 0 : FROM alpine:3.2
+ ---&gt; 31f630c65071
+Step 1 : MAINTAINER SvenDowideit@home.org.au
+ ---&gt; Using cache
+ ---&gt; 2a1c91448f5f
+Step 2 : RUN apk update &amp;&amp;      apk add socat &amp;&amp;        rm -r /var/cache/
+ ---&gt; Using cache
+ ---&gt; 21ed6e7fbb73
+Step 3 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&amp;/' &amp;&amp; echo wait) | sh
+ ---&gt; Using cache
+ ---&gt; 7ea8aef582cc
+Successfully built 7ea8aef582cc
+</pre> <p>When you’re done with your build, you’re ready to look into <a href="../../userguide/containers/dockerrepos/#contributing-to-docker-hub"><em>Pushing a repository to its registry</em></a>.</p> <h2 id="format">Format</h2> <p>Here is the format of the <code>Dockerfile</code>:</p> <pre># Comment
+INSTRUCTION arguments
+</pre> <p>The instruction is not case-sensitive, however convention is for them to be UPPERCASE in order to distinguish them from arguments more easily.</p> <p>Docker runs the instructions in a <code>Dockerfile</code> in order. <strong>The first instruction must be `FROM`</strong> in order to specify the <a href="../glossary/#base-image"><em>Base Image</em></a> from which you are building.</p> <p>Docker will treat lines that <em>begin</em> with <code>#</code> as a comment. A <code>#</code> marker anywhere else in the line will be treated as an argument. This allows statements like:</p> <pre># Comment
+RUN echo 'we are running some # of cool things'
+</pre> <p>Here is the set of instructions you can use in a <code>Dockerfile</code> for building images.</p> <h3 id="environment-replacement">Environment replacement</h3> <p>Environment variables (declared with <a href="#env">the <code>ENV</code> statement</a>) can also be used in certain instructions as variables to be interpreted by the <code>Dockerfile</code>. Escapes are also handled for including variable-like syntax into a statement literally.</p> <p>Environment variables are notated in the <code>Dockerfile</code> either with <code>$variable_name</code> or <code>${variable_name}</code>. They are treated equivalently and the brace syntax is typically used to address issues with variable names with no whitespace, like <code>${foo}_bar</code>.</p> <p>The <code>${variable_name}</code> syntax also supports a few of the standard <code>bash</code> modifiers as specified below:</p> <ul> <li>
+<code>${variable:-word}</code> indicates that if <code>variable</code> is set then the result will be that value. If <code>variable</code> is not set then <code>word</code> will be the result.</li> <li>
+<code>${variable:+word}</code> indicates that if <code>variable</code> is set then <code>word</code> will be the result, otherwise the result is the empty string.</li> </ul> <p>In all cases, <code>word</code> can be any string, including additional environment variables.</p> <p>Escaping is possible by adding a <code>\</code> before the variable: <code>\$foo</code> or <code>\${foo}</code>, for example, will translate to <code>$foo</code> and <code>${foo}</code> literals respectively.</p> <p>Example (parsed representation is displayed after the <code>#</code>):</p> <pre>FROM busybox
+ENV foo /bar
+WORKDIR ${foo}   # WORKDIR /bar
+ADD . $foo       # ADD . /bar
+COPY \$foo /quux # COPY $foo /quux
+</pre> <p>Environment variables are supported by the following list of instructions in the <code>Dockerfile</code>:</p> <ul> <li><code>ADD</code></li> <li><code>COPY</code></li> <li><code>ENV</code></li> <li><code>EXPOSE</code></li> <li><code>LABEL</code></li> <li><code>USER</code></li> <li><code>WORKDIR</code></li> <li><code>VOLUME</code></li> <li><code>STOPSIGNAL</code></li> </ul> <p>as well as:</p> <ul> <li>
+<code>ONBUILD</code> (when combined with one of the supported instructions above)</li> </ul> <blockquote> <p><strong>Note</strong>: prior to 1.4, <code>ONBUILD</code> instructions did <strong>NOT</strong> support environment variable, even when combined with any of the instructions listed above.</p> </blockquote> <p>Environment variable substitution will use the same value for each variable throughout the entire command. In other words, in this example:</p> <pre>ENV abc=hello
+ENV abc=bye def=$abc
+ENV ghi=$abc
+</pre> <p>will result in <code>def</code> having a value of <code>hello</code>, not <code>bye</code>. However, <code>ghi</code> will have a value of <code>bye</code> because it is not part of the same command that set <code>abc</code> to <code>bye</code>.</p> <h3 id="dockerignore-file">.dockerignore file</h3> <p>Before the docker CLI sends the context to the docker daemon, it looks for a file named <code>.dockerignore</code> in the root directory of the context. If this file exists, the CLI modifies the context to exclude files and directories that match patterns in it. This helps to avoid unnecessarily sending large or sensitive files and directories to the daemon and potentially adding them to images using <code>ADD</code> or <code>COPY</code>.</p> <p>The CLI interprets the <code>.dockerignore</code> file as a newline-separated list of patterns similar to the file globs of Unix shells. For the purposes of matching, the root of the context is considered to be both the working and the root directory. For example, the patterns <code>/foo/bar</code> and <code>foo/bar</code> both exclude a file or directory named <code>bar</code> in the <code>foo</code> subdirectory of <code>PATH</code> or in the root of the git repository located at <code>URL</code>. Neither excludes anything else.</p> <p>Here is an example <code>.dockerignore</code> file:</p> <pre>    */temp*
+    */*/temp*
+    temp?
+</pre> <p>This file causes the following build behavior:</p> <table> <thead> <tr> <th>Rule</th> <th>Behavior</th> </tr> </thead> <tbody> <tr> <td><code>*/temp*</code></td> <td>Exclude files and directories whose names start with <code>temp</code> in any immediate subdirectory of the root. For example, the plain file <code>/somedir/temporary.txt</code> is excluded, as is the directory <code>/somedir/temp</code>.</td> </tr> <tr> <td><code>*/*/temp*</code></td> <td>Exclude files and directories starting with <code>temp</code> from any subdirectory that is two levels below the root. For example, <code>/somedir/subdir/temporary.txt</code> is excluded.</td> </tr> <tr> <td><code>temp?</code></td> <td>Exclude files and directories in the root directory whose names are a one-character extension of <code>temp</code>. For example, <code>/tempa</code> and <code>/tempb</code> are excluded.</td> </tr> </tbody> </table> <p>Matching is done using Go’s <a href="http://golang.org/pkg/path/filepath#Match" target="_blank">filepath.Match</a> rules. A preprocessing step removes leading and trailing whitespace and eliminates <code>.</code> and <code>..</code> elements using Go’s <a href="http://golang.org/pkg/path/filepath/#Clean" target="_blank">filepath.Clean</a>. Lines that are blank after preprocessing are ignored.</p> <p>Beyond Go’s filepath.Match rules, Docker also supports a special wildcard string <code>**</code> that matches any number of directories (including zero). For example, <code>**/*.go</code> will exclude all files that end with <code>.go</code> that are found in all directories, including the root of the build context.</p> <p>Lines starting with <code>!</code> (exclamation mark) can be used to make exceptions to exclusions. The following is an example <code>.dockerignore</code> file that uses this mechanism:</p> <pre>    *.md
+    !README.md
+</pre> <p>All markdown files <em>except</em> <code>README.md</code> are excluded from the context.</p> <p>The placement of <code>!</code> exception rules influences the behavior: the last line of the <code>.dockerignore</code> that matches a particular file determines whether it is included or excluded. Consider the following example:</p> <pre>    *.md
+    !README*.md
+    README-secret.md
+</pre> <p>No markdown files are included in the context except README files other than <code>README-secret.md</code>.</p> <p>Now consider this example:</p> <pre>    *.md
+    README-secret.md
+    !README*.md
+</pre> <p>All of the README files are included. The middle line has no effect because <code>!README*.md</code> matches <code>README-secret.md</code> and comes last.</p> <p>You can even use the <code>.dockerignore</code> file to exclude the <code>Dockerfile</code> and <code>.dockerignore</code> files. These files are still sent to the daemon because it needs them to do its job. But the <code>ADD</code> and <code>COPY</code> commands do not copy them to the image.</p> <p>Finally, you may want to specify which files to include in the context, rather than which to exclude. To achieve this, specify <code>*</code> as the first pattern, followed by one or more <code>!</code> exception patterns.</p> <p><strong>Note</strong>: For historical reasons, the pattern <code>.</code> is ignored.</p> <h2 id="from">FROM</h2> <pre>FROM &lt;image&gt;
+</pre> <p>Or</p> <pre>FROM &lt;image&gt;:&lt;tag&gt;
+</pre> <p>Or</p> <pre>FROM &lt;image&gt;@&lt;digest&gt;
+</pre> <p>The <code>FROM</code> instruction sets the <a href="../glossary/#base-image"><em>Base Image</em></a> for subsequent instructions. As such, a valid <code>Dockerfile</code> must have <code>FROM</code> as its first instruction. The image can be any valid image – it is especially easy to start by <strong>pulling an image</strong> from the <a href="../../userguide/containers/dockerrepos/"><em>Public Repositories</em></a>.</p> <ul> <li><p><code>FROM</code> must be the first non-comment instruction in the <code>Dockerfile</code>.</p></li> <li><p><code>FROM</code> can appear multiple times within a single <code>Dockerfile</code> in order to create multiple images. Simply make a note of the last image ID output by the commit before each new <code>FROM</code> command.</p></li> <li><p>The <code>tag</code> or <code>digest</code> values are optional. If you omit either of them, the builder assumes a <code>latest</code> by default. The builder returns an error if it cannot match the <code>tag</code> value.</p></li> </ul> <h2 id="maintainer">MAINTAINER</h2> <pre>MAINTAINER &lt;name&gt;
+</pre> <p>The <code>MAINTAINER</code> instruction allows you to set the <em>Author</em> field of the generated images.</p> <h2 id="run">RUN</h2> <p>RUN has 2 forms:</p> <ul> <li>
+<code>RUN &lt;command&gt;</code> (<em>shell</em> form, the command is run in a shell - <code>/bin/sh -c</code>)</li> <li>
+<code>RUN ["executable", "param1", "param2"]</code> (<em>exec</em> form)</li> </ul> <p>The <code>RUN</code> instruction will execute any commands in a new layer on top of the current image and commit the results. The resulting committed image will be used for the next step in the <code>Dockerfile</code>.</p> <p>Layering <code>RUN</code> instructions and generating commits conforms to the core concepts of Docker where commits are cheap and containers can be created from any point in an image’s history, much like source control.</p> <p>The <em>exec</em> form makes it possible to avoid shell string munging, and to <code>RUN</code> commands using a base image that does not contain <code>/bin/sh</code>.</p> <p>In the <em>shell</em> form you can use a <code>\</code> (backslash) to continue a single RUN instruction onto the next line. For example, consider these two lines:</p> <pre>RUN /bin/bash -c 'source $HOME/.bashrc ;\
+echo $HOME'
+</pre> <p>Together they are equivalent to this single line:</p> <pre>RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
+</pre> <blockquote> <p><strong>Note</strong>: To use a different shell, other than ‘/bin/sh’, use the <em>exec</em> form passing in the desired shell. For example, <code>RUN ["/bin/bash", "-c", "echo hello"]</code></p> <p><strong>Note</strong>: The <em>exec</em> form is parsed as a JSON array, which means that you must use double-quotes (“) around words not single-quotes (‘).</p> <p><strong>Note</strong>: Unlike the <em>shell</em> form, the <em>exec</em> form does not invoke a command shell. This means that normal shell processing does not happen. For example, <code>RUN [ "echo", "$HOME" ]</code> will not do variable substitution on <code>$HOME</code>. If you want shell processing then either use the <em>shell</em> form or execute a shell directly, for example: <code>RUN [ "sh", "-c", "echo", "$HOME" ]</code>.</p> </blockquote> <p>The cache for <code>RUN</code> instructions isn’t invalidated automatically during the next build. The cache for an instruction like <code>RUN apt-get dist-upgrade -y</code> will be reused during the next build. The cache for <code>RUN</code> instructions can be invalidated by using the <code>--no-cache</code> flag, for example <code>docker build --no-cache</code>.</p> <p>See the <a href="../../userguide/eng-image/dockerfile_best-practices/#build-cache"><code>Dockerfile</code> Best Practices guide</a> for more information.</p> <p>The cache for <code>RUN</code> instructions can be invalidated by <code>ADD</code> instructions. See <a href="#add">below</a> for details.</p> <h3 id="known-issues-run">Known issues (RUN)</h3> <ul> <li>
+<a href="https://github.com/docker/docker/issues/783" target="_blank">Issue 783</a> is about file permissions problems that can occur when using the AUFS file system. You might notice it during an attempt to <code>rm</code> a file, for example.</li> </ul> <p>For systems that have recent aufs version (i.e., <code>dirperm1</code> mount option can be set), docker will attempt to fix the issue automatically by mounting the layers with <code>dirperm1</code> option. More details on <code>dirperm1</code> option can be found at <a href="http://aufs.sourceforge.net/aufs3/man.html" target="_blank"><code>aufs</code> man page</a></p> <p>If your system doesn’t have support for <code>dirperm1</code>, the issue describes a workaround.</p> <h2 id="cmd">CMD</h2> <p>The <code>CMD</code> instruction has three forms:</p> <ul> <li>
+<code>CMD ["executable","param1","param2"]</code> (<em>exec</em> form, this is the preferred form)</li> <li>
+<code>CMD ["param1","param2"]</code> (as <em>default parameters to ENTRYPOINT</em>)</li> <li>
+<code>CMD command param1 param2</code> (<em>shell</em> form)</li> </ul> <p>There can only be one <code>CMD</code> instruction in a <code>Dockerfile</code>. If you list more than one <code>CMD</code> then only the last <code>CMD</code> will take effect.</p> <p><strong>The main purpose of a <code>CMD</code> is to provide defaults for an executing container.</strong> These defaults can include an executable, or they can omit the executable, in which case you must specify an <code>ENTRYPOINT</code> instruction as well.</p> <blockquote> <p><strong>Note</strong>: If <code>CMD</code> is used to provide default arguments for the <code>ENTRYPOINT</code> instruction, both the <code>CMD</code> and <code>ENTRYPOINT</code> instructions should be specified with the JSON array format.</p> <p><strong>Note</strong>: The <em>exec</em> form is parsed as a JSON array, which means that you must use double-quotes (“) around words not single-quotes (‘).</p> <p><strong>Note</strong>: Unlike the <em>shell</em> form, the <em>exec</em> form does not invoke a command shell. This means that normal shell processing does not happen. For example, <code>CMD [ "echo", "$HOME" ]</code> will not do variable substitution on <code>$HOME</code>. If you want shell processing then either use the <em>shell</em> form or execute a shell directly, for example: <code>CMD [ "sh", "-c", "echo", "$HOME" ]</code>.</p> </blockquote> <p>When used in the shell or exec formats, the <code>CMD</code> instruction sets the command to be executed when running the image.</p> <p>If you use the <em>shell</em> form of the <code>CMD</code>, then the <code>&lt;command&gt;</code> will execute in <code>/bin/sh -c</code>:</p> <pre>FROM ubuntu
+CMD echo "This is a test." | wc -
+</pre> <p>If you want to <strong>run your</strong> <code>&lt;command&gt;</code> <strong>without a shell</strong> then you must express the command as a JSON array and give the full path to the executable. <strong>This array form is the preferred format of <code>CMD</code>.</strong> Any additional parameters must be individually expressed as strings in the array:</p> <pre>FROM ubuntu
+CMD ["/usr/bin/wc","--help"]
+</pre> <p>If you would like your container to run the same executable every time, then you should consider using <code>ENTRYPOINT</code> in combination with <code>CMD</code>. See <a href="#entrypoint"><em>ENTRYPOINT</em></a>.</p> <p>If the user specifies arguments to <code>docker run</code> then they will override the default specified in <code>CMD</code>.</p> <blockquote> <p><strong>Note</strong>: don’t confuse <code>RUN</code> with <code>CMD</code>. <code>RUN</code> actually runs a command and commits the result; <code>CMD</code> does not execute anything at build time, but specifies the intended command for the image.</p> </blockquote> <h2 id="label">LABEL</h2> <pre>LABEL &lt;key&gt;=&lt;value&gt; &lt;key&gt;=&lt;value&gt; &lt;key&gt;=&lt;value&gt; ...
+</pre> <p>The <code>LABEL</code> instruction adds metadata to an image. A <code>LABEL</code> is a key-value pair. To include spaces within a <code>LABEL</code> value, use quotes and backslashes as you would in command-line parsing. A few usage examples:</p> <pre>LABEL "com.example.vendor"="ACME Incorporated"
+LABEL com.example.label-with-value="foo"
+LABEL version="1.0"
+LABEL description="This text illustrates \
+that label-values can span multiple lines."
+</pre> <p>An image can have more than one label. To specify multiple labels, Docker recommends combining labels into a single <code>LABEL</code> instruction where possible. Each <code>LABEL</code> instruction produces a new layer which can result in an inefficient image if you use many labels. This example results in a single image layer.</p> <pre>LABEL multi.label1="value1" multi.label2="value2" other="value3"
+</pre> <p>The above can also be written as:</p> <pre>LABEL multi.label1="value1" \
+      multi.label2="value2" \
+      other="value3"
+</pre> <p>Labels are additive including <code>LABEL</code>s in <code>FROM</code> images. If Docker encounters a label/key that already exists, the new value overrides any previous labels with identical keys.</p> <p>To view an image’s labels, use the <code>docker inspect</code> command.</p> <pre>"Labels": {
+    "com.example.vendor": "ACME Incorporated"
+    "com.example.label-with-value": "foo",
+    "version": "1.0",
+    "description": "This text illustrates that label-values can span multiple lines.",
+    "multi.label1": "value1",
+    "multi.label2": "value2",
+    "other": "value3"
+},
+</pre> <h2 id="expose">EXPOSE</h2> <pre>EXPOSE &lt;port&gt; [&lt;port&gt;...]
+</pre> <p>The <code>EXPOSE</code> instruction informs Docker that the container listens on the specified network ports at runtime. <code>EXPOSE</code> does not make the ports of the container accessible to the host. To do that, you must use either the <code>-p</code> flag to publish a range of ports or the <code>-P</code> flag to publish all of the exposed ports. You can expose one port number and publish it externally under another number.</p> <p>To set up port redirection on the host system, see <a href="../run/#expose-incoming-ports">using the -P flag</a>. The Docker network feature supports creating networks without the need to expose ports within the network, for detailed information see the <a href="../../userguide/networking/">overview of this feature</a>).</p> <h2 id="env">ENV</h2> <pre>ENV &lt;key&gt; &lt;value&gt;
+ENV &lt;key&gt;=&lt;value&gt; ...
+</pre> <p>The <code>ENV</code> instruction sets the environment variable <code>&lt;key&gt;</code> to the value <code>&lt;value&gt;</code>. This value will be in the environment of all “descendent” <code>Dockerfile</code> commands and can be <a href="#environment-replacement">replaced inline</a> in many as well.</p> <p>The <code>ENV</code> instruction has two forms. The first form, <code>ENV &lt;key&gt; &lt;value&gt;</code>, will set a single variable to a value. The entire string after the first space will be treated as the <code>&lt;value&gt;</code> - including characters such as spaces and quotes.</p> <p>The second form, <code>ENV &lt;key&gt;=&lt;value&gt; ...</code>, allows for multiple variables to be set at one time. Notice that the second form uses the equals sign (=) in the syntax, while the first form does not. Like command line parsing, quotes and backslashes can be used to include spaces within values.</p> <p>For example:</p> <pre>ENV myName="John Doe" myDog=Rex\ The\ Dog \
+    myCat=fluffy
+</pre> <p>and</p> <pre>ENV myName John Doe
+ENV myDog Rex The Dog
+ENV myCat fluffy
+</pre> <p>will yield the same net results in the final container, but the first form is preferred because it produces a single cache layer.</p> <p>The environment variables set using <code>ENV</code> will persist when a container is run from the resulting image. You can view the values using <code>docker inspect</code>, and change them using <code>docker run --env &lt;key&gt;=&lt;value&gt;</code>.</p> <blockquote> <p><strong>Note</strong>: Environment persistence can cause unexpected side effects. For example, setting <code>ENV DEBIAN_FRONTEND noninteractive</code> may confuse apt-get users on a Debian-based image. To set a value for a single command, use <code>RUN &lt;key&gt;=&lt;value&gt; &lt;command&gt;</code>.</p> </blockquote> <h2 id="add">ADD</h2> <p>ADD has two forms:</p> <ul> <li><code>ADD &lt;src&gt;... &lt;dest&gt;</code></li> <li>
+<code>ADD ["&lt;src&gt;",... "&lt;dest&gt;"]</code> (this form is required for paths containing whitespace)</li> </ul> <p>The <code>ADD</code> instruction copies new files, directories or remote file URLs from <code>&lt;src&gt;</code> and adds them to the filesystem of the container at the path <code>&lt;dest&gt;</code>.</p> <p>Multiple <code>&lt;src&gt;</code> resource may be specified but if they are files or directories then they must be relative to the source directory that is being built (the context of the build).</p> <p>Each <code>&lt;src&gt;</code> may contain wildcards and matching will be done using Go’s <a href="http://golang.org/pkg/path/filepath#Match" target="_blank">filepath.Match</a> rules. For example:</p> <pre>ADD hom* /mydir/        # adds all files starting with "hom"
+ADD hom?.txt /mydir/    # ? is replaced with any single character, e.g., "home.txt"
+</pre> <p>The <code>&lt;dest&gt;</code> is an absolute path, or a path relative to <code>WORKDIR</code>, into which the source will be copied inside the destination container.</p> <pre>ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
+ADD test /absoluteDir/         # adds "test" to /absoluteDir/
+</pre> <p>All new files and directories are created with a UID and GID of 0.</p> <p>In the case where <code>&lt;src&gt;</code> is a remote file URL, the destination will have permissions of 600. If the remote file being retrieved has an HTTP <code>Last-Modified</code> header, the timestamp from that header will be used to set the <code>mtime</code> on the destination file. However, like any other file processed during an <code>ADD</code>, <code>mtime</code> will not be included in the determination of whether or not the file has changed and the cache should be updated.</p> <blockquote> <p><strong>Note</strong>: If you build by passing a <code>Dockerfile</code> through STDIN (<code>docker
+build - &lt; somefile</code>), there is no build context, so the <code>Dockerfile</code> can only contain a URL based <code>ADD</code> instruction. You can also pass a compressed archive through STDIN: (<code>docker build - &lt; archive.tar.gz</code>), the <code>Dockerfile</code> at the root of the archive and the rest of the archive will get used at the context of the build.</p> <p><strong>Note</strong>: If your URL files are protected using authentication, you will need to use <code>RUN wget</code>, <code>RUN curl</code> or use another tool from within the container as the <code>ADD</code> instruction does not support authentication.</p> <p><strong>Note</strong>: The first encountered <code>ADD</code> instruction will invalidate the cache for all following instructions from the Dockerfile if the contents of <code>&lt;src&gt;</code> have changed. This includes invalidating the cache for <code>RUN</code> instructions. See the <a href="../../userguide/eng-image/dockerfile_best-practices/#build-cache"><code>Dockerfile</code> Best Practices guide</a> for more information.</p> </blockquote> <p><code>ADD</code> obeys the following rules:</p> <ul> <li><p>The <code>&lt;src&gt;</code> path must be inside the <em>context</em> of the build; you cannot <code>ADD ../something /something</code>, because the first step of a <code>docker build</code> is to send the context directory (and subdirectories) to the docker daemon.</p></li> <li><p>If <code>&lt;src&gt;</code> is a URL and <code>&lt;dest&gt;</code> does not end with a trailing slash, then a file is downloaded from the URL and copied to <code>&lt;dest&gt;</code>.</p></li> <li><p>If <code>&lt;src&gt;</code> is a URL and <code>&lt;dest&gt;</code> does end with a trailing slash, then the filename is inferred from the URL and the file is downloaded to <code>&lt;dest&gt;/&lt;filename&gt;</code>. For instance, <code>ADD http://example.com/foobar /</code> would create the file <code>/foobar</code>. The URL must have a nontrivial path so that an appropriate filename can be discovered in this case (<code>http://example.com</code> will not work).</p></li> <li><p>If <code>&lt;src&gt;</code> is a directory, the entire contents of the directory are copied, including filesystem metadata.</p></li> </ul> <blockquote> <p><strong>Note</strong>: The directory itself is not copied, just its contents.</p> </blockquote> <ul> <li>
+<p>If <code>&lt;src&gt;</code> is a <em>local</em> tar archive in a recognized compression format (identity, gzip, bzip2 or xz) then it is unpacked as a directory. Resources from <em>remote</em> URLs are <strong>not</strong> decompressed. When a directory is copied or unpacked, it has the same behavior as <code>tar -x</code>: the result is the union of:</p> <ol> <li>Whatever existed at the destination path and</li> <li>The contents of the source tree, with conflicts resolved in favor of “2.” on a file-by-file basis.</li> </ol>
+</li> </ul> <blockquote> <p><strong>Note</strong>: Whether a file is identified as a recognized compression format or not is done soley based on the contents of the file, not the name of the file. For example, if an empty file happens to end with <code>.tar.gz</code> this will not be recognized as a compressed file and <strong>will not</strong> generate any kind of decompression error message, rather the file will simply be copied to the destination.</p> </blockquote> <ul> <li><p>If <code>&lt;src&gt;</code> is any other kind of file, it is copied individually along with its metadata. In this case, if <code>&lt;dest&gt;</code> ends with a trailing slash <code>/</code>, it will be considered a directory and the contents of <code>&lt;src&gt;</code> will be written at <code>&lt;dest&gt;/base(&lt;src&gt;)</code>.</p></li> <li><p>If multiple <code>&lt;src&gt;</code> resources are specified, either directly or due to the use of a wildcard, then <code>&lt;dest&gt;</code> must be a directory, and it must end with a slash <code>/</code>.</p></li> <li><p>If <code>&lt;dest&gt;</code> does not end with a trailing slash, it will be considered a regular file and the contents of <code>&lt;src&gt;</code> will be written at <code>&lt;dest&gt;</code>.</p></li> <li><p>If <code>&lt;dest&gt;</code> doesn’t exist, it is created along with all missing directories in its path.</p></li> </ul> <h2 id="copy">COPY</h2> <p>COPY has two forms:</p> <ul> <li><code>COPY &lt;src&gt;... &lt;dest&gt;</code></li> <li>
+<code>COPY ["&lt;src&gt;",... "&lt;dest&gt;"]</code> (this form is required for paths containing whitespace)</li> </ul> <p>The <code>COPY</code> instruction copies new files or directories from <code>&lt;src&gt;</code> and adds them to the filesystem of the container at the path <code>&lt;dest&gt;</code>.</p> <p>Multiple <code>&lt;src&gt;</code> resource may be specified but they must be relative to the source directory that is being built (the context of the build).</p> <p>Each <code>&lt;src&gt;</code> may contain wildcards and matching will be done using Go’s <a href="http://golang.org/pkg/path/filepath#Match" target="_blank">filepath.Match</a> rules. For example:</p> <pre>COPY hom* /mydir/        # adds all files starting with "hom"
+COPY hom?.txt /mydir/    # ? is replaced with any single character, e.g., "home.txt"
+</pre> <p>The <code>&lt;dest&gt;</code> is an absolute path, or a path relative to <code>WORKDIR</code>, into which the source will be copied inside the destination container.</p> <pre>COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
+COPY test /absoluteDir/  # adds "test" to /absoluteDir/
+</pre> <p>All new files and directories are created with a UID and GID of 0.</p> <blockquote> <p><strong>Note</strong>: If you build using STDIN (<code>docker build - &lt; somefile</code>), there is no build context, so <code>COPY</code> can’t be used.</p> </blockquote> <p><code>COPY</code> obeys the following rules:</p> <ul> <li><p>The <code>&lt;src&gt;</code> path must be inside the <em>context</em> of the build; you cannot <code>COPY ../something /something</code>, because the first step of a <code>docker build</code> is to send the context directory (and subdirectories) to the docker daemon.</p></li> <li><p>If <code>&lt;src&gt;</code> is a directory, the entire contents of the directory are copied, including filesystem metadata.</p></li> </ul> <blockquote> <p><strong>Note</strong>: The directory itself is not copied, just its contents.</p> </blockquote> <ul> <li><p>If <code>&lt;src&gt;</code> is any other kind of file, it is copied individually along with its metadata. In this case, if <code>&lt;dest&gt;</code> ends with a trailing slash <code>/</code>, it will be considered a directory and the contents of <code>&lt;src&gt;</code> will be written at <code>&lt;dest&gt;/base(&lt;src&gt;)</code>.</p></li> <li><p>If multiple <code>&lt;src&gt;</code> resources are specified, either directly or due to the use of a wildcard, then <code>&lt;dest&gt;</code> must be a directory, and it must end with a slash <code>/</code>.</p></li> <li><p>If <code>&lt;dest&gt;</code> does not end with a trailing slash, it will be considered a regular file and the contents of <code>&lt;src&gt;</code> will be written at <code>&lt;dest&gt;</code>.</p></li> <li><p>If <code>&lt;dest&gt;</code> doesn’t exist, it is created along with all missing directories in its path.</p></li> </ul> <h2 id="entrypoint">ENTRYPOINT</h2> <p>ENTRYPOINT has two forms:</p> <ul> <li>
+<code>ENTRYPOINT ["executable", "param1", "param2"]</code> (<em>exec</em> form, preferred)</li> <li>
+<code>ENTRYPOINT command param1 param2</code> (<em>shell</em> form)</li> </ul> <p>An <code>ENTRYPOINT</code> allows you to configure a container that will run as an executable.</p> <p>For example, the following will start nginx with its default content, listening on port 80:</p> <pre>docker run -i -t --rm -p 80:80 nginx
+</pre> <p>Command line arguments to <code>docker run &lt;image&gt;</code> will be appended after all elements in an <em>exec</em> form <code>ENTRYPOINT</code>, and will override all elements specified using <code>CMD</code>. This allows arguments to be passed to the entry point, i.e., <code>docker run &lt;image&gt; -d</code> will pass the <code>-d</code> argument to the entry point. You can override the <code>ENTRYPOINT</code> instruction using the <code>docker run --entrypoint</code> flag.</p> <p>The <em>shell</em> form prevents any <code>CMD</code> or <code>run</code> command line arguments from being used, but has the disadvantage that your <code>ENTRYPOINT</code> will be started as a subcommand of <code>/bin/sh -c</code>, which does not pass signals. This means that the executable will not be the container’s <code>PID 1</code> - and will <em>not</em> receive Unix signals - so your executable will not receive a <code>SIGTERM</code> from <code>docker stop &lt;container&gt;</code>.</p> <p>Only the last <code>ENTRYPOINT</code> instruction in the <code>Dockerfile</code> will have an effect.</p> <h3 id="exec-form-entrypoint-example">Exec form ENTRYPOINT example</h3> <p>You can use the <em>exec</em> form of <code>ENTRYPOINT</code> to set fairly stable default commands and arguments and then use either form of <code>CMD</code> to set additional defaults that are more likely to be changed.</p> <pre>FROM ubuntu
+ENTRYPOINT ["top", "-b"]
+CMD ["-c"]
+</pre> <p>When you run the container, you can see that <code>top</code> is the only process:</p> <pre>$ docker run -it --rm --name test  top -H
+top - 08:25:00 up  7:27,  0 users,  load average: 0.00, 0.01, 0.05
+Threads:   1 total,   1 running,   0 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.1 us,  0.1 sy,  0.0 ni, 99.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem:   2056668 total,  1616832 used,   439836 free,    99352 buffers
+KiB Swap:  1441840 total,        0 used,  1441840 free.  1324440 cached Mem
+
+  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND
+    1 root      20   0   19744   2336   2080 R  0.0  0.1   0:00.04 top
+</pre> <p>To examine the result further, you can use <code>docker exec</code>:</p> <pre>$ docker exec -it test ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  2.6  0.1  19752  2352 ?        Ss+  08:24   0:00 top -b -H
+root         7  0.0  0.1  15572  2164 ?        R+   08:25   0:00 ps aux
+</pre> <p>And you can gracefully request <code>top</code> to shut down using <code>docker stop test</code>.</p> <p>The following <code>Dockerfile</code> shows using the <code>ENTRYPOINT</code> to run Apache in the foreground (i.e., as <code>PID 1</code>):</p> <pre>FROM debian:stable
+RUN apt-get update &amp;&amp; apt-get install -y --force-yes apache2
+EXPOSE 80 443
+VOLUME ["/var/www", "/var/log/apache2", "/etc/apache2"]
+ENTRYPOINT ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
+</pre> <p>If you need to write a starter script for a single executable, you can ensure that the final executable receives the Unix signals by using <code>exec</code> and <code>gosu</code> commands:</p> <pre>#!/bin/bash
+set -e
+
+if [ "$1" = 'postgres' ]; then
+    chown -R postgres "$PGDATA"
+
+    if [ -z "$(ls -A "$PGDATA")" ]; then
+        gosu postgres initdb
+    fi
+
+    exec gosu postgres "$@"
+fi
+
+exec "$@"
+</pre> <p>Lastly, if you need to do some extra cleanup (or communicate with other containers) on shutdown, or are co-ordinating more than one executable, you may need to ensure that the <code>ENTRYPOINT</code> script receives the Unix signals, passes them on, and then does some more work:</p> <pre>#!/bin/sh
+# Note: I've written this using sh so it works in the busybox container too
+
+# USE the trap if you need to also do manual cleanup after the service is stopped,
+#     or need to start multiple services in the one container
+trap "echo TRAPed signal" HUP INT QUIT KILL TERM
+
+# start service in background here
+/usr/sbin/apachectl start
+
+echo "[hit enter key to exit] or run 'docker stop &lt;container&gt;'"
+read
+
+# stop service and clean up here
+echo "stopping apache"
+/usr/sbin/apachectl stop
+
+echo "exited $0"
+</pre> <p>If you run this image with <code>docker run -it --rm -p 80:80 --name test apache</code>, you can then examine the container’s processes with <code>docker exec</code>, or <code>docker top</code>, and then ask the script to stop Apache:</p> <pre>$ docker exec -it test ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.1  0.0   4448   692 ?        Ss+  00:42   0:00 /bin/sh /run.sh 123 cmd cmd2
+root        19  0.0  0.2  71304  4440 ?        Ss   00:42   0:00 /usr/sbin/apache2 -k start
+www-data    20  0.2  0.2 360468  6004 ?        Sl   00:42   0:00 /usr/sbin/apache2 -k start
+www-data    21  0.2  0.2 360468  6000 ?        Sl   00:42   0:00 /usr/sbin/apache2 -k start
+root        81  0.0  0.1  15572  2140 ?        R+   00:44   0:00 ps aux
+$ docker top test
+PID                 USER                COMMAND
+10035               root                {run.sh} /bin/sh /run.sh 123 cmd cmd2
+10054               root                /usr/sbin/apache2 -k start
+10055               33                  /usr/sbin/apache2 -k start
+10056               33                  /usr/sbin/apache2 -k start
+$ /usr/bin/time docker stop test
+test
+real	0m 0.27s
+user	0m 0.03s
+sys	0m 0.03s
+</pre> <blockquote> <p><strong>Note:</strong> you can over ride the <code>ENTRYPOINT</code> setting using <code>--entrypoint</code>, but this can only set the binary to <em>exec</em> (no <code>sh -c</code> will be used).</p> <p><strong>Note</strong>: The <em>exec</em> form is parsed as a JSON array, which means that you must use double-quotes (“) around words not single-quotes (‘).</p> <p><strong>Note</strong>: Unlike the <em>shell</em> form, the <em>exec</em> form does not invoke a command shell. This means that normal shell processing does not happen. For example, <code>ENTRYPOINT [ "echo", "$HOME" ]</code> will not do variable substitution on <code>$HOME</code>. If you want shell processing then either use the <em>shell</em> form or execute a shell directly, for example: <code>ENTRYPOINT [ "sh", "-c", "echo", "$HOME" ]</code>. Variables that are defined in the <code>Dockerfile</code>using <code>ENV</code>, will be substituted by the <code>Dockerfile</code> parser.</p> </blockquote> <h3 id="shell-form-entrypoint-example">Shell form ENTRYPOINT example</h3> <p>You can specify a plain string for the <code>ENTRYPOINT</code> and it will execute in <code>/bin/sh -c</code>. This form will use shell processing to substitute shell environment variables, and will ignore any <code>CMD</code> or <code>docker run</code> command line arguments. To ensure that <code>docker stop</code> will signal any long running <code>ENTRYPOINT</code> executable correctly, you need to remember to start it with <code>exec</code>:</p> <pre>FROM ubuntu
+ENTRYPOINT exec top -b
+</pre> <p>When you run this image, you’ll see the single <code>PID 1</code> process:</p> <pre>$ docker run -it --rm --name test top
+Mem: 1704520K used, 352148K free, 0K shrd, 0K buff, 140368121167873K cached
+CPU:   5% usr   0% sys   0% nic  94% idle   0% io   0% irq   0% sirq
+Load average: 0.08 0.03 0.05 2/98 6
+  PID  PPID USER     STAT   VSZ %VSZ %CPU COMMAND
+    1     0 root     R     3164   0%   0% top -b
+</pre> <p>Which will exit cleanly on <code>docker stop</code>:</p> <pre>$ /usr/bin/time docker stop test
+test
+real    0m 0.20s
+user    0m 0.02s
+sys 0m 0.04s
+</pre> <p>If you forget to add <code>exec</code> to the beginning of your <code>ENTRYPOINT</code>:</p> <pre>FROM ubuntu
+ENTRYPOINT top -b
+CMD --ignored-param1
+</pre> <p>You can then run it (giving it a name for the next step):</p> <pre>$ docker run -it --name test top --ignored-param2
+Mem: 1704184K used, 352484K free, 0K shrd, 0K buff, 140621524238337K cached
+CPU:   9% usr   2% sys   0% nic  88% idle   0% io   0% irq   0% sirq
+Load average: 0.01 0.02 0.05 2/101 7
+  PID  PPID USER     STAT   VSZ %VSZ %CPU COMMAND
+    1     0 root     S     3168   0%   0% /bin/sh -c top -b cmd cmd2
+    7     1 root     R     3164   0%   0% top -b
+</pre> <p>You can see from the output of <code>top</code> that the specified <code>ENTRYPOINT</code> is not <code>PID 1</code>.</p> <p>If you then run <code>docker stop test</code>, the container will not exit cleanly - the <code>stop</code> command will be forced to send a <code>SIGKILL</code> after the timeout:</p> <pre>$ docker exec -it test ps aux
+PID   USER     COMMAND
+    1 root     /bin/sh -c top -b cmd cmd2
+    7 root     top -b
+    8 root     ps aux
+$ /usr/bin/time docker stop test
+test
+real    0m 10.19s
+user    0m 0.04s
+sys 0m 0.03s
+</pre> <h3 id="understand-how-cmd-and-entrypoint-interact">Understand how CMD and ENTRYPOINT interact</h3> <p>Both <code>CMD</code> and <code>ENTRYPOINT</code> instructions define what command gets executed when running a container. There are few rules that describe their co-operation.</p> <ol> <li><p>Dockerfile should specify at least one of <code>CMD</code> or <code>ENTRYPOINT</code> commands.</p></li> <li><p><code>ENTRYPOINT</code> should be defined when using the container as an executable.</p></li> <li><p><code>CMD</code> should be used as a way of defining default arguments for an <code>ENTRYPOINT</code> command or for executing an ad-hoc command in a container.</p></li> <li><p><code>CMD</code> will be overridden when running the container with alternative arguments.</p></li> </ol> <p>The table below shows what command is executed for different <code>ENTRYPOINT</code> / <code>CMD</code> combinations:</p> <table> <thead> <tr> <th></th> <th>No ENTRYPOINT</th> <th>ENTRYPOINT exec_entry p1_entry</th> <th>ENTRYPOINT [“exec_entry”, “p1_entry”]</th> </tr> </thead> <tbody> <tr> <td><strong>No CMD</strong></td> <td><em>error, not allowed</em></td> <td>/bin/sh -c exec_entry p1_entry</td> <td>exec_entry p1_entry</td> </tr> <tr> <td><strong>CMD [“exec_cmd”, “p1_cmd”]</strong></td> <td>exec_cmd p1_cmd</td> <td>/bin/sh -c exec_entry p1_entry exec_cmd p1_cmd</td> <td>exec_entry p1_entry exec_cmd p1_cmd</td> </tr> <tr> <td><strong>CMD [“p1_cmd”, “p2_cmd”]</strong></td> <td>p1_cmd p2_cmd</td> <td>/bin/sh -c exec_entry p1_entry p1_cmd p2_cmd</td> <td>exec_entry p1_entry p1_cmd p2_cmd</td> </tr> <tr> <td><strong>CMD exec_cmd p1_cmd</strong></td> <td>/bin/sh -c exec_cmd p1_cmd</td> <td>/bin/sh -c exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd</td> <td>exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd</td> </tr> </tbody> </table> <h2 id="volume">VOLUME</h2> <pre>VOLUME ["/data"]
+</pre> <p>The <code>VOLUME</code> instruction creates a mount point with the specified name and marks it as holding externally mounted volumes from native host or other containers. The value can be a JSON array, <code>VOLUME ["/var/log/"]</code>, or a plain string with multiple arguments, such as <code>VOLUME /var/log</code> or <code>VOLUME /var/log
+/var/db</code>. For more information/examples and mounting instructions via the Docker client, refer to <a href="../../userguide/containers/dockervolumes/#mount-a-host-directory-as-a-data-volume"><em>Share Directories via Volumes</em></a> documentation.</p> <p>The <code>docker run</code> command initializes the newly created volume with any data that exists at the specified location within the base image. For example, consider the following Dockerfile snippet:</p> <pre>FROM ubuntu
+RUN mkdir /myvol
+RUN echo "hello world" &gt; /myvol/greeting
+VOLUME /myvol
+</pre> <p>This Dockerfile results in an image that causes <code>docker run</code>, to create a new mount point at <code>/myvol</code> and copy the <code>greeting</code> file into the newly created volume.</p> <blockquote> <p><strong>Note</strong>: If any build steps change the data within the volume after it has been declared, those changes will be discarded.</p> <p><strong>Note</strong>: The list is parsed as a JSON array, which means that you must use double-quotes (“) around words not single-quotes (‘).</p> </blockquote> <h2 id="user">USER</h2> <pre>USER daemon
+</pre> <p>The <code>USER</code> instruction sets the user name or UID to use when running the image and for any <code>RUN</code>, <code>CMD</code> and <code>ENTRYPOINT</code> instructions that follow it in the <code>Dockerfile</code>.</p> <h2 id="workdir">WORKDIR</h2> <pre>WORKDIR /path/to/workdir
+</pre> <p>The <code>WORKDIR</code> instruction sets the working directory for any <code>RUN</code>, <code>CMD</code>, <code>ENTRYPOINT</code>, <code>COPY</code> and <code>ADD</code> instructions that follow it in the <code>Dockerfile</code>.</p> <p>It can be used multiple times in the one <code>Dockerfile</code>. If a relative path is provided, it will be relative to the path of the previous <code>WORKDIR</code> instruction. For example:</p> <pre>WORKDIR /a
+WORKDIR b
+WORKDIR c
+RUN pwd
+</pre> <p>The output of the final <code>pwd</code> command in this <code>Dockerfile</code> would be <code>/a/b/c</code>.</p> <p>The <code>WORKDIR</code> instruction can resolve environment variables previously set using <code>ENV</code>. You can only use environment variables explicitly set in the <code>Dockerfile</code>. For example:</p> <pre>ENV DIRPATH /path
+WORKDIR $DIRPATH/$DIRNAME
+RUN pwd
+</pre> <p>The output of the final <code>pwd</code> command in this <code>Dockerfile</code> would be <code>/path/$DIRNAME</code></p> <h2 id="arg">ARG</h2> <pre>ARG &lt;name&gt;[=&lt;default value&gt;]
+</pre> <p>The <code>ARG</code> instruction defines a variable that users can pass at build-time to the builder with the <code>docker build</code> command using the <code>--build-arg
+&lt;varname&gt;=&lt;value&gt;</code> flag. If a user specifies a build argument that was not defined in the Dockerfile, the build outputs an error.</p> <pre>One or more build-args were not consumed, failing build.
+</pre> <p>The Dockerfile author can define a single variable by specifying <code>ARG</code> once or many variables by specifying <code>ARG</code> more than once. For example, a valid Dockerfile:</p> <pre>FROM busybox
+ARG user1
+ARG buildno
+...
+</pre> <p>A Dockerfile author may optionally specify a default value for an <code>ARG</code> instruction:</p> <pre>FROM busybox
+ARG user1=someuser
+ARG buildno=1
+...
+</pre> <p>If an <code>ARG</code> value has a default and if there is no value passed at build-time, the builder uses the default.</p> <p>An <code>ARG</code> variable definition comes into effect from the line on which it is defined in the <code>Dockerfile</code> not from the argument’s use on the command-line or elsewhere. For example, consider this Dockerfile:</p> <pre>1 FROM busybox
+2 USER ${user:-some_user}
+3 ARG user
+4 USER $user
+...
+</pre> <p>A user builds this file by calling:</p> <pre>$ docker build --build-arg user=what_user Dockerfile
+</pre> <p>The <code>USER</code> at line 2 evaluates to <code>some_user</code> as the <code>user</code> variable is defined on the subsequent line 3. The <code>USER</code> at line 4 evaluates to <code>what_user</code> as <code>user</code> is defined and the <code>what_user</code> value was passed on the command line. Prior to its definition by an <code>ARG</code> instruction, any use of a variable results in an empty string.</p> <blockquote> <p><strong>Note:</strong> It is not recommended to use build-time variables for passing secrets like github keys, user credentials etc.</p> </blockquote> <p>You can use an <code>ARG</code> or an <code>ENV</code> instruction to specify variables that are available to the <code>RUN</code> instruction. Environment variables defined using the <code>ENV</code> instruction always override an <code>ARG</code> instruction of the same name. Consider this Dockerfile with an <code>ENV</code> and <code>ARG</code> instruction.</p> <pre>1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 ENV CONT_IMG_VER v1.0.0
+4 RUN echo $CONT_IMG_VER
+</pre> <p>Then, assume this image is built with this command:</p> <pre>$ docker build --build-arg CONT_IMG_VER=v2.0.1 Dockerfile
+</pre> <p>In this case, the <code>RUN</code> instruction uses <code>v1.0.0</code> instead of the <code>ARG</code> setting passed by the user:<code>v2.0.1</code> This behavior is similar to a shell script where a locally scoped variable overrides the variables passed as arguments or inherited from environment, from its point of definition.</p> <p>Using the example above but a different <code>ENV</code> specification you can create more useful interactions between <code>ARG</code> and <code>ENV</code> instructions:</p> <pre>1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 ENV CONT_IMG_VER ${CONT_IMG_VER:-v1.0.0}
+4 RUN echo $CONT_IMG_VER
+</pre> <p>Unlike an <code>ARG</code> instruction, <code>ENV</code> values are always persisted in the built image. Consider a docker build without the --build-arg flag:</p> <pre>$ docker build Dockerfile
+</pre> <p>Using this Dockerfile example, <code>CONT_IMG_VER</code> is still persisted in the image but its value would be <code>v1.0.0</code> as it is the default set in line 3 by the <code>ENV</code> instruction.</p> <p>The variable expansion technique in this example allows you to pass arguments from the command line and persist them in the final image by leveraging the <code>ENV</code> instruction. Variable expansion is only supported for <a href="#environment-replacement">a limited set of Dockerfile instructions.</a></p> <p>Docker has a set of predefined <code>ARG</code> variables that you can use without a corresponding <code>ARG</code> instruction in the Dockerfile.</p> <ul> <li><code>HTTP_PROXY</code></li> <li><code>http_proxy</code></li> <li><code>HTTPS_PROXY</code></li> <li><code>https_proxy</code></li> <li><code>FTP_PROXY</code></li> <li><code>ftp_proxy</code></li> <li><code>NO_PROXY</code></li> <li><code>no_proxy</code></li> </ul> <p>To use these, simply pass them on the command line using the <code>--build-arg
+&lt;varname&gt;=&lt;value&gt;</code> flag.</p> <h3 id="impact-on-build-caching">Impact on build caching</h3> <p><code>ARG</code> variables are not persisted into the built image as <code>ENV</code> variables are. However, <code>ARG</code> variables do impact the build cache in similar ways. If a Dockerfile defines an <code>ARG</code> variable whose value is different from a previous build, then a “cache miss” occurs upon its first usage, not its declaration. For example, consider this Dockerfile:</p> <pre>1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 RUN echo $CONT_IMG_VER
+</pre> <p>If you specify <code>--build-arg CONT_IMG_VER=&lt;value&gt;</code> on the command line the specification on line 2 does not cause a cache miss; line 3 does cause a cache miss. The definition on line 2 has no impact on the resulting image. The <code>RUN</code> on line 3 executes a command and in doing so defines a set of environment variables, including <code>CONT_IMG_VER</code>. At that point, the <code>ARG</code> variable may impact the resulting image, so a cache miss occurs.</p> <p>Consider another example under the same command line:</p> <pre>1 FROM ubuntu
+2 ARG CONT_IMG_VER
+3 ENV CONT_IMG_VER $CONT_IMG_VER
+4 RUN echo $CONT_IMG_VER
+</pre> <p>In this example, the cache miss occurs on line 3. The miss happens because the variable’s value in the <code>ENV</code> references the <code>ARG</code> variable and that variable is changed through the command line. In this example, the <code>ENV</code> command causes the image to include the value.</p> <h2 id="onbuild">ONBUILD</h2> <pre>ONBUILD [INSTRUCTION]
+</pre> <p>The <code>ONBUILD</code> instruction adds to the image a <em>trigger</em> instruction to be executed at a later time, when the image is used as the base for another build. The trigger will be executed in the context of the downstream build, as if it had been inserted immediately after the <code>FROM</code> instruction in the downstream <code>Dockerfile</code>.</p> <p>Any build instruction can be registered as a trigger.</p> <p>This is useful if you are building an image which will be used as a base to build other images, for example an application build environment or a daemon which may be customized with user-specific configuration.</p> <p>For example, if your image is a reusable Python application builder, it will require application source code to be added in a particular directory, and it might require a build script to be called <em>after</em> that. You can’t just call <code>ADD</code> and <code>RUN</code> now, because you don’t yet have access to the application source code, and it will be different for each application build. You could simply provide application developers with a boilerplate <code>Dockerfile</code> to copy-paste into their application, but that is inefficient, error-prone and difficult to update because it mixes with application-specific code.</p> <p>The solution is to use <code>ONBUILD</code> to register advance instructions to run later, during the next build stage.</p> <p>Here’s how it works:</p> <ol> <li>When it encounters an <code>ONBUILD</code> instruction, the builder adds a trigger to the metadata of the image being built. The instruction does not otherwise affect the current build.</li> <li>At the end of the build, a list of all triggers is stored in the image manifest, under the key <code>OnBuild</code>. They can be inspected with the <code>docker inspect</code> command.</li> <li>Later the image may be used as a base for a new build, using the <code>FROM</code> instruction. As part of processing the <code>FROM</code> instruction, the downstream builder looks for <code>ONBUILD</code> triggers, and executes them in the same order they were registered. If any of the triggers fail, the <code>FROM</code> instruction is aborted which in turn causes the build to fail. If all triggers succeed, the <code>FROM</code> instruction completes and the build continues as usual.</li> <li>Triggers are cleared from the final image after being executed. In other words they are not inherited by “grand-children” builds.</li> </ol> <p>For example you might add something like this:</p> <pre>[...]
+ONBUILD ADD . /app/src
+ONBUILD RUN /usr/local/bin/python-build --dir /app/src
+[...]
+</pre> <blockquote> <p><strong>Warning</strong>: Chaining <code>ONBUILD</code> instructions using <code>ONBUILD ONBUILD</code> isn’t allowed.</p> <p><strong>Warning</strong>: The <code>ONBUILD</code> instruction may not trigger <code>FROM</code> or <code>MAINTAINER</code> instructions.</p> </blockquote> <h2 id="stopsignal">STOPSIGNAL</h2> <pre>STOPSIGNAL signal
+</pre> <p>The <code>STOPSIGNAL</code> instruction sets the system call signal that will be sent to the container to exit. This signal can be a valid unsigned number that matches a position in the kernel’s syscall table, for instance 9, or a signal name in the format SIGNAME, for instance SIGKILL.</p> <h2 id="dockerfile-examples">Dockerfile examples</h2> <p>Below you can see some examples of Dockerfile syntax. If you’re interested in something more realistic, take a look at the list of <a href="https://docs.docker.com/v1.10/engine/examples/" target="_blank">Dockerization examples</a>.</p> <pre># Nginx
+#
+# VERSION               0.0.1
+
+FROM      ubuntu
+MAINTAINER Victor Vieux &lt;victor@docker.com&gt;
+
+LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
+RUN apt-get update &amp;&amp; apt-get install -y inotify-tools nginx apache2 openssh-server
+</pre> <pre># Firefox over VNC
+#
+# VERSION               0.3
+
+FROM ubuntu
+
+# Install vnc, xvfb in order to create a 'fake' display and firefox
+RUN apt-get update &amp;&amp; apt-get install -y x11vnc xvfb firefox
+RUN mkdir ~/.vnc
+# Setup a password
+RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
+# Autostart firefox (might not be the best way, but it does the trick)
+RUN bash -c 'echo "firefox" &gt;&gt; /.bashrc'
+
+EXPOSE 5900
+CMD    ["x11vnc", "-forever", "-usepw", "-create"]
+</pre> <pre># Multiple images example
+#
+# VERSION               0.1
+
+FROM ubuntu
+RUN echo foo &gt; bar
+# Will output something like ===&gt; 907ad6c2736f
+
+FROM ubuntu
+RUN echo moo &gt; oink
+# Will output something like ===&gt; 695d7793cbe4
+
+# You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+# /oink.
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/engine/reference/builder/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/engine/reference/builder/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

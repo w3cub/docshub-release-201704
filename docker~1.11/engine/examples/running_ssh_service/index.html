@@ -1,0 +1,114 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerizing an SSH Service (Engine) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="The following Dockerfile sets up an SSHd service in a container that you can use to connect to and inspect other container’s volumes, or to get &hellip;">
+  <meta name="keywords" content="dockerizing, ssh, daemon, service, engine, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/engine/examples/running_ssh_service/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="dockerizing-an-ssh-daemon-service">Dockerizing an SSH daemon service</h1> <h2 id="build-an-eg-sshd-image">Build an <code>eg_sshd</code> image</h2> <p>The following <code>Dockerfile</code> sets up an SSHd service in a container that you can use to connect to and inspect other container’s volumes, or to get quick access to a test container.</p> <pre># sshd
+#
+# VERSION               0.0.2
+
+FROM ubuntu:14.04
+MAINTAINER Sven Dowideit &lt;SvenDowideit@docker.com&gt;
+
+RUN apt-get update &amp;&amp; apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:screencast' | chpasswd
+RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" &gt;&gt; /etc/profile
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]
+</pre> <p>Build the image using:</p> <pre>$ docker build -t eg_sshd .
+</pre> <h2 id="run-a-test-sshd-container">Run a <code>test_sshd</code> container</h2> <p>Then run it. You can then use <code>docker port</code> to find out what host port the container’s port 22 is mapped to:</p> <pre>$ docker run -d -P --name test_sshd eg_sshd
+$ docker port test_sshd 22
+0.0.0.0:49154
+</pre> <p>And now you can ssh as <code>root</code> on the container’s IP address (you can find it with <code>docker inspect</code>) or on port <code>49154</code> of the Docker daemon’s host IP address (<code>ip address</code> or <code>ifconfig</code> can tell you that) or <code>localhost</code> if on the Docker daemon host:</p> <pre>$ ssh root@192.168.1.2 -p 49154
+# The password is ``screencast``.
+$$
+</pre> <h2 id="environment-variables">Environment variables</h2> <p>Using the <code>sshd</code> daemon to spawn shells makes it complicated to pass environment variables to the user’s shell via the normal Docker mechanisms, as <code>sshd</code> scrubs the environment before it starts the shell.</p> <p>If you’re setting values in the <code>Dockerfile</code> using <code>ENV</code>, you’ll need to push them to a shell initialization file like the <code>/etc/profile</code> example in the <code>Dockerfile</code> above.</p> <p>If you need to pass<code>docker run -e ENV=value</code> values, you will need to write a short script to do the same before you start <code>sshd -D</code> and then replace the <code>CMD</code> with that script.</p> <h2 id="clean-up">Clean up</h2> <p>Finally, clean up after your test by stopping and removing the container, and then removing the image.</p> <pre>$ docker stop test_sshd
+$ docker rm test_sshd
+$ docker rmi eg_sshd
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/engine/examples/running_ssh_service/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/engine/examples/running_ssh_service/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

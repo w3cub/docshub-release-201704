@@ -1,0 +1,133 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Swarm and Container Networks - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Swarm is fully compatible with Docker’s networking features. This includes the multi-host networking feature which allows creation of custom &hellip;">
+  <meta name="keywords" content="swarm, and, container, networks, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/swarm/networking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="swarm-and-container-networks">Swarm and container networks</h1> <p>Docker Swarm is fully compatible with Docker’s networking features. This includes the multi-host networking feature which allows creation of custom container networks that span multiple Docker hosts.</p> <p>Before using Swarm with a custom network, read through the conceptual information in <a href="https://docs.docker.com/engine/userguide/networking/dockernetworks/" target="_blank">Docker container networking</a>. You should also have walked through the <a href="https://docs.docker.com/engine/userguide/networking/get-started-overlay/" target="_blank">Get started with multi-host networking</a> example.</p> <h2 id="create-a-custom-network-in-a-swarm-cluster">Create a custom network in a Swarm cluster</h2> <p>Multi-host networks require a key-value store. The key-value store holds information about the network state which includes discovery, networks, endpoints, IP addresses, and more. Through the Docker’s libkv project, Docker supports Consul, Etcd, and ZooKeeper key-value store backends. For details about the supported backends, refer to the <a href="https://github.com/docker/libkv" target="_blank">libkv project</a>.</p> <p>To create a custom network, you must choose a key-value store backend and implement it on your network. Then, you configure the Docker Engine daemon to use this store. Two required parameters, <code>--cluster-store</code> and <code>--cluster-advertise</code>, refer to your key-value store server.</p> <p>Once you’ve configured and restarted the daemon on each Swarm node, you are ready to create a network.</p> <h2 id="list-networks">List networks</h2> <p>This example assumes there are two nodes <code>node-0</code> and <code>node-1</code> in the cluster. From a swarm node, list the networks:</p> <pre>$ docker network ls
+NETWORK ID          NAME                   DRIVER
+3dd50db9706d        node-0/host            host
+09138343e80e        node-0/bridge          bridge
+8834dbd552e5        node-0/none            null
+45782acfe427        node-1/host            host
+8926accb25fd        node-1/bridge          bridge
+6382abccd23d        node-1/none            null
+</pre> <p>As you can see, each network name is prefixed by the node name.</p> <h2 id="create-a-network">Create a network</h2> <p>By default, Swarm is using the <code>overlay</code> network driver, a global-scope network driver. A global-scope network driver creates a network across an entire swarm. When you create an <code>overlay</code> network under Swarm, you can omit the <code>-d</code> option:</p> <pre>$ docker network create swarm_network
+42131321acab3233ba342443Ba4312
+$ docker network ls
+NETWORK ID          NAME                   DRIVER
+3dd50db9706d        node-0/host            host
+09138343e80e        node-0/bridge          bridge
+8834dbd552e5        node-0/none            null
+42131321acab        node-0/swarm_network   overlay
+45782acfe427        node-1/host            host
+8926accb25fd        node-1/bridge          bridge
+6382abccd23d        node-1/none            null
+42131321acab        node-1/swarm_network   overlay
+</pre> <p>As you can see here, both the <code>node-0/swarm_network</code> and the <code>node-1/swarm_network</code> have the same ID. This is because when you create a network on the swarm, it is accessible from all the nodes.</p> <p>To create a local scope network (for example with the <code>bridge</code> network driver) you should use <code>&lt;node&gt;/&lt;name&gt;</code> otherwise your network is created on a random node.</p> <pre>$ docker network create node-0/bridge2 -b bridge
+921817fefea521673217123abab223
+$ docker network create node-1/bridge2 -b bridge
+5262bbfe5616fef6627771289aacc2
+$ docker network ls
+NETWORK ID          NAME                   DRIVER
+3dd50db9706d        node-0/host            host
+09138343e80e        node-0/bridge          bridge
+8834dbd552e5        node-0/none            null
+42131321acab        node-0/swarm_network   overlay
+921817fefea5        node-0/bridge2         bridge
+45782acfe427        node-1/host            host
+8926accb25fd        node-1/bridge          bridge
+6382abccd23d        node-1/none            null
+42131321acab        node-1/swarm_network   overlay
+5262bbfe5616        node-1/bridge2         bridge
+</pre> <h2 id="remove-a-network">Remove a network</h2> <p>To remove a network you can use its ID or its name. If two different networks have the same name, include the <code>&lt;node&gt;</code> value:</p> <pre>$ docker network rm swarm_network
+42131321acab3233ba342443Ba4312
+$ docker network rm node-0/bridge2
+921817fefea521673217123abab223
+$ docker network ls
+NETWORK ID          NAME                   DRIVER
+3dd50db9706d        node-0/host            host
+09138343e80e        node-0/bridge          bridge
+8834dbd552e5        node-0/none            null
+45782acfe427        node-1/host            host
+8926accb25fd        node-1/bridge          bridge
+6382abccd23d        node-1/none            null
+5262bbfe5616        node-1/bridge2         bridge
+</pre> <p>The <code>swarm_network</code> was removed from every node. The <code>bridge2</code> was removed only from <code>node-0</code>.</p> <h2 id="docker-swarm-documentation-index">Docker Swarm documentation index</h2> <ul> <li><a href="../">Docker Swarm overview</a></li> <li><a href="../scheduler/strategy/">Scheduler strategies</a></li> <li><a href="../scheduler/filter/">Scheduler filters</a></li> <li><a href="../swarm-api/">Swarm API</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/swarm/networking/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/swarm/networking/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

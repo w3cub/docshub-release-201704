@@ -1,0 +1,115 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Understand Container Communication (Engine) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="The information in this section explains container communication within the Docker default bridge. This is a bridge network named bridge created &hellip;">
+  <meta name="keywords" content="understand, container, communication, engine, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/engine/userguide/networking/default_network/container-communication/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="understand-container-communication">Understand container communication</h1> <p>The information in this section explains container communication within the Docker default bridge. This is a <code>bridge</code> network named <code>bridge</code> created automatically when you install Docker.</p> <p><strong>Note</strong>: The <a href="../../">Docker networks feature</a> allows you to create user-defined networks in addition to the default bridge network.</p> <h2 id="communicating-to-the-outside-world">Communicating to the outside world</h2> <p>Whether a container can talk to the world is governed by two factors. The first factor is whether the host machine is forwarding its IP packets. The second is whether the host’s <code>iptables</code> allow this particular connection.</p> <p>IP packet forwarding is governed by the <code>ip_forward</code> system parameter. Packets can only pass between containers if this parameter is <code>1</code>. Usually you will simply leave the Docker server at its default setting <code>--ip-forward=true</code> and Docker will go set <code>ip_forward</code> to <code>1</code> for you when the server starts up. If you set <code>--ip-forward=false</code> and your system’s kernel has it enabled, the <code>--ip-forward=false</code> option has no effect. To check the setting on your kernel or to turn it on manually:</p> <pre>  $ sysctl net.ipv4.conf.all.forwarding
+  net.ipv4.conf.all.forwarding = 0
+  $ sysctl net.ipv4.conf.all.forwarding=1
+  $ sysctl net.ipv4.conf.all.forwarding
+  net.ipv4.conf.all.forwarding = 1
+</pre> <p>Many using Docker will want <code>ip_forward</code> to be on, to at least make communication <em>possible</em> between containers and the wider world. May also be needed for inter-container communication if you are in a multiple bridge setup.</p> <p>Docker will never make changes to your system <code>iptables</code> rules if you set <code>--iptables=false</code> when the daemon starts. Otherwise the Docker server will append forwarding rules to the <code>DOCKER</code> filter chain.</p> <p>Docker will not delete or modify any pre-existing rules from the <code>DOCKER</code> filter chain. This allows the user to create in advance any rules required to further restrict access to the containers.</p> <p>Docker’s forward rules permit all external source IPs by default. To allow only a specific IP or network to access the containers, insert a negated rule at the top of the <code>DOCKER</code> filter chain. For example, to restrict external access such that <em>only</em> source IP 8.8.8.8 can access the containers, the following rule could be added:</p> <pre>$ iptables -I DOCKER -i ext_if ! -s 8.8.8.8 -j DROP
+</pre> <p>where <em>ext_if</em> is the name of the interface providing external connectivity to the host.</p> <h2 id="communication-between-containers">Communication between containers</h2> <p>Whether two containers can communicate is governed, at the operating system level, by two factors.</p> <ul> <li><p>Does the network topology even connect the containers’ network interfaces? By default Docker will attach all containers to a single <code>docker0</code> bridge, providing a path for packets to travel between them. See the later sections of this document for other possible topologies.</p></li> <li><p>Do your <code>iptables</code> allow this particular connection? Docker will never make changes to your system <code>iptables</code> rules if you set <code>--iptables=false</code> when the daemon starts. Otherwise the Docker server will add a default rule to the <code>FORWARD</code> chain with a blanket <code>ACCEPT</code> policy if you retain the default <code>--icc=true</code>, or else will set the policy to <code>DROP</code> if <code>--icc=false</code>.</p></li> </ul> <p>It is a strategic question whether to leave <code>--icc=true</code> or change it to <code>--icc=false</code> so that <code>iptables</code> will protect other containers -- and the main host -- from having arbitrary ports probed or accessed by a container that gets compromised.</p> <p>If you choose the most secure setting of <code>--icc=false</code>, then how can containers communicate in those cases where you <em>want</em> them to provide each other services? The answer is the <code>--link=CONTAINER_NAME_or_ID:ALIAS</code> option, which was mentioned in the previous section because of its effect upon name services. If the Docker daemon is running with both <code>--icc=false</code> and <code>--iptables=true</code> then, when it sees <code>docker run</code> invoked with the <code>--link=</code> option, the Docker server will insert a pair of <code>iptables</code> <code>ACCEPT</code> rules so that the new container can connect to the ports exposed by the other container -- the ports that it mentioned in the <code>EXPOSE</code> lines of its <code>Dockerfile</code>.</p> <blockquote> <p><strong>Note</strong>: The value <code>CONTAINER_NAME</code> in <code>--link=</code> must either be an auto-assigned Docker name like <code>stupefied_pare</code> or else the name you assigned with <code>--name=</code> when you ran <code>docker run</code>. It cannot be a hostname, which Docker will not recognize in the context of the <code>--link=</code> option.</p> </blockquote> <p>You can run the <code>iptables</code> command on your Docker host to see whether the <code>FORWARD</code> chain has a default policy of <code>ACCEPT</code> or <code>DROP</code>:</p> <pre># When --icc=false, you should see a DROP rule:
+
+$ sudo iptables -L -n
+...
+Chain FORWARD (policy ACCEPT)
+target     prot opt source               destination
+DOCKER     all  --  0.0.0.0/0            0.0.0.0/0
+DROP       all  --  0.0.0.0/0            0.0.0.0/0
+...
+
+# When a --link= has been created under --icc=false,
+# you should see port-specific ACCEPT rules overriding
+# the subsequent DROP policy for all other packets:
+
+$ sudo iptables -L -n
+...
+Chain FORWARD (policy ACCEPT)
+target     prot opt source               destination
+DOCKER     all  --  0.0.0.0/0            0.0.0.0/0
+DROP       all  --  0.0.0.0/0            0.0.0.0/0
+
+Chain DOCKER (1 references)
+target     prot opt source               destination
+ACCEPT     tcp  --  172.17.0.2           172.17.0.3           tcp spt:80
+ACCEPT     tcp  --  172.17.0.3           172.17.0.2           tcp dpt:80
+</pre> <blockquote> <p><strong>Note</strong>: Docker is careful that its host-wide <code>iptables</code> rules fully expose containers to each other’s raw IP addresses, so connections from one container to another should always appear to be originating from the first container’s own IP address.</p> </blockquote>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/engine/userguide/networking/default_network/container-communication/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/engine/userguide/networking/default_network/container-communication/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

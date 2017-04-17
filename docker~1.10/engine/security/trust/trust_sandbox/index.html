@@ -1,0 +1,241 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Play in a Content Trust Sandbox (Engine) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="This page explains how to set up and use a sandbox for experimenting with trust. The sandbox allows you to configure and try trust operations &hellip;">
+  <meta name="keywords" content="play, content, trust, sandbox, engine, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/engine/security/trust/trust_sandbox/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="play-in-a-content-trust-sandbox">Play in a content trust sandbox</h1> <p>This page explains how to set up and use a sandbox for experimenting with trust. The sandbox allows you to configure and try trust operations locally without impacting your production images.</p> <p>Before working through this sandbox, you should have read through the <a href="../content_trust/">trust overview</a>.</p> <h3 id="prerequisites">Prerequisites</h3> <p>These instructions assume you are running in Linux or Mac OS X. You can run this sandbox on a local machine or on a virtual machine. You will need to have <code>sudo</code> privileges on your local machine or in the VM.</p> <p>This sandbox requires you to install two Docker tools: Docker Engine and Docker Compose. To install the Docker Engine, choose from the <a href="https://docs.docker.com/v1.10/engine/installation/" target="_blank">list of supported platforms</a>. To install Docker Compose, see the <a href="https://docs.docker.com/compose/install/" target="_blank">detailed instructions here</a>.</p> <p>Finally, you’ll need to have <code>git</code> installed on your local system or VM.</p> <h2 id="what-is-in-the-sandbox">What is in the sandbox?</h2> <p>If you are just using trust out-of-the-box you only need your Docker Engine client and access to the Docker hub. The sandbox mimics a production trust environment, and requires these additional components:</p> <table> <thead> <tr> <th>Container</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>notarysandbox</td> <td>A container with the latest version of Docker Engine and with some preconfigured certifications. This is your sandbox where you can use the <code>docker</code> client to test trust operations.</td> </tr> <tr> <td>Registry server</td> <td>A local registry service.</td> </tr> <tr> <td>Notary server</td> <td>The service that does all the heavy-lifting of managing trust</td> </tr> <tr> <td>Notary signer</td> <td>A service that ensures that your keys are secure.</td> </tr> <tr> <td>MySQL</td> <td>The database where all of the trust information will be stored</td> </tr> </tbody> </table> <p>The sandbox uses the Docker daemon on your local system. Within the <code>notarysandbox</code> you interact with a local registry rather than the Docker Hub. This means your everyday image repositories are not used. They are protected while you play.</p> <p>When you play in the sandbox, you’ll also create root and repository keys. The sandbox is configured to store all the keys and files inside the <code>notarysandbox</code> container. Since the keys you create in the sandbox are for play only, destroying the container destroys them as well.</p> <h2 id="build-the-sandbox">Build the sandbox</h2> <p>In this section, you build the Docker components for your trust sandbox. If you work exclusively with the Docker Hub, you would not need with these components. They are built into the Docker Hub for you. For the sandbox, however, you must build your own entire, mock production environment and registry.</p> <h3 id="configure-etc-hosts">Configure /etc/hosts</h3> <p>The sandbox’ <code>notaryserver</code> and <code>sandboxregistry</code> run on your local server. The client inside the <code>notarysandbox</code> container connects to them over your network. So, you’ll need an entry for both the servers in your local <code>/etc/hosts</code> file.</p> <ol> <li>
+<p>Add an entry for the <code>notaryserver</code> to <code>/etc/hosts</code>.</p> <pre>$ sudo sh -c 'echo "127.0.0.1 notaryserver" &gt;&gt; /etc/hosts'
+</pre>
+</li> <li>
+<p>Add an entry for the <code>sandboxregistry</code> to <code>/etc/hosts</code>.</p> <pre>$ sudo sh -c 'echo "127.0.0.1 sandboxregistry" &gt;&gt; /etc/hosts'
+</pre>
+</li> </ol> <h3 id="build-the-notarytest-image">Build the notarytest image</h3> <ol> <li>
+<p>Create a <code>notarytest</code> directory on your system.</p> <pre>$ mkdir notarysandbox
+</pre>
+</li> <li>
+<p>Change into your <code>notarysandbox</code> directory.</p> <pre>$ cd notarysandbox
+</pre>
+</li> <li>
+<p>Create a <code>notarytest</code> directory then change into that.</p> <pre>$ mkdir notarytest
+$ cd notarytest
+</pre>
+</li> <li><p>Create a filed called <code>Dockerfile</code> with your favorite editor.</p></li> <li>
+<p>Add the following to the new file.</p> <pre>FROM debian:jessie
+
+ADD https://master.dockerproject.org/linux/amd64/docker /usr/bin/docker
+RUN chmod +x /usr/bin/docker \
+  &amp;&amp; apt-get update \
+  &amp;&amp; apt-get install -y \
+  tree \
+  vim \
+  git \
+  ca-certificates \
+  --no-install-recommends
+
+WORKDIR /root
+RUN git clone -b trust-sandbox https://github.com/docker/notary.git
+RUN cp /root/notary/fixtures/root-ca.crt /usr/local/share/ca-certificates/root-ca.crt
+RUN update-ca-certificates
+
+ENTRYPOINT ["bash"]
+</pre>
+</li> <li><p>Save and close the file.</p></li> <li>
+<p>Build the testing container.</p> <pre>$ docker build -t notarysandbox .
+Sending build context to Docker daemon 2.048 kB
+Step 1 : FROM debian:jessie
+ ...
+ Successfully built 5683f17e9d72
+</pre>
+</li> </ol> <h3 id="build-and-start-up-the-trust-servers">Build and start up the trust servers</h3> <p>In this step, you get the source code for your notary and registry services. Then, you’ll use Docker Compose to build and start them on your local system.</p> <ol> <li>
+<p>Change to back to the root of your <code>notarysandbox</code> directory.</p> <pre>$ cd notarysandbox
+</pre>
+</li> <li>
+<p>Clone the <code>notary</code> project.</p> <pre>  $ git clone -b trust-sandbox https://github.com/docker/notary.git
+</pre>
+</li> <li>
+<p>Clone the <code>distribution</code> project.</p> <pre>$ git clone https://github.com/docker/distribution.git
+</pre>
+</li> <li>
+<p>Change to the <code>notary</code> project directory.</p> <pre>$ cd notary
+</pre>
+</li> </ol> <p>The directory contains a <code>docker-compose</code> file that you’ll use to run a notary server together with a notary signer and the corresponding MySQL databases. The databases store the trust information for an image.</p> <ol> <li>
+<p>Build the server images.</p> <pre>$  docker-compose build
+</pre> <p>The first time you run this, the build takes some time.</p>
+</li> <li>
+<p>Run the server containers on your local system.</p> <pre>$ docker-compose up -d
+</pre> <p>Once the trust services are up, you’ll setup a local version of the Docker Registry v2.</p>
+</li> <li><p>Change to the <code>notarysandbox/distribution</code> directory.</p></li> <li>
+<p>Build the <code>sandboxregistry</code> server.</p> <pre>$ docker build -t sandboxregistry .
+</pre>
+</li> <li>
+<p>Start the <code>sandboxregistry</code> server running.</p> <pre>$ docker run -p 5000:5000 --name sandboxregistry sandboxregistry &amp;
+</pre>
+</li> </ol> <h2 id="playing-in-the-sandbox">Playing in the sandbox</h2> <p>Now that everything is setup, you can go into your <code>notarysandbox</code> container and start testing Docker content trust.</p> <h3 id="start-the-notarysandbox-container">Start the notarysandbox container</h3> <p>In this procedure, you start the <code>notarysandbox</code> and link it to the running <code>notary_notaryserver_1</code> and <code>sandboxregistry</code> containers. The links allow communication among the containers.</p> <pre>$ docker run -it -v /var/run/docker.sock:/var/run/docker.sock --link notary_notaryserver_1:notaryserver --link sandboxregistry:sandboxregistry notarysandbox
+root@0710762bb59a:/#
+</pre> <p>Mounting the <code>docker.sock</code> gives the <code>notarysandbox</code> access to the <code>docker</code> daemon on your host, while storing all the keys and files inside the sandbox container. When you destroy the container, you destroy the “play” keys.</p> <h3 id="test-some-trust-operations">Test some trust operations</h3> <p>Now, you’ll pull some images.</p> <ol> <li>
+<p>Download a <code>docker</code> image to test with.</p> <pre># docker pull docker/trusttest
+docker pull docker/trusttest
+Using default tag: latest
+latest: Pulling from docker/trusttest
+
+b3dbab3810fc: Pull complete
+a9539b34a6ab: Pull complete
+Digest: sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a
+Status: Downloaded newer image for docker/trusttest:latest
+</pre>
+</li> <li>
+<p>Tag it to be pushed to our sandbox registry:</p> <pre># docker tag docker/trusttest sandboxregistry:5000/test/trusttest:latest
+</pre>
+</li> <li>
+<p>Enable content trust.</p> <pre># export DOCKER_CONTENT_TRUST=1
+</pre>
+</li> <li>
+<p>Identify the trust server.</p> <pre># export DOCKER_CONTENT_TRUST_SERVER=https://notaryserver:4443
+</pre> <p>This step is only necessary because the sandbox is using its own server. Normally, if you are using the Docker Public Hub this step isn’t necessary.</p>
+</li> <li>
+<p>Pull the test image.</p> <pre># docker pull sandboxregistry:5000/test/trusttest
+Using default tag: latest
+no trust data available
+</pre> <p>You see an error, because this content doesn’t exist on the <code>sandboxregistry</code> yet.</p>
+</li> <li>
+<p>Push the trusted image.</p> <pre># docker push sandboxregistry:5000/test/trusttest:latest
+The push refers to a repository [sandboxregistry:5000/test/trusttest] (len: 1)
+a9539b34a6ab: Image successfully pushed
+b3dbab3810fc: Image successfully pushed
+latest: digest: sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c size: 3348
+Signing and pushing trust metadata
+You are about to create a new root signing key passphrase. This passphrase
+will be used to protect the most sensitive key in your signing system. Please
+choose a long, complex passphrase and be careful to keep the password and the
+key file itself secure and backed up. It is highly recommended that you use a
+password manager to generate the passphrase and keep it safe. There will be no
+way to recover this key. You can find the key in your config directory.
+Enter passphrase for new root key with id 8c69e04:
+Repeat passphrase for new root key with id 8c69e04:
+Enter passphrase for new repository key with id sandboxregistry:5000/test/trusttest (93c362a):
+Repeat passphrase for new repository key with id sandboxregistry:5000/test/trusttest (93c362a):
+Finished initializing "sandboxregistry:5000/test/trusttest"
+latest: digest: sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a size: 3355
+Signing and pushing trust metadata
+</pre>
+</li> <li>
+<p>Try pulling the image you just pushed:</p> <pre># docker pull sandboxregistry:5000/test/trusttest
+Using default tag: latest
+Pull (1 of 1): sandboxregistry:5000/test/trusttest:latest@sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c
+sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c: Pulling from test/trusttest
+b3dbab3810fc: Already exists
+a9539b34a6ab: Already exists
+Digest: sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c
+Status: Downloaded newer image for sandboxregistry:5000/test/trusttest@sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c
+Tagging sandboxregistry:5000/test/trusttest@sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c as sandboxregistry:5000/test/trusttest:latest
+</pre>
+</li> </ol> <h3 id="test-with-malicious-images">Test with malicious images</h3> <p>What happens when data is corrupted and you try to pull it when trust is enabled? In this section, you go into the <code>sandboxregistry</code> and tamper with some data. Then, you try and pull it.</p> <ol> <li><p>Leave the sandbox container running.</p></li> <li>
+<p>Open a new bash terminal from your host into the <code>sandboxregistry</code>.</p> <pre>$ docker exec -it sandboxregistry bash
+296db6068327#
+</pre>
+</li> <li>
+<p>Change into the registry storage.</p> <p>You’ll need to provide the <code>sha</code> you received when you pushed the image.</p> <pre># cd /var/lib/registry/docker/registry/v2/blobs/sha256/aa/aac0c133338db2b18ff054943cee3267fe50c75cdee969aed88b1992539ed042
+</pre>
+</li> <li>
+<p>Add malicious data to one of the trusttest layers:</p> <pre># echo "Malicious data" &gt; data
+</pre>
+</li> <li><p>Got back to your sandbox terminal.</p></li> <li>
+<p>List the trusttest image.</p> <pre># docker images | grep trusttest
+docker/trusttest                 latest              a9539b34a6ab        7 weeks ago         5.025 MB
+sandboxregistry:5000/test/trusttest   latest              a9539b34a6ab        7 weeks ago         5.025 MB
+sandboxregistry:5000/test/trusttest   &lt;none&gt;              a9539b34a6ab        7 weeks ago         5.025 MB
+</pre>
+</li> <li>
+<p>Remove the <code>trusttest:latest</code> image.</p> <pre># docker rmi -f a9539b34a6ab
+Untagged: docker/trusttest:latest
+Untagged: sandboxregistry:5000/test/trusttest:latest
+Untagged: sandboxregistry:5000/test/trusttest@sha256:1d871dcb16805f0604f10d31260e79c22070b35abc71a3d1e7ee54f1042c8c7c
+Deleted: a9539b34a6aba01d3942605dfe09ab821cd66abf3cf07755b0681f25ad81f675
+Deleted: b3dbab3810fc299c21f0894d39a7952b363f14520c2f3d13443c669b63b6aa20
+</pre>
+</li> <li>
+<p>Pull the image again.</p> <pre># docker pull sandboxregistry:5000/test/trusttest
+Using default tag: latest
+...
+b3dbab3810fc: Verifying Checksum
+a9539b34a6ab: Pulling fs layer
+filesystem layer verification failed for digest sha256:aac0c133338db2b18ff054943cee3267fe50c75cdee969aed88b1992539ed042
+</pre> <p>You’ll see the the pull did not complete because the trust system was unable to verify the image.</p>
+</li> </ol> <h2 id="more-play-in-the-sandbox">More play in the sandbox</h2> <p>Now, that you have a full Docker content trust sandbox on your local system, feel free to play with it and see how it behaves. If you find any security issues with Docker, feel free to send us an email at <a href="mailto:security@docker.com/">security@docker.com</a>.</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/engine/security/trust/trust_sandbox/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/engine/security/trust/trust_sandbox/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

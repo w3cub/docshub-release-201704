@@ -1,0 +1,107 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Deploy Network Infrastructure (Swarm) - Docker 1.10 - W3cubDocs</title>
+  
+  <meta name="description" content="In this step, you create an AWS Virtual Private Cloud (VPC) to run your application stack on. Before you continue, make sure you have taken the time &hellip;">
+  <meta name="keywords" content="deploy, your, infrastructure, network, swarm, -, docker, docker~1.10">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.10/swarm/swarm_at_scale/02-deploy-infra/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.10.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.10/" class="_nav-link" title="" style="margin-left:0;">Docker 1.10</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="deploy-your-infrastructure">Deploy your infrastructure</h1> <p>In this step, you create an AWS Virtual Private Cloud (VPC) to run your application stack on. Before you continue, make sure you have taken the time to <a href="../01-about/">learn the application architecture</a>.</p> <p>This example uses AWS but the AWS provider is only one example of an infrastructure you can use. You can create the environment design on whatever infrastructure you wish. For example, you could place the application on another public cloud platform such as Azure or DigitalOcean, on premises in your data center, or even in in a test environment on your laptop.</p> <blockquote> <p><strong>Note</strong>: If you are not deploying to AWS, or are not using the CloudFormation template used in the instructions below, make sure your Docker hosts are running a 3.16 or higher kernel. This kernel is required by Docker’s container networking feature.</p> </blockquote> <h2 id="overview-of-the-deployment-process">Overview of the deployment process</h2> <p>To deploy on an AWS infrastructure, you first build a VPC and then apply apply the <a href="https://github.com/docker/swarm-microservice-demo-v1/blob/master/AWS/cloudformation.json" target="_blank">CloudFormation template</a> prepared for you. The template describes the hosts in the example’s stack. While you could create the entire VPC and all instances via a CloudFormation template, splitting the deployment into two steps lets you use the CloudFormation template to build the stack on an <em>existing VPCs</em>.</p> <p>The diagram below shows the VPC infrastructure required to run the CloudFormation template.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/cloud-formation-tmp.jpg" alt=""></p> <p>The configuration is a single VPC with a single public subnet. The VPC deployment relies on a <a href="https://raw.githubusercontent.com/docker/swarm-microservice-demo-v1/master/AWS/cloudformation.json" target="_blank">cloudformation.json template</a> which specifies in the <code>us-west-1</code> Region (N. California) or <code>us-west-2</code> (Oregon). The ability to create instances one of these regions is <strong>required</strong> for this particular CloudFormation template to work. If you want to use a different region, edit the template before the import step.</p> <p>The VPC network address space is <code>192.168.0.0/16</code> and single 24-bit public subnet is carved out as 192.168.33.0/24. The subnet must be configured with a default route to the internet via the VPC’s internet gateway. All six EC2 instances are deployed into this public subnet.</p> <p>Once the VPC is created, you deploy the EC2 instances using the CloudFormation template located <a href="https://github.com/docker/swarm-microservice-demo-v1/blob/master/AWS/cloudformation.json" target="_blank">in the <code>docker/swarm-microservice-demo-v1</code> repository</a>.</p> <h2 id="prerequisites">Prerequisites</h2> <p>You’ll need to have an Amazon AWS account. This account can be personal or through a corporate instance. The account must be able to deploy EC2 instances in the <code>us-west-1</code> region (N. California).</p> <p>Before starting through this procedure, make sure you have an existing EC2 key pair in the <code>us-west-1</code> region and that you have download its <code>.pem</code> file. If you aren’t sure, login into AWS. Then, <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html" target="_blank">follow the AWS documentation</a> to ensure you have the key pair and have downloaded the <code>.pem</code> file.</p> <p>Git clone the <a href="https://github.com/docker/swarm-microservice-demo-v1" target="_blank">example application’s GitHub repo</a> to your local machine. If you prefer, you can instead <a href="https://github.com/docker/swarm-microservice-demo-v1/archive/master.zip" target="_blank">download a <code>zip</code> file</a> and unzip the code in your local environment.</p> <h2 id="step-1-build-and-configure-the-vpc">Step 1. Build and configure the VPC</h2> <p>This step shows you using the VPC wizard on Amazon. If you prefer to build the VPC manually, configure your VPC with the following values:</p> <table> <thead> <tr> <th>Field</th> <th>Value</th> </tr> </thead> <tbody> <tr> <td><strong>VPC Network (CIDR)</strong></td> <td>192.168.0.0/16</td> </tr> <tr> <td><strong>VPC Name</strong></td> <td>swarm-scale</td> </tr> <tr> <td><strong>Subnet network (CIDR)</strong></td> <td>192.168.33.0/24</td> </tr> <tr> <td><strong>Availability Zone</strong></td> <td>N. California (us-west-1a or b)</td> </tr> <tr> <td><strong>Subnet name</strong></td> <td>publicSwarm</td> </tr> <tr> <td><strong>DNS resolution</strong></td> <td>Yes</td> </tr> <tr> <td><strong>Subnet type</strong></td> <td>Public (with route to the internet)</td> </tr> <tr> <td><strong>Availability Zone</strong></td> <td>Any</td> </tr> <tr> <td><strong>Auto-assign public IP</strong></td> <td>Yes</td> </tr> <tr> <td><strong>Router</strong></td> <td>A single router with a route for <em>local</em> traffic and default route for traffic to the internet</td> </tr> <tr> <td><strong>Internet gateway</strong></td> <td>A single internet gateway used as default route for the subnet’s routing table</td> </tr> </tbody> </table> <p>To build the VPC, with the wizard.</p> <ol> <li><p>Go to the VPC dashboard.</p></li> <li><p>Choose <strong>Start VPC Wizard</strong>.</p></li> <li>
+<p>Make sure <strong>VPC with a Single Public Subnet</strong> is selected.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-1.png" alt=""></p>
+</li> <li>
+<p>Click <strong>Select</strong>.</p> <p>The browser displays the <strong>Step 2: VPC with a Single Public Subnet</strong> dialog.</p>
+</li> <li>
+<p>Complete the dialog as follows:</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-2.png" alt=""></p>
+</li> <li>
+<p>Click <strong>Create VPC</strong>.</p> <p>AWS works to build the VPC and then presents you with the <strong>VPC Successfully Created</strong> page.</p>
+</li> <li><p>Click <strong>OK</strong>.</p></li> <li><p>Choose <strong>Subnets</strong> from the <strong>VPC Dashboard</strong> menu.</p></li> <li><p>Locate your <code>publicSwarm</code> subnet.</p></li> <li>
+<p>Choose <strong>Subnet Actions &gt; Modify Auto-Assign Public IP</strong>.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-3.png" alt=""></p>
+</li> <li><p>Select <strong>Enable auto-assign Public IP</strong> and click <strong>Save</strong>.</p></li> </ol> <p>In the next step, you configure the remaining AWS settings by using a CloudFormation template.</p> <h2 id="step-2-build-the-network-stack">Step 2. Build the network stack</h2> <p>In this step, you use CloudFormation template to build a stack on AWS. Before you begin, make sure you have the prerequisites:</p> <ul> <li>access to a private key pair associated with your AWS account.</li> <li>a clone or download of the <a href="https://github.com/docker/swarm-microservice-demo-v1" target="_blank">the example code</a> on your local machine.</li> </ul> <p>Then, do the following:</p> <ol> <li>
+<p>Go to the AWS console and choose <strong>CloudFormation</strong>.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-4.png" alt=""></p>
+</li> <li><p>Click <strong>Create Stack</strong>.</p></li> <li><p>Under <strong>Choose a template</strong> click the <strong>Choose file</strong> button.</p></li> <li>
+<p>Browse to the download sample code and choose the the <code>swarm-microservice-demo-v1/AWS/cloudformation.json</code> CloudFormation template.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-5.png" alt=""></p>
+</li> <li>
+<p>Click <strong>Next</strong>.</p> <p>The system pre-populates most of the <strong>Specify Details</strong> dialog from the template.</p>
+</li> <li>
+<p>Name the stack <code>VotingAppStack</code>.</p> <p>You can name the stack something else if you want just make sure it is meaningful.</p>
+</li> <li><p>Select your key pair from the <strong>KeyName</strong> dropdown.</p></li> <li><p>Select the <code>publicSwarm</code> for the <strong>Subnetid</strong> dropdown menu.</p></li> <li><p>Select <code>swarm-scale</code> from the <strong>Vpcid</strong> dropdown menu.</p></li> <li><p>Click <strong>Next</strong> twice to reach the <strong>Review</strong> page.</p></li> <li>
+<p>Check the values.</p> <p>The <strong>Template URL</strong>,<strong>SubnetId</strong> and <strong>VpcId</strong> are always unique, so yours will not match, but otherwise you should see the following:</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-6.png" alt=""></p>
+</li> <li>
+<p>Click <strong>Create</strong>.</p> <p>AWS displays the progress of your stack being created</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/create-stack.gif" alt=""></p>
+</li> </ol> <h2 id="step-3-check-your-deployment">Step 3. Check your deployment</h2> <p>When completed, the CloudFormation populates your VPC with six EC2 instances.</p> <table> <thead> <tr> <th>Instance</th> <th>Size</th> <th>Private IP Address</th> </tr> </thead> <tbody> <tr> <td><code>frontend01</code></td> <td>t2.micro</td> <td>192.168.33.20</td> </tr> <tr> <td><code>frontend02</code></td> <td>t2.micro</td> <td>192.168.33.21</td> </tr> <tr> <td><code>interlock</code></td> <td>t2.micro</td> <td>192.168.33.12</td> </tr> <tr> <td><code>manager</code></td> <td>t2.micro</td> <td>192.168.33.11</td> </tr> <tr> <td><code>store</code></td> <td>m3.medium</td> <td>192.168.33.250</td> </tr> <tr> <td><code>worker01</code></td> <td>t2.micro</td> <td>192.168.33.200</td> </tr> </tbody> </table> <p>Navigate to the EC2 dashboard to view them running.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/vpc-create-7.png" alt=""></p> <p>The underlying AWS infrastructure has this configuration.</p> <p><img src="https://docs.docker.com/v1.10/swarm/images/aws-infrastructure.jpg" alt=""></p> <p>All instances are based on the <code>ami-56f59e36</code> AMI. This is an Ubuntu 14.04 image with a 3.13 kernel and 1.10.2 version of the Docker Engine installed. Each Engine daemon was pre-configured via the <code>/etc/default/docker</code> file using the following <code>DOCKER_OPTS</code> values.</p> <pre>--cluster-store=consul://192.168.33.11:8500 --cluster-advertise=eth0:2375 -H=tcp://0.0.0.0:2375 -H=unix:///var/run/docker.sock
+</pre> <h2 id="next-step">Next step</h2> <p>At this point your infrastructure stack is created successfully. You are ready to progress to the next step and <a href="../03-create-cluster/">build the Swarm cluster</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.10/swarm/swarm_at_scale/02-deploy-infra/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.10/swarm/swarm_at_scale/02-deploy-infra/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

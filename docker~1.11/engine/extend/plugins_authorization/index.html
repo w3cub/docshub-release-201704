@@ -1,0 +1,125 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Access Authorization Plugin (Engine) - Docker 1.11 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker’s out-of-the-box authorization model is all or nothing. Any user with permission to access the Docker daemon can run any Docker client &hellip;">
+  <meta name="keywords" content="create, authorization, plugin, access, engine, -, docker, docker~1.11">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.11/engine/extend/plugins_authorization/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.11.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.11/" class="_nav-link" title="" style="margin-left:0;">Docker 1.11</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="create-an-authorization-plugin">Create an authorization plugin</h1> <p>Docker’s out-of-the-box authorization model is all or nothing. Any user with permission to access the Docker daemon can run any Docker client command. The same is true for callers using Docker’s remote API to contact the daemon. If you require greater access control, you can create authorization plugins and add them to your Docker daemon configuration. Using an authorization plugin, a Docker administrator can configure granular access policies for managing access to Docker daemon.</p> <p>Anyone with the appropriate skills can develop an authorization plugin. These skills, at their most basic, are knowledge of Docker, understanding of REST, and sound programming knowledge. This document describes the architecture, state, and methods information available to an authorization plugin developer.</p> <h2 id="basic-principles">Basic principles</h2> <p>Docker’s <a href="../plugin_api/">plugin infrastructure</a> enables extending Docker by loading, removing and communicating with third-party components using a generic API. The access authorization subsystem was built using this mechanism.</p> <p>Using this subsystem, you don’t need to rebuild the Docker daemon to add an authorization plugin. You can add a plugin to an installed Docker daemon. You do need to restart the Docker daemon to add a new plugin.</p> <p>An authorization plugin approves or denies requests to the Docker daemon based on both the current authentication context and the command context. The authentication context contains all user details and the authentication method. The command context contains all the relevant request data.</p> <p>Authorization plugins must follow the rules described in <a href="../plugin_api/">Docker Plugin API</a>. Each plugin must reside within directories described under the <a href="../plugin_api/#plugin-discovery">Plugin discovery</a> section.</p> <p><strong>Note</strong>: the abbreviations <code>AuthZ</code> and <code>AuthN</code> mean authorization and authentication respectively.</p> <h2 id="basic-architecture">Basic architecture</h2> <p>You are responsible for registering your plugin as part of the Docker daemon startup. You can install multiple plugins and chain them together. This chain can be ordered. Each request to the daemon passes in order through the chain. Only when all the plugins grant access to the resource, is the access granted.</p> <p>When an HTTP request is made to the Docker daemon through the CLI or via the remote API, the authentication subsystem passes the request to the installed authentication plugin(s). The request contains the user (caller) and command context. The plugin is responsible for deciding whether to allow or deny the request.</p> <p>The sequence diagrams below depict an allow and deny authorization flow:</p> <p><img src="https://docs.docker.com/v1.11/engine/extend/images/authz_allow.png" alt="Authorization Allow flow"></p> <p><img src="https://docs.docker.com/v1.11/engine/extend/images/authz_deny.png" alt="Authorization Deny flow"></p> <p>Each request sent to the plugin includes the authenticated user, the HTTP headers, and the request/response body. Only the user name and the authentication method used are passed to the plugin. Most importantly, no user credentials or tokens are passed. Finally, not all request/response bodies are sent to the authorization plugin. Only those request/response bodies where the <code>Content-Type</code> is either <code>text/*</code> or <code>application/json</code> are sent.</p> <p>For commands that can potentially hijack the HTTP connection (<code>HTTP
+Upgrade</code>), such as <code>exec</code>, the authorization plugin is only called for the initial HTTP requests. Once the plugin approves the command, authorization is not applied to the rest of the flow. Specifically, the streaming data is not passed to the authorization plugins. For commands that return chunked HTTP response, such as <code>logs</code> and <code>events</code>, only the HTTP request is sent to the authorization plugins.</p> <p>During request/response processing, some authorization flows might need to do additional queries to the Docker daemon. To complete such flows, plugins can call the daemon API similar to a regular user. To enable these additional queries, the plugin must provide the means for an administrator to configure proper authentication and security policies.</p> <h2 id="docker-client-flows">Docker client flows</h2> <p>To enable and configure the authorization plugin, the plugin developer must support the Docker client interactions detailed in this section.</p> <h3 id="setting-up-docker-daemon">Setting up Docker daemon</h3> <p>Enable the authorization plugin with a dedicated command line flag in the <code>--authorization-plugin=PLUGIN_ID</code> format. The flag supplies a <code>PLUGIN_ID</code> value. This value can be the plugin’s socket or a path to a specification file.</p> <pre>$ docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+</pre> <p>Docker’s authorization subsystem supports multiple <code>--authorization-plugin</code> parameters.</p> <h3 id="calling-authorized-command-allow">Calling authorized command (allow)</h3> <pre>$ docker pull centos
+...
+f1b10cd84249: Pull complete
+...
+</pre> <h3 id="calling-unauthorized-command-deny">Calling unauthorized command (deny)</h3> <pre>$ docker pull centos
+...
+docker: Error response from daemon: authorization denied by plugin PLUGIN_NAME: volumes are not allowed.
+</pre> <h3 id="error-from-plugins">Error from plugins</h3> <pre>$ docker pull centos
+...
+docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZPlugin.AuthZReq: Cannot connect to the Docker daemon. Is the docker daemon running on this host?.
+</pre> <h2 id="api-schema-and-implementation">API schema and implementation</h2> <p>In addition to Docker’s standard plugin registration method, each plugin should implement the following two methods:</p> <ul> <li><p><code>/AuthzPlugin.AuthZReq</code> This authorize request method is called before the Docker daemon processes the client request.</p></li> <li><p><code>/AuthzPlugin.AuthZRes</code> This authorize response method is called before the response is returned from Docker daemon to the client.</p></li> </ul> <h4 id="authzplugin-authzreq">/AuthzPlugin.AuthZReq</h4> <p><strong>Request</strong>:</p> <pre>{
+    "User":              "The user identification",
+    "UserAuthNMethod":   "The authentication method used",
+    "RequestMethod":     "The HTTP method",
+    "RequestURI":        "The HTTP request URI",
+    "RequestBody":       "Byte array containing the raw HTTP request body",
+    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string "
+}
+</pre> <p><strong>Response</strong>:</p> <pre>{
+    "Allow": "Determined whether the user is allowed or not",
+    "Msg":   "The authorization message",
+    "Err":   "The error message if things go wrong"
+}
+</pre> <h4 id="authzplugin-authzres">/AuthzPlugin.AuthZRes</h4> <p><strong>Request</strong>:</p> <pre>{
+    "User":              "The user identification",
+    "UserAuthNMethod":   "The authentication method used",
+    "RequestMethod":     "The HTTP method",
+    "RequestURI":        "The HTTP request URI",
+    "RequestBody":       "Byte array containing the raw HTTP request body",
+    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string",
+    "ResponseBody":      "Byte array containing the raw HTTP response body",
+    "ResponseHeader":    "Byte array containing the raw HTTP response header as a map[string][]string",
+    "ResponseStatusCode":"Response status code"
+}
+</pre> <p><strong>Response</strong>:</p> <pre>{
+   "Allow":              "Determined whether the user is allowed or not",
+   "Msg":                "The authorization message",
+   "Err":                "The error message if things go wrong"
+}
+</pre> <h3 id="request-authorization">Request authorization</h3> <p>Each plugin must support two request authorization messages formats, one from the daemon to the plugin and then from the plugin to the daemon. The tables below detail the content expected in each message.</p> <h4 id="daemon-plugin">Daemon -&gt; Plugin</h4> <table> <thead> <tr> <th>Name</th> <th>Type</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>User</td> <td>string</td> <td>The user identification</td> </tr> <tr> <td>Authentication method</td> <td>string</td> <td>The authentication method used</td> </tr> <tr> <td>Request method</td> <td>enum</td> <td>The HTTP method (GET/DELETE/POST)</td> </tr> <tr> <td>Request URI</td> <td>string</td> <td>The HTTP request URI including API version (e.g., v.1.17/containers/json)</td> </tr> <tr> <td>Request headers</td> <td>map[string]string</td> <td>Request headers as key value pairs (without the authorization header)</td> </tr> <tr> <td>Request body</td> <td>[]byte</td> <td>Raw request body</td> </tr> </tbody> </table> <h4 id="plugin-daemon">Plugin -&gt; Daemon</h4> <table> <thead> <tr> <th>Name</th> <th>Type</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>Allow</td> <td>bool</td> <td>Boolean value indicating whether the request is allowed or denied</td> </tr> <tr> <td>Msg</td> <td>string</td> <td>Authorization message (will be returned to the client in case the access is denied)</td> </tr> <tr> <td>Err</td> <td>string</td> <td>Error message (will be returned to the client in case the plugin encounter an error. The string value supplied may appear in logs, so should not include confidential information)</td> </tr> </tbody> </table> <h3 id="response-authorization">Response authorization</h3> <p>The plugin must support two authorization messages formats, one from the daemon to the plugin and then from the plugin to the daemon. The tables below detail the content expected in each message.</p> <h4 id="daemon-plugin-1">Daemon -&gt; Plugin</h4> <table> <thead> <tr> <th>Name</th> <th>Type</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>User</td> <td>string</td> <td>The user identification</td> </tr> <tr> <td>Authentication method</td> <td>string</td> <td>The authentication method used</td> </tr> <tr> <td>Request method</td> <td>string</td> <td>The HTTP method (GET/DELETE/POST)</td> </tr> <tr> <td>Request URI</td> <td>string</td> <td>The HTTP request URI including API version (e.g., v.1.17/containers/json)</td> </tr> <tr> <td>Request headers</td> <td>map[string]string</td> <td>Request headers as key value pairs (without the authorization header)</td> </tr> <tr> <td>Request body</td> <td>[]byte</td> <td>Raw request body</td> </tr> <tr> <td>Response status code</td> <td>int</td> <td>Status code from the docker daemon</td> </tr> <tr> <td>Response headers</td> <td>map[string]string</td> <td>Response headers as key value pairs</td> </tr> <tr> <td>Response body</td> <td>[]byte</td> <td>Raw docker daemon response body</td> </tr> </tbody> </table> <h4 id="plugin-daemon-1">Plugin -&gt; Daemon</h4> <table> <thead> <tr> <th>Name</th> <th>Type</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>Allow</td> <td>bool</td> <td>Boolean value indicating whether the response is allowed or denied</td> </tr> <tr> <td>Msg</td> <td>string</td> <td>Authorization message (will be returned to the client in case the access is denied)</td> </tr> <tr> <td>Err</td> <td>string</td> <td>Error message (will be returned to the client in case the plugin encounter an error. The string value supplied may appear in logs, so should not include confidential information)</td> </tr> </tbody> </table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/v1.11/engine/extend/plugins_authorization/" class="_attribution-link" target="_blank">https://docs.docker.com/v1.11/engine/extend/plugins_authorization/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
