@@ -1,0 +1,125 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Xmlrpc_server_multicall - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Dispatches multiple XML-RPC requests. ">
+  <meta name="keywords" content="function, xmlrpc, server, multicall, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-xmlrpcs.inc/function/xmlrpc_server_multicall/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function xmlrpc_server_multicall</h1>     <pre class="signature">xmlrpc_server_multicall($methodcalls)</pre> <p>Dispatches multiple XML-RPC requests.</p> <h3>Parameters</h3> <p> <strong>array $methodcalls</strong>: An array of XML-RPC requests to make. Each request is an array with the following elements:</p> <ul> <li>
+<strong>methodName</strong>: Name of the method to invoke.</li> <li>
+<strong>params</strong>: Parameters to pass to the method.</li> </ul> <h3>Return value</h3> <p> An array of the results of each request.</p> <h3>See also</h3> <p> <a href="../../xmlrpc_server_call/7.x/" title="Dispatches an XML-RPC request and any parameters to the appropriate handler." class="local">xmlrpc_server_call</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">xmlrpcs.inc</a>, line 265</dt> <dd>Provides API for defining and handling XML-RPC requests.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function xmlrpc_server_multicall($methodcalls) {
+  // See http://www.xmlrpc.com/discuss/msgReader$1208
+  // To avoid multicall expansion attacks, limit the number of duplicate method
+  // calls allowed with a default of 1. Set to -1 for unlimited.
+  $duplicate_method_limit = variable_get('xmlrpc_multicall_duplicate_method_limit', 1);
+  $method_count = array();
+  $return = array();
+  $xmlrpc_server = xmlrpc_server_get();
+  foreach ($methodcalls as $call) {
+    $ok = TRUE;
+    if (!isset($call['methodName']) || !isset($call['params'])) {
+      $result = xmlrpc_error(3, t('Invalid syntax for system.multicall.'));
+      $ok = FALSE;
+    }
+    $method = $call['methodName'];
+    $method_count[$method] = isset($method_count[$method]) ? $method_count[$method] + 1 : 1;
+    $params = $call['params'];
+    if ($method == 'system.multicall') {
+      $result = xmlrpc_error(-32600, t('Recursive calls to system.multicall are forbidden.'));
+    }
+    elseif ($duplicate_method_limit &gt; 0 &amp;&amp; $method_count[$method] &gt; $duplicate_method_limit) {
+      $result = xmlrpc_error(-156579, t('Too many duplicate method calls in system.multicall.'));
+    }
+    elseif ($ok) {
+      $result = xmlrpc_server_call($xmlrpc_server, $method, $params);
+    }
+    if (is_object($result) &amp;&amp; !empty($result-&gt;is_error)) {
+      $return[] = array(
+        'faultCode' =&gt; $result-&gt;code,
+        'faultString' =&gt; $result-&gt;message,
+      );
+    }
+    else {
+      $return[] = array($result);
+    }
+  }
+  return $return;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!xmlrpcs.inc/function/xmlrpc_server_multicall/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!xmlrpcs.inc/function/xmlrpc_server_multicall/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

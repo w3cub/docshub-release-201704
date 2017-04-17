@@ -1,0 +1,205 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Install_check_requirements - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Checks installation requirements and reports any errors. ">
+  <meta name="keywords" content="function, install, check, requirements, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-install.core.inc/function/install_check_requirements/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function install_check_requirements</h1>     <pre class="signature">install_check_requirements($install_state)</pre> <p>Checks installation requirements and reports any errors.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">install.core.inc</a>, line 1628</dt> <dd>API functions for installing Drupal.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function install_check_requirements($install_state) {
+  $profile = $install_state['parameters']['profile'];
+
+  // Check the profile requirements.
+  $requirements = drupal_check_profile($profile);
+
+  // If Drupal is not set up already, we need to create a settings file.
+  if (!$install_state['settings_verified']) {
+    $writable = FALSE;
+    $conf_path = './' . conf_path(FALSE, TRUE);
+    $settings_file = $conf_path . '/settings.php';
+    $default_settings_file = './sites/default/default.settings.php';
+    $file = $conf_path;
+    $exists = FALSE;
+    // Verify that the directory exists.
+    if (drupal_verify_install_file($conf_path, FILE_EXIST, 'dir')) {
+      // Check if a settings.php file already exists.
+      $file = $settings_file;
+      if (drupal_verify_install_file($settings_file, FILE_EXIST)) {
+        // If it does, make sure it is writable.
+        $writable = drupal_verify_install_file($settings_file, FILE_READABLE | FILE_WRITABLE);
+        $exists = TRUE;
+      }
+    }
+
+    // If default.settings.php does not exist, or is not readable, throw an
+    // error.
+    if (!drupal_verify_install_file($default_settings_file, FILE_EXIST | FILE_READABLE)) {
+      $requirements['default settings file exists'] = array(
+        'title' =&gt; st('Default settings file'),
+        'value' =&gt; st('The default settings file does not exist.'),
+        'severity' =&gt; REQUIREMENT_ERROR,
+        'description' =&gt; st('The @drupal installer requires that the %default-file file not be modified in any way from the original download.', array('@drupal' =&gt; drupal_install_profile_distribution_name(), '%default-file' =&gt; $default_settings_file)),
+      );
+    }
+    // Otherwise, if settings.php does not exist yet, we can try to copy
+    // default.settings.php to create it.
+    elseif (!$exists) {
+      $copied = drupal_verify_install_file($conf_path, FILE_EXIST | FILE_WRITABLE, 'dir') &amp;&amp; @copy($default_settings_file, $settings_file);
+      if ($copied) {
+        // If the new settings file has the same owner as default.settings.php,
+        // this means default.settings.php is owned by the webserver user.
+        // This is an inherent security weakness because it allows a malicious
+        // webserver process to append arbitrary PHP code and then execute it.
+        // However, it is also a common configuration on shared hosting, and
+        // there is nothing Drupal can do to prevent it. In this situation,
+        // having settings.php also owned by the webserver does not introduce
+        // any additional security risk, so we keep the file in place.
+        if (fileowner($default_settings_file) === fileowner($settings_file)) {
+          $writable = drupal_verify_install_file($settings_file, FILE_READABLE | FILE_WRITABLE);
+          $exists = TRUE;
+        }
+        // If settings.php and default.settings.php have different owners, this
+        // probably means the server is set up "securely" (with the webserver
+        // running as its own user, distinct from the user who owns all the
+        // Drupal PHP files), although with either a group or world writable
+        // sites directory. Keeping settings.php owned by the webserver would
+        // therefore introduce a security risk. It would also cause a usability
+        // problem, since site owners who do not have root access to the file
+        // system would be unable to edit their settings file later on. We
+        // therefore must delete the file we just created and force the
+        // administrator to log on to the server and create it manually.
+        else {
+          $deleted = @drupal_unlink($settings_file);
+          // We expect deleting the file to be successful (since we just
+          // created it ourselves above), but if it fails somehow, we set a
+          // variable so we can display a one-time error message to the
+          // administrator at the bottom of the requirements list. We also try
+          // to make the file writable, to eliminate any conflicting error
+          // messages in the requirements list.
+          $exists = !$deleted;
+          if ($exists) {
+            $settings_file_ownership_error = TRUE;
+            $writable = drupal_verify_install_file($settings_file, FILE_READABLE | FILE_WRITABLE);
+          }
+        }
+      }
+    }
+
+    // If settings.php does not exist, throw an error.
+    if (!$exists) {
+      $requirements['settings file exists'] = array(
+        'title' =&gt; st('Settings file'),
+        'value' =&gt; st('The settings file does not exist.'),
+        'severity' =&gt; REQUIREMENT_ERROR,
+        'description' =&gt; st('The @drupal installer requires that you create a settings file as part of the installation process. Copy the %default_file file to %file. More details about installing Drupal are available in &lt;a href="@install_txt"&gt;INSTALL.txt&lt;/a&gt;.', array('@drupal' =&gt; drupal_install_profile_distribution_name(), '%file' =&gt; $file, '%default_file' =&gt; $default_settings_file, '@install_txt' =&gt; base_path() . 'INSTALL.txt')),
+      );
+    }
+    else {
+      $requirements['settings file exists'] = array(
+        'title' =&gt; st('Settings file'),
+        'value' =&gt; st('The %file file exists.', array('%file' =&gt; $file)),
+      );
+      // If settings.php is not writable, throw an error.
+      if (!$writable) {
+        $requirements['settings file writable'] = array(
+          'title' =&gt; st('Settings file'),
+          'value' =&gt; st('The settings file is not writable.'),
+          'severity' =&gt; REQUIREMENT_ERROR,
+          'description' =&gt; st('The @drupal installer requires write permissions to %file during the installation process. If you are unsure how to grant file permissions, consult the &lt;a href="@handbook_url"&gt;online handbook&lt;/a&gt;.', array('@drupal' =&gt; drupal_install_profile_distribution_name(), '%file' =&gt; $file, '@handbook_url' =&gt; 'http://drupal.org/server-permissions')),
+        );
+      }
+      else {
+        $requirements['settings file'] = array(
+          'title' =&gt; st('Settings file'),
+          'value' =&gt; st('The settings file is writable.'),
+        );
+      }
+      if (!empty($settings_file_ownership_error)) {
+        $requirements['settings file ownership'] = array(
+          'title' =&gt; st('Settings file'),
+          'value' =&gt; st('The settings file is owned by the web server.'),
+          'severity' =&gt; REQUIREMENT_ERROR,
+          'description' =&gt; st('The @drupal installer failed to create a settings file with proper file ownership. Log on to your web server, remove the existing %file file, and create a new one by copying the %default_file file to %file. More details about installing Drupal are available in &lt;a href="@install_txt"&gt;INSTALL.txt&lt;/a&gt;. If you have problems with the file permissions on your server, consult the &lt;a href="@handbook_url"&gt;online handbook&lt;/a&gt;.', array('@drupal' =&gt; drupal_install_profile_distribution_name(), '%file' =&gt; $file, '%default_file' =&gt; $default_settings_file, '@install_txt' =&gt; base_path() . 'INSTALL.txt', '@handbook_url' =&gt; 'http://drupal.org/server-permissions')),
+        );
+      }
+    }
+  }
+  return $requirements;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_check_requirements/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_check_requirements/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

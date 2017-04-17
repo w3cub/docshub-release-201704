@@ -1,0 +1,158 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Module_disable - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Disables a given set of modules. ">
+  <meta name="keywords" content="function, module, disable, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-module.inc/function/module_disable/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function module_disable</h1>     <pre class="signature">module_disable($module_list, $disable_dependents = TRUE)</pre> <p>Disables a given set of modules.</p> <h3>Parameters</h3> <p> <strong>string[] $module_list</strong>: An array of module names.</p> <p><strong>bool $disable_dependents</strong>: If TRUE, dependent modules will automatically be added and disabled in the correct order. This incurs a significant performance cost, so use FALSE if you know $module_list is already complete and in the correct order.</p> <h3>See also</h3> <p> <a href="../../../../includes-install.inc/function/drupal_uninstall_modules/7.x/" title="Uninstalls a given list of disabled modules." class="local">drupal_uninstall_modules</a>()</p> <p><a href="../../module_enable/7.x/" title="Enables or installs a given list of modules." class="local">module_enable</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">module.inc</a>, line 535</dt> <dd>API for loading and interacting with Drupal modules.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function module_disable($module_list, $disable_dependents = TRUE) {
+  if ($disable_dependents) {
+    // Get all module data so we can find dependents and sort.
+    $module_data = system_rebuild_module_data();
+    // Create an associative array with weights as values.
+    $module_list = array_flip(array_values($module_list));
+
+    $profile = drupal_get_profile();
+    while (list($module) = each($module_list)) {
+      if (!isset($module_data[$module]) || !$module_data[$module]-&gt;status) {
+        // This module doesn't exist or is already disabled, skip it.
+        unset($module_list[$module]);
+        continue;
+      }
+      $module_list[$module] = $module_data[$module]-&gt;sort;
+
+      // Add dependent modules to the list, with a placeholder weight.
+      // The new modules will be processed as the while loop continues.
+      foreach ($module_data[$module]-&gt;required_by as $dependent =&gt; $dependent_data) {
+        if (!isset($module_list[$dependent]) &amp;&amp; $dependent != $profile) {
+          $module_list[$dependent] = 0;
+        }
+      }
+    }
+
+    // Sort the module list by pre-calculated weights.
+    asort($module_list);
+    $module_list = array_keys($module_list);
+  }
+
+  $invoke_modules = array();
+
+  foreach ($module_list as $module) {
+    if (module_exists($module)) {
+      // Check if node_access table needs rebuilding.
+      if (!node_access_needs_rebuild() &amp;&amp; module_hook($module, 'node_grants')) {
+        node_access_needs_rebuild(TRUE);
+      }
+
+      module_load_install($module);
+      module_invoke($module, 'disable');
+      db_update('system')
+        -&gt;fields(array('status' =&gt; 0))
+        -&gt;condition('type', 'module')
+        -&gt;condition('name', $module)
+        -&gt;execute();
+      $invoke_modules[] = $module;
+      watchdog('system', '%module module disabled.', array('%module' =&gt; $module), WATCHDOG_INFO);
+    }
+  }
+
+  if (!empty($invoke_modules)) {
+    // Refresh the module list to exclude the disabled modules.
+    system_list_reset();
+    module_list(TRUE);
+    module_implements('', FALSE, TRUE);
+    entity_info_cache_clear();
+    // Invoke hook_modules_disabled before disabling modules,
+    // so we can still call module hooks to get information.
+    module_invoke_all('modules_disabled', $invoke_modules);
+    // Update the registry to remove the newly-disabled module.
+    registry_update();
+    _system_update_bootstrap_status();
+    // Update the theme registry to remove the newly-disabled module.
+    drupal_theme_rebuild();
+  }
+
+  // If there remains no more node_access module, rebuilding will be
+  // straightforward, we can do it right now.
+  if (node_access_needs_rebuild() &amp;&amp; count(module_implements('node_grants')) == 0) {
+    node_access_rebuild();
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!module.inc/function/module_disable/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!module.inc/function/module_disable/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

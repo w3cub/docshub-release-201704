@@ -1,0 +1,184 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Install_begin_request - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Begins an installation request, modifying the installation state as needed. ">
+  <meta name="keywords" content="function, install, begin, request, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-install.core.inc/function/install_begin_request/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function install_begin_request</h1>     <pre class="signature">install_begin_request(&amp;$install_state)</pre> <p>Begins an installation request, modifying the installation state as needed.</p> <p>This function performs commands that must run at the beginning of every page request. It throws an exception if the installation should not proceed.</p> <h3>Parameters</h3> <p> <strong>$install_state</strong>: An array of information about the current installation state. This is modified with information gleaned from the beginning of the page request.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">install.core.inc</a>, line 210</dt> <dd>API functions for installing Drupal.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function install_begin_request(&amp;$install_state) {
+  // Add any installation parameters passed in via the URL.
+  $install_state['parameters'] += $_GET;
+
+  // Validate certain core settings that are used throughout the installation.
+  if (!empty($install_state['parameters']['profile'])) {
+    $install_state['parameters']['profile'] = preg_replace('/[^a-zA-Z_0-9]/', '', $install_state['parameters']['profile']);
+  }
+  if (!empty($install_state['parameters']['locale'])) {
+    $install_state['parameters']['locale'] = preg_replace('/[^a-zA-Z_0-9\-]/', '', $install_state['parameters']['locale']);
+  }
+
+  // Allow command line scripts to override server variables used by Drupal.
+  require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
+  if (!$install_state['interactive']) {
+    drupal_override_server_variables($install_state['server']);
+  }
+
+  // The user agent header is used to pass a database prefix in the request when
+  // running tests. However, for security reasons, it is imperative that no
+  // installation be permitted using such a prefix.
+  if (isset($_SERVER['HTTP_USER_AGENT']) &amp;&amp; strpos($_SERVER['HTTP_USER_AGENT'], "simpletest") !== FALSE) {
+    header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
+    exit;
+  }
+
+  drupal_bootstrap(DRUPAL_BOOTSTRAP_CONFIGURATION);
+
+  // This must go after drupal_bootstrap(), which unsets globals!
+  global $conf;
+
+  require_once DRUPAL_ROOT . '/modules/system/system.install';
+  require_once DRUPAL_ROOT . '/includes/common.inc';
+  require_once DRUPAL_ROOT . '/includes/file.inc';
+  require_once DRUPAL_ROOT . '/includes/install.inc';
+  require_once DRUPAL_ROOT . '/' . variable_get('path_inc', 'includes/path.inc');
+
+  // Load module basics (needed for hook invokes).
+  include_once DRUPAL_ROOT . '/includes/module.inc';
+  include_once DRUPAL_ROOT . '/includes/session.inc';
+
+  // Set up $language, so t() caller functions will still work.
+  drupal_language_initialize();
+
+  include_once DRUPAL_ROOT . '/includes/entity.inc';
+  require_once DRUPAL_ROOT . '/includes/ajax.inc';
+  $module_list['system']['filename'] = 'modules/system/system.module';
+  $module_list['user']['filename'] = 'modules/user/user.module';
+  module_list(TRUE, FALSE, FALSE, $module_list);
+  drupal_load('module', 'system');
+  drupal_load('module', 'user');
+
+  // Load the cache infrastructure using a "fake" cache implementation that
+  // does not attempt to write to the database. We need this during the initial
+  // part of the installer because the database is not available yet. We
+  // continue to use it even when the database does become available, in order
+  // to preserve consistency between interactive and command-line installations
+  // (the latter complete in one page request and therefore are forced to
+  // continue using the cache implementation they started with) and also
+  // because any data put in the cache during the installer is inherently
+  // suspect, due to the fact that Drupal is not fully set up yet.
+  require_once DRUPAL_ROOT . '/includes/cache.inc';
+  require_once DRUPAL_ROOT . '/includes/cache-install.inc';
+  $conf['cache_default_class'] = 'DrupalFakeCache';
+
+  // Prepare for themed output. We need to run this at the beginning of the
+  // page request to avoid a different theme accidentally getting set. (We also
+  // need to run it even in the case of command-line installations, to prevent
+  // any code in the installer that happens to initialize the theme system from
+  // accessing the database before it is set up yet.)
+  drupal_maintenance_theme();
+
+  // Check existing settings.php.
+  $install_state['settings_verified'] = install_verify_settings();
+
+  if ($install_state['settings_verified']) {
+    // Initialize the database system. Note that the connection
+    // won't be initialized until it is actually requested.
+    require_once DRUPAL_ROOT . '/includes/database/database.inc';
+
+    // Verify the last completed task in the database, if there is one.
+    $task = install_verify_completed_task();
+  }
+  else {
+    $task = NULL;
+
+    // Do not install over a configured settings.php. Check the 'db_url'
+    // variable in addition to 'databases', since previous versions of Drupal
+    // used that (and we do not want to allow installations on an existing site
+    // whose settings file has not yet been updated).
+    if (!empty($GLOBALS['databases']) || !empty($GLOBALS['db_url'])) {
+      throw new Exception(install_already_done_error());
+    }
+  }
+
+  // Modify the installation state as appropriate.
+  $install_state['completed_task'] = $task;
+  $install_state['database_tables_exist'] = !empty($task);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_begin_request/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_begin_request/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

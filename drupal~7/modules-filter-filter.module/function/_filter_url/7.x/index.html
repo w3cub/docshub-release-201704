@@ -1,0 +1,197 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_filter_url - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements callback_filter_process(). ">
+  <meta name="keywords" content="function, filter, url, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-filter-filter.module/function/_filter_url/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _filter_url</h1>     <pre class="signature">_filter_url($text, $filter)</pre> <p>Implements <a href="../../../../modules-filter-filter.api.php/function/callback_filter_process/7.x/" title="Provide text filtered to conform to the supplied format." class="local">callback_filter_process</a>().</p> <p>Converts text into hyperlinks automatically.</p> <p>This filter identifies and makes clickable three types of "links".</p> <ul> <li>URLs like <a href="http://example.com" target="_blank">http://example.com</a>.</li> <li>E-mail addresses like <a href="../mailto:name@example.com/">name@example.com</a>.</li> <li>Web addresses without the "http://" protocol defined, like <a href="http://www.example.com" target="_blank">www.example.com</a>.</li> </ul> <p>Each type must be processed separately, as there is no one regular expression that could possibly match all of the cases in one pass.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-77d0f9221bd8372b19b1e4f7c910e664"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/standard_filters/7.x/">Standard filters</a></dt> <dd>Filters implemented by the Filter module.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/filter/<a href="../../../7.x/">filter.module</a>, line 1456</dt> <dd>Framework for handling the filtering of content.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _filter_url($text, $filter) {
+  // Tags to skip and not recurse into.
+  $ignore_tags = 'a|script|style|code|pre';
+
+  // Pass length to regexp callback.
+  _filter_url_trim(NULL, $filter-&gt;settings['filter_url_length']);
+
+  // Create an array which contains the regexps for each type of link.
+  // The key to the regexp is the name of a function that is used as
+  // callback function to process matches of the regexp. The callback function
+  // is to return the replacement for the match. The array is used and
+  // matching/replacement done below inside some loops.
+  $tasks = array();
+
+  // Prepare protocols pattern for absolute URLs.
+  // check_url() will replace any bad protocols with HTTP, so we need to support
+  // the identical list. While '//' is technically optional for MAILTO only,
+  // we cannot cleanly differ between protocols here without hard-coding MAILTO,
+  // so '//' is optional for all protocols.
+  // @see filter_xss_bad_protocol()
+  $protocols = variable_get('filter_allowed_protocols', array('ftp', 'http', 'https', 'irc', 'mailto', 'news', 'nntp', 'rtsp', 'sftp', 'ssh', 'tel', 'telnet', 'webcal'));
+  $protocols = implode(':(?://)?|', $protocols) . ':(?://)?';
+
+  // Prepare domain name pattern.
+  // The ICANN seems to be on track towards accepting more diverse top level
+  // domains, so this pattern has been "future-proofed" to allow for TLDs
+  // of length 2-64.
+  $domain = '(?:[A-Za-z0-9._+-]+\.)?[A-Za-z]{2,64}\b';
+  $ip = '(?:[0-9]{1,3}\.){3}[0-9]{1,3}';
+  $auth = '[a-zA-Z0-9:%_+*~#?&amp;=.,/;-]+@';
+  $trail = '[a-zA-Z0-9:%_+*~#&amp;\[\]=/;?!\.,-]*[a-zA-Z0-9:%_+*~#&amp;\[\]=/;-]';
+
+  // Prepare pattern for optional trailing punctuation.
+  // Even these characters could have a valid meaning for the URL, such usage is
+  // rare compared to using a URL at the end of or within a sentence, so these
+  // trailing characters are optionally excluded.
+  $punctuation = '[\.,?!]*?';
+
+  // Match absolute URLs.
+  $url_pattern = "(?:$auth)?(?:$domain|$ip)/?(?:$trail)?";
+  $pattern = "`((?:$protocols)(?:$url_pattern))($punctuation)`";
+  $tasks['_filter_url_parse_full_links'] = $pattern;
+
+  // Match e-mail addresses.
+  $url_pattern = "[A-Za-z0-9._+-]{1,254}@(?:$domain)";
+  $pattern = "`($url_pattern)`";
+  $tasks['_filter_url_parse_email_links'] = $pattern;
+
+  // Match www domains.
+  $url_pattern = "www\.(?:$domain)/?(?:$trail)?";
+  $pattern = "`($url_pattern)($punctuation)`";
+  $tasks['_filter_url_parse_partial_links'] = $pattern;
+
+  // Each type of URL needs to be processed separately. The text is joined and
+  // re-split after each task, since all injected HTML tags must be correctly
+  // protected before the next task.
+  foreach ($tasks as $task =&gt; $pattern) {
+    // HTML comments need to be handled separately, as they may contain HTML
+    // markup, especially a '&gt;'. Therefore, remove all comment contents and add
+    // them back later.
+    _filter_url_escape_comments('', TRUE);
+    $text = preg_replace_callback('`&lt;!--(.*?)--&gt;`s', '_filter_url_escape_comments', $text);
+
+    // Split at all tags; ensures that no tags or attributes are processed.
+    $chunks = preg_split('/(&lt;.+?&gt;)/is', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    // PHP ensures that the array consists of alternating delimiters and
+    // literals, and begins and ends with a literal (inserting NULL as
+    // required). Therefore, the first chunk is always text:
+    $chunk_type = 'text';
+    // If a tag of $ignore_tags is found, it is stored in $open_tag and only
+    // removed when the closing tag is found. Until the closing tag is found,
+    // no replacements are made.
+    $open_tag = '';
+
+    for ($i = 0; $i &lt; count($chunks); $i++) {
+      if ($chunk_type == 'text') {
+        // Only process this text if there are no unclosed $ignore_tags.
+        if ($open_tag == '') {
+          // If there is a match, inject a link into this chunk via the callback
+          // function contained in $task.
+          $chunks[$i] = preg_replace_callback($pattern, $task, $chunks[$i]);
+        }
+        // Text chunk is done, so next chunk must be a tag.
+        $chunk_type = 'tag';
+      }
+      else {
+        // Only process this tag if there are no unclosed $ignore_tags.
+        if ($open_tag == '') {
+          // Check whether this tag is contained in $ignore_tags.
+          if (preg_match("`&lt;($ignore_tags)(?:\s|&gt;)`i", $chunks[$i], $matches)) {
+            $open_tag = $matches[1];
+          }
+        }
+        // Otherwise, check whether this is the closing tag for $open_tag.
+        else {
+          if (preg_match("`&lt;\/$open_tag&gt;`i", $chunks[$i], $matches)) {
+            $open_tag = '';
+          }
+        }
+        // Tag chunk is done, so next chunk must be text.
+        $chunk_type = 'text';
+      }
+    }
+
+    $text = implode($chunks);
+    // Revert back to the original comment contents
+    _filter_url_escape_comments('', FALSE);
+    $text = preg_replace_callback('`&lt;!--(.*?)--&gt;`', '_filter_url_escape_comments', $text);
+  }
+
+  return $text;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!filter!filter.module/function/_filter_url/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!filter!filter.module/function/_filter_url/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

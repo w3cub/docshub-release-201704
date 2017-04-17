@@ -1,0 +1,162 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>DatabaseConnection_mysql&#58;&#58;__construct - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Overrides DatabaseConnection&#58;&#58;__construct ">
+  <meta name="keywords" content="public, function, databaseconnection, mysql, construct, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-database-mysql-database.inc/function/databaseconnection_mysql-__construct/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function DatabaseConnection_mysql::__construct</h1>     <pre class="signature">public <a href="../../../class/databaseconnection_mysql/7.x/">DatabaseConnection_mysql</a>::__construct(array $connection_options = array())</pre> <p class="api-override">Overrides <a href="../../../../includes-database-database.inc/function/databaseconnection-__construct/7.x/">DatabaseConnection::__construct</a></p> <h3>File</h3> 
+<dl> <dt>includes/database/mysql/<a href="../../../7.x/">database.inc</a>, line 22</dt> <dd>Database interface code for MySQL database servers.</dd> </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/databaseconnection_mysql/7.x/">DatabaseConnection_mysql</a> </dt>  </dl> <h3>Code</h3> <pre class="php" data-language="php">public function __construct(array $connection_options = array()) {
+  // This driver defaults to transaction support, except if explicitly passed FALSE.
+  $this-&gt;transactionSupport = !isset($connection_options['transactions']) || ($connection_options['transactions'] !== FALSE);
+
+  // MySQL never supports transactional DDL.
+  $this-&gt;transactionalDDLSupport = FALSE;
+
+  $this-&gt;connectionOptions = $connection_options;
+
+  $charset = 'utf8';
+  // Check if the charset is overridden to utf8mb4 in settings.php.
+  if ($this-&gt;utf8mb4IsActive()) {
+    $charset = 'utf8mb4';
+  }
+
+  // The DSN should use either a socket or a host/port.
+  if (isset($connection_options['unix_socket'])) {
+    $dsn = 'mysql:unix_socket=' . $connection_options['unix_socket'];
+  }
+  else {
+    // Default to TCP connection on port 3306.
+    $dsn = 'mysql:host=' . $connection_options['host'] . ';port=' . (empty($connection_options['port']) ? 3306 : $connection_options['port']);
+  }
+  // Character set is added to dsn to ensure PDO uses the proper character
+  // set when escaping. This has security implications. See
+  // https://www.drupal.org/node/1201452 for further discussion.
+  $dsn .= ';charset=' . $charset;
+  $dsn .= ';dbname=' . $connection_options['database'];
+  // Allow PDO options to be overridden.
+  $connection_options += array(
+    'pdo' =&gt; array(),
+  );
+  $connection_options['pdo'] += array(
+    // So we don't have to mess around with cursors and unbuffered queries by default.
+    PDO::MYSQL_ATTR_USE_BUFFERED_QUERY =&gt; TRUE,
+    // Because MySQL's prepared statements skip the query cache, because it's dumb.
+    PDO::ATTR_EMULATE_PREPARES =&gt; TRUE,
+  );
+  if (defined('PDO::MYSQL_ATTR_MULTI_STATEMENTS')) {
+    // An added connection option in PHP 5.5.21+ to optionally limit SQL to a
+    // single statement like mysqli.
+    $connection_options['pdo'] += array(PDO::MYSQL_ATTR_MULTI_STATEMENTS =&gt; FALSE);
+  }
+
+  parent::__construct($dsn, $connection_options['username'], $connection_options['password'], $connection_options['pdo']);
+
+  // Force MySQL to use the UTF-8 character set. Also set the collation, if a
+  // certain one has been set; otherwise, MySQL defaults to 'utf8_general_ci'
+  // for UTF-8.
+  if (!empty($connection_options['collation'])) {
+    $this-&gt;exec('SET NAMES ' . $charset . ' COLLATE ' . $connection_options['collation']);
+  }
+  else {
+    $this-&gt;exec('SET NAMES ' . $charset);
+  }
+
+  // Set MySQL init_commands if not already defined.  Default Drupal's MySQL
+  // behavior to conform more closely to SQL standards.  This allows Drupal
+  // to run almost seamlessly on many different kinds of database systems.
+  // These settings force MySQL to behave the same as postgresql, or sqlite
+  // in regards to syntax interpretation and invalid data handling.  See
+  // http://drupal.org/node/344575 for further discussion. Also, as MySQL 5.5
+  // changed the meaning of TRADITIONAL we need to spell out the modes one by
+  // one.
+  $connection_options += array(
+    'init_commands' =&gt; array(),
+  );
+  $connection_options['init_commands'] += array(
+    'sql_mode' =&gt; "SET sql_mode = 'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER'",
+  );
+  // Execute initial commands.
+  foreach ($connection_options['init_commands'] as $sql) {
+    $this-&gt;exec($sql);
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!database!mysql!database.inc/function/DatabaseConnection_mysql::__construct/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!database!mysql!database.inc/function/DatabaseConnection_mysql::__construct/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

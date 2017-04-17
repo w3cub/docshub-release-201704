@@ -1,0 +1,599 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>System_requirements - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_requirements(). ">
+  <meta name="keywords" content="function, system, requirements, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-system-system.install/function/system_requirements/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function system_requirements</h1>     <pre class="signature">system_requirements($phase)</pre> <p>Implements <a href="../../../../modules-system-system.api.php/function/hook_requirements/7.x/" title="Check installation requirements and do status reporting." class="local">hook_requirements</a>().</p> <h3>File</h3> 
+<dl> <dt>modules/system/<a href="../../../7.x/">system.install</a>, line 11</dt> <dd>Install, update and uninstall functions for the system module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function system_requirements($phase) {
+  global $base_url;
+  $requirements = array();
+  // Ensure translations don't break during installation.
+  $t = get_t();
+
+  // Report Drupal version
+  if ($phase == 'runtime') {
+    $requirements['drupal'] = array(
+      'title' =&gt; $t('Drupal'),
+      'value' =&gt; VERSION,
+      'severity' =&gt; REQUIREMENT_INFO,
+      'weight' =&gt; -10,
+    );
+
+    // Display the currently active installation profile, if the site
+    // is not running the default installation profile.
+    $profile = drupal_get_profile();
+    if ($profile != 'standard') {
+      $info = system_get_info('module', $profile);
+      $requirements['install_profile'] = array(
+        'title' =&gt; $t('Install profile'),
+        'value' =&gt; $t('%profile_name (%profile-%version)', array(
+          '%profile_name' =&gt; $info['name'],
+          '%profile' =&gt; $profile,
+          '%version' =&gt; $info['version']
+        )),
+        'severity' =&gt; REQUIREMENT_INFO,
+        'weight' =&gt; -9
+      );
+    }
+  }
+
+  // Web server information.
+  $software = $_SERVER['SERVER_SOFTWARE'];
+  $requirements['webserver'] = array(
+    'title' =&gt; $t('Web server'),
+    'value' =&gt; $software,
+  );
+
+  // Test PHP version and show link to phpinfo() if it's available
+  $phpversion = phpversion();
+  if (function_exists('phpinfo')) {
+    $requirements['php'] = array(
+      'title' =&gt; $t('PHP'),
+      'value' =&gt; ($phase == 'runtime') ? $phpversion . ' (' . l($t('more information'), 'admin/reports/status/php') . ')' : $phpversion,
+    );
+  }
+  else {
+    $requirements['php'] = array(
+      'title' =&gt; $t('PHP'),
+      'value' =&gt; $phpversion,
+      'description' =&gt; $t('The phpinfo() function has been disabled for security reasons. To see your server\'s phpinfo() information, change your PHP settings or contact your server administrator. For more information, &lt;a href="@phpinfo"&gt;Enabling and disabling phpinfo()&lt;/a&gt; handbook page.', array('@phpinfo' =&gt; 'http://drupal.org/node/243993')),
+      'severity' =&gt; REQUIREMENT_INFO,
+    );
+  }
+
+  if (version_compare($phpversion, DRUPAL_MINIMUM_PHP) &lt; 0) {
+    $requirements['php']['description'] = $t('Your PHP installation is too old. Drupal requires at least PHP %version.', array('%version' =&gt; DRUPAL_MINIMUM_PHP));
+    $requirements['php']['severity'] = REQUIREMENT_ERROR;
+    // If PHP is old, it's not safe to continue with the requirements check.
+    return $requirements;
+  }
+  // Check that htmlspecialchars() is secure if the site is running any PHP
+  // version older than 5.2.5. We don't simply require 5.2.5, because Ubuntu
+  // 8.04 ships with PHP 5.2.4, but includes the necessary security patch.
+  elseif (version_compare($phpversion, '5.2.5') &lt; 0 &amp;&amp; strlen(@htmlspecialchars(chr(0xC0) . chr(0xAF), ENT_QUOTES, 'UTF-8'))) {
+    $requirements['php']['description'] = $t('Your PHP installation is too old. Drupal requires at least PHP 5.2.5, or PHP @version with the htmlspecialchars security patch backported.', array('@version' =&gt; DRUPAL_MINIMUM_PHP));
+    $requirements['php']['severity'] = REQUIREMENT_ERROR;
+    // If PHP is old, it's not safe to continue with the requirements check.
+    return $requirements;
+  }
+
+  // Test PHP register_globals setting.
+  $requirements['php_register_globals'] = array(
+    'title' =&gt; $t('PHP register globals'),
+  );
+  $register_globals = trim(ini_get('register_globals'));
+  // Unfortunately, ini_get() may return many different values, and we can't
+  // be certain which values mean 'on', so we instead check for 'not off'
+  // since we never want to tell the user that their site is secure
+  // (register_globals off), when it is in fact on. We can only guarantee
+  // register_globals is off if the value returned is 'off', '', or 0.
+  if (!empty($register_globals) &amp;&amp; strtolower($register_globals) != 'off') {
+    $requirements['php_register_globals']['description'] = $t('&lt;em&gt;register_globals&lt;/em&gt; is enabled. Drupal requires this configuration directive to be disabled. Your site may not be secure when &lt;em&gt;register_globals&lt;/em&gt; is enabled. The PHP manual has instructions for &lt;a href="http://php.net/configuration.changes"&gt;how to change configuration settings&lt;/a&gt;.');
+    $requirements['php_register_globals']['severity'] = REQUIREMENT_ERROR;
+    $requirements['php_register_globals']['value'] = $t("Enabled ('@value')", array('@value' =&gt; $register_globals));
+  }
+  else {
+    $requirements['php_register_globals']['value'] = $t('Disabled');
+  }
+
+  // Test for PHP extensions.
+  $requirements['php_extensions'] = array(
+    'title' =&gt; $t('PHP extensions'),
+  );
+
+  $missing_extensions = array();
+  $required_extensions = array(
+    'date',
+    'dom',
+    'filter',
+    'gd',
+    'hash',
+    'json',
+    'pcre',
+    'pdo',
+    'session',
+    'SimpleXML',
+    'SPL',
+    'xml',
+  );
+  foreach ($required_extensions as $extension) {
+    if (!extension_loaded($extension)) {
+      $missing_extensions[] = $extension;
+    }
+  }
+
+  if (!empty($missing_extensions)) {
+    $description = $t('Drupal requires you to enable the PHP extensions in the following list (see the &lt;a href="@system_requirements"&gt;system requirements page&lt;/a&gt; for more information):', array(
+      '@system_requirements' =&gt; 'http://drupal.org/requirements',
+    ));
+
+    $description .= theme('item_list', array('items' =&gt; $missing_extensions));
+
+    $requirements['php_extensions']['value'] = $t('Disabled');
+    $requirements['php_extensions']['severity'] = REQUIREMENT_ERROR;
+    $requirements['php_extensions']['description'] = $description;
+  }
+  else {
+    $requirements['php_extensions']['value'] = $t('Enabled');
+  }
+
+  if ($phase == 'install' || $phase == 'update') {
+    // Test for PDO (database).
+    $requirements['database_extensions'] = array(
+      'title' =&gt; $t('Database support'),
+    );
+
+    // Make sure PDO is available.
+    $database_ok = extension_loaded('pdo');
+    if (!$database_ok) {
+      $pdo_message = $t('Your web server does not appear to support PDO (PHP Data Objects). Ask your hosting provider if they support the native PDO extension. See the &lt;a href="@link"&gt;system requirements&lt;/a&gt; page for more information.', array(
+        '@link' =&gt; 'http://drupal.org/requirements/pdo',
+      ));
+    }
+    else {
+      // Make sure at least one supported database driver exists.
+      $drivers = drupal_detect_database_types();
+      if (empty($drivers)) {
+        $database_ok = FALSE;
+        $pdo_message = $t('Your web server does not appear to support any common PDO database extensions. Check with your hosting provider to see if they support PDO (PHP Data Objects) and offer any databases that &lt;a href="@drupal-databases"&gt;Drupal supports&lt;/a&gt;.', array(
+          '@drupal-databases' =&gt; 'http://drupal.org/node/270#database',
+        ));
+      }
+      // Make sure the native PDO extension is available, not the older PEAR
+      // version. (See install_verify_pdo() for details.)
+      if (!defined('PDO::ATTR_DEFAULT_FETCH_MODE')) {
+        $database_ok = FALSE;
+        $pdo_message = $t('Your web server seems to have the wrong version of PDO installed. Drupal 7 requires the PDO extension from PHP core. This system has the older PECL version. See the &lt;a href="@link"&gt;system requirements&lt;/a&gt; page for more information.', array(
+          '@link' =&gt; 'http://drupal.org/requirements/pdo#pecl',
+        ));
+      }
+    }
+
+    if (!$database_ok) {
+      $requirements['database_extensions']['value'] = $t('Disabled');
+      $requirements['database_extensions']['severity'] = REQUIREMENT_ERROR;
+      $requirements['database_extensions']['description'] = $pdo_message;
+    }
+    else {
+      $requirements['database_extensions']['value'] = $t('Enabled');
+    }
+  }
+  else {
+    // Database information.
+    $class = 'DatabaseTasks_' . Database::getConnection()-&gt;driver();
+    $tasks = new $class();
+    $requirements['database_system'] = array(
+      'title' =&gt; $t('Database system'),
+      'value' =&gt; $tasks-&gt;name(),
+    );
+    $requirements['database_system_version'] = array(
+      'title' =&gt; $t('Database system version'),
+      'value' =&gt; Database::getConnection()-&gt;version(),
+    );
+  }
+
+  // Test database-specific multi-byte UTF-8 related requirements.
+  $charset_requirements = _system_check_db_utf8mb4_requirements($phase);
+  if (!empty($charset_requirements)) {
+    $requirements['database_charset'] = $charset_requirements;
+  }
+
+  // Test PHP memory_limit
+  $memory_limit = ini_get('memory_limit');
+  $requirements['php_memory_limit'] = array(
+    'title' =&gt; $t('PHP memory limit'),
+    'value' =&gt; $memory_limit == -1 ? t('-1 (Unlimited)') : $memory_limit,
+  );
+
+  if (!drupal_check_memory_limit(DRUPAL_MINIMUM_PHP_MEMORY_LIMIT, $memory_limit)) {
+    $description = '';
+    if ($phase == 'install') {
+      $description = $t('Consider increasing your PHP memory limit to %memory_minimum_limit to help prevent errors in the installation process.', array('%memory_minimum_limit' =&gt; DRUPAL_MINIMUM_PHP_MEMORY_LIMIT));
+    }
+    elseif ($phase == 'update') {
+      $description = $t('Consider increasing your PHP memory limit to %memory_minimum_limit to help prevent errors in the update process.', array('%memory_minimum_limit' =&gt; DRUPAL_MINIMUM_PHP_MEMORY_LIMIT));
+    }
+    elseif ($phase == 'runtime') {
+      $description = $t('Depending on your configuration, Drupal can run with a %memory_limit PHP memory limit. However, a %memory_minimum_limit PHP memory limit or above is recommended, especially if your site uses additional custom or contributed modules.', array('%memory_limit' =&gt; $memory_limit, '%memory_minimum_limit' =&gt; DRUPAL_MINIMUM_PHP_MEMORY_LIMIT));
+    }
+
+    if (!empty($description)) {
+      if ($php_ini_path = get_cfg_var('cfg_file_path')) {
+        $description .= ' ' . $t('Increase the memory limit by editing the memory_limit parameter in the file %configuration-file and then restart your web server (or contact your system administrator or hosting provider for assistance).', array('%configuration-file' =&gt; $php_ini_path));
+      }
+      else {
+        $description .= ' ' . $t('Contact your system administrator or hosting provider for assistance with increasing your PHP memory limit.');
+      }
+
+      $requirements['php_memory_limit']['description'] = $description . ' ' . $t('See the &lt;a href="@url"&gt;Drupal requirements&lt;/a&gt; for more information.', array('@url' =&gt; 'http://drupal.org/requirements'));
+      $requirements['php_memory_limit']['severity'] = REQUIREMENT_WARNING;
+    }
+  }
+
+  // Test settings.php file writability
+  if ($phase == 'runtime') {
+    $conf_dir = drupal_verify_install_file(conf_path(), FILE_NOT_WRITABLE, 'dir');
+    $conf_file = drupal_verify_install_file(conf_path() . '/settings.php', FILE_EXIST | FILE_READABLE | FILE_NOT_WRITABLE);
+    if (!$conf_dir || !$conf_file) {
+      $requirements['settings.php'] = array(
+        'value' =&gt; $t('Not protected'),
+        'severity' =&gt; REQUIREMENT_ERROR,
+        'description' =&gt; '',
+      );
+      if (!$conf_dir) {
+        $requirements['settings.php']['description'] .= $t('The directory %file is not protected from modifications and poses a security risk. You must change the directory\'s permissions to be non-writable. ', array('%file' =&gt; conf_path()));
+      }
+      if (!$conf_file) {
+        $requirements['settings.php']['description'] .= $t('The file %file is not protected from modifications and poses a security risk. You must change the file\'s permissions to be non-writable.', array('%file' =&gt; conf_path() . '/settings.php'));
+      }
+    }
+    else {
+      $requirements['settings.php'] = array(
+        'value' =&gt; $t('Protected'),
+      );
+    }
+    $requirements['settings.php']['title'] = $t('Configuration file');
+  }
+
+  // Test the contents of the .htaccess files.
+  if ($phase == 'runtime') {
+    // Try to write the .htaccess files first, to prevent false alarms in case
+    // (for example) the /tmp directory was wiped.
+    file_ensure_htaccess();
+    $htaccess_files['public://.htaccess'] = array(
+      'title' =&gt; $t('Public files directory'),
+      'directory' =&gt; variable_get('file_public_path', conf_path() . '/files'),
+    );
+    if ($private_files_directory = variable_get('file_private_path')) {
+      $htaccess_files['private://.htaccess'] = array(
+        'title' =&gt; $t('Private files directory'),
+        'directory' =&gt; $private_files_directory,
+      );
+    }
+    $htaccess_files['temporary://.htaccess'] = array(
+      'title' =&gt; $t('Temporary files directory'),
+      'directory' =&gt; variable_get('file_temporary_path', file_directory_temp()),
+    );
+    foreach ($htaccess_files as $htaccess_file =&gt; $info) {
+      // Check for the string which was added to the recommended .htaccess file
+      // in the latest security update.
+      if (!file_exists($htaccess_file) || !($contents = @file_get_contents($htaccess_file)) || strpos($contents, 'Drupal_Security_Do_Not_Remove_See_SA_2013_003') === FALSE) {
+        $requirements[$htaccess_file] = array(
+          'title' =&gt; $info['title'],
+          'value' =&gt; $t('Not fully protected'),
+          'severity' =&gt; REQUIREMENT_ERROR,
+          'description' =&gt; $t('See &lt;a href="@url"&gt;@url&lt;/a&gt; for information about the recommended .htaccess file which should be added to the %directory directory to help protect against arbitrary code execution.', array('@url' =&gt; 'http://drupal.org/SA-CORE-2013-003', '%directory' =&gt; $info['directory'])),
+        );
+      }
+    }
+  }
+
+  // Report cron status.
+  if ($phase == 'runtime') {
+    // Cron warning threshold defaults to two days.
+    $threshold_warning = variable_get('cron_threshold_warning', 172800);
+    // Cron error threshold defaults to two weeks.
+    $threshold_error = variable_get('cron_threshold_error', 1209600);
+    // Cron configuration help text.
+    $help = $t('For more information, see the online handbook entry for &lt;a href="@cron-handbook"&gt;configuring cron jobs&lt;/a&gt;.', array('@cron-handbook' =&gt; 'http://drupal.org/cron'));
+
+    // Determine when cron last ran.
+    $cron_last = variable_get('cron_last');
+    if (!is_numeric($cron_last)) {
+      $cron_last = variable_get('install_time', 0);
+    }
+
+    // Determine severity based on time since cron last ran.
+    $severity = REQUIREMENT_OK;
+    if (REQUEST_TIME - $cron_last &gt; $threshold_error) {
+      $severity = REQUIREMENT_ERROR;
+    }
+    elseif (REQUEST_TIME - $cron_last &gt; $threshold_warning) {
+      $severity = REQUIREMENT_WARNING;
+    }
+
+    // Set summary and description based on values determined above.
+    $summary = $t('Last run !time ago', array('!time' =&gt; format_interval(REQUEST_TIME - $cron_last)));
+    $description = '';
+    if ($severity != REQUIREMENT_OK) {
+      $description = $t('Cron has not run recently.') . ' ' . $help;
+    }
+
+    $description .= ' ' . $t('You can &lt;a href="@cron"&gt;run cron manually&lt;/a&gt;.', array('@cron' =&gt; url('admin/reports/status/run-cron')));
+    $description .= '&lt;br /&gt;' . $t('To run cron from outside the site, go to &lt;a href="!cron"&gt;!cron&lt;/a&gt;', array('!cron' =&gt; url($base_url . '/cron.php', array('external' =&gt; TRUE, 'query' =&gt; array('cron_key' =&gt; variable_get('cron_key', 'drupal'))))));
+
+    $requirements['cron'] = array(
+      'title' =&gt; $t('Cron maintenance tasks'),
+      'severity' =&gt; $severity,
+      'value' =&gt; $summary,
+      'description' =&gt; $description
+    );
+  }
+
+  // Test files directories.
+  $directories = array(
+    variable_get('file_public_path', conf_path() . '/files'),
+    // By default no private files directory is configured. For private files
+    // to be secure the admin needs to provide a path outside the webroot.
+    variable_get('file_private_path', FALSE),
+  );
+
+  // Do not check for the temporary files directory during installation
+  // unless it has been set in settings.php. In this case the user has
+  // no alternative but to fix the directory if it is not writable.
+  if ($phase == 'install') {
+    $directories[] = variable_get('file_temporary_path', FALSE);
+  }
+  else {
+    $directories[] = variable_get('file_temporary_path', file_directory_temp());
+  }
+
+  $requirements['file system'] = array(
+    'title' =&gt; $t('File system'),
+  );
+
+  $error = '';
+  // For installer, create the directories if possible.
+  foreach ($directories as $directory) {
+    if (!$directory) {
+      continue;
+    }
+    if ($phase == 'install') {
+      file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
+    }
+    $is_writable = is_writable($directory);
+    $is_directory = is_dir($directory);
+    if (!$is_writable || !$is_directory) {
+      $description = '';
+      $requirements['file system']['value'] = $t('Not writable');
+      if (!$is_directory) {
+        $error .= $t('The directory %directory does not exist.', array('%directory' =&gt; $directory)) . ' ';
+      }
+      else {
+        $error .= $t('The directory %directory is not writable.', array('%directory' =&gt; $directory)) . ' ';
+      }
+      // The files directory requirement check is done only during install and runtime.
+      if ($phase == 'runtime') {
+        $description = $error . $t('You may need to set the correct directory at the &lt;a href="@admin-file-system"&gt;file system settings page&lt;/a&gt; or change the current directory\'s permissions so that it is writable.', array('@admin-file-system' =&gt; url('admin/config/media/file-system')));
+      }
+      elseif ($phase == 'install') {
+        // For the installer UI, we need different wording. 'value' will
+        // be treated as version, so provide none there.
+        $description = $error . $t('An automated attempt to create this directory failed, possibly due to a permissions problem. To proceed with the installation, either create the directory and modify its permissions manually or ensure that the installer has the permissions to create it automatically. For more information, see INSTALL.txt or the &lt;a href="@handbook_url"&gt;online handbook&lt;/a&gt;.', array('@handbook_url' =&gt; 'http://drupal.org/server-permissions'));
+        $requirements['file system']['value'] = '';
+      }
+      if (!empty($description)) {
+        $requirements['file system']['description'] = $description;
+        $requirements['file system']['severity'] = REQUIREMENT_ERROR;
+      }
+    }
+    else {
+      if (file_default_scheme() == 'public') {
+        $requirements['file system']['value'] = $t('Writable (&lt;em&gt;public&lt;/em&gt; download method)');
+      }
+      else {
+        $requirements['file system']['value'] = $t('Writable (&lt;em&gt;private&lt;/em&gt; download method)');
+      }
+    }
+  }
+
+  // See if updates are available in update.php.
+  if ($phase == 'runtime') {
+    $requirements['update'] = array(
+      'title' =&gt; $t('Database updates'),
+      'severity' =&gt; REQUIREMENT_OK,
+      'value' =&gt; $t('Up to date'),
+    );
+
+    // Check installed modules.
+    foreach (module_list() as $module) {
+      $updates = drupal_get_schema_versions($module);
+      if ($updates !== FALSE) {
+        $default = drupal_get_installed_schema_version($module);
+        if (max($updates) &gt; $default) {
+          $requirements['update']['severity'] = REQUIREMENT_ERROR;
+          $requirements['update']['value'] = $t('Out of date');
+          $requirements['update']['description'] = $t('Some modules have database schema updates to install. You should run the &lt;a href="@update"&gt;database update script&lt;/a&gt; immediately.', array('@update' =&gt; base_path() . 'update.php'));
+          break;
+        }
+      }
+    }
+  }
+
+  // Verify the update.php access setting
+  if ($phase == 'runtime') {
+    if (!empty($GLOBALS['update_free_access'])) {
+      $requirements['update access'] = array(
+        'value' =&gt; $t('Not protected'),
+        'severity' =&gt; REQUIREMENT_ERROR,
+        'description' =&gt; $t('The update.php script is accessible to everyone without authentication check, which is a security risk. You must change the $update_free_access value in your settings.php back to FALSE.'),
+      );
+    }
+    else {
+      $requirements['update access'] = array(
+        'value' =&gt; $t('Protected'),
+      );
+    }
+    $requirements['update access']['title'] = $t('Access to update.php');
+  }
+
+  // Display an error if a newly introduced dependency in a module is not resolved.
+  if ($phase == 'update') {
+    $profile = drupal_get_profile();
+    $files = system_rebuild_module_data();
+    foreach ($files as $module =&gt; $file) {
+      // Ignore disabled modules and installation profiles.
+      if (!$file-&gt;status || $module == $profile) {
+        continue;
+      }
+      // Check the module's PHP version.
+      $name = $file-&gt;info['name'];
+      $php = $file-&gt;info['php'];
+      if (version_compare($php, PHP_VERSION, '&gt;')) {
+        $requirements['php']['description'] .= $t('@name requires at least PHP @version.', array('@name' =&gt; $name, '@version' =&gt; $php));
+        $requirements['php']['severity'] = REQUIREMENT_ERROR;
+      }
+      // Check the module's required modules.
+      foreach ($file-&gt;requires as $requirement) {
+        $required_module = $requirement['name'];
+        // Check if the module exists.
+        if (!isset($files[$required_module])) {
+          $requirements["$module-$required_module"] = array(
+            'title' =&gt; $t('Unresolved dependency'),
+            'description' =&gt; $t('@name requires this module.', array('@name' =&gt; $name)),
+            'value' =&gt; t('@required_name (Missing)', array('@required_name' =&gt; $required_module)),
+            'severity' =&gt; REQUIREMENT_ERROR,
+          );
+          continue;
+        }
+        // Check for an incompatible version.
+        $required_file = $files[$required_module];
+        $required_name = $required_file-&gt;info['name'];
+        $version = str_replace(DRUPAL_CORE_COMPATIBILITY . '-', '', $required_file-&gt;info['version']);
+        $compatibility = drupal_check_incompatibility($requirement, $version);
+        if ($compatibility) {
+          $compatibility = rtrim(substr($compatibility, 2), ')');
+          $requirements["$module-$required_module"] = array(
+            'title' =&gt; $t('Unresolved dependency'),
+            'description' =&gt; $t('@name requires this module and version. Currently using @required_name version @version', array('@name' =&gt; $name, '@required_name' =&gt; $required_name, '@version' =&gt; $version)),
+            'value' =&gt; t('@required_name (Version @compatibility required)', array('@required_name' =&gt; $required_name, '@compatibility' =&gt; $compatibility)),
+            'severity' =&gt; REQUIREMENT_ERROR,
+          );
+          continue;
+        }
+      }
+    }
+  }
+
+  // Test Unicode library
+  include_once DRUPAL_ROOT . '/includes/unicode.inc';
+  $requirements = array_merge($requirements, unicode_requirements());
+
+  if ($phase == 'runtime') {
+    // Check for update status module.
+    if (!module_exists('update')) {
+      $requirements['update status'] = array(
+        'value' =&gt; $t('Not enabled'),
+        'severity' =&gt; REQUIREMENT_WARNING,
+        'description' =&gt; $t('Update notifications are not enabled. It is &lt;strong&gt;highly recommended&lt;/strong&gt; that you enable the update manager module from the &lt;a href="@module"&gt;module administration page&lt;/a&gt; in order to stay up-to-date on new releases. For more information, &lt;a href="@update"&gt;Update status handbook page&lt;/a&gt;.', array('@update' =&gt; 'http://drupal.org/documentation/modules/update', '@module' =&gt; url('admin/modules'))),
+      );
+    }
+    else {
+      $requirements['update status'] = array(
+        'value' =&gt; $t('Enabled'),
+      );
+    }
+    $requirements['update status']['title'] = $t('Update notifications');
+
+    // Check that Drupal can issue HTTP requests.
+    if (variable_get('drupal_http_request_fails', TRUE) &amp;&amp; !system_check_http_request()) {
+      $requirements['http requests'] = array(
+        'title' =&gt; $t('HTTP request status'),
+        'value' =&gt; $t('Fails'),
+        'severity' =&gt; REQUIREMENT_ERROR,
+        'description' =&gt; $t('Your system or network configuration does not allow Drupal to access web pages, resulting in reduced functionality. This could be due to your webserver configuration or PHP settings, and should be resolved in order to download information about available updates, fetch aggregator feeds, sign in via OpenID, or use other network-dependent services. If you are certain that Drupal can access web pages but you are still seeing this message, you may add &lt;code&gt;$conf[\'drupal_http_request_fails\'] = FALSE;&lt;/code&gt; to the bottom of your settings.php file.'),
+      );
+    }
+  }
+
+  return $requirements;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!system!system.install/function/system_requirements/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!system!system.install/function/system_requirements/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

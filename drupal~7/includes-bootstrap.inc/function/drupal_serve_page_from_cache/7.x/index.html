@@ -1,0 +1,176 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_serve_page_from_cache - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Sets HTTP headers in preparation for a cached page response. ">
+  <meta name="keywords" content="function, drupal, serve, page, from, cache, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-bootstrap.inc/function/drupal_serve_page_from_cache/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_serve_page_from_cache</h1>     <pre class="signature">drupal_serve_page_from_cache(stdClass $cache)</pre> <p>Sets HTTP headers in preparation for a cached page response.</p> <p>The headers allow as much as possible in proxies and browsers without any particular knowledge about the pages. Modules can override these headers using <a href="../../drupal_add_http_header/7.x/" title="Sets an HTTP response header for the current page." class="local">drupal_add_http_header</a>().</p> <p>If the request is conditional (using If-Modified-Since and If-None-Match), and the conditions match those currently in the cache, a 304 Not Modified response is sent.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">bootstrap.inc</a>, line 1523</dt> <dd>Functions that need to be loaded on every Drupal request.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_serve_page_from_cache(stdClass $cache) {
+  // Negotiate whether to use compression.
+  $page_compression = !empty($cache-&gt;data['page_compressed']);
+  $return_compressed = $page_compression &amp;&amp; isset($_SERVER['HTTP_ACCEPT_ENCODING']) &amp;&amp; strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') !== FALSE;
+
+  // Get headers set in hook_boot(). Keys are lower-case.
+  $hook_boot_headers = drupal_get_http_header();
+
+  // Headers generated in this function, that may be replaced or unset using
+  // drupal_add_http_headers(). Keys are mixed-case.
+  $default_headers = array();
+
+  foreach ($cache-&gt;data['headers'] as $name =&gt; $value) {
+    // In the case of a 304 response, certain headers must be sent, and the
+    // remaining may not (see RFC 2616, section 10.3.5). Do not override
+    // headers set in hook_boot().
+    $name_lower = strtolower($name);
+    if (in_array($name_lower, array('content-location', 'expires', 'cache-control', 'vary')) &amp;&amp; !isset($hook_boot_headers[$name_lower])) {
+      drupal_add_http_header($name, $value);
+      unset($cache-&gt;data['headers'][$name]);
+    }
+  }
+
+  // If the client sent a session cookie, a cached copy will only be served
+  // to that one particular client due to Vary: Cookie. Thus, do not set
+  // max-age &gt; 0, allowing the page to be cached by external proxies, when a
+  // session cookie is present unless the Vary header has been replaced or
+  // unset in hook_boot().
+  $max_age = !isset($_COOKIE[session_name()]) || isset($hook_boot_headers['vary']) ? variable_get('page_cache_maximum_age', 0) : 0;
+  $default_headers['Cache-Control'] = 'public, max-age=' . $max_age;
+
+  // Entity tag should change if the output changes.
+  $etag = '"' . $cache-&gt;created . '-' . intval($return_compressed) . '"';
+  header('Etag: ' . $etag);
+
+  // See if the client has provided the required HTTP headers.
+  $if_modified_since = isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) : FALSE;
+  $if_none_match = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? stripslashes($_SERVER['HTTP_IF_NONE_MATCH']) : FALSE;
+
+  if ($if_modified_since &amp;&amp; $if_none_match
+     &amp;&amp; $if_none_match == $etag // etag must match
+     &amp;&amp; $if_modified_since == $cache-&gt;created) { // if-modified-since must match
+    header($_SERVER['SERVER_PROTOCOL'] . ' 304 Not Modified');
+    drupal_send_headers($default_headers);
+    return;
+  }
+
+  // Send the remaining headers.
+  foreach ($cache-&gt;data['headers'] as $name =&gt; $value) {
+    drupal_add_http_header($name, $value);
+  }
+
+  $default_headers['Last-Modified'] = gmdate(DATE_RFC7231, $cache-&gt;created);
+
+  // HTTP/1.0 proxies does not support the Vary header, so prevent any caching
+  // by sending an Expires date in the past. HTTP/1.1 clients ignores the
+  // Expires header if a Cache-Control: max-age= directive is specified (see RFC
+  // 2616, section 14.9.3).
+  $default_headers['Expires'] = 'Sun, 19 Nov 1978 05:00:00 GMT';
+
+  drupal_send_headers($default_headers);
+
+  // Allow HTTP proxies to cache pages for anonymous users without a session
+  // cookie. The Vary header is used to indicates the set of request-header
+  // fields that fully determines whether a cache is permitted to use the
+  // response to reply to a subsequent request for a given URL without
+  // revalidation. If a Vary header has been set in hook_boot(), it is assumed
+  // that the module knows how to cache the page.
+  if (!isset($hook_boot_headers['vary']) &amp;&amp; !variable_get('omit_vary_cookie')) {
+    header('Vary: Cookie');
+  }
+
+  if ($page_compression) {
+    header('Vary: Accept-Encoding', FALSE);
+    // If page_compression is enabled, the cache contains gzipped data.
+    if ($return_compressed) {
+      // $cache-&gt;data['body'] is already gzip'ed, so make sure
+      // zlib.output_compression does not compress it once more.
+      ini_set('zlib.output_compression', '0');
+      header('Content-Encoding: gzip');
+    }
+    else {
+      // The client does not support compression, so unzip the data in the
+      // cache. Strip the gzip header and run uncompress.
+      $cache-&gt;data['body'] = gzinflate(substr(substr($cache-&gt;data['body'], 10), 0, -8));
+    }
+  }
+
+  // Print the page.
+  print $cache-&gt;data['body'];
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!bootstrap.inc/function/drupal_serve_page_from_cache/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!bootstrap.inc/function/drupal_serve_page_from_cache/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

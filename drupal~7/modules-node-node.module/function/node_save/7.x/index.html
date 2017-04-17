@@ -1,0 +1,210 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Node_save - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Saves changes to a node or adds a new node. ">
+  <meta name="keywords" content="function, node, save, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-node-node.module/function/node_save/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function node_save</h1>     <pre class="signature">node_save($node)</pre> <p>Saves changes to a node or adds a new node.</p> <h3>Parameters</h3> <p> <strong>$node</strong>: The $node object to be saved. If $node-&gt;nid is omitted (or $node-&gt;is_new is TRUE), a new node will be added.</p>  <h3>File</h3> 
+<dl> <dt>modules/node/<a href="../../../7.x/">node.module</a>, line 1077</dt> <dd>The core that allows content to be submitted to the site. Modules and scripts may programmatically submit nodes using the usual form API pattern.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function node_save($node) {
+  $transaction = db_transaction();
+
+  try {
+    // Load the stored entity, if any.
+    if (!empty($node-&gt;nid) &amp;&amp; !isset($node-&gt;original)) {
+      $node-&gt;original = entity_load_unchanged('node', $node-&gt;nid);
+    }
+
+    field_attach_presave('node', $node);
+    global $user;
+
+    // Determine if we will be inserting a new node.
+    if (!isset($node-&gt;is_new)) {
+      $node-&gt;is_new = empty($node-&gt;nid);
+    }
+
+    // Set the timestamp fields.
+    if (empty($node-&gt;created)) {
+      $node-&gt;created = REQUEST_TIME;
+    }
+    // The changed timestamp is always updated for bookkeeping purposes,
+    // for example: revisions, searching, etc.
+    $node-&gt;changed = REQUEST_TIME;
+
+    $node-&gt;timestamp = REQUEST_TIME;
+    $update_node = TRUE;
+
+    // Let modules modify the node before it is saved to the database.
+    module_invoke_all('node_presave', $node);
+    module_invoke_all('entity_presave', $node, 'node');
+
+    if ($node-&gt;is_new || !empty($node-&gt;revision)) {
+      // When inserting either a new node or a new node revision, $node-&gt;log
+      // must be set because {node_revision}.log is a text column and therefore
+      // cannot have a default value. However, it might not be set at this
+      // point (for example, if the user submitting a node form does not have
+      // permission to create revisions), so we ensure that it is at least an
+      // empty string in that case.
+      // @todo: Make the {node_revision}.log column nullable so that we can
+      // remove this check.
+      if (!isset($node-&gt;log)) {
+        $node-&gt;log = '';
+      }
+    }
+    elseif (!isset($node-&gt;log) || $node-&gt;log === '') {
+      // If we are updating an existing node without adding a new revision, we
+      // need to make sure $node-&gt;log is unset whenever it is empty. As long as
+      // $node-&gt;log is unset, drupal_write_record() will not attempt to update
+      // the existing database column when re-saving the revision; therefore,
+      // this code allows us to avoid clobbering an existing log entry with an
+      // empty one.
+      unset($node-&gt;log);
+    }
+
+    // When saving a new node revision, unset any existing $node-&gt;vid so as to
+    // ensure that a new revision will actually be created, then store the old
+    // revision ID in a separate property for use by node hook implementations.
+    if (!$node-&gt;is_new &amp;&amp; !empty($node-&gt;revision) &amp;&amp; $node-&gt;vid) {
+      $node-&gt;old_vid = $node-&gt;vid;
+      unset($node-&gt;vid);
+    }
+
+    // Save the node and node revision.
+    if ($node-&gt;is_new) {
+      // For new nodes, save new records for both the node itself and the node
+      // revision.
+      drupal_write_record('node', $node);
+      _node_save_revision($node, $user-&gt;uid);
+      $op = 'insert';
+    }
+    else {
+      // For existing nodes, update the node record which matches the value of
+      // $node-&gt;nid.
+      drupal_write_record('node', $node, 'nid');
+      // Then, if a new node revision was requested, save a new record for
+      // that; otherwise, update the node revision record which matches the
+      // value of $node-&gt;vid.
+      if (!empty($node-&gt;revision)) {
+        _node_save_revision($node, $user-&gt;uid);
+      }
+      else {
+        _node_save_revision($node, $user-&gt;uid, 'vid');
+        $update_node = FALSE;
+      }
+      $op = 'update';
+    }
+    if ($update_node) {
+      db_update('node')
+        -&gt;fields(array('vid' =&gt; $node-&gt;vid))
+        -&gt;condition('nid', $node-&gt;nid)
+        -&gt;execute();
+    }
+
+    // Call the node specific callback (if any). This can be
+    // node_invoke($node, 'insert') or
+    // node_invoke($node, 'update').
+    node_invoke($node, $op);
+
+    // Save fields.
+    $function = "field_attach_$op";
+    $function('node', $node);
+
+    module_invoke_all('node_' . $op, $node);
+    module_invoke_all('entity_' . $op, $node, 'node');
+
+    // Update the node access table for this node.
+    node_access_acquire_grants($node);
+
+    // Clear internal properties.
+    unset($node-&gt;is_new);
+    unset($node-&gt;original);
+    // Clear the static loading cache.
+    entity_get_controller('node')-&gt;resetCache(array($node-&gt;nid));
+
+    // Ignore slave server temporarily to give time for the
+    // saved node to be propagated to the slave.
+    db_ignore_slave();
+  }
+  catch (Exception $e) {
+    $transaction-&gt;rollback();
+    watchdog_exception('node', $e);
+    throw $e;
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!node!node.module/function/node_save/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!node!node.module/function/node_save/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

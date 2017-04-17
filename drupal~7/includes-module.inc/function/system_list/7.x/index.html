@@ -1,0 +1,186 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>System_list - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Builds a list of bootstrap modules and enabled modules and themes. ">
+  <meta name="keywords" content="function, system, list, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-module.inc/function/system_list/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function system_list</h1>     <pre class="signature">system_list($type)</pre> <p>Builds a list of bootstrap modules and enabled modules and themes.</p> <h3>Parameters</h3> <p> <strong>$type</strong>: The type of list to return:</p> <ul> <li>
+<strong>module_enabled</strong>: All enabled modules.</li> <li>
+<strong>bootstrap</strong>: All enabled modules required for bootstrap.</li> <li>
+<strong>theme</strong>: All themes.</li> </ul> <h3>Return value</h3> <p> An associative array of modules or themes, keyed by name. For $type 'bootstrap', the array values equal the keys. For $type 'module_enabled' or 'theme', the array values are objects representing the respective database row, with the 'info' property already unserialized.</p> <h3>See also</h3> <p> <a href="../../module_list/7.x/" title="Returns a list of currently active modules." class="local">module_list</a>()</p> <p><a href="../../../../includes-theme.inc/function/list_themes/7.x/" title="Returns a list of all currently available themes." class="local">list_themes</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">module.inc</a>, line 122</dt> <dd>API for loading and interacting with Drupal modules.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function system_list($type) {
+  $lists = &amp;drupal_static(__FUNCTION__);
+
+  // For bootstrap modules, attempt to fetch the list from cache if possible.
+  // if not fetch only the required information to fire bootstrap hooks
+  // in case we are going to serve the page from cache.
+  if ($type == 'bootstrap') {
+    if (isset($lists['bootstrap'])) {
+      return $lists['bootstrap'];
+    }
+    if ($cached = cache_get('bootstrap_modules', 'cache_bootstrap')) {
+      $bootstrap_list = $cached-&gt;data;
+    }
+    else {
+      $bootstrap_list = db_query("SELECT name, filename FROM {system} WHERE status = 1 AND bootstrap = 1 AND type = 'module' ORDER BY weight ASC, name ASC")-&gt;fetchAllAssoc('name');
+      cache_set('bootstrap_modules', $bootstrap_list, 'cache_bootstrap');
+    }
+    // To avoid a separate database lookup for the filepath, prime the
+    // drupal_get_filename() static cache for bootstrap modules only.
+    // The rest is stored separately to keep the bootstrap module cache small.
+    foreach ($bootstrap_list as $module) {
+      drupal_get_filename('module', $module-&gt;name, $module-&gt;filename);
+    }
+    // We only return the module names here since module_list() doesn't need
+    // the filename itself.
+    $lists['bootstrap'] = array_keys($bootstrap_list);
+  }
+  // Otherwise build the list for enabled modules and themes.
+  elseif (!isset($lists['module_enabled'])) {
+    if ($cached = cache_get('system_list', 'cache_bootstrap')) {
+      $lists = $cached-&gt;data;
+    }
+    else {
+      $lists = array(
+        'module_enabled' =&gt; array(),
+        'theme' =&gt; array(),
+        'filepaths' =&gt; array(),
+      );
+      // The module name (rather than the filename) is used as the fallback
+      // weighting in order to guarantee consistent behavior across different
+      // Drupal installations, which might have modules installed in different
+      // locations in the file system. The ordering here must also be
+      // consistent with the one used in module_implements().
+      $result = db_query("SELECT * FROM {system} WHERE type = 'theme' OR (type = 'module' AND status = 1) ORDER BY weight ASC, name ASC");
+      foreach ($result as $record) {
+        $record-&gt;info = unserialize($record-&gt;info);
+        // Build a list of all enabled modules.
+        if ($record-&gt;type == 'module') {
+          $lists['module_enabled'][$record-&gt;name] = $record;
+        }
+        // Build a list of themes.
+        if ($record-&gt;type == 'theme') {
+          $lists['theme'][$record-&gt;name] = $record;
+        }
+        // Build a list of filenames so drupal_get_filename can use it.
+        if ($record-&gt;status) {
+          $lists['filepaths'][] = array('type' =&gt; $record-&gt;type, 'name' =&gt; $record-&gt;name, 'filepath' =&gt; $record-&gt;filename);
+        }
+      }
+      foreach ($lists['theme'] as $key =&gt; $theme) {
+        if (!empty($theme-&gt;info['base theme'])) {
+          // Make a list of the theme's base themes.
+          require_once DRUPAL_ROOT . '/includes/theme.inc';
+          $lists['theme'][$key]-&gt;base_themes = drupal_find_base_themes($lists['theme'], $key);
+          // Don't proceed if there was a problem with the root base theme.
+          if (!current($lists['theme'][$key]-&gt;base_themes)) {
+            continue;
+          }
+          // Determine the root base theme.
+          $base_key = key($lists['theme'][$key]-&gt;base_themes);
+          // Add to the list of sub-themes for each of the theme's base themes.
+          foreach (array_keys($lists['theme'][$key]-&gt;base_themes) as $base_theme) {
+            $lists['theme'][$base_theme]-&gt;sub_themes[$key] = $lists['theme'][$key]-&gt;info['name'];
+          }
+          // Add the base theme's theme engine info.
+          $lists['theme'][$key]-&gt;info['engine'] = isset($lists['theme'][$base_key]-&gt;info['engine']) ? $lists['theme'][$base_key]-&gt;info['engine'] : 'theme';
+        }
+        else {
+          // A plain theme is its own engine.
+          $base_key = $key;
+          if (!isset($lists['theme'][$key]-&gt;info['engine'])) {
+            $lists['theme'][$key]-&gt;info['engine'] = 'theme';
+          }
+        }
+        // Set the theme engine prefix.
+        $lists['theme'][$key]-&gt;prefix = ($lists['theme'][$key]-&gt;info['engine'] == 'theme') ? $base_key : $lists['theme'][$key]-&gt;info['engine'];
+      }
+      cache_set('system_list', $lists, 'cache_bootstrap');
+    }
+    // To avoid a separate database lookup for the filepath, prime the
+    // drupal_get_filename() static cache with all enabled modules and themes.
+    foreach ($lists['filepaths'] as $item) {
+      drupal_get_filename($item['type'], $item['name'], $item['filepath']);
+    }
+  }
+
+  return $lists[$type];
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!module.inc/function/system_list/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!module.inc/function/system_list/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

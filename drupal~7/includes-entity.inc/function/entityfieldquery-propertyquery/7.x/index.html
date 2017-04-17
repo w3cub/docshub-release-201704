@@ -1,0 +1,168 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>EntityFieldQuery&#58;&#58;propertyQuery - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Queries entity tables in SQL for property conditions and sorts. ">
+  <meta name="keywords" content="protected, function, entityfieldquery, propertyquery, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-entity.inc/function/entityfieldquery-propertyquery/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">protected function EntityFieldQuery::propertyQuery</h1>     <pre class="signature">protected <a href="../../../class/entityfieldquery/7.x/">EntityFieldQuery</a>::propertyQuery()</pre> <p>Queries entity tables in SQL for property conditions and sorts.</p> <p>This method is only used if there are no field conditions and sorts.</p> <h3>Return value</h3> <p> See <a href="../../entityfieldquery-execute/7.x/" title="Executes the query." class="local">EntityFieldQuery::execute</a>().</p> <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">entity.inc</a>, line 1264</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/entityfieldquery/7.x/">EntityFieldQuery</a> </dt> <dd>Retrieves entities matching a given set of conditions.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">protected function propertyQuery() {
+  if (empty($this-&gt;entityConditions['entity_type'])) {
+    throw new EntityFieldQueryException(t('For this query an entity type must be specified.'));
+  }
+  $entity_type = $this-&gt;entityConditions['entity_type']['value'];
+  $entity_info = entity_get_info($entity_type);
+  if (empty($entity_info['base table'])) {
+    throw new EntityFieldQueryException(t('Entity %entity has no base table.', array('%entity' =&gt; $entity_type)));
+  }
+  $base_table = $entity_info['base table'];
+  $base_table_schema = drupal_get_schema($base_table);
+  $select_query = db_select($base_table);
+  $select_query-&gt;addExpression(':entity_type', 'entity_type', array(':entity_type' =&gt; $entity_type));
+  // Process the property conditions.
+  foreach ($this-&gt;propertyConditions as $property_condition) {
+    $this-&gt;addCondition($select_query, $base_table . '.' . $property_condition['column'], $property_condition);
+  }
+  // Process the four possible entity condition.
+  // The id field is always present in entity keys.
+  $sql_field = $entity_info['entity keys']['id'];
+  $id_map['entity_id'] = $sql_field;
+  $select_query-&gt;addField($base_table, $sql_field, 'entity_id');
+  if (isset($this-&gt;entityConditions['entity_id'])) {
+    $this-&gt;addCondition($select_query, $base_table . '.' . $sql_field, $this-&gt;entityConditions['entity_id']);
+  }
+
+  // If there is a revision key defined, use it.
+  if (!empty($entity_info['entity keys']['revision'])) {
+    $sql_field = $entity_info['entity keys']['revision'];
+    $select_query-&gt;addField($base_table, $sql_field, 'revision_id');
+    if (isset($this-&gt;entityConditions['revision_id'])) {
+      $this-&gt;addCondition($select_query, $base_table . '.' . $sql_field, $this-&gt;entityConditions['revision_id']);
+    }
+  }
+  else {
+    $sql_field = 'revision_id';
+    $select_query-&gt;addExpression('NULL', 'revision_id');
+  }
+  $id_map['revision_id'] = $sql_field;
+
+  // Handle bundles.
+  if (!empty($entity_info['entity keys']['bundle'])) {
+    $sql_field = $entity_info['entity keys']['bundle'];
+    $having = FALSE;
+
+    if (!empty($base_table_schema['fields'][$sql_field])) {
+      $select_query-&gt;addField($base_table, $sql_field, 'bundle');
+    }
+  }
+  else {
+    $sql_field = 'bundle';
+    $select_query-&gt;addExpression(':bundle', 'bundle', array(':bundle' =&gt; $entity_type));
+    $having = TRUE;
+  }
+  $id_map['bundle'] = $sql_field;
+  if (isset($this-&gt;entityConditions['bundle'])) {
+    if (!empty($entity_info['entity keys']['bundle'])) {
+      $this-&gt;addCondition($select_query, $base_table . '.' . $sql_field, $this-&gt;entityConditions['bundle'], $having);
+    }
+    else {
+      // This entity has no bundle, so invalidate the query.
+      $select_query-&gt;where('1 = 0');
+    }
+  }
+
+  // Order the query.
+  foreach ($this-&gt;order as $order) {
+    if ($order['type'] == 'entity') {
+      $key = $order['specifier'];
+      if (!isset($id_map[$key])) {
+        throw new EntityFieldQueryException(t('Do not know how to order on @key for @entity_type', array('@key' =&gt; $key, '@entity_type' =&gt; $entity_type)));
+      }
+      $select_query-&gt;orderBy($id_map[$key], $order['direction']);
+    }
+    elseif ($order['type'] == 'property') {
+      $select_query-&gt;orderBy($base_table . '.' . $order['specifier'], $order['direction']);
+    }
+  }
+
+  return $this-&gt;finishQuery($select_query);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!entity.inc/function/EntityFieldQuery::propertyQuery/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!entity.inc/function/EntityFieldQuery::propertyQuery/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

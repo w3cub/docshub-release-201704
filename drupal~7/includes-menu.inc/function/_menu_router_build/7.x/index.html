@@ -1,0 +1,308 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_menu_router_build - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Builds the router table based on the data from hook_menu(). ">
+  <meta name="keywords" content="function, menu, router, build, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-menu.inc/function/_menu_router_build/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _menu_router_build</h1>     <pre class="signature">_menu_router_build($callbacks)</pre> <p>Builds the router table based on the data from <a href="../../../../modules-system-system.api.php/function/hook_menu/7.x/" title="Define menu items and page callbacks." class="local">hook_menu</a>().</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-b5f244c28a5a418ed6bbaf11575315df"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/menu/7.x/">Menu system</a></dt> <dd>Define the navigation menus, and route page requests to code based on URLs.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">menu.inc</a>, line 3605</dt> <dd>API for the Drupal menu system.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _menu_router_build($callbacks) {
+  // First pass: separate callbacks from paths, making paths ready for
+  // matching. Calculate fitness, and fill some default values.
+  $menu = array();
+  $masks = array();
+  foreach ($callbacks as $path =&gt; $item) {
+    $load_functions = array();
+    $to_arg_functions = array();
+    $fit = 0;
+    $move = FALSE;
+
+    $parts = explode('/', $path, MENU_MAX_PARTS);
+    $number_parts = count($parts);
+    // We store the highest index of parts here to save some work in the fit
+    // calculation loop.
+    $slashes = $number_parts - 1;
+    // Extract load and to_arg functions.
+    foreach ($parts as $k =&gt; $part) {
+      $match = FALSE;
+      // Look for wildcards in the form allowed to be used in PHP functions,
+      // because we are using these to construct the load function names.
+      if (preg_match('/^%(|' . DRUPAL_PHP_FUNCTION_PATTERN . ')$/', $part, $matches)) {
+        if (empty($matches[1])) {
+          $match = TRUE;
+          $load_functions[$k] = NULL;
+        }
+        else {
+          if (function_exists($matches[1] . '_to_arg')) {
+            $to_arg_functions[$k] = $matches[1] . '_to_arg';
+            $load_functions[$k] = NULL;
+            $match = TRUE;
+          }
+          if (function_exists($matches[1] . '_load')) {
+            $function = $matches[1] . '_load';
+            // Create an array of arguments that will be passed to the _load
+            // function when this menu path is checked, if 'load arguments'
+            // exists.
+            $load_functions[$k] = isset($item['load arguments']) ? array($function =&gt; $item['load arguments']) : $function;
+            $match = TRUE;
+          }
+        }
+      }
+      if ($match) {
+        $parts[$k] = '%';
+      }
+      else {
+        $fit |= 1 &lt;&lt; ($slashes - $k);
+      }
+    }
+    if ($fit) {
+      $move = TRUE;
+    }
+    else {
+      // If there is no %, it fits maximally.
+      $fit = (1 &lt;&lt; $number_parts) - 1;
+    }
+    $masks[$fit] = 1;
+    $item['_load_functions'] = $load_functions;
+    $item['to_arg_functions'] = empty($to_arg_functions) ? '' : serialize($to_arg_functions);
+    $item += array(
+      'title' =&gt; '',
+      'weight' =&gt; 0,
+      'type' =&gt; MENU_NORMAL_ITEM,
+      'module' =&gt; '',
+      '_number_parts' =&gt; $number_parts,
+      '_parts' =&gt; $parts,
+      '_fit' =&gt; $fit,
+    );
+    $item += array(
+      '_visible' =&gt; (bool) ($item['type'] &amp; MENU_VISIBLE_IN_BREADCRUMB),
+      '_tab' =&gt; (bool) ($item['type'] &amp; MENU_IS_LOCAL_TASK),
+    );
+    if ($move) {
+      $new_path = implode('/', $item['_parts']);
+      $menu[$new_path] = $item;
+      $sort[$new_path] = $number_parts;
+    }
+    else {
+      $menu[$path] = $item;
+      $sort[$path] = $number_parts;
+    }
+  }
+  array_multisort($sort, SORT_NUMERIC, $menu);
+  // Apply inheritance rules.
+  foreach ($menu as $path =&gt; $v) {
+    $item = &amp;$menu[$path];
+    if (!$item['_tab']) {
+      // Non-tab items.
+      $item['tab_parent'] = '';
+      $item['tab_root'] = $path;
+    }
+    // If not specified, assign the default tab type for local tasks.
+    elseif (!isset($item['context'])) {
+      $item['context'] = MENU_CONTEXT_PAGE;
+    }
+    for ($i = $item['_number_parts'] - 1; $i; $i--) {
+      $parent_path = implode('/', array_slice($item['_parts'], 0, $i));
+      if (isset($menu[$parent_path])) {
+
+        $parent = &amp;$menu[$parent_path];
+
+        // If we have no menu name, try to inherit it from parent items.
+        if (!isset($item['menu_name'])) {
+          // If the parent item of this item does not define a menu name (and no
+          // previous iteration assigned one already), try to find the menu name
+          // of the parent item in the currently stored menu links.
+          if (!isset($parent['menu_name'])) {
+            $menu_name = db_query("SELECT menu_name FROM {menu_links} WHERE router_path = :router_path AND module = 'system'", array(':router_path' =&gt; $parent_path))-&gt;fetchField();
+            if ($menu_name) {
+              $parent['menu_name'] = $menu_name;
+            }
+          }
+          // If the parent item defines a menu name, inherit it.
+          if (!empty($parent['menu_name'])) {
+            $item['menu_name'] = $parent['menu_name'];
+          }
+        }
+        if (!isset($item['tab_parent'])) {
+          // Parent stores the parent of the path.
+          $item['tab_parent'] = $parent_path;
+        }
+        if (!isset($item['tab_root']) &amp;&amp; !$parent['_tab']) {
+          $item['tab_root'] = $parent_path;
+        }
+        // If an access callback is not found for a default local task we use
+        // the callback from the parent, since we expect them to be identical.
+        // In all other cases, the access parameters must be specified.
+        if (($item['type'] == MENU_DEFAULT_LOCAL_TASK) &amp;&amp; !isset($item['access callback']) &amp;&amp; isset($parent['access callback'])) {
+          $item['access callback'] = $parent['access callback'];
+          if (!isset($item['access arguments']) &amp;&amp; isset($parent['access arguments'])) {
+            $item['access arguments'] = $parent['access arguments'];
+          }
+        }
+        // Same for page callbacks.
+        if (!isset($item['page callback']) &amp;&amp; isset($parent['page callback'])) {
+          $item['page callback'] = $parent['page callback'];
+          if (!isset($item['page arguments']) &amp;&amp; isset($parent['page arguments'])) {
+            $item['page arguments'] = $parent['page arguments'];
+          }
+          if (!isset($item['file path']) &amp;&amp; isset($parent['file path'])) {
+            $item['file path'] = $parent['file path'];
+          }
+          if (!isset($item['file']) &amp;&amp; isset($parent['file'])) {
+            $item['file'] = $parent['file'];
+            if (empty($item['file path']) &amp;&amp; isset($item['module']) &amp;&amp; isset($parent['module']) &amp;&amp; $item['module'] != $parent['module']) {
+              $item['file path'] = drupal_get_path('module', $parent['module']);
+            }
+          }
+        }
+        // Same for delivery callbacks.
+        if (!isset($item['delivery callback']) &amp;&amp; isset($parent['delivery callback'])) {
+          $item['delivery callback'] = $parent['delivery callback'];
+        }
+        // Same for theme callbacks.
+        if (!isset($item['theme callback']) &amp;&amp; isset($parent['theme callback'])) {
+          $item['theme callback'] = $parent['theme callback'];
+          if (!isset($item['theme arguments']) &amp;&amp; isset($parent['theme arguments'])) {
+            $item['theme arguments'] = $parent['theme arguments'];
+          }
+        }
+        // Same for load arguments: if a loader doesn't have any explict
+        // arguments, try to find arguments in the parent.
+        if (!isset($item['load arguments'])) {
+          foreach ($item['_load_functions'] as $k =&gt; $function) {
+            // This loader doesn't have any explict arguments...
+            if (!is_array($function)) {
+              // ... check the parent for a loader at the same position
+              // using the same function name and defining arguments...
+              if (isset($parent['_load_functions'][$k]) &amp;&amp; is_array($parent['_load_functions'][$k]) &amp;&amp; key($parent['_load_functions'][$k]) === $function) {
+                // ... and inherit the arguments on the child.
+                $item['_load_functions'][$k] = $parent['_load_functions'][$k];
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!isset($item['access callback']) &amp;&amp; isset($item['access arguments'])) {
+      // Default callback.
+      $item['access callback'] = 'user_access';
+    }
+    if (!isset($item['access callback']) || empty($item['page callback'])) {
+      $item['access callback'] = 0;
+    }
+    if (is_bool($item['access callback'])) {
+      $item['access callback'] = intval($item['access callback']);
+    }
+
+    $item['load_functions'] = empty($item['_load_functions']) ? '' : serialize($item['_load_functions']);
+    $item += array(
+      'access arguments' =&gt; array(),
+      'access callback' =&gt; '',
+      'page arguments' =&gt; array(),
+      'page callback' =&gt; '',
+      'delivery callback' =&gt; '',
+      'title arguments' =&gt; array(),
+      'title callback' =&gt; 't',
+      'theme arguments' =&gt; array(),
+      'theme callback' =&gt; '',
+      'description' =&gt; '',
+      'position' =&gt; '',
+      'context' =&gt; 0,
+      'tab_parent' =&gt; '',
+      'tab_root' =&gt; $path,
+      'path' =&gt; $path,
+      'file' =&gt; '',
+      'file path' =&gt; '',
+      'include file' =&gt; '',
+    );
+
+    // Calculate out the file to be included for each callback, if any.
+    if ($item['file']) {
+      $file_path = $item['file path'] ? $item['file path'] : drupal_get_path('module', $item['module']);
+      $item['include file'] = $file_path . '/' . $item['file'];
+    }
+  }
+
+  // Sort the masks so they are in order of descending fit.
+  $masks = array_keys($masks);
+  rsort($masks);
+
+  return array($menu, $masks);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!menu.inc/function/_menu_router_build/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!menu.inc/function/_menu_router_build/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

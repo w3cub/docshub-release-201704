@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_deliver_html_page - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Packages and sends the result of a page callback to the browser as HTML. ">
+  <meta name="keywords" content="function, drupal, deliver, html, page, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-common.inc/function/drupal_deliver_html_page/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_deliver_html_page</h1>     <pre class="signature">drupal_deliver_html_page($page_callback_result)</pre> <p>Packages and sends the result of a page callback to the browser as HTML.</p> <h3>Parameters</h3> <p> <strong>$page_callback_result</strong>: The result of a page callback. Can be one of:</p> <ul> <li>
+<strong>NULL</strong>: to indicate no content.</li> <li>
+<strong>An integer menu status constant</strong>: to indicate an error condition.</li> <li>A string of HTML content.</li> <li>A renderable array of content.</li> </ul> <h3>See also</h3> <p> <a href="../../drupal_deliver_page/7.x/" title="Delivers a page callback result to the browser in the appropriate format." class="local">drupal_deliver_page</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">common.inc</a>, line 2643</dt> <dd>Common functions that many Drupal modules will need to reference.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_deliver_html_page($page_callback_result) {
+  // Emit the correct charset HTTP header, but not if the page callback
+  // result is NULL, since that likely indicates that it printed something
+  // in which case, no further headers may be sent, and not if code running
+  // for this page request has already set the content type header.
+  if (isset($page_callback_result) &amp;&amp; is_null(drupal_get_http_header('Content-Type'))) {
+    drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
+  }
+
+  // Send appropriate HTTP-Header for browsers and search engines.
+  global $language;
+  drupal_add_http_header('Content-Language', $language-&gt;language);
+
+  // By default, do not allow the site to be rendered in an iframe on another
+  // domain, but provide a variable to override this. If the code running for
+  // this page request already set the X-Frame-Options header earlier, don't
+  // overwrite it here.
+  $frame_options = variable_get('x_frame_options', 'SAMEORIGIN');
+  if ($frame_options &amp;&amp; is_null(drupal_get_http_header('X-Frame-Options'))) {
+    drupal_add_http_header('X-Frame-Options', $frame_options);
+  }
+
+  // Menu status constants are integers; page content is a string or array.
+  if (is_int($page_callback_result)) {
+    // @todo: Break these up into separate functions?
+    switch ($page_callback_result) {
+      case MENU_NOT_FOUND:
+        // Print a 404 page.
+        drupal_add_http_header('Status', '404 Not Found');
+
+        watchdog('page not found', check_plain($_GET['q']), NULL, WATCHDOG_WARNING);
+
+        // Check for and return a fast 404 page if configured.
+        drupal_fast_404();
+
+        // Keep old path for reference, and to allow forms to redirect to it.
+        if (!isset($_GET['destination'])) {
+          // Make sure that the current path is not interpreted as external URL.
+          if (!url_is_external($_GET['q'])) {
+            $_GET['destination'] = $_GET['q'];
+          }
+        }
+
+        $path = drupal_get_normal_path(variable_get('site_404', ''));
+        if ($path &amp;&amp; $path != $_GET['q']) {
+          // Custom 404 handler. Set the active item in case there are tabs to
+          // display, or other dependencies on the path.
+          menu_set_active_item($path);
+          $return = menu_execute_active_handler($path, FALSE);
+        }
+
+        if (empty($return) || $return == MENU_NOT_FOUND || $return == MENU_ACCESS_DENIED) {
+          // Standard 404 handler.
+          drupal_set_title(t('Page not found'));
+          $return = t('The requested page "@path" could not be found.', array('@path' =&gt; request_uri()));
+        }
+
+        drupal_set_page_content($return);
+        $page = element_info('page');
+        print drupal_render_page($page);
+        break;
+
+      case MENU_ACCESS_DENIED:
+        // Print a 403 page.
+        drupal_add_http_header('Status', '403 Forbidden');
+        watchdog('access denied', check_plain($_GET['q']), NULL, WATCHDOG_WARNING);
+
+        // Keep old path for reference, and to allow forms to redirect to it.
+        if (!isset($_GET['destination'])) {
+          // Make sure that the current path is not interpreted as external URL.
+          if (!url_is_external($_GET['q'])) {
+            $_GET['destination'] = $_GET['q'];
+          }
+        }
+
+        $path = drupal_get_normal_path(variable_get('site_403', ''));
+        if ($path &amp;&amp; $path != $_GET['q']) {
+          // Custom 403 handler. Set the active item in case there are tabs to
+          // display or other dependencies on the path.
+          menu_set_active_item($path);
+          $return = menu_execute_active_handler($path, FALSE);
+        }
+
+        if (empty($return) || $return == MENU_NOT_FOUND || $return == MENU_ACCESS_DENIED) {
+          // Standard 403 handler.
+          drupal_set_title(t('Access denied'));
+          $return = t('You are not authorized to access this page.');
+        }
+
+        print drupal_render_page($return);
+        break;
+
+      case MENU_SITE_OFFLINE:
+        // Print a 503 page.
+        drupal_maintenance_theme();
+        drupal_add_http_header('Status', '503 Service unavailable');
+        drupal_set_title(t('Site under maintenance'));
+        print theme('maintenance_page', array('content' =&gt; filter_xss_admin(variable_get('maintenance_mode_message', 
+        t('@site is currently under maintenance. We should be back shortly. Thank you for your patience.', array('@site' =&gt; variable_get('site_name', 'Drupal')))))));
+        break;
+    }
+  }
+  elseif (isset($page_callback_result)) {
+    // Print anything besides a menu constant, assuming it's not NULL or
+    // undefined.
+    print drupal_render_page($page_callback_result);
+  }
+
+  // Perform end-of-request tasks.
+  drupal_page_footer();
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_deliver_html_page/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_deliver_html_page/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

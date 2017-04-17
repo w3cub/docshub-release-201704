@@ -1,0 +1,136 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_get_css - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Returns a themed representation of all stylesheets to attach to the page. ">
+  <meta name="keywords" content="function, drupal, get, css, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-common.inc/function/drupal_get_css/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_get_css</h1>     <pre class="signature">drupal_get_css($css = NULL, $skip_alter = FALSE)</pre> <p>Returns a themed representation of all stylesheets to attach to the page.</p> <p>It loads the CSS in order, with 'module' first, then 'theme' afterwards. This ensures proper cascading of styles so themes can easily override module styles through CSS selectors.</p> <p>Themes may replace module-defined CSS files by adding a stylesheet with the same filename. For example, themes/bartik/system-menus.css would replace modules/system/system-menus.css. This allows themes to override complete CSS files, rather than specific selectors, when necessary.</p> <p>If the original CSS file is being overridden by a theme, the theme is responsible for supplying an accompanying RTL CSS file to replace the module's.</p> <h3>Parameters</h3> <p> <strong>$css</strong>: (optional) An array of CSS files. If no array is provided, the default stylesheets array is used instead.</p> <p><strong>$skip_alter</strong>: (optional) If set to TRUE, this function skips calling <a href="../../../../includes-module.inc/function/drupal_alter/7.x/" title="Passes alterable variables to specific hook_TYPE_alter() implementations." class="local">drupal_alter</a>() on $css, useful when the calling function passes a $css array that has already been altered.</p> <h3>Return value</h3> <p> A string of XHTML CSS tags.</p> <h3>See also</h3> <p> <a href="../../drupal_add_css/7.x/" title="Adds a cascading stylesheet to the stylesheet queue." class="local">drupal_add_css</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">common.inc</a>, line 3138</dt> <dd>Common functions that many Drupal modules will need to reference.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_get_css($css = NULL, $skip_alter = FALSE) {
+  if (!isset($css)) {
+    $css = drupal_add_css();
+  }
+
+  // Allow modules and themes to alter the CSS items.
+  if (!$skip_alter) {
+    drupal_alter('css', $css);
+  }
+
+  // Sort CSS items, so that they appear in the correct order.
+  uasort($css, 'drupal_sort_css_js');
+
+  // Provide the page with information about the individual CSS files used,
+  // information not otherwise available when CSS aggregation is enabled. The
+  // setting is attached later in this function, but is set here, so that CSS
+  // files removed below are still considered "used" and prevented from being
+  // added in a later AJAX request.
+  // Skip if no files were added to the page or jQuery.extend() will overwrite
+  // the Drupal.settings.ajaxPageState.css object with an empty array.
+  if (!empty($css)) {
+    // Cast the array to an object to be on the safe side even if not empty.
+    $setting['ajaxPageState']['css'] = (object) array_fill_keys(array_keys($css), 1);
+  }
+
+  // Remove the overridden CSS files. Later CSS files override former ones.
+  $previous_item = array();
+  foreach ($css as $key =&gt; $item) {
+    if ($item['type'] == 'file') {
+      // If defined, force a unique basename for this file.
+      $basename = isset($item['basename']) ? $item['basename'] : drupal_basename($item['data']);
+      if (isset($previous_item[$basename])) {
+        // Remove the previous item that shared the same base name.
+        unset($css[$previous_item[$basename]]);
+      }
+      $previous_item[$basename] = $key;
+    }
+  }
+
+  // Render the HTML needed to load the CSS.
+  $styles = array(
+    '#type' =&gt; 'styles',
+    '#items' =&gt; $css,
+  );
+
+  if (!empty($setting)) {
+    $styles['#attached']['js'][] = array('type' =&gt; 'setting', 'data' =&gt; $setting);
+  }
+
+  return drupal_render($styles);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_get_css/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_get_css/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

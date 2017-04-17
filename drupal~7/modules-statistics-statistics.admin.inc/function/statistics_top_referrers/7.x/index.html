@@ -1,0 +1,127 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Statistics_top_referrers - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Page callback&#58; Displays the &#34;top referrers&#34; in the access logs. ">
+  <meta name="keywords" content="function, statistics, top, referrers, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-statistics-statistics.admin.inc/function/statistics_top_referrers/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function statistics_top_referrers</h1>     <pre class="signature">statistics_top_referrers()</pre> <p>Page callback: Displays the "top referrers" in the access logs.</p> <p>This displays the pages with the top referrers in a given time interval that haven't been flushed yet. The flush interval is set on the statistics settings form, but is dependent on cron running.</p> <h3>Return value</h3> <p> A render array containing the top referrers information.</p>  <h3>File</h3> 
+<dl> <dt>modules/statistics/<a href="../../../7.x/">statistics.admin.inc</a>, line 178</dt> <dd>Admin page callbacks for the Statistics module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function statistics_top_referrers() {
+  drupal_set_title(t('Top referrers in the past %interval', array('%interval' =&gt; format_interval(variable_get('statistics_flush_accesslog_timer', 259200)))), PASS_THROUGH);
+
+  $header = array(
+    array('data' =&gt; t('Hits'), 'field' =&gt; 'hits', 'sort' =&gt; 'desc'),
+    array('data' =&gt; t('Url'), 'field' =&gt; 'url'),
+    array('data' =&gt; t('Last visit'), 'field' =&gt; 'last'),
+  );
+  $query = db_select('accesslog', 'a')-&gt;extend('PagerDefault')-&gt;extend('TableSort');
+
+  $query-&gt;addExpression('COUNT(url)', 'hits');
+  $query-&gt;addExpression('MAX(timestamp)', 'last');
+  $query
+  -&gt;fields('a', array('url'))
+    -&gt;condition('url', '%' . $_SERVER['HTTP_HOST'] . '%', 'NOT LIKE')
+    -&gt;condition('url', '', '&lt;&gt;')
+    -&gt;groupBy('url')
+    -&gt;limit(30)
+    -&gt;orderByHeader($header);
+
+  $count_query = db_select('accesslog', 'a', array('target' =&gt; 'slave'));
+  $count_query-&gt;addExpression('COUNT(DISTINCT url)');
+  $count_query
+  -&gt;condition('url', '%' . $_SERVER['HTTP_HOST'] . '%', 'NOT LIKE')
+    -&gt;condition('url', '', '&lt;&gt;');
+  $query-&gt;setCountQuery($count_query);
+
+  $result = $query-&gt;execute();
+  $rows = array();
+  foreach ($result as $referrer) {
+    $rows[] = array($referrer-&gt;hits, _statistics_link($referrer-&gt;url), t('@time ago', array('@time' =&gt; format_interval(REQUEST_TIME - $referrer-&gt;last))));
+  }
+
+  $build['statistics_top_referrers_table'] = array(
+    '#theme' =&gt; 'table',
+    '#header' =&gt; $header,
+    '#rows' =&gt; $rows,
+    '#empty' =&gt; t('No statistics available.'),
+  );
+  $build['statistics_top_referrers_pager'] = array('#theme' =&gt; 'pager');
+  return $build;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!statistics!statistics.admin.inc/function/statistics_top_referrers/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!statistics!statistics.admin.inc/function/statistics_top_referrers/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,145 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update Versions of API Functions - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Functions that are similar to normal API functions, but do not invoke hooks. ">
+  <meta name="keywords" content="update, versions, api, functions, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-system-system.api.php/group/update_api/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">Update versions of API functions</h1>      <p>Functions that are similar to normal API functions, but do not invoke hooks.</p> <p>These simplified versions of core API functions are provided for use by update functions (<a href="../../../function/hook_update_n/7.x/" title="Perform a single update." class="local">hook_update_N</a>() implementations).</p> <p>During database updates the schema of any module could be out of date. For this reason, caution is needed when using any API function within an update function - particularly CRUD functions, functions that depend on the schema (for example by using <a href="../../../../includes-common.inc/function/drupal_write_record/7.x/" title="Saves (inserts or updates) a record to the database based upon the schema." class="local">drupal_write_record</a>()), and any functions that invoke hooks.</p> <p>Instead, a simplified utility function should be used. If a utility version of the API function you require does not already exist, then you should create a new function. The new utility function should be named _update_N_mymodule_my_function(). N is the schema version the function acts on (the schema version is the number N from the <a href="../../../function/hook_update_n/7.x/" title="Perform a single update." class="local">hook_update_N</a>() implementation where this schema was introduced, or a number following the same numbering scheme), and mymodule_my_function is the name of the original API function including the module's name.</p> <p>Examples:</p> <ul> <li>
+<strong>_update_6000_mymodule_save()</strong>: This function performs a save operation without invoking any hooks using the 6.x schema.</li> <li>
+<strong>_update_7000_mymodule_save()</strong>: This function performs the same save operation using the 7.x schema.</li> </ul> <p>The utility function should not invoke any hooks, and should perform database operations using functions from the <a href="../../../../includes-database-database.inc/group/database/7.x/" title="Allow the use of different database servers using the same code base." class="local">Database abstraction layer,</a> like <a href="../../../../includes-database-database.inc/function/db_insert/7.x/" title="Returns a new InsertQuery object for the active database." class="local">db_insert</a>(), <a href="../../../../includes-database-database.inc/function/db_update/7.x/" title="Returns a new UpdateQuery object for the active database." class="local">db_update</a>(), <a href="../../../../includes-database-database.inc/function/db_delete/7.x/" title="Returns a new DeleteQuery object for the active database." class="local">db_delete</a>(), <a href="../../../../includes-database-database.inc/function/db_query/7.x/" title="Executes an arbitrary query string against the active database." class="local">db_query</a>(), and so on.</p> <p>If a change to the schema necessitates a change to the utility function, a new function should be created with a name based on the version of the schema it acts on. See _update_7000_bar_get_types() and _update_7001_bar_get_types() in the code examples that follow.</p> <p>For example, foo.install could contain:</p> <pre class="php" data-language="php">function foo_update_dependencies() {
+  // foo_update_7010() needs to run after bar_update_7000().
+  $dependencies['foo'][7010] = array(
+    'bar' =&gt; 7000,
+  );
+
+  // foo_update_7036() needs to run after bar_update_7001().
+  $dependencies['foo'][7036] = array(
+    'bar' =&gt; 7001,
+  );
+
+  return $dependencies;
+}
+
+function foo_update_7000() {
+  // No updates have been run on the {bar_types} table yet, so this needs
+  // to work with the 6.x schema.
+  foreach (_update_6000_bar_get_types() as $type) {
+    // Rename a variable.
+  }
+}
+
+function foo_update_7010() {
+   // Since foo_update_7010() is going to run after bar_update_7000(), it
+   // needs to operate on the new schema, not the old one.
+   foreach (_update_7000_bar_get_types() as $type) {
+     // Rename a different variable.
+   }
+}
+
+function foo_update_7036() {
+  // This update will run after bar_update_7001().
+  foreach (_update_7001_bar_get_types() as $type) {
+  }
+}
+</pre>
+<p> And bar.install could contain:</p> <pre class="php" data-language="php">function bar_update_7000() {
+  // Type and bundle are confusing, so we renamed the table.
+  db_rename_table('bar_types', 'bar_bundles');
+}
+
+function bar_update_7001() {
+  // Database table names should be singular when possible.
+  db_rename_table('bar_bundles', 'bar_bundle');
+}
+
+function _update_6000_bar_get_types() {
+  db_query('SELECT * FROM {bar_types}')-&gt;fetchAll();
+}
+
+function _update_7000_bar_get_types() {
+  db_query('SELECT * FROM {bar_bundles'})-&gt;fetchAll();
+}
+
+function _update_7001_bar_get_types() {
+  db_query('SELECT * FROM {bar_bundle}')-&gt;fetchAll();
+}
+</pre> <h3>See also</h3> <p> <a href="../../../function/hook_update_n/7.x/" title="Perform a single update." class="local">hook_update_N</a>()</p> <p><a href="../../../function/hook_update_dependencies/7.x/" title="Return an array of information about module update dependencies." class="local">hook_update_dependencies</a>()</p> <h3>File</h3> 
+<dl> <dt>modules/system/<a href="../../../7.x/">system.api.php</a>, line 4901</dt> <dd>Hooks provided by Drupal core and the System module.</dd> </dl> <h3>Functions</h3>
+<div class="view view-api-references view-id-api_references view-display-id-block_items_in_group view-dom-id-c25926906253f5036805347c3f317aaf"> <div class="view-content"> <table class="views-table cols-3"> <thead> <tr> <th class="views-field views-field-title active" scope="col"> Name </th> <th class="views-field views-field-file-name" scope="col"> Location </th> <th class="views-field views-field-summary" scope="col"> Description </th> </tr> </thead> <tbody> <tr class="odd views-row-first"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21field.install/function/_update_7000_field_create_field/7.x" target="_blank">_update_7000_field_create_field</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/<a href="../../../../modules-field-field.install/7.x/">field.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: create a field by writing directly to the database. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21field.install/function/_update_7000_field_create_instance/7.x" target="_blank">_update_7000_field_create_instance</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/<a href="../../../../modules-field-field.install/7.x/">field.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: write a field instance directly to the database. </td> </tr> <tr class="odd"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21field.install/function/_update_7000_field_delete_field/7.x" target="_blank">_update_7000_field_delete_field</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/<a href="../../../../modules-field-field.install/7.x/">field.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: delete a field stored in SQL storage directly from the database. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21field.install/function/_update_7000_field_delete_instance/7.x" target="_blank">_update_7000_field_delete_instance</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/<a href="../../../../modules-field-field.install/7.x/">field.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: delete an instance and all its data of a field stored in SQL Storage. </td> </tr> <tr class="odd"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21field.install/function/_update_7000_field_read_fields/7.x" target="_blank">_update_7000_field_read_fields</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/<a href="../../../../modules-field-field.install/7.x/">field.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: fetch all the field definitions from the database. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21field%21modules%21field_sql_storage%21field_sql_storage.install/function/_update_7000_field_sql_storage_write/7.x" target="_blank">_update_7000_field_sql_storage_write</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/field/modules/field_sql_storage/<a href="../../../../modules-field-modules-field_sql_storage-field_sql_storage.install/7.x/">field_sql_storage.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: write field data directly to SQL storage. </td> </tr> <tr class="odd"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21node%21node.install/function/_update_7000_node_get_types/7.x" target="_blank">_update_7000_node_get_types</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/node/<a href="../../../../modules-node-node.install/7.x/">node.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: fetch the node types directly from the database. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21user%21user.install/function/_update_7000_user_role_grant_permissions/7.x" target="_blank">_update_7000_user_role_grant_permissions</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/user/<a href="../../../../modules-user-user.install/7.x/">user.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: grant a set of permissions to a role during update. </td> </tr> <tr class="odd views-row-last"> <td class="views-field views-field-title active" data-th="Name"> <a href="https://api.drupal.org/api/drupal/modules%21taxonomy%21taxonomy.install/function/_update_7002_taxonomy_get_vocabularies/7.x" target="_blank">_update_7002_taxonomy_get_vocabularies</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/taxonomy/<a href="../../../../modules-taxonomy-taxonomy.install/7.x/">taxonomy.install</a> </td> <td class="views-field views-field-summary" data-th="Description"> Utility function: get the list of vocabularies directly from the database. </td> </tr> </tbody> </table> </div> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!system!system.api.php/group/update_api/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!system!system.api.php/group/update_api/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

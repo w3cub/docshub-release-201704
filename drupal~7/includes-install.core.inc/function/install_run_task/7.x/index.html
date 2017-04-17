@@ -1,0 +1,185 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Install_run_task - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Runs an individual installation task. ">
+  <meta name="keywords" content="function, install, run, task, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-install.core.inc/function/install_run_task/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function install_run_task</h1>     <pre class="signature">install_run_task($task, &amp;$install_state)</pre> <p>Runs an individual installation task.</p> <h3>Parameters</h3> <p> <strong>$task</strong>: An array of information about the task to be run as returned by <a href="../../../../modules-system-system.api.php/function/hook_install_tasks/7.x/" title="Return an array of tasks to be performed by an installation profile." class="local">hook_install_tasks</a>().</p> <p><strong>$install_state</strong>: An array of information about the current installation state. This is passed in by reference so that it can be modified by the task.</p> <h3>Return value</h3> <p> The output of the task function, if there is any.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">install.core.inc</a>, line 374</dt> <dd>API functions for installing Drupal.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function install_run_task($task, &amp;$install_state) {
+  $function = $task['function'];
+
+  if ($task['type'] == 'form') {
+    require_once DRUPAL_ROOT . '/includes/form.inc';
+    if ($install_state['interactive']) {
+      // For interactive forms, build the form and ensure that it will not
+      // redirect, since the installer handles its own redirection only after
+      // marking the form submission task complete.
+      $form_state = array(
+        // We need to pass $install_state by reference in order for forms to
+        // modify it, since the form API will use it in call_user_func_array(),
+        // which requires that referenced variables be passed explicitly.
+        'build_info' =&gt; array('args' =&gt; array(&amp;$install_state)),
+        'no_redirect' =&gt; TRUE,
+      );
+      $form = drupal_build_form($function, $form_state);
+      // If a successful form submission did not occur, the form needs to be
+      // rendered, which means the task is not complete yet.
+      if (empty($form_state['executed'])) {
+        $install_state['task_not_complete'] = TRUE;
+        return drupal_render($form);
+      }
+      // Otherwise, return nothing so the next task will run in the same
+      // request.
+      return;
+    }
+    else {
+      // For non-interactive forms, submit the form programmatically with the
+      // values taken from the installation state. Throw an exception if any
+      // errors were encountered.
+      $form_state = array(
+        'values' =&gt; !empty($install_state['forms'][$function]) ? $install_state['forms'][$function] : array(),
+        // We need to pass $install_state by reference in order for forms to
+        // modify it, since the form API will use it in call_user_func_array(),
+        // which requires that referenced variables be passed explicitly.
+        'build_info' =&gt; array('args' =&gt; array(&amp;$install_state)),
+      );
+      drupal_form_submit($function, $form_state);
+      $errors = form_get_errors();
+      if (!empty($errors)) {
+        throw new Exception(implode("\n", $errors));
+      }
+    }
+  }
+
+  elseif ($task['type'] == 'batch') {
+    // Start a new batch based on the task function, if one is not running
+    // already.
+    $current_batch = variable_get('install_current_batch');
+    if (!$install_state['interactive'] || !$current_batch) {
+      $batch = $function($install_state);
+      if (empty($batch)) {
+        // If the task did some processing and decided no batch was necessary,
+        // there is nothing more to do here.
+        return;
+      }
+      batch_set($batch);
+      // For interactive batches, we need to store the fact that this batch
+      // task is currently running. Otherwise, we need to make sure the batch
+      // will complete in one page request.
+      if ($install_state['interactive']) {
+        variable_set('install_current_batch', $function);
+      }
+      else {
+        $batch = &amp;batch_get();
+        $batch['progressive'] = FALSE;
+      }
+      // Process the batch. For progressive batches, this will redirect.
+      // Otherwise, the batch will complete.
+      batch_process(install_redirect_url($install_state), install_full_redirect_url($install_state));
+    }
+    // If we are in the middle of processing this batch, keep sending back
+    // any output from the batch process, until the task is complete.
+    elseif ($current_batch == $function) {
+      include_once DRUPAL_ROOT . '/includes/batch.inc';
+      $output = _batch_page();
+      // The task is complete when we try to access the batch page and receive
+      // FALSE in return, since this means we are at a URL where we are no
+      // longer requesting a batch ID.
+      if ($output === FALSE) {
+        // Return nothing so the next task will run in the same request.
+        variable_del('install_current_batch');
+        return;
+      }
+      else {
+        // We need to force the page request to end if the task is not
+        // complete, since the batch API sometimes prints JSON output
+        // rather than returning a themed page.
+        $install_state['task_not_complete'] = $install_state['stop_page_request'] = TRUE;
+        return $output;
+      }
+    }
+  }
+
+  else {
+    // For normal tasks, just return the function result, whatever it is.
+    return $function($install_state);
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_run_task/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_run_task/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

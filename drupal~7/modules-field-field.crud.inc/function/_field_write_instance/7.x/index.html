@@ -1,0 +1,168 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_field_write_instance - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Stores an instance record in the field configuration database. ">
+  <meta name="keywords" content="function, field, write, instance, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-field-field.crud.inc/function/_field_write_instance/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _field_write_instance</h1>     <pre class="signature">_field_write_instance($instance, $update = FALSE)</pre> <p>Stores an instance record in the field configuration database.</p> <h3>Parameters</h3> <p> <strong>$instance</strong>: An instance structure.</p> <p><strong>$update</strong>: Whether this is a new or existing instance.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-a2c5f8beb18e68601bf37a40844d7585"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/field_crud/7.x/">Field CRUD API</a></dt> <dd>Create, update, and delete Field API fields, bundles, and instances.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/field/<a href="../../../7.x/">field.crud.inc</a>, line 586</dt> <dd>Field CRUD API, handling field and field instance creation and deletion.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _field_write_instance($instance, $update = FALSE) {
+  $field = field_read_field($instance['field_name']);
+  $field_type = field_info_field_types($field['type']);
+
+  // Set defaults.
+  $instance += array(
+    'settings' =&gt; array(),
+    'display' =&gt; array(),
+    'widget' =&gt; array(),
+    'required' =&gt; FALSE,
+    'label' =&gt; $instance['field_name'],
+    'description' =&gt; '',
+    'deleted' =&gt; 0,
+  );
+
+  // Set default instance settings.
+  $instance['settings'] += field_info_instance_settings($field['type']);
+
+  // Set default widget and settings.
+  $instance['widget'] += array(
+    // TODO: what if no 'default_widget' specified ?
+    'type' =&gt; $field_type['default_widget'],
+    'settings' =&gt; array(),
+  );
+  // If no weight specified, make sure the field sinks at the bottom.
+  if (!isset($instance['widget']['weight'])) {
+    $max_weight = field_info_max_weight($instance['entity_type'], $instance['bundle'], 'form');
+    $instance['widget']['weight'] = isset($max_weight) ? $max_weight + 1 : 0;
+  }
+  // Check widget module.
+  $widget_type = field_info_widget_types($instance['widget']['type']);
+  $instance['widget']['module'] = $widget_type['module'];
+  $instance['widget']['settings'] += field_info_widget_settings($instance['widget']['type']);
+
+  // Make sure there are at least display settings for the 'default' view mode,
+  // and fill in defaults for each view mode specified in the definition.
+  $instance['display'] += array(
+    'default' =&gt; array(),
+  );
+  foreach ($instance['display'] as $view_mode =&gt; $display) {
+    $display += array(
+      'label' =&gt; 'above',
+      'type' =&gt; isset($field_type['default_formatter']) ? $field_type['default_formatter'] : 'hidden',
+      'settings' =&gt; array(),
+    );
+    if ($display['type'] != 'hidden') {
+      $formatter_type = field_info_formatter_types($display['type']);
+      $display['module'] = $formatter_type['module'];
+      $display['settings'] += field_info_formatter_settings($display['type']);
+    }
+    // If no weight specified, make sure the field sinks at the bottom.
+    if (!isset($display['weight'])) {
+      $max_weight = field_info_max_weight($instance['entity_type'], $instance['bundle'], $view_mode);
+      $display['weight'] = isset($max_weight) ? $max_weight + 1 : 0;
+    }
+    $instance['display'][$view_mode] = $display;
+  }
+
+  // The serialized 'data' column contains everything from $instance that does
+  // not have its own column and is not automatically populated when the
+  // instance is read.
+  $data = $instance;
+  unset($data['id'], $data['field_id'], $data['field_name'], $data['entity_type'], $data['bundle'], $data['deleted']);
+
+  $record = array(
+    'field_id' =&gt; $instance['field_id'],
+    'field_name' =&gt; $instance['field_name'],
+    'entity_type' =&gt; $instance['entity_type'],
+    'bundle' =&gt; $instance['bundle'],
+    'data' =&gt; $data,
+    'deleted' =&gt; $instance['deleted'],
+  );
+  // We need to tell drupal_update_record() the primary keys to trigger an
+  // update.
+  if ($update) {
+    $record['id'] = $instance['id'];
+    $primary_key = array('id');
+  }
+  else {
+    $primary_key = array();
+  }
+  drupal_write_record('field_config_instance', $record, $primary_key);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!field!field.crud.inc/function/_field_write_instance/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!field!field.crud.inc/function/_field_write_instance/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,186 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Taxonomy_overview_terms_submit - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Submit handler for terms overview form. ">
+  <meta name="keywords" content="function, taxonomy, overview, terms, submit, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-taxonomy-taxonomy.admin.inc/function/taxonomy_overview_terms_submit/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function taxonomy_overview_terms_submit</h1>     <pre class="signature">taxonomy_overview_terms_submit($form, &amp;$form_state)</pre> <p>Submit handler for terms overview form.</p> <p>Rather than using a textfield or weight field, this form depends entirely upon the order of form elements on the page to determine new weights.</p> <p>Because there might be hundreds or thousands of taxonomy terms that need to be ordered, terms are weighted from 0 to the number of terms in the vocabulary, rather than the standard -10 to 10 scale. Numbers are sorted lowest to highest, but are not necessarily sequential. Numbers may be skipped when a term has children so that reordering is minimal when a child is added or removed from a term.</p> <h3>See also</h3> <p> <a href="../../taxonomy_overview_terms/7.x/" title="Form builder for the taxonomy terms overview." class="local">taxonomy_overview_terms</a>()</p>  <h3>File</h3> 
+<dl> <dt>modules/taxonomy/<a href="../../../7.x/">taxonomy.admin.inc</a>, line 436</dt> <dd>Administrative page callbacks for the taxonomy module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function taxonomy_overview_terms_submit($form, &amp;$form_state) {
+  if ($form_state['triggering_element']['#value'] == t('Reset to alphabetical')) {
+    // Execute the reset action.
+    if ($form_state['values']['reset_alphabetical'] === TRUE) {
+      return taxonomy_vocabulary_confirm_reset_alphabetical_submit($form, $form_state);
+    }
+    // Rebuild the form to confirm the reset action.
+    $form_state['rebuild'] = TRUE;
+    $form_state['confirm_reset_alphabetical'] = TRUE;
+    return;
+  }
+
+  // Sort term order based on weight.
+  uasort($form_state['values'], 'drupal_sort_weight');
+
+  $vocabulary = $form['#vocabulary'];
+  $hierarchy = 0; // Update the current hierarchy type as we go.
+
+  $changed_terms = array();
+  $tree = taxonomy_get_tree($vocabulary-&gt;vid);
+
+  if (empty($tree)) {
+    return;
+  }
+
+  // Build a list of all terms that need to be updated on previous pages.
+  $weight = 0;
+  $term = (array) $tree[0];
+  while ($term['tid'] != $form['#first_tid']) {
+    if ($term['parents'][0] == 0 &amp;&amp; $term['weight'] != $weight) {
+      $term['parent'] = $term['parents'][0];
+      $term['weight'] = $weight;
+      $changed_terms[$term['tid']] = $term;
+    }
+    $weight++;
+    $hierarchy = $term['parents'][0] != 0 ? 1 : $hierarchy;
+    $term = (array) $tree[$weight];
+  }
+
+  // Renumber the current page weights and assign any new parents.
+  $level_weights = array();
+  foreach ($form_state['values'] as $tid =&gt; $values) {
+    if (isset($form[$tid]['#term'])) {
+      $term = $form[$tid]['#term'];
+      // Give terms at the root level a weight in sequence with terms on previous pages.
+      if ($values['parent'] == 0 &amp;&amp; $term['weight'] != $weight) {
+        $term['weight'] = $weight;
+        $changed_terms[$term['tid']] = $term;
+      }
+      // Terms not at the root level can safely start from 0 because they're all on this page.
+      elseif ($values['parent'] &gt; 0) {
+        $level_weights[$values['parent']] = isset($level_weights[$values['parent']]) ? $level_weights[$values['parent']] + 1 : 0;
+        if ($level_weights[$values['parent']] != $term['weight']) {
+          $term['weight'] = $level_weights[$values['parent']];
+          $changed_terms[$term['tid']] = $term;
+        }
+      }
+      // Update any changed parents.
+      if ($values['parent'] != $term['parent']) {
+        $term['parent'] = $values['parent'];
+        $changed_terms[$term['tid']] = $term;
+      }
+      $hierarchy = $term['parent'] != 0 ? 1 : $hierarchy;
+      $weight++;
+    }
+  }
+
+  // Build a list of all terms that need to be updated on following pages.
+  for ($weight; $weight &lt; count($tree); $weight++) {
+    $term = (array) $tree[$weight];
+    if ($term['parents'][0] == 0 &amp;&amp; $term['weight'] != $weight) {
+      $term['parent'] = $term['parents'][0];
+      $term['weight'] = $weight;
+      $changed_terms[$term['tid']] = $term;
+    }
+    $hierarchy = $term['parents'][0] != 0 ? 1 : $hierarchy;
+  }
+
+  // Save all updated terms.
+  foreach ($changed_terms as $changed) {
+    $term = (object) $changed;
+    // Update term_hierachy and term_data directly since we don't have a
+    // fully populated term object to save.
+    db_update('taxonomy_term_hierarchy')
+      -&gt;fields(array('parent' =&gt; $term-&gt;parent))
+      -&gt;condition('tid', $term-&gt;tid, '=')
+      -&gt;execute();
+
+    db_update('taxonomy_term_data')
+      -&gt;fields(array('weight' =&gt; $term-&gt;weight))
+      -&gt;condition('tid', $term-&gt;tid, '=')
+      -&gt;execute();
+  }
+
+  // Update the vocabulary hierarchy to flat or single hierarchy.
+  if ($vocabulary-&gt;hierarchy != $hierarchy) {
+    $vocabulary-&gt;hierarchy = $hierarchy;
+    taxonomy_vocabulary_save($vocabulary);
+  }
+  drupal_set_message(t('The configuration options have been saved.'));
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.admin.inc/function/taxonomy_overview_terms_submit/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.admin.inc/function/taxonomy_overview_terms_submit/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

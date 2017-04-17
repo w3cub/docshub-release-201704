@@ -1,0 +1,241 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>System_modules - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Menu callback; provides module enable&#47;disable interface. ">
+  <meta name="keywords" content="function, system, modules, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-system-system.admin.inc/function/system_modules/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function system_modules</h1>     <pre class="signature">system_modules($form, $form_state = array())</pre> <p>Menu callback; provides module enable/disable interface.</p> <p>The list of modules gets populated by module.info files, which contain each module's name, description, and information about which modules it requires. See <a href="../../../../includes-common.inc/function/drupal_parse_info_file/7.x/" title="Parses Drupal module and theme .info files." class="local">drupal_parse_info_file</a>() for information on module.info descriptors.</p> <p>Dependency checking is performed to ensure that a module:</p> <ul> <li>can not be enabled if there are disabled modules it requires.</li> <li>can not be disabled if there are enabled modules which depend on it.</li> </ul> <h3>Parameters</h3> <p> <strong>$form_state</strong>: An associative array containing the current state of the form.</p> <h3>Return value</h3> <p> The form array.</p> <h3>See also</h3> <p> theme_system_modules()</p> <p><a href="../../system_modules_submit/7.x/" title="Submit callback; handles modules form submission." class="local">system_modules_submit</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-95b9b3a5929d62b70e613b9c10119ede"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../../includes-form.inc/group/forms/7.x/">Form builder functions</a></dt> <dd>Functions that build an abstract representation of a HTML form.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/system/<a href="../../../7.x/">system.admin.inc</a>, line 790</dt> <dd>Admin page callbacks for the system module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function system_modules($form, $form_state = array()) {
+  // Get current list of modules.
+  $files = system_rebuild_module_data();
+
+  // Remove hidden modules from display list.
+  $visible_files = $files;
+  foreach ($visible_files as $filename =&gt; $file) {
+    if (!empty($file-&gt;info['hidden'])) {
+      unset($visible_files[$filename]);
+    }
+  }
+
+  uasort($visible_files, 'system_sort_modules_by_info_name');
+
+  // If the modules form was submitted, then system_modules_submit() runs first
+  // and if there are unfilled required modules, then $form_state['storage'] is
+  // filled, triggering a rebuild. In this case we need to display a
+  // confirmation form.
+  if (!empty($form_state['storage'])) {
+    return system_modules_confirm_form($visible_files, $form_state['storage']);
+  }
+
+  $modules = array();
+  $form['modules'] = array('#tree' =&gt; TRUE);
+
+  // Used when checking if module implements a help page.
+  $help_arg = module_exists('help') ? drupal_help_arg() : FALSE;
+
+  // Used when displaying modules that are required by the installation profile.
+  require_once DRUPAL_ROOT . '/includes/install.inc';
+  $distribution_name = check_plain(drupal_install_profile_distribution_name());
+
+  // Iterate through each of the modules.
+  foreach ($visible_files as $filename =&gt; $module) {
+    $extra = array();
+    $extra['enabled'] = (bool) $module-&gt;status;
+    if (!empty($module-&gt;info['required'])) {
+      $extra['disabled'] = TRUE;
+      $extra['required_by'][] = $distribution_name . (!empty($module-&gt;info['explanation']) ? ' (' . $module-&gt;info['explanation'] . ')' : '');
+    }
+
+    // If this module requires other modules, add them to the array.
+    foreach ($module-&gt;requires as $requires =&gt; $v) {
+      if (!isset($files[$requires])) {
+        $extra['requires'][$requires] = t('@module (&lt;span class="admin-missing"&gt;missing&lt;/span&gt;)', array('@module' =&gt; drupal_ucfirst($requires)));
+        $extra['disabled'] = TRUE;
+      }
+      // Only display visible modules.
+      elseif (isset($visible_files[$requires])) {
+        $requires_name = $files[$requires]-&gt;info['name'];
+        // Disable this module if it is incompatible with the dependency's version.
+        if ($incompatible_version = drupal_check_incompatibility($v, str_replace(DRUPAL_CORE_COMPATIBILITY . '-', '', $files[$requires]-&gt;info['version']))) {
+          $extra['requires'][$requires] = t('@module (&lt;span class="admin-missing"&gt;incompatible with&lt;/span&gt; version @version)', array(
+            '@module' =&gt; $requires_name . $incompatible_version,
+            '@version' =&gt; $files[$requires]-&gt;info['version'],
+          ));
+          $extra['disabled'] = TRUE;
+        }
+        // Disable this module if the dependency is incompatible with this
+        // version of Drupal core.
+        elseif ($files[$requires]-&gt;info['core'] != DRUPAL_CORE_COMPATIBILITY) {
+          $extra['requires'][$requires] = t('@module (&lt;span class="admin-missing"&gt;incompatible with&lt;/span&gt; this version of Drupal core)', array(
+            '@module' =&gt; $requires_name,
+          ));
+          $extra['disabled'] = TRUE;
+        }
+        elseif ($files[$requires]-&gt;status) {
+          $extra['requires'][$requires] = t('@module (&lt;span class="admin-enabled"&gt;enabled&lt;/span&gt;)', array('@module' =&gt; $requires_name));
+        }
+        else {
+          $extra['requires'][$requires] = t('@module (&lt;span class="admin-disabled"&gt;disabled&lt;/span&gt;)', array('@module' =&gt; $requires_name));
+        }
+      }
+    }
+    // Generate link for module's help page, if there is one.
+    if ($help_arg &amp;&amp; $module-&gt;status &amp;&amp; in_array($filename, module_implements('help'))) {
+      if (module_invoke($filename, 'help', "admin/help#$filename", $help_arg)) {
+        $extra['links']['help'] = array(
+          '#type' =&gt; 'link',
+          '#title' =&gt; t('Help'),
+          '#href' =&gt; "admin/help/$filename",
+          '#options' =&gt; array('attributes' =&gt; array('class' =&gt; array('module-link', 'module-link-help'), 'title' =&gt; t('Help'))),
+        );
+      }
+    }
+    // Generate link for module's permission, if the user has access to it.
+    if ($module-&gt;status &amp;&amp; user_access('administer permissions') &amp;&amp; in_array($filename, module_implements('permission'))) {
+      $extra['links']['permissions'] = array(
+        '#type' =&gt; 'link',
+        '#title' =&gt; t('Permissions'),
+        '#href' =&gt; 'admin/people/permissions',
+        '#options' =&gt; array('fragment' =&gt; 'module-' . $filename, 'attributes' =&gt; array('class' =&gt; array('module-link', 'module-link-permissions'), 'title' =&gt; t('Configure permissions'))),
+      );
+    }
+    // Generate link for module's configuration page, if the module provides
+    // one.
+    if ($module-&gt;status &amp;&amp; isset($module-&gt;info['configure'])) {
+      $configure_link = menu_get_item($module-&gt;info['configure']);
+      if ($configure_link['access']) {
+        $extra['links']['configure'] = array(
+          '#type' =&gt; 'link',
+          '#title' =&gt; t('Configure'),
+          '#href' =&gt; $configure_link['href'],
+          '#options' =&gt; array('attributes' =&gt; array('class' =&gt; array('module-link', 'module-link-configure'), 'title' =&gt; $configure_link['description'])),
+        );
+      }
+    }
+
+    // If this module is required by other modules, list those, and then make it
+    // impossible to disable this one.
+    foreach ($module-&gt;required_by as $required_by =&gt; $v) {
+      // Hidden modules are unset already.
+      if (isset($visible_files[$required_by])) {
+        if ($files[$required_by]-&gt;status == 1 &amp;&amp; $module-&gt;status == 1) {
+          $extra['required_by'][] = t('@module (&lt;span class="admin-enabled"&gt;enabled&lt;/span&gt;)', array('@module' =&gt; $files[$required_by]-&gt;info['name']));
+          $extra['disabled'] = TRUE;
+        }
+        else {
+          $extra['required_by'][] = t('@module (&lt;span class="admin-disabled"&gt;disabled&lt;/span&gt;)', array('@module' =&gt; $files[$required_by]-&gt;info['name']));
+        }
+      }
+    }
+    $form['modules'][$module-&gt;info['package']][$filename] = _system_modules_build_row($module-&gt;info, $extra);
+  }
+
+  // Add basic information to the fieldsets.
+  foreach (element_children($form['modules']) as $package) {
+    $form['modules'][$package] += array(
+      '#type' =&gt; 'fieldset',
+      '#title' =&gt; t($package),
+      '#collapsible' =&gt; TRUE,
+      '#theme' =&gt; 'system_modules_fieldset',
+      '#header' =&gt; array(
+        array('data' =&gt; t('Enabled'), 'class' =&gt; array('checkbox')),
+        t('Name'),
+        t('Version'),
+        t('Description'),
+        array('data' =&gt; t('Operations'), 'colspan' =&gt; 3),
+      ),
+      // Ensure that the "Core" package fieldset comes first.
+      '#weight' =&gt; $package == 'Core' ? -10 : NULL,
+    );
+  }
+
+  // Lastly, sort all fieldsets by title.
+  uasort($form['modules'], 'element_sort_by_title');
+
+  $form['actions'] = array('#type' =&gt; 'actions');
+  $form['actions']['submit'] = array(
+    '#type' =&gt; 'submit',
+    '#value' =&gt; t('Save configuration'),
+  );
+  $form['#action'] = url('admin/modules/list/confirm');
+
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!system!system.admin.inc/function/system_modules/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!system!system.admin.inc/function/system_modules/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

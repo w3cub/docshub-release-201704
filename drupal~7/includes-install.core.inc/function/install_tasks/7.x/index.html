@@ -1,0 +1,187 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Install_tasks - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Returns a list of all tasks the installer currently knows about. ">
+  <meta name="keywords" content="function, install, tasks, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-install.core.inc/function/install_tasks/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function install_tasks</h1>     <pre class="signature">install_tasks($install_state)</pre> <p>Returns a list of all tasks the installer currently knows about.</p> <p>This function will return tasks regardless of whether or not they are intended to run on the current page request. However, the list can change based on the installation state (for example, if an installation profile hasn't been selected yet, we don't yet know which profile tasks will be available).</p> <h3>Parameters</h3> <p> <strong>$install_state</strong>: An array of information about the current installation state.</p> <h3>Return value</h3> <p> A list of tasks, with associated metadata.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">install.core.inc</a>, line 525</dt> <dd>API functions for installing Drupal.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function install_tasks($install_state) {
+  // Determine whether translation import tasks will need to be performed.
+  $needs_translations = count($install_state['locales']) &gt; 1 &amp;&amp; !empty($install_state['parameters']['locale']) &amp;&amp; $install_state['parameters']['locale'] != 'en';
+
+  // Start with the core installation tasks that run before handing control
+  // to the installation profile.
+  $tasks = array(
+    'install_select_profile' =&gt; array(
+      'display_name' =&gt; st('Choose profile'),
+      'display' =&gt; count($install_state['profiles']) != 1,
+      'run' =&gt; INSTALL_TASK_RUN_IF_REACHED,
+    ),
+    'install_select_locale' =&gt; array(
+      'display_name' =&gt; st('Choose language'),
+      'run' =&gt; INSTALL_TASK_RUN_IF_REACHED,
+    ),
+    'install_load_profile' =&gt; array(
+      'run' =&gt; INSTALL_TASK_RUN_IF_REACHED,
+    ),
+    'install_verify_requirements' =&gt; array(
+      'display_name' =&gt; st('Verify requirements'),
+    ),
+    'install_settings_form' =&gt; array(
+      'display_name' =&gt; st('Set up database'),
+      'type' =&gt; 'form',
+      'run' =&gt; $install_state['settings_verified'] ? INSTALL_TASK_SKIP : INSTALL_TASK_RUN_IF_NOT_COMPLETED,
+    ),
+    'install_system_module' =&gt; array(
+    ),
+    'install_bootstrap_full' =&gt; array(
+      'run' =&gt; INSTALL_TASK_RUN_IF_REACHED,
+    ),
+    'install_profile_modules' =&gt; array(
+      'display_name' =&gt; count($install_state['profiles']) == 1 ? st('Install site') : st('Install profile'),
+      'type' =&gt; 'batch',
+    ),
+    'install_import_locales' =&gt; array(
+      'display_name' =&gt; st('Set up translations'),
+      'display' =&gt; $needs_translations,
+      'type' =&gt; 'batch',
+      'run' =&gt; $needs_translations ? INSTALL_TASK_RUN_IF_NOT_COMPLETED : INSTALL_TASK_SKIP,
+    ),
+    'install_configure_form' =&gt; array(
+      'display_name' =&gt; st('Configure site'),
+      'type' =&gt; 'form',
+    ),
+  );
+
+  // Now add any tasks defined by the installation profile.
+  if (!empty($install_state['parameters']['profile'])) {
+    // Load the profile install file, because it is not always loaded when
+    // hook_install_tasks() is invoked (e.g. batch processing).
+    $profile_install_file = DRUPAL_ROOT . '/profiles/' . $install_state['parameters']['profile'] . '/' . $install_state['parameters']['profile'] . '.install';
+    if (file_exists($profile_install_file)) {
+      include_once $profile_install_file;
+    }
+    $function = $install_state['parameters']['profile'] . '_install_tasks';
+    if (function_exists($function)) {
+      $result = $function($install_state);
+      if (is_array($result)) {
+        $tasks += $result;
+      }
+    }
+  }
+
+  // Finish by adding the remaining core tasks.
+  $tasks += array(
+    'install_import_locales_remaining' =&gt; array(
+      'display_name' =&gt; st('Finish translations'),
+      'display' =&gt; $needs_translations,
+      'type' =&gt; 'batch',
+      'run' =&gt; $needs_translations ? INSTALL_TASK_RUN_IF_NOT_COMPLETED : INSTALL_TASK_SKIP,
+    ),
+    'install_finished' =&gt; array(
+      'display_name' =&gt; st('Finished'),
+    ),
+  );
+
+  // Allow the installation profile to modify the full list of tasks.
+  if (!empty($install_state['parameters']['profile'])) {
+    $profile_file = DRUPAL_ROOT . '/profiles/' . $install_state['parameters']['profile'] . '/' . $install_state['parameters']['profile'] . '.profile';
+    if (file_exists($profile_file)) {
+      include_once $profile_file;
+      $function = $install_state['parameters']['profile'] . '_install_tasks_alter';
+      if (function_exists($function)) {
+        $function($tasks, $install_state);
+      }
+    }
+  }
+
+  // Fill in default parameters for each task before returning the list.
+  foreach ($tasks as $task_name =&gt; &amp;$task) {
+    $task += array(
+      'display_name' =&gt; NULL,
+      'display' =&gt; !empty($task['display_name']),
+      'type' =&gt; 'normal',
+      'run' =&gt; INSTALL_TASK_RUN_IF_NOT_COMPLETED,
+      'function' =&gt; $task_name,
+    );
+  }
+  return $tasks;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_tasks/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_tasks/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

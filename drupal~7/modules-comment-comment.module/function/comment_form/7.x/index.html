@@ -1,0 +1,293 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Comment_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Generate the basic commenting form, for appending to a node or display on a separate page. ">
+  <meta name="keywords" content="function, comment, form, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-comment-comment.module/function/comment_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function comment_form</h1>     <pre class="signature">comment_form($form, &amp;$form_state, $comment)</pre> <p>Generate the basic commenting form, for appending to a node or display on a separate page.</p> <h3>See also</h3> <p> <a href="../../comment_form_validate/7.x/" title="Validate comment form submissions." class="local">comment_form_validate</a>()</p> <p><a href="../../comment_form_submit/7.x/" title="Process comment form submissions; prepare the comment, store it, and set a redirection target." class="local">comment_form_submit</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-f4d7bb56c4bd991890d14da4744d78b1"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../../includes-form.inc/group/forms/7.x/">Form builder functions</a></dt> <dd>Functions that build an abstract representation of a HTML form.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/comment/<a href="../../../7.x/">comment.module</a>, line 1845</dt> <dd>Enables users to comment on published content.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function comment_form($form, &amp;$form_state, $comment) {
+  global $user;
+
+  // During initial form build, add the comment entity to the form state for
+  // use during form building and processing. During a rebuild, use what is in
+  // the form state.
+  if (!isset($form_state['comment'])) {
+    $defaults = array(
+      'name' =&gt; '',
+      'mail' =&gt; '',
+      'homepage' =&gt; '',
+      'subject' =&gt; '',
+      'comment' =&gt; '',
+      'cid' =&gt; NULL,
+      'pid' =&gt; NULL,
+      'language' =&gt; LANGUAGE_NONE,
+      'uid' =&gt; 0,
+    );
+    foreach ($defaults as $key =&gt; $value) {
+      if (!isset($comment-&gt;$key)) {
+        $comment-&gt;$key = $value;
+      }
+    }
+    $form_state['comment'] = $comment;
+  }
+  else {
+    $comment = $form_state['comment'];
+  }
+
+  $node = node_load($comment-&gt;nid);
+  $form['#node'] = $node;
+
+  // Use #comment-form as unique jump target, regardless of node type.
+  $form['#id'] = drupal_html_id('comment_form');
+  $form['#attributes']['class'][] = 'comment-form';
+  $form['#theme'] = array('comment_form__node_' . $node-&gt;type, 'comment_form');
+
+  $anonymous_contact = variable_get('comment_anonymous_' . $node-&gt;type, COMMENT_ANONYMOUS_MAYNOT_CONTACT);
+  $is_admin = (!empty($comment-&gt;cid) &amp;&amp; user_access('administer comments'));
+
+  if (!$user-&gt;uid &amp;&amp; $anonymous_contact != COMMENT_ANONYMOUS_MAYNOT_CONTACT) {
+    $form['#attached']['library'][] = array('system', 'jquery.cookie');
+    $form['#attributes']['class'][] = 'user-info-from-cookie';
+  }
+
+  // If not replying to a comment, use our dedicated page callback for new
+  // comments on nodes.
+  if (empty($comment-&gt;cid) &amp;&amp; empty($comment-&gt;pid)) {
+    $form['#action'] = url('comment/reply/' . $comment-&gt;nid);
+  }
+
+  if (isset($form_state['comment_preview'])) {
+    $form += $form_state['comment_preview'];
+  }
+
+  // Display author information in a fieldset for comment moderators.
+  if ($is_admin) {
+    $form['author'] = array(
+      '#type' =&gt; 'fieldset',
+      '#title' =&gt; t('Administration'),
+      '#collapsible' =&gt; TRUE,
+      '#collapsed' =&gt; TRUE,
+      '#weight' =&gt; -2,
+    );
+  }
+  else {
+    // Sets the author form elements above the subject.
+    $form['author'] = array(
+      '#weight' =&gt; -2,
+    );
+  }
+
+  // Prepare default values for form elements.
+  if ($is_admin) {
+    $author = (!$comment-&gt;uid &amp;&amp; $comment-&gt;name ? $comment-&gt;name : $comment-&gt;registered_name);
+    $status = (isset($comment-&gt;status) ? $comment-&gt;status : COMMENT_NOT_PUBLISHED);
+    $date = (!empty($comment-&gt;date) ? $comment-&gt;date : format_date($comment-&gt;created, 'custom', 'Y-m-d H:i O'));
+  }
+  else {
+    if ($user-&gt;uid) {
+      $author = $user-&gt;name;
+    }
+    else {
+      $author = ($comment-&gt;name ? $comment-&gt;name : '');
+    }
+    $status = (user_access('skip comment approval') ? COMMENT_PUBLISHED : COMMENT_NOT_PUBLISHED);
+    $date = '';
+  }
+
+  // Add the author name field depending on the current user.
+  if ($is_admin) {
+    $form['author']['name'] = array(
+      '#type' =&gt; 'textfield',
+      '#title' =&gt; t('Authored by'),
+      '#default_value' =&gt; $author,
+      '#maxlength' =&gt; 60,
+      '#size' =&gt; 30,
+      '#description' =&gt; t('Leave blank for %anonymous.', array('%anonymous' =&gt; variable_get('anonymous', t('Anonymous')))),
+      '#autocomplete_path' =&gt; 'user/autocomplete',
+    );
+  }
+  elseif ($user-&gt;uid) {
+    $form['author']['_author'] = array(
+      '#type' =&gt; 'item',
+      '#title' =&gt; t('Your name'),
+      '#markup' =&gt; theme('username', array('account' =&gt; $user)),
+    );
+    $form['author']['name'] = array(
+      '#type' =&gt; 'value',
+      '#value' =&gt; $author,
+    );
+  }
+  else {
+    $form['author']['name'] = array(
+      '#type' =&gt; 'textfield',
+      '#title' =&gt; t('Your name'),
+      '#default_value' =&gt; $author,
+      '#required' =&gt; (!$user-&gt;uid &amp;&amp; $anonymous_contact == COMMENT_ANONYMOUS_MUST_CONTACT),
+      '#maxlength' =&gt; 60,
+      '#size' =&gt; 30,
+    );
+  }
+
+  // Add author e-mail and homepage fields depending on the current user.
+  $form['author']['mail'] = array(
+    '#type' =&gt; 'textfield',
+    '#title' =&gt; t('E-mail'),
+    '#default_value' =&gt; $comment-&gt;mail,
+    '#required' =&gt; (!$user-&gt;uid &amp;&amp; $anonymous_contact == COMMENT_ANONYMOUS_MUST_CONTACT),
+    '#maxlength' =&gt; 64,
+    '#size' =&gt; 30,
+    '#description' =&gt; t('The content of this field is kept private and will not be shown publicly.'),
+    '#access' =&gt; $is_admin || (!$user-&gt;uid &amp;&amp; $anonymous_contact != COMMENT_ANONYMOUS_MAYNOT_CONTACT),
+  );
+  $form['author']['homepage'] = array(
+    '#type' =&gt; 'textfield',
+    '#title' =&gt; t('Homepage'),
+    '#default_value' =&gt; $comment-&gt;homepage,
+    '#maxlength' =&gt; 255,
+    '#size' =&gt; 30,
+    '#access' =&gt; $is_admin || (!$user-&gt;uid &amp;&amp; $anonymous_contact != COMMENT_ANONYMOUS_MAYNOT_CONTACT),
+  );
+
+  // Add administrative comment publishing options.
+  $form['author']['date'] = array(
+    '#type' =&gt; 'textfield',
+    '#title' =&gt; t('Authored on'),
+    '#default_value' =&gt; $date,
+    '#maxlength' =&gt; 25,
+    '#size' =&gt; 20,
+    '#access' =&gt; $is_admin,
+  );
+  $form['author']['status'] = array(
+    '#type' =&gt; 'radios',
+    '#title' =&gt; t('Status'),
+    '#default_value' =&gt; $status,
+    '#options' =&gt; array(
+      COMMENT_PUBLISHED =&gt; t('Published'),
+      COMMENT_NOT_PUBLISHED =&gt; t('Not published'),
+    ),
+    '#access' =&gt; $is_admin,
+  );
+
+  $form['subject'] = array(
+    '#type' =&gt; 'textfield',
+    '#title' =&gt; t('Subject'),
+    '#maxlength' =&gt; 64,
+    '#default_value' =&gt; $comment-&gt;subject,
+    '#access' =&gt; variable_get('comment_subject_field_' . $node-&gt;type, 1) == 1,
+    '#weight' =&gt; -1,
+  );
+
+  // Used for conditional validation of author fields.
+  $form['is_anonymous'] = array(
+    '#type' =&gt; 'value',
+    '#value' =&gt; ($comment-&gt;cid ? !$comment-&gt;uid : !$user-&gt;uid),
+  );
+
+  // Add internal comment properties.
+  foreach (array('cid', 'pid', 'nid', 'language', 'uid') as $key) {
+    $form[$key] = array('#type' =&gt; 'value', '#value' =&gt; $comment-&gt;$key);
+  }
+  $form['node_type'] = array('#type' =&gt; 'value', '#value' =&gt; 'comment_node_' . $node-&gt;type);
+
+  // Only show the save button if comment previews are optional or if we are
+  // already previewing the submission.
+  $form['actions'] = array('#type' =&gt; 'actions');
+  $form['actions']['submit'] = array(
+    '#type' =&gt; 'submit',
+    '#value' =&gt; t('Save'),
+    '#access' =&gt; ($comment-&gt;cid &amp;&amp; user_access('administer comments')) || variable_get('comment_preview_' . $node-&gt;type, DRUPAL_OPTIONAL) != DRUPAL_REQUIRED || isset($form_state['comment_preview']),
+    '#weight' =&gt; 19,
+  );
+  $form['actions']['preview'] = array(
+    '#type' =&gt; 'submit',
+    '#value' =&gt; t('Preview'),
+    '#access' =&gt; (variable_get('comment_preview_' . $node-&gt;type, DRUPAL_OPTIONAL) != DRUPAL_DISABLED),
+    '#weight' =&gt; 20,
+    '#submit' =&gt; array('comment_form_build_preview'),
+  );
+
+  // Attach fields.
+  $comment-&gt;node_type = 'comment_node_' . $node-&gt;type;
+  $langcode = entity_language('comment', $comment);
+  field_attach_form('comment', $comment, $form, $form_state, $langcode);
+
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!comment!comment.module/function/comment_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!comment!comment.module/function/comment_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

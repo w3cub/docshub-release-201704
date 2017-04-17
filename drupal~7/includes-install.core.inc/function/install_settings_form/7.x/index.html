@@ -1,0 +1,144 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Install_settings_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form constructor for a form to configure and rewrite settings.php. ">
+  <meta name="keywords" content="function, install, settings, form, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-install.core.inc/function/install_settings_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function install_settings_form</h1>     <pre class="signature">install_settings_form($form, &amp;$form_state, &amp;$install_state)</pre> <p>Form constructor for a form to configure and rewrite settings.php.</p> <h3>Parameters</h3> <p> <strong>$install_state</strong>: An array of information about the current installation state.</p> <h3>See also</h3> <p> <a href="../../install_settings_form_validate/7.x/" title="Form validation handler for install_settings_form()." class="local">install_settings_form_validate</a>()</p> <p><a href="../../install_settings_form_submit/7.x/" title="Form submission handler for install_settings_form()." class="local">install_settings_form_submit</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-16e8911bb3ec2d5cb639619871c49dc2"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../../includes-form.inc/group/forms/7.x/">Form builder functions</a></dt> <dd>Functions that build an abstract representation of a HTML form.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">install.core.inc</a>, line 887</dt> <dd>API functions for installing Drupal.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function install_settings_form($form, &amp;$form_state, &amp;$install_state) {
+  global $databases;
+  $profile = $install_state['parameters']['profile'];
+  $install_locale = $install_state['parameters']['locale'];
+
+  drupal_static_reset('conf_path');
+  $conf_path = './' . conf_path(FALSE);
+  $settings_file = $conf_path . '/settings.php';
+  $database = isset($databases['default']['default']) ? $databases['default']['default'] : array();
+
+  drupal_set_title(st('Database configuration'));
+
+  $drivers = drupal_get_database_types();
+  $drivers_keys = array_keys($drivers);
+
+  $form['driver'] = array(
+    '#type' =&gt; 'radios',
+    '#title' =&gt; st('Database type'),
+    '#required' =&gt; TRUE,
+    '#default_value' =&gt; !empty($database['driver']) ? $database['driver'] : current($drivers_keys),
+    '#description' =&gt; st('The type of database your @drupal data will be stored in.', array('@drupal' =&gt; drupal_install_profile_distribution_name())),
+  );
+  if (count($drivers) == 1) {
+    $form['driver']['#disabled'] = TRUE;
+    $form['driver']['#description'] .= ' ' . st('Your PHP configuration only supports a single database type, so it has been automatically selected.');
+  }
+
+  // Add driver specific configuration options.
+  foreach ($drivers as $key =&gt; $driver) {
+    $form['driver']['#options'][$key] = $driver-&gt;name();
+
+    $form['settings'][$key] = $driver-&gt;getFormOptions($database);
+    $form['settings'][$key]['#prefix'] = '&lt;h2 class="js-hide"&gt;' . st('@driver_name settings', array('@driver_name' =&gt; $driver-&gt;name())) . '&lt;/h2&gt;';
+    $form['settings'][$key]['#type'] = 'container';
+    $form['settings'][$key]['#tree'] = TRUE;
+    $form['settings'][$key]['advanced_options']['#parents'] = array($key);
+    $form['settings'][$key]['#states'] = array(
+      'visible' =&gt; array(
+        ':input[name=driver]' =&gt; array('value' =&gt; $key),
+      )
+    );
+  }
+
+  $form['actions'] = array('#type' =&gt; 'actions');
+  $form['actions']['save'] = array(
+    '#type' =&gt; 'submit',
+    '#value' =&gt; st('Save and continue'),
+    '#limit_validation_errors' =&gt; array(
+      array('driver'),
+      array(isset($form_state['input']['driver']) ? $form_state['input']['driver'] : current($drivers_keys)),
+    ),
+    '#submit' =&gt; array('install_settings_form_submit'),
+  );
+
+  $form['errors'] = array();
+  $form['settings_file'] = array('#type' =&gt; 'value', '#value' =&gt; $settings_file);
+
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_settings_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!install.core.inc/function/install_settings_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

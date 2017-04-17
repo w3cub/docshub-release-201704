@@ -1,0 +1,147 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Node_build_content - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Builds a structured array representing the node&#39;s content. ">
+  <meta name="keywords" content="function, node, build, content, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-node-node.module/function/node_build_content/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function node_build_content</h1>     <pre class="signature">node_build_content($node, $view_mode = 'full', $langcode = NULL)</pre> <p>Builds a structured array representing the node's content.</p> <p>The content built for the node (field values, comments, file attachments or other node components) will vary depending on the $view_mode parameter.</p> <p>Drupal core defines the following view modes for nodes, with the following default use cases:</p> <ul> <li>
+<strong>full (default)</strong>: node is being displayed on its own page (node/123)</li> <li>
+<strong>teaser</strong>: node is being displayed on the default home page listing, on taxonomy listing pages, or on blog listing pages.</li> <li>
+<strong>rss</strong>: node displayed in an RSS feed.</li> </ul> <p>If <a href="https://api.drupal.org/api/drupal/7.x/search/search.module" title="Multiple implementations exist." class="local" target="_blank">search.module</a> is enabled:</p> <ul> <li>
+<strong>search_index</strong>: node is being indexed for search.</li> <li>
+<strong>search_result</strong>: node is being displayed as a search result.</li> </ul> <p>If <a href="https://api.drupal.org/api/drupal/7.x/search/book.module" title="Multiple implementations exist." class="local" target="_blank">book.module</a> is enabled:</p> <ul> <li>
+<strong>print</strong>: node is being displayed in print-friendly mode.</li> </ul> <p>Contributed modules might define additional view modes, or use existing view modes in additional contexts.</p> <h3>Parameters</h3> <p> <strong>$node</strong>: A node object.</p> <p><strong>$view_mode</strong>: View mode, e.g. 'full', 'teaser'...</p> <p><strong>$langcode</strong>: (optional) A language code to use for rendering. Defaults to the global content language of the current request.</p>  <h3>File</h3> 
+<dl> <dt>modules/node/<a href="../../../7.x/">node.module</a>, line 1392</dt> <dd>The core that allows content to be submitted to the site. Modules and scripts may programmatically submit nodes using the usual form API pattern.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function node_build_content($node, $view_mode = 'full', $langcode = NULL) {
+  if (!isset($langcode)) {
+    $langcode = $GLOBALS['language_content']-&gt;language;
+  }
+
+  // Remove previously built content, if exists.
+  $node-&gt;content = array();
+
+  // Allow modules to change the view mode.
+  $view_mode = key(entity_view_mode_prepare('node', array($node-&gt;nid =&gt; $node), $view_mode, $langcode));
+
+  // The 'view' hook can be implemented to overwrite the default function
+  // to display nodes.
+  if (node_hook($node, 'view')) {
+    $node = node_invoke($node, 'view', $view_mode, $langcode);
+  }
+
+  // Build fields content.
+  // In case of a multiple view, node_view_multiple() already ran the
+  // 'prepare_view' step. An internal flag prevents the operation from running
+  // twice.
+  field_attach_prepare_view('node', array($node-&gt;nid =&gt; $node), $view_mode, $langcode);
+  entity_prepare_view('node', array($node-&gt;nid =&gt; $node), $langcode);
+  $node-&gt;content += field_attach_view('node', $node, $view_mode, $langcode);
+
+  // Always display a read more link on teasers because we have no way to know
+  // when a teaser view is different than a full view.
+  $links = array();
+  $node-&gt;content['links'] = array(
+    '#theme' =&gt; 'links__node',
+    '#pre_render' =&gt; array('drupal_pre_render_links'),
+    '#attributes' =&gt; array('class' =&gt; array('links', 'inline')),
+  );
+  if ($view_mode == 'teaser') {
+    $node_title_stripped = strip_tags($node-&gt;title);
+    $links['node-readmore'] = array(
+      'title' =&gt; t('Read more&lt;span class="element-invisible"&gt; about @title&lt;/span&gt;', array('@title' =&gt; $node_title_stripped)),
+      'href' =&gt; 'node/' . $node-&gt;nid,
+      'html' =&gt; TRUE,
+      'attributes' =&gt; array('rel' =&gt; 'tag', 'title' =&gt; $node_title_stripped),
+    );
+  }
+  $node-&gt;content['links']['node'] = array(
+    '#theme' =&gt; 'links__node__node',
+    '#links' =&gt; $links,
+    '#attributes' =&gt; array('class' =&gt; array('links', 'inline')),
+  );
+
+  // Allow modules to make their own additions to the node.
+  module_invoke_all('node_view', $node, $view_mode, $langcode);
+  module_invoke_all('entity_view', $node, 'node', $view_mode, $langcode);
+
+  // Make sure the current view mode is stored if no module has already
+  // populated the related key.
+  $node-&gt;content += array('#view_mode' =&gt; $view_mode);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!node!node.module/function/node_build_content/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!node!node.module/function/node_build_content/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,212 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_fix_d7_block_deltas - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content="A helper function that modules can use to assist with the transformation from numeric block deltas to string block deltas during the 6.x -&#62; 7.x &hellip;">
+  <meta name="keywords" content="function, update, fix, d, block, deltas, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-update.inc/function/update_fix_d7_block_deltas/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_fix_d7_block_deltas</h1>     <pre class="signature">update_fix_d7_block_deltas(&amp;$sandbox, $renamed_deltas, $moved_deltas)</pre> <p>A helper function that modules can use to assist with the transformation from numeric block deltas to string block deltas during the 6.x -&gt; 7.x upgrade.</p> <p>@todo This function should be removed in 8.x.</p> <h3>Parameters</h3> <p> <strong>$sandbox</strong>: An array holding data for the batch process.</p> <p><strong>$renamed_deltas</strong>: An associative array. Keys are module names, values an associative array mapping the old block deltas to the new block deltas for the module. Example:</p> <pre class="php" data-language="php">    $renamed_deltas = array(
+      'mymodule' =&gt;
+        array(
+          0 =&gt; 'mymodule-block-1',
+          1 =&gt; 'mymodule-block-2',
+        ),
+    );
+  </pre>
+<p> <strong>$moved_deltas</strong>: An associative array. Keys are source module names, values an associative array mapping the (possibly renamed) block name to the new module name. Example:</p> <pre class="php" data-language="php">    $moved_deltas = array(
+      'user' =&gt;
+        array(
+          'navigation' =&gt; 'system',
+        ),
+    );
+  </pre>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">update.inc</a>, line 355</dt> <dd>Drupal database update API.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_fix_d7_block_deltas(&amp;$sandbox, $renamed_deltas, $moved_deltas) {
+  // Loop through each block and make changes to the block tables.
+  // Only run this the first time through the batch update.
+  if (!isset($sandbox['progress'])) {
+    // Determine whether to use the old or new block table names.
+    $block_tables = db_table_exists('blocks') ? array('blocks', 'blocks_roles') : array('block', 'block_role');
+    foreach ($block_tables as $table) {
+      foreach ($renamed_deltas as $module =&gt; $deltas) {
+        foreach ($deltas as $old_delta =&gt; $new_delta) {
+          // Only do the update if the old block actually exists.
+          $block_exists = db_query("SELECT COUNT(*) FROM {" . $table . "} WHERE module = :module AND delta = :delta", array(
+            ':module' =&gt; $module,
+            ':delta' =&gt; $old_delta,
+          ))
+            -&gt;fetchField();
+          if ($block_exists) {
+            // Delete any existing blocks with the new module+delta.
+            db_delete($table)
+              -&gt;condition('module', $module)
+              -&gt;condition('delta', $new_delta)
+              -&gt;execute();
+            // Rename the old block to the new module+delta.
+            db_update($table)
+              -&gt;fields(array('delta' =&gt; $new_delta))
+              -&gt;condition('module', $module)
+              -&gt;condition('delta', $old_delta)
+              -&gt;execute();
+          }
+        }
+      }
+      foreach ($moved_deltas as $old_module =&gt; $deltas) {
+        foreach ($deltas as $delta =&gt; $new_module) {
+          // Only do the update if the old block actually exists.
+          $block_exists = db_query("SELECT COUNT(*) FROM {" . $table . "} WHERE module = :module AND delta = :delta", array(
+            ':module' =&gt; $old_module,
+            ':delta' =&gt; $delta,
+          ))
+            -&gt;fetchField();
+          if ($block_exists) {
+            // Delete any existing blocks with the new module+delta.
+            db_delete($table)
+              -&gt;condition('module', $new_module)
+              -&gt;condition('delta', $delta)
+              -&gt;execute();
+            // Rename the old block to the new module+delta.
+            db_update($table)
+              -&gt;fields(array('module' =&gt; $new_module))
+              -&gt;condition('module', $old_module)
+              -&gt;condition('delta', $delta)
+              -&gt;execute();
+          }
+        }
+      }
+    }
+
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_user_processed'] = -1;
+    $sandbox['max'] = db_query("SELECT COUNT(*) FROM {users} WHERE data LIKE :block", array(
+      ':block' =&gt; '%' . db_like(serialize('block')) . '%',
+    ))
+      -&gt;fetchField();
+  }
+  // Now do the batch update of the user-specific block visibility settings.
+  $limit = 100;
+  $result = db_select('users', 'u')
+    -&gt;fields('u', array('uid', 'data'))
+    -&gt;condition('uid', $sandbox['last_user_processed'], '&gt;')
+    -&gt;condition('data', '%' . db_like(serialize('block')) . '%', 'LIKE')
+    -&gt;orderBy('uid', 'ASC')
+    -&gt;range(0, $limit)
+    -&gt;execute();
+  foreach ($result as $row) {
+    $data = unserialize($row-&gt;data);
+    $user_needs_update = FALSE;
+    foreach ($renamed_deltas as $module =&gt; $deltas) {
+      foreach ($deltas as $old_delta =&gt; $new_delta) {
+        if (isset($data['block'][$module][$old_delta])) {
+          // Transfer the old block visibility settings to the newly-renamed
+          // block, and mark this user for a database update.
+          $data['block'][$module][$new_delta] = $data['block'][$module][$old_delta];
+          unset($data['block'][$module][$old_delta]);
+          $user_needs_update = TRUE;
+        }
+      }
+    }
+    foreach ($moved_deltas as $old_module =&gt; $deltas) {
+      foreach ($deltas as $delta =&gt; $new_module) {
+        if (isset($data['block'][$old_module][$delta])) {
+          // Transfer the old block visibility settings to the moved
+          // block, and mark this user for a database update.
+          $data['block'][$new_module][$delta] = $data['block'][$old_module][$delta];
+          unset($data['block'][$old_module][$delta]);
+          $user_needs_update = TRUE;
+        }
+      }
+    }
+    // Update the current user.
+    if ($user_needs_update) {
+      db_update('users')
+        -&gt;fields(array('data' =&gt; serialize($data)))
+        -&gt;condition('uid', $row-&gt;uid)
+        -&gt;execute();
+    }
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_user_processed'] = $row-&gt;uid;
+  }
+  // Indicate our current progress to the batch update system.
+  if ($sandbox['progress'] &lt; $sandbox['max']) {
+    $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!update.inc/function/update_fix_d7_block_deltas/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!update.inc/function/update_fix_d7_block_deltas/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

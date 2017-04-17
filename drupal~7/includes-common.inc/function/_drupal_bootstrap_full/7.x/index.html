@@ -1,0 +1,151 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_drupal_bootstrap_full - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content="© 2001–2016 by the original authorsLicensed under the GNU General Public License, version 2 and later.Drupal is a registered trademark of Dries &hellip;">
+  <meta name="keywords" content="function, drupal, bootstrap, full, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-common.inc/function/_drupal_bootstrap_full/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _drupal_bootstrap_full</h1>     <pre class="signature">_drupal_bootstrap_full()</pre>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">common.inc</a>, line 5225</dt> <dd>Common functions that many Drupal modules will need to reference.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _drupal_bootstrap_full() {
+  static $called = FALSE;
+
+  if ($called) {
+    return;
+  }
+  $called = TRUE;
+  require_once DRUPAL_ROOT . '/' . variable_get('path_inc', 'includes/path.inc');
+  require_once DRUPAL_ROOT . '/includes/theme.inc';
+  require_once DRUPAL_ROOT . '/includes/pager.inc';
+  require_once DRUPAL_ROOT . '/' . variable_get('menu_inc', 'includes/menu.inc');
+  require_once DRUPAL_ROOT . '/includes/tablesort.inc';
+  require_once DRUPAL_ROOT . '/includes/file.inc';
+  require_once DRUPAL_ROOT . '/includes/unicode.inc';
+  require_once DRUPAL_ROOT . '/includes/image.inc';
+  require_once DRUPAL_ROOT . '/includes/form.inc';
+  require_once DRUPAL_ROOT . '/includes/mail.inc';
+  require_once DRUPAL_ROOT . '/includes/actions.inc';
+  require_once DRUPAL_ROOT . '/includes/ajax.inc';
+  require_once DRUPAL_ROOT . '/includes/token.inc';
+  require_once DRUPAL_ROOT . '/includes/errors.inc';
+
+  // Detect string handling method
+  unicode_check();
+  // Undo magic quotes
+  fix_gpc_magic();
+  // Load all enabled modules
+  module_load_all();
+  // Reset drupal_alter() and module_implements() static caches as these
+  // include implementations for vital modules only when called early on
+  // in the bootstrap.
+  drupal_static_reset('drupal_alter');
+  drupal_static_reset('module_implements');
+  // Make sure all stream wrappers are registered.
+  file_get_stream_wrappers();
+  // Ensure mt_rand is reseeded, to prevent random values from one page load
+  // being exploited to predict random values in subsequent page loads.
+  $seed = unpack("L", drupal_random_bytes(4));
+  mt_srand($seed[1]);
+
+  $test_info = &amp;$GLOBALS['drupal_test_info'];
+  if (!empty($test_info['in_child_site'])) {
+    // Running inside the simpletest child site, log fatal errors to test
+    // specific file directory.
+    ini_set('log_errors', 1);
+    ini_set('error_log', 'public://error.log');
+  }
+
+  // Initialize $_GET['q'] prior to invoking hook_init().
+  drupal_path_initialize();
+
+  // Let all modules take action before the menu system handles the request.
+  // We do not want this while running update.php.
+  if (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update') {
+    // Prior to invoking hook_init(), initialize the theme (potentially a custom
+    // one for this page), so that:
+    // - Modules with hook_init() implementations that call theme() or
+    //   theme_get_registry() don't initialize the incorrect theme.
+    // - The theme can have hook_*_alter() implementations affect page building
+    //   (e.g., hook_form_alter(), hook_node_view_alter(), hook_page_alter()),
+    //   ahead of when rendering starts.
+    menu_set_custom_theme();
+    drupal_theme_initialize();
+    module_invoke_all('init');
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!common.inc/function/_drupal_bootstrap_full/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!common.inc/function/_drupal_bootstrap_full/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Locale_languages_overview_form_submit - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Process language overview form submissions, updating existing languages. ">
+  <meta name="keywords" content="function, locale, languages, overview, form, submit, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-locale-locale.admin.inc/function/locale_languages_overview_form_submit/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function locale_languages_overview_form_submit</h1>     <pre class="signature">locale_languages_overview_form_submit($form, &amp;$form_state)</pre> <p>Process language overview form submissions, updating existing languages.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-675c838d43888e67d53e0b3bff2a2ab0"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/locale-language-administration/7.x/">Language administration interface</a></dt> <dd>Administration interface for languages.</dd> </dl> </div> </div> <h3>File</h3> 
+<dl> <dt>modules/locale/<a href="../../../7.x/">locale.admin.inc</a>, line 120</dt> <dd>Administration functions for <a href="https://api.drupal.org/api/drupal/7.x/search/locale.module" title="Multiple implementations exist." class="local" target="_blank">locale.module</a>.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function locale_languages_overview_form_submit($form, &amp;$form_state) {
+  $languages = language_list();
+  $default = language_default();
+  $url_prefixes = variable_get('locale_language_negotiation_url_part', LOCALE_LANGUAGE_NEGOTIATION_URL_PREFIX) == LOCALE_LANGUAGE_NEGOTIATION_URL_PREFIX;
+  $enabled_count = 0;
+
+  foreach ($languages as $langcode =&gt; $language) {
+    if ($form_state['values']['site_default'] == $langcode || $default-&gt;language == $langcode) {
+      // Automatically enable the default language and the language
+      // which was default previously (because we will not get the
+      // value from that disabled checkbox).
+      $form_state['values']['enabled'][$langcode] = 1;
+    }
+
+    // If language URL prefixes are enabled we must clear language domains and
+    // assign a valid prefix to each non-default language.
+    if ($url_prefixes) {
+      $language-&gt;domain = '';
+      if (empty($language-&gt;prefix) &amp;&amp; $form_state['values']['site_default'] != $langcode) {
+        $language-&gt;prefix = $langcode;
+      }
+    }
+
+    if ($form_state['values']['enabled'][$langcode]) {
+      $enabled_count++;
+      $language-&gt;enabled = 1;
+    }
+    else {
+      $language-&gt;enabled = 0;
+    }
+
+    $language-&gt;weight = $form_state['values']['weight'][$langcode];
+
+    db_update('languages')
+      -&gt;fields(array(
+        'enabled' =&gt; $language-&gt;enabled,
+        'weight' =&gt; $language-&gt;weight,
+        'prefix' =&gt; $language-&gt;prefix,
+        'domain' =&gt; $language-&gt;domain,
+      ))
+      -&gt;condition('language', $langcode)
+      -&gt;execute();
+
+    $languages[$langcode] = $language;
+  }
+
+  variable_set('language_default', $languages[$form_state['values']['site_default']]);
+  variable_set('language_count', $enabled_count);
+  drupal_set_message(t('Configuration saved.'));
+
+  // Changing the language settings impacts the interface.
+  cache_clear_all('*', 'cache_page', TRUE);
+  module_invoke_all('multilingual_settings_changed');
+
+  $form_state['redirect'] = 'admin/config/regional/language';
+  return;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!locale!locale.admin.inc/function/locale_languages_overview_form_submit/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!locale!locale.admin.inc/function/locale_languages_overview_form_submit/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,170 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>User_pass_reset - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Menu callback; process one time login link and redirects to the user page on success. ">
+  <meta name="keywords" content="function, user, pass, reset, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-user-user.pages.inc/function/user_pass_reset/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function user_pass_reset</h1>     <pre class="signature">user_pass_reset($form, &amp;$form_state, $uid, $timestamp, $hashed_pass, $action = NULL)</pre> <p>Menu callback; process one time login link and redirects to the user page on success.</p>  <h3>File</h3> 
+<dl> <dt>modules/user/<a href="../../../7.x/">user.pages.inc</a>, line 109</dt> <dd>User page callback file for the user module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function user_pass_reset($form, &amp;$form_state, $uid, $timestamp, $hashed_pass, $action = NULL) {
+  global $user;
+
+  // When processing the one-time login link, we have to make sure that a user
+  // isn't already logged in.
+  if ($user-&gt;uid) {
+    // The existing user is already logged in. Log them out and reload the
+    // current page so the password reset process can continue.
+    if ($user-&gt;uid == $uid) {
+      // Preserve the current destination (if any) and ensure the redirect goes
+      // back to the current page; any custom destination set in
+      // hook_user_logout() and intended for regular logouts would not be
+      // appropriate here.
+      $destination = array();
+      if (isset($_GET['destination'])) {
+        $destination = drupal_get_destination();
+      }
+      user_logout_current_user();
+      unset($_GET['destination']);
+      drupal_goto(current_path(), array('query' =&gt; drupal_get_query_parameters() + $destination));
+    }
+    // A different user is already logged in on the computer.
+    else {
+      $reset_link_account = user_load($uid);
+      if (!empty($reset_link_account)) {
+        drupal_set_message(t('Another user (%other_user) is already logged into the site on this computer, but you tried to use a one-time link for user %resetting_user. Please &lt;a href="!logout"&gt;logout&lt;/a&gt; and try using the link again.', 
+        array('%other_user' =&gt; $user-&gt;name, '%resetting_user' =&gt; $reset_link_account-&gt;name, '!logout' =&gt; url('user/logout'))), 'warning');
+      }
+      else {
+        // Invalid one-time link specifies an unknown user.
+        drupal_set_message(t('The one-time login link you clicked is invalid.'), 'error');
+      }
+      drupal_goto();
+    }
+  }
+  else {
+    // Time out, in seconds, until login URL expires. Defaults to 24 hours =
+    // 86400 seconds.
+    $timeout = variable_get('user_password_reset_timeout', 86400);
+    $current = REQUEST_TIME;
+    // Some redundant checks for extra security ?
+    $users = user_load_multiple(array($uid), array('status' =&gt; '1'));
+    if ($timestamp &lt;= $current &amp;&amp; $account = reset($users)) {
+      // No time out for first time login.
+      if ($account-&gt;login &amp;&amp; $current - $timestamp &gt; $timeout) {
+        drupal_set_message(t('You have tried to use a one-time login link that has expired. Please request a new one using the form below.'), 'error');
+        drupal_goto('user/password');
+      }
+      elseif ($account-&gt;uid &amp;&amp; $timestamp &gt;= $account-&gt;login &amp;&amp; $timestamp &lt;= $current &amp;&amp; $hashed_pass == user_pass_rehash($account-&gt;pass, $timestamp, $account-&gt;login, $account-&gt;uid)) {
+        // First stage is a confirmation form, then login
+        if ($action == 'login') {
+          // Set the new user.
+          $user = $account;
+          // user_login_finalize() also updates the login timestamp of the
+          // user, which invalidates further use of the one-time login link.
+          user_login_finalize();
+          watchdog('user', 'User %name used one-time login link at time %timestamp.', array('%name' =&gt; $account-&gt;name, '%timestamp' =&gt; $timestamp));
+          drupal_set_message(t('You have just used your one-time login link. It is no longer necessary to use this link to log in. Please change your password.'));
+          // Let the user's password be changed without the current password check.
+          $token = drupal_random_key();
+          $_SESSION['pass_reset_' . $user-&gt;uid] = $token;
+          drupal_goto('user/' . $user-&gt;uid . '/edit', array('query' =&gt; array('pass-reset-token' =&gt; $token)));
+        }
+        else {
+          $form['message'] = array('#markup' =&gt; t('&lt;p&gt;This is a one-time login for %user_name and will expire on %expiration_date.&lt;/p&gt;&lt;p&gt;Click on this button to log in to the site and change your password.&lt;/p&gt;', array('%user_name' =&gt; $account-&gt;name, '%expiration_date' =&gt; format_date($timestamp + $timeout))));
+          $form['help'] = array('#markup' =&gt; '&lt;p&gt;' . t('This login can be used only once.') . '&lt;/p&gt;');
+          $form['actions'] = array('#type' =&gt; 'actions');
+          $form['actions']['submit'] = array('#type' =&gt; 'submit', '#value' =&gt; t('Log in'));
+          $form['#action'] = url("user/reset/$uid/$timestamp/$hashed_pass/login");
+          return $form;
+        }
+      }
+      else {
+        drupal_set_message(t('You have tried to use a one-time login link that has either been used or is no longer valid. Please request a new one using the form below.'), 'error');
+        drupal_goto('user/password');
+      }
+    }
+    else {
+      // Deny access, no more clues.
+      // Everything will be in the watchdog's URL for the administrator to check.
+      drupal_access_denied();
+      drupal_exit();
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!user!user.pages.inc/function/user_pass_reset/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!user!user.pages.inc/function/user_pass_reset/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

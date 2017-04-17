@@ -1,0 +1,155 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_tracker_remove - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Cleans up indexed data when nodes or comments are removed. ">
+  <meta name="keywords" content="function, tracker, remove, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-tracker-tracker.module/function/_tracker_remove/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _tracker_remove</h1>     <pre class="signature">_tracker_remove($nid, $uid = NULL, $changed = NULL)</pre> <p>Cleans up indexed data when nodes or comments are removed.</p> <h3>Parameters</h3> <p> <strong>$nid</strong>: The node ID.</p> <p><strong>$uid</strong>: The author of the node or comment.</p> <p><strong>$changed</strong>: The last changed timestamp of the node.</p>  <h3>File</h3> 
+<dl> <dt>modules/tracker/<a href="../../../7.x/">tracker.module</a>, line 319</dt> <dd>Tracks recent content posted by a user or users.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _tracker_remove($nid, $uid = NULL, $changed = NULL) {
+  $node = db_query('SELECT nid, status, uid, changed FROM {node} WHERE nid = :nid', array(':nid' =&gt; $nid))-&gt;fetchObject();
+
+  // The user only keeps his or her subscription if both of the following are true:
+  //   (1) The node exists.
+  //   (2) The user is either the node author or has commented on the node.
+  $keep_subscription = FALSE;
+
+  if ($node) {
+    // Self-authorship is one reason to keep the user's subscription.
+    $keep_subscription = ($node-&gt;uid == $uid);
+
+    // Comments are a second reason to keep the user's subscription.
+    if (!$keep_subscription) {
+      // Check if the user has commented at least once on the given nid.
+      $keep_subscription = db_query_range('SELECT COUNT(*) FROM {comment} WHERE nid = :nid AND uid = :uid AND status = :status', 0, 1, array(
+        ':nid' =&gt; $nid,
+        ':uid' =&gt; $uid,
+        ':status' =&gt; COMMENT_PUBLISHED,
+      ))-&gt;fetchField();
+    }
+
+    // If we haven't found a reason to keep the user's subscription, delete it.
+    if (!$keep_subscription) {
+      db_delete('tracker_user')
+        -&gt;condition('nid', $nid)
+        -&gt;condition('uid', $uid)
+        -&gt;execute();
+    }
+
+    // Now we need to update the (possibly) changed timestamps for other users
+    // and the node itself.
+    // We only need to do this if the removed item has a timestamp that equals
+    // or exceeds the listed changed timestamp for the node.
+    $tracker_node = db_query('SELECT nid, changed FROM {tracker_node} WHERE nid = :nid', array(':nid' =&gt; $nid))-&gt;fetchObject();
+    if ($tracker_node &amp;&amp; $changed &gt;= $tracker_node-&gt;changed) {
+      // If we're here, the item being removed is *possibly* the item that
+      // established the node's changed timestamp.
+
+      // We just have to recalculate things from scratch.
+      $changed = _tracker_calculate_changed($nid);
+
+      // And then we push the out the new changed timestamp to our denormalized
+      // tables.
+      db_update('tracker_node')
+        -&gt;fields(array(
+          'changed' =&gt; $changed,
+          'published' =&gt; $node-&gt;status,
+        ))
+        -&gt;condition('nid', $nid)
+        -&gt;execute();
+      db_update('tracker_node')
+        -&gt;fields(array(
+          'changed' =&gt; $changed,
+          'published' =&gt; $node-&gt;status,
+        ))
+        -&gt;condition('nid', $nid)
+        -&gt;execute();
+    }
+  }
+  else {
+    // If the node doesn't exist, remove everything.
+    db_delete('tracker_node')
+      -&gt;condition('nid', $nid)
+      -&gt;execute();
+    db_delete('tracker_user')
+      -&gt;condition('nid', $nid)
+      -&gt;execute();
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!tracker!tracker.module/function/_tracker_remove/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!tracker!tracker.module/function/_tracker_remove/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

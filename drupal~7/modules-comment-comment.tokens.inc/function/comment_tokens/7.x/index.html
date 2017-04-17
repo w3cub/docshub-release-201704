@@ -1,0 +1,224 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Comment_tokens - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_tokens(). ">
+  <meta name="keywords" content="function, comment, tokens, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-comment-comment.tokens.inc/function/comment_tokens/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function comment_tokens</h1>     <pre class="signature">comment_tokens($type, $tokens, array $data = array(), array $options = array())</pre> <p>Implements <a href="../../../../modules-system-system.api.php/function/hook_tokens/7.x/" title="Provide replacement values for placeholder tokens." class="local">hook_tokens</a>().</p> <h3>File</h3> 
+<dl> <dt>modules/comment/<a href="../../../7.x/">comment.tokens.inc</a>, line 105</dt> <dd>Builds placeholder replacement tokens for comment-related data.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function comment_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  $url_options = array('absolute' =&gt; TRUE);
+  if (isset($options['language'])) {
+    $url_options['language'] = $options['language'];
+    $language_code = $options['language']-&gt;language;
+  }
+  else {
+    $language_code = NULL;
+  }
+  $sanitize = !empty($options['sanitize']);
+
+  $replacements = array();
+
+  if ($type == 'comment' &amp;&amp; !empty($data['comment'])) {
+    $comment = $data['comment'];
+
+    foreach ($tokens as $name =&gt; $original) {
+      switch ($name) {
+        // Simple key values on the comment.
+        case 'cid':
+          $replacements[$original] = $comment-&gt;cid;
+          break;
+
+          // Poster identity information for comments
+        case 'hostname':
+          $replacements[$original] = $sanitize ? check_plain($comment-&gt;hostname) : $comment-&gt;hostname;
+          break;
+
+        case 'name':
+          $name = ($comment-&gt;uid == 0) ? variable_get('anonymous', t('Anonymous')) : $comment-&gt;name;
+          $replacements[$original] = $sanitize ? filter_xss($name) : $name;
+          break;
+
+        case 'mail':
+          if ($comment-&gt;uid != 0) {
+            $account = user_load($comment-&gt;uid);
+            $mail = $account-&gt;mail;
+          }
+          else {
+            $mail = $comment-&gt;mail;
+          }
+          $replacements[$original] = $sanitize ? check_plain($mail) : $mail;
+          break;
+
+        case 'homepage':
+          $replacements[$original] = $sanitize ? check_url($comment-&gt;homepage) : $comment-&gt;homepage;
+          break;
+
+        case 'title':
+          $replacements[$original] = $sanitize ? filter_xss($comment-&gt;subject) : $comment-&gt;subject;
+          break;
+
+        case 'body':
+          if ($items = field_get_items('comment', $comment, 'comment_body', $language_code)) {
+            $instance = field_info_instance('comment', 'body', 'comment_body');
+            $field_langcode = field_language('comment', $comment, 'comment_body', $language_code);
+            $replacements[$original] = $sanitize ? _text_sanitize($instance, $field_langcode, $items[0], 'value') : $items[0]['value'];
+          }
+          break;
+
+          // Comment related URLs.
+        case 'url':
+          $url_options['fragment'] = 'comment-' . $comment-&gt;cid;
+          $replacements[$original] = url('comment/' . $comment-&gt;cid, $url_options);
+          break;
+
+        case 'edit-url':
+          $url_options['fragment'] = NULL;
+          $replacements[$original] = url('comment/' . $comment-&gt;cid . '/edit', $url_options);
+          break;
+
+          // Default values for the chained tokens handled below.
+        case 'author':
+          $replacements[$original] = $sanitize ? filter_xss($comment-&gt;name) : $comment-&gt;name;
+          break;
+
+        case 'parent':
+          if (!empty($comment-&gt;pid)) {
+            $parent = comment_load($comment-&gt;pid);
+            $replacements[$original] = $sanitize ? filter_xss($parent-&gt;subject) : $parent-&gt;subject;
+          }
+          break;
+
+        case 'created':
+          $replacements[$original] = format_date($comment-&gt;created, 'medium', '', NULL, $language_code);
+          break;
+
+        case 'changed':
+          $replacements[$original] = format_date($comment-&gt;changed, 'medium', '', NULL, $language_code);
+          break;
+
+        case 'node':
+          $node = node_load($comment-&gt;nid);
+          $title = $node-&gt;title;
+          $replacements[$original] = $sanitize ? filter_xss($title) : $title;
+          break;
+      }
+    }
+
+    // Chained token relationships.
+    if ($node_tokens = token_find_with_prefix($tokens, 'node')) {
+      $node = node_load($comment-&gt;nid);
+      $replacements += token_generate('node', $node_tokens, array('node' =&gt; $node), $options);
+    }
+
+    if ($date_tokens = token_find_with_prefix($tokens, 'created')) {
+      $replacements += token_generate('date', $date_tokens, array('date' =&gt; $comment-&gt;created), $options);
+    }
+
+    if ($date_tokens = token_find_with_prefix($tokens, 'changed')) {
+      $replacements += token_generate('date', $date_tokens, array('date' =&gt; $comment-&gt;changed), $options);
+    }
+
+    if (($parent_tokens = token_find_with_prefix($tokens, 'parent')) &amp;&amp; $parent = comment_load($comment-&gt;pid)) {
+      $replacements += token_generate('comment', $parent_tokens, array('comment' =&gt; $parent), $options);
+    }
+
+    if (($author_tokens = token_find_with_prefix($tokens, 'author')) &amp;&amp; $account = user_load($comment-&gt;uid)) {
+      $replacements += token_generate('user', $author_tokens, array('user' =&gt; $account), $options);
+    }
+  }
+  elseif ($type == 'node' &amp; !empty($data['node'])) {
+    $node = $data['node'];
+
+    foreach ($tokens as $name =&gt; $original) {
+      switch ($name) {
+        case 'comment-count':
+          $replacements[$original] = $node-&gt;comment_count;
+          break;
+
+        case 'comment-count-new':
+          $replacements[$original] = comment_num_new($node-&gt;nid);
+          break;
+      }
+    }
+  }
+
+  return $replacements;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!comment!comment.tokens.inc/function/comment_tokens/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!comment!comment.tokens.inc/function/comment_tokens/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

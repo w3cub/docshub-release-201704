@@ -1,0 +1,150 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Taxonomy_autocomplete - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Page callback&#58; Outputs JSON for taxonomy autocomplete suggestions. ">
+  <meta name="keywords" content="function, taxonomy, autocomplete, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-taxonomy-taxonomy.pages.inc/function/taxonomy_autocomplete/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function taxonomy_autocomplete</h1>     <pre class="signature">taxonomy_autocomplete($field_name = '', $tags_typed = '')</pre> <p>Page callback: Outputs JSON for taxonomy autocomplete suggestions.</p> <p>Path: taxonomy/autocomplete</p> <p>This callback outputs term name suggestions in response to Ajax requests made by the taxonomy autocomplete widget for taxonomy term reference fields. The output is a JSON object of plain-text term suggestions, keyed by the user-entered value with the completed term name appended. Term names containing commas are wrapped in quotes.</p> <p>For example, suppose the user has entered the string 'red fish, blue' in the field, and there are two taxonomy terms, 'blue fish' and 'blue moon'. The JSON output would have the following structure:</p> <pre class="php" data-language="php">  {
+    "red fish, blue fish": "blue fish",
+    "red fish, blue moon": "blue moon",
+  };
+</pre> <h3>Parameters</h3> <p> <strong>$field_name</strong>: The name of the term reference field.</p> <p><strong>$tags_typed</strong>: (optional) A comma-separated list of term names entered in the autocomplete form element. Only the last term is used for autocompletion. Defaults to '' (an empty string).</p> <h3>See also</h3> <p> <a href="../../../../modules-taxonomy-taxonomy.module/function/taxonomy_menu/7.x/" title="Implements hook_menu()." class="local">taxonomy_menu</a>()</p> <p><a href="../../../../modules-taxonomy-taxonomy.module/function/taxonomy_field_widget_info/7.x/" title="Implements hook_field_widget_info()." class="local">taxonomy_field_widget_info</a>()</p>  <h3>File</h3> 
+<dl> <dt>modules/taxonomy/<a href="../../../7.x/">taxonomy.pages.inc</a>, line 121</dt> <dd>Page callbacks for the taxonomy module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function taxonomy_autocomplete($field_name = '', $tags_typed = '') {
+  // If the request has a '/' in the search text, then the menu system will have
+  // split it into multiple arguments, recover the intended $tags_typed.
+  $args = func_get_args();
+  // Shift off the $field_name argument.
+  array_shift($args);
+  $tags_typed = implode('/', $args);
+
+  // Make sure the field exists and is a taxonomy field.
+  if (!($field = field_info_field($field_name)) || $field['type'] !== 'taxonomy_term_reference') {
+    // Error string. The JavaScript handler will realize this is not JSON and
+    // will display it as debugging information.
+    print t('Taxonomy field @field_name not found.', array('@field_name' =&gt; $field_name));
+    exit;
+  }
+
+  // The user enters a comma-separated list of tags. We only autocomplete the last tag.
+  $tags_typed = drupal_explode_tags($tags_typed);
+  $tag_last = drupal_strtolower(array_pop($tags_typed));
+
+  $term_matches = array();
+  if ($tag_last != '') {
+
+    // Part of the criteria for the query come from the field's own settings.
+    $vids = array();
+    $vocabularies = taxonomy_vocabulary_get_names();
+    foreach ($field['settings']['allowed_values'] as $tree) {
+      $vids[] = $vocabularies[$tree['vocabulary']]-&gt;vid;
+    }
+
+    $query = db_select('taxonomy_term_data', 't');
+    $query-&gt;addTag('translatable');
+    $query-&gt;addTag('term_access');
+
+    // Do not select already entered terms.
+    if (!empty($tags_typed)) {
+      $query-&gt;condition('t.name', $tags_typed, 'NOT IN');
+    }
+    // Select rows that match by term name.
+    $tags_return = $query
+    -&gt;fields('t', array('tid', 'name'))
+      -&gt;condition('t.vid', $vids)
+      -&gt;condition('t.name', '%' . db_like($tag_last) . '%', 'LIKE')
+      -&gt;range(0, 10)
+      -&gt;execute()
+      -&gt;fetchAllKeyed();
+
+    $prefix = count($tags_typed) ? drupal_implode_tags($tags_typed) . ', ' : '';
+
+    foreach ($tags_return as $tid =&gt; $name) {
+      $n = $name;
+      // Term names containing commas or quotes must be wrapped in quotes.
+      if (strpos($name, ',') !== FALSE || strpos($name, '"') !== FALSE) {
+        $n = '"' . str_replace('"', '""', $name) . '"';
+      }
+      $term_matches[$prefix . $n] = check_plain($name);
+    }
+  }
+
+  drupal_json_output($term_matches);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.pages.inc/function/taxonomy_autocomplete/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.pages.inc/function/taxonomy_autocomplete/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

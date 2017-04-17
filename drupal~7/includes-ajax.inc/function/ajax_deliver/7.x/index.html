@@ -1,0 +1,137 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ajax_deliver - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Packages and sends the result of a page callback as an Ajax response. ">
+  <meta name="keywords" content="function, ajax, deliver, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-ajax.inc/function/ajax_deliver/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function ajax_deliver</h1>     <pre class="signature">ajax_deliver($page_callback_result)</pre> <p>Packages and sends the result of a page callback as an Ajax response.</p> <p>This function is the equivalent of <a href="../../../../includes-common.inc/function/drupal_deliver_html_page/7.x/" title="Packages and sends the result of a page callback to the browser as HTML." class="local">drupal_deliver_html_page</a>(), but for Ajax requests. Like that function, it:</p> <ul> <li>Adds needed HTTP headers.</li> <li>Prints rendered output.</li> <li>Performs end-of-request tasks.</li> </ul> <h3>Parameters</h3> <p> <strong>$page_callback_result</strong>: The result of a page callback. Can be one of:</p> <ul> <li>
+<strong>NULL</strong>: to indicate no content.</li> <li>
+<strong>An integer menu status constant</strong>: to indicate an error condition.</li> <li>A string of HTML content.</li> <li>A renderable array of content.</li> </ul> <h3>See also</h3> <p> <a href="../../../../includes-common.inc/function/drupal_deliver_html_page/7.x/" title="Packages and sends the result of a page callback to the browser as HTML." class="local">drupal_deliver_html_page</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-d35f14004d37b989148adbcafab5ace6"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/ajax/7.x/">Ajax framework</a></dt> <dd>Functions for Drupal's Ajax framework.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">ajax.inc</a>, line 468</dt> <dd>Functions for use with Drupal's Ajax framework.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function ajax_deliver($page_callback_result) {
+  // Browsers do not allow JavaScript to read the contents of a user's local
+  // files. To work around that, the jQuery Form plugin submits forms containing
+  // a file input element to an IFRAME, instead of using XHR. Browsers do not
+  // normally expect JSON strings as content within an IFRAME, so the response
+  // must be customized accordingly.
+  // @see http://malsup.com/jquery/form/#file-upload
+  // @see Drupal.ajax.prototype.beforeSend()
+  $iframe_upload = !empty($_POST['ajax_iframe_upload']);
+
+  // Emit a Content-Type HTTP header if none has been added by the page callback
+  // or by a wrapping delivery callback.
+  if (is_null(drupal_get_http_header('Content-Type'))) {
+    if (!$iframe_upload) {
+      // Standard JSON can be returned to a browser's XHR object, and to
+      // non-browser user agents.
+      // @see http://www.ietf.org/rfc/rfc4627.txt?number=4627
+      drupal_add_http_header('Content-Type', 'application/json; charset=utf-8');
+    }
+    else {
+      // Browser IFRAMEs expect HTML. With most other content types, Internet
+      // Explorer presents the user with a download prompt.
+      drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+
+  // Let ajax.js know that this response is safe to process.
+  ajax_set_verification_header();
+
+  // Print the response.
+  $commands = ajax_prepare_response($page_callback_result);
+  $json = ajax_render($commands);
+  if (!$iframe_upload) {
+    // Standard JSON can be returned to a browser's XHR object, and to
+    // non-browser user agents.
+    print $json;
+  }
+  else {
+    // Browser IFRAMEs expect HTML. Browser extensions, such as Linkification
+    // and Skype's Browser Highlighter, convert URLs, phone numbers, etc. into
+    // links. This corrupts the JSON response. Protect the integrity of the
+    // JSON data by making it the value of a textarea.
+    // @see http://malsup.com/jquery/form/#file-upload
+    // @see http://drupal.org/node/1009382
+    print '&lt;textarea&gt;' . $json . '&lt;/textarea&gt;';
+  }
+
+  // Perform end-of-request tasks.
+  ajax_footer();
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_deliver/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_deliver/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

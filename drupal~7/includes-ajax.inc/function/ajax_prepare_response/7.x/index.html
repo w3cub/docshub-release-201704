@@ -1,0 +1,140 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ajax_prepare_response - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Converts the return value of a page callback into an Ajax commands array. ">
+  <meta name="keywords" content="function, ajax, prepare, response, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-ajax.inc/function/ajax_prepare_response/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function ajax_prepare_response</h1>     <pre class="signature">ajax_prepare_response($page_callback_result)</pre> <p>Converts the return value of a page callback into an Ajax commands array.</p> <h3>Parameters</h3> <p> <strong>$page_callback_result</strong>: The result of a page callback. Can be one of:</p> <ul> <li>
+<strong>NULL</strong>: to indicate no content.</li> <li>
+<strong>An integer menu status constant</strong>: to indicate an error condition.</li> <li>A string of HTML content.</li> <li>A renderable array of content.</li> </ul> <h3>Return value</h3> <p> An Ajax commands array that can be passed to <a href="../../ajax_render/7.x/" title="Renders a commands array into JSON." class="local">ajax_render</a>().</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-fa98e5bc3465ce81a5cea374db851d05"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/ajax/7.x/">Ajax framework</a></dt> <dd>Functions for Drupal's Ajax framework.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">ajax.inc</a>, line 532</dt> <dd>Functions for use with Drupal's Ajax framework.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function ajax_prepare_response($page_callback_result) {
+  $commands = array();
+  if (!isset($page_callback_result)) {
+    // Simply delivering an empty commands array is sufficient. This results
+    // in the Ajax request being completed, but nothing being done to the page.
+  }
+  elseif (is_int($page_callback_result)) {
+    switch ($page_callback_result) {
+      case MENU_NOT_FOUND:
+        $commands[] = ajax_command_alert(t('The requested page could not be found.'));
+        break;
+
+      case MENU_ACCESS_DENIED:
+        $commands[] = ajax_command_alert(t('You are not authorized to access this page.'));
+        break;
+
+      case MENU_SITE_OFFLINE:
+        $commands[] = ajax_command_alert(filter_xss_admin(variable_get('maintenance_mode_message', 
+        t('@site is currently under maintenance. We should be back shortly. Thank you for your patience.', array('@site' =&gt; variable_get('site_name', 'Drupal'))))));
+        break;
+    }
+  }
+  elseif (is_array($page_callback_result) &amp;&amp; isset($page_callback_result['#type']) &amp;&amp; ($page_callback_result['#type'] == 'ajax')) {
+    // Complex Ajax callbacks can return a result that contains an error message
+    // or a specific set of commands to send to the browser.
+    $page_callback_result += element_info('ajax');
+    $error = $page_callback_result['#error'];
+    if (isset($error) &amp;&amp; $error !== FALSE) {
+      if ((empty($error) || $error === TRUE)) {
+        $error = t('An error occurred while handling the request: The server received invalid input.');
+      }
+      $commands[] = ajax_command_alert($error);
+    }
+    else {
+      $commands = $page_callback_result['#commands'];
+    }
+  }
+  else {
+    // Like normal page callbacks, simple Ajax callbacks can return HTML
+    // content, as a string or render array. This HTML is inserted in some
+    // relationship to #ajax['wrapper'], as determined by which jQuery DOM
+    // manipulation method is used. The method used is specified by
+    // #ajax['method']. The default method is 'replaceWith', which completely
+    // replaces the old wrapper element and its content with the new HTML.
+    $html = is_string($page_callback_result) ? $page_callback_result : drupal_render($page_callback_result);
+    $commands[] = ajax_command_insert(NULL, $html);
+    // Add the status messages inside the new content's wrapper element, so that
+    // on subsequent Ajax requests, it is treated as old content.
+    $commands[] = ajax_command_prepend(NULL, theme('status_messages'));
+  }
+
+  return $commands;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_prepare_response/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_prepare_response/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

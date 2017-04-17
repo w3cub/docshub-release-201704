@@ -1,0 +1,376 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Archive_Tar&#58;&#58;_extractList - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" string &#36;p_path&#58; ">
+  <meta name="keywords" content="public, function, archive, tar, extractlist, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-system-system.tar.inc/function/archive_tar-_extractlist/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function Archive_Tar::_extractList</h1>     <pre class="signature">public <a href="../../../class/archive_tar/7.x/">Archive_Tar</a>::_extractList(
+$p_path, 
+&amp;$p_list_detail, 
+$p_mode, 
+$p_file_list, 
+$p_remove_path, 
+$p_preserve = false
+)</pre> <h3>Parameters</h3> <p> <strong>string $p_path</strong>:</p> <p><strong>string $p_list_detail</strong>:</p> <p><strong>string $p_mode</strong>:</p> <p><strong>string $p_file_list</strong>:</p> <p><strong>string $p_remove_path</strong>:</p> <p><strong>bool $p_preserve</strong>:</p> <h3>Return value</h3> <p> bool</p>  <h3>File</h3> 
+<dl> <dt>modules/system/<a href="../../../7.x/">system.tar.inc</a>, line 1922</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/archive_tar/7.x/">Archive_Tar</a> </dt>  </dl> <h3>Code</h3> <pre class="php" data-language="php">public function _extractList(
+$p_path, 
+&amp;$p_list_detail, 
+$p_mode, 
+$p_file_list, 
+$p_remove_path, 
+$p_preserve = false
+) {
+  $v_result = true;
+  $v_nb = 0;
+  $v_extract_all = true;
+  $v_listing = false;
+
+  $p_path = $this-&gt;_translateWinPath($p_path, false);
+  if ($p_path == '' || (substr($p_path, 0, 1) != '/'
+      &amp;&amp; substr($p_path, 0, 3) != "../" &amp;&amp; !strpos($p_path, ':'))
+      ) {
+    $p_path = "./" . $p_path;
+  }
+  $p_remove_path = $this-&gt;_translateWinPath($p_remove_path);
+
+  // ----- Look for path to remove format (should end by /)
+  if (($p_remove_path != '') &amp;&amp; (substr($p_remove_path, -1) != '/')) {
+    $p_remove_path .= '/';
+  }
+  $p_remove_path_size = strlen($p_remove_path);
+
+  switch ($p_mode) {
+    case "complete":
+      $v_extract_all = true;
+      $v_listing = false;
+      break;
+    case "partial":
+      $v_extract_all = false;
+      $v_listing = false;
+      break;
+    case "list":
+      $v_extract_all = false;
+      $v_listing = true;
+      break;
+    default :
+      $this-&gt;_error('Invalid extract mode (' . $p_mode . ')');
+      return false;
+  }
+
+  clearstatcache();
+
+  while (strlen($v_binary_data = $this-&gt;_readBlock()) != 0) {
+    $v_extract_file = false;
+    $v_extraction_stopped = 0;
+
+    if (!$this-&gt;_readHeader($v_binary_data, $v_header)) {
+      return false;
+    }
+
+    if ($v_header['filename'] == '') {
+      continue;
+    }
+
+    // ----- Look for long filename
+    if ($v_header['typeflag'] == 'L') {
+      if (!$this-&gt;_readLongHeader($v_header)) {
+        return false;
+      }
+    }
+
+    // ignore extended / pax headers
+    if ($v_header['typeflag'] == 'x' || $v_header['typeflag'] == 'g') {
+      $this-&gt;_jumpBlock(ceil(($v_header['size'] / 512)));
+      continue;
+    }
+
+    if ((!$v_extract_all) &amp;&amp; (is_array($p_file_list))) {
+      // ----- By default no unzip if the file is not found
+      $v_extract_file = false;
+
+      for ($i = 0; $i &lt; sizeof($p_file_list); $i++) {
+        // ----- Look if it is a directory
+        if (substr($p_file_list[$i], -1) == '/') {
+          // ----- Look if the directory is in the filename path
+          if ((strlen($v_header['filename']) &gt; strlen($p_file_list[$i]))
+           &amp;&amp; (substr($v_header['filename'], 0, strlen($p_file_list[$i]))
+              == $p_file_list[$i])
+              ) {
+            $v_extract_file = true;
+            break;
+          }
+        } // ----- It is a file, so compare the file names
+        elseif ($p_file_list[$i] == $v_header['filename']) {
+          $v_extract_file = true;
+          break;
+        }
+      }
+    }
+    else {
+      $v_extract_file = true;
+    }
+
+    // ----- Look if this file need to be extracted
+    if (($v_extract_file) &amp;&amp; (!$v_listing)) {
+      if (($p_remove_path != '')
+       &amp;&amp; (substr($v_header['filename'] . '/', 0, $p_remove_path_size)
+          == $p_remove_path)
+          ) {
+        $v_header['filename'] = substr(
+        $v_header['filename'], 
+        $p_remove_path_size
+        );
+        if ($v_header['filename'] == '') {
+          continue;
+        }
+      }
+      if (($p_path != './') &amp;&amp; ($p_path != '/')) {
+        while (substr($p_path, -1) == '/') {
+          $p_path = substr($p_path, 0, strlen($p_path) - 1);
+        }
+
+        if (substr($v_header['filename'], 0, 1) == '/') {
+          $v_header['filename'] = $p_path . $v_header['filename'];
+        }
+        else {
+          $v_header['filename'] = $p_path . '/' . $v_header['filename'];
+        }
+      }
+      if (file_exists($v_header['filename'])) {
+        if ((@is_dir($v_header['filename']))
+         &amp;&amp; ($v_header['typeflag'] == '')
+          ) {
+          $this-&gt;_error(
+          'File ' . $v_header['filename']
+            . ' already exists as a directory'
+            );
+          return false;
+        }
+        if (($this-&gt;_isArchive($v_header['filename']))
+         &amp;&amp; ($v_header['typeflag'] == "5")
+          ) {
+          $this-&gt;_error(
+          'Directory ' . $v_header['filename']
+            . ' already exists as a file'
+            );
+          return false;
+        }
+        if (!is_writeable($v_header['filename'])) {
+          $this-&gt;_error(
+          'File ' . $v_header['filename']
+            . ' already exists and is write protected'
+            );
+          return false;
+        }
+        if (filemtime($v_header['filename']) &gt; $v_header['mtime']) {
+          // To be completed : An error or silent no replace ?
+        }
+      } // ----- Check the directory availability and create it if necessary
+      elseif (($v_result
+        = $this-&gt;_dirCheck(
+        ($v_header['typeflag'] == "5"
+          ? $v_header['filename']
+          : dirname($v_header['filename']))
+          )) != 1
+        ) {
+        $this-&gt;_error('Unable to create path for ' . $v_header['filename']);
+        return false;
+      }
+
+      if ($v_extract_file) {
+        if ($v_header['typeflag'] == "5") {
+          if (!@file_exists($v_header['filename'])) {
+            if (!@mkdir($v_header['filename'], 0777)) {
+              $this-&gt;_error(
+              'Unable to create directory {'
+                . $v_header['filename'] . '}'
+                );
+              return false;
+            }
+          }
+        }
+        elseif ($v_header['typeflag'] == "2") {
+          if (@file_exists($v_header['filename'])) {
+            @drupal_unlink($v_header['filename']);
+          }
+          if (!@symlink($v_header['link'], $v_header['filename'])) {
+            $this-&gt;_error(
+            'Unable to extract symbolic link {'
+              . $v_header['filename'] . '}'
+              );
+            return false;
+          }
+        }
+        else {
+          if (($v_dest_file = @fopen($v_header['filename'], "wb")) == 0) {
+            $this-&gt;_error(
+            'Error while opening {' . $v_header['filename']
+              . '} in write binary mode'
+              );
+            return false;
+          }
+          else {
+            $n = floor($v_header['size'] / 512);
+            for ($i = 0; $i &lt; $n; $i++) {
+              $v_content = $this-&gt;_readBlock();
+              fwrite($v_dest_file, $v_content, 512);
+            }
+            if (($v_header['size'] % 512) != 0) {
+              $v_content = $this-&gt;_readBlock();
+              fwrite($v_dest_file, $v_content, ($v_header['size'] % 512));
+            }
+
+            @fclose($v_dest_file);
+
+            if ($p_preserve) {
+              @chown($v_header['filename'], $v_header['uid']);
+              @chgrp($v_header['filename'], $v_header['gid']);
+            }
+
+            // ----- Change the file mode, mtime
+            @touch($v_header['filename'], $v_header['mtime']);
+            if ($v_header['mode'] &amp; 0111) {
+              // make file executable, obey umask
+              $mode = fileperms($v_header['filename']) | (~umask() &amp; 0111);
+              @chmod($v_header['filename'], $mode);
+            }
+          }
+
+          // ----- Check the file size
+          clearstatcache();
+          if (!is_file($v_header['filename'])) {
+            $this-&gt;_error(
+            'Extracted file ' . $v_header['filename']
+              . 'does not exist. Archive may be corrupted.'
+              );
+            return false;
+          }
+
+          $filesize = filesize($v_header['filename']);
+          if ($filesize != $v_header['size']) {
+            $this-&gt;_error(
+            'Extracted file ' . $v_header['filename']
+              . ' does not have the correct file size \''
+              . $filesize
+              . '\' (' . $v_header['size']
+              . ' expected). Archive may be corrupted.'
+              );
+            return false;
+          }
+        }
+      }
+      else {
+        $this-&gt;_jumpBlock(ceil(($v_header['size'] / 512)));
+      }
+    }
+    else {
+      $this-&gt;_jumpBlock(ceil(($v_header['size'] / 512)));
+    }
+
+    /* TBC : Seems to be unused ...
+            if ($this-&gt;_compress)
+              $v_end_of_file = @gzeof($this-&gt;_file);
+            else
+              $v_end_of_file = @feof($this-&gt;_file);
+              */
+
+    if ($v_listing || $v_extract_file || $v_extraction_stopped) {
+      // ----- Log extracted files
+      if (($v_file_dir = dirname($v_header['filename']))
+        == $v_header['filename']
+        ) {
+        $v_file_dir = '';
+      }
+      if ((substr($v_header['filename'], 0, 1) == '/') &amp;&amp; ($v_file_dir == '')) {
+        $v_file_dir = '/';
+      }
+
+      $p_list_detail[$v_nb++] = $v_header;
+      if (is_array($p_file_list) &amp;&amp; (count($p_list_detail) == count($p_file_list))) {
+        return true;
+      }
+    }
+  }
+
+  return true;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!system!system.tar.inc/function/Archive_Tar::_extractList/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!system!system.tar.inc/function/Archive_Tar::_extractList/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

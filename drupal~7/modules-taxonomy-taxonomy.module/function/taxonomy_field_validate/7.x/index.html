@@ -1,0 +1,133 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Taxonomy_field_validate - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_field_validate(). ">
+  <meta name="keywords" content="function, taxonomy, field, validate, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-taxonomy-taxonomy.module/function/taxonomy_field_validate/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function taxonomy_field_validate</h1>     <pre class="signature">taxonomy_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &amp;$errors)</pre> <p>Implements <a href="../../../../modules-field-field.api.php/function/hook_field_validate/7.x/" title="Validate this module's field data." class="local">hook_field_validate</a>().</p> <p>Taxonomy field settings allow for either a single vocabulary ID, multiple vocabulary IDs, or sub-trees of a vocabulary to be specified as allowed values, although only the first of these is supported via the field UI. Confirm that terms entered as values meet at least one of these conditions.</p> <p>Possible error codes:</p> <ul> <li>
+<strong>'taxonomy_term_illegal_value'</strong>: The value is not part of the list of allowed values.</li> </ul> <h3>File</h3> 
+<dl> <dt>modules/taxonomy/<a href="../../../7.x/">taxonomy.module</a>, line 1510</dt> <dd>Enables the organization of content into categories.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function taxonomy_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &amp;$errors) {
+  // Build an array of existing term IDs so they can be loaded with
+  // taxonomy_term_load_multiple();
+  foreach ($items as $delta =&gt; $item) {
+    if (!empty($item['tid']) &amp;&amp; $item['tid'] != 'autocreate') {
+      $tids[] = $item['tid'];
+    }
+  }
+  if (!empty($tids)) {
+    $terms = taxonomy_term_load_multiple($tids);
+
+    // Check each existing item to ensure it can be found in the
+    // allowed values for this field.
+    foreach ($items as $delta =&gt; $item) {
+      $validate = TRUE;
+      if (!empty($item['tid']) &amp;&amp; $item['tid'] != 'autocreate') {
+        $validate = FALSE;
+        foreach ($field['settings']['allowed_values'] as $settings) {
+          // If no parent is specified, check if the term is in the vocabulary.
+          if (isset($settings['vocabulary']) &amp;&amp; empty($settings['parent'])) {
+            if ($settings['vocabulary'] == $terms[$item['tid']]-&gt;vocabulary_machine_name) {
+              $validate = TRUE;
+              break;
+            }
+          }
+          // If a parent is specified, then to validate it must appear in the
+          // array returned by taxonomy_get_parents_all().
+          elseif (!empty($settings['parent'])) {
+            $ancestors = taxonomy_get_parents_all($item['tid']);
+            foreach ($ancestors as $ancestor) {
+              if ($ancestor-&gt;tid == $settings['parent']) {
+                $validate = TRUE;
+                break 2;
+              }
+            }
+          }
+        }
+      }
+      if (!$validate) {
+        $errors[$field['field_name']][$langcode][$delta][] = array(
+          'error' =&gt; 'taxonomy_term_reference_illegal_value',
+          'message' =&gt; t('%name: illegal value.', array('%name' =&gt; $instance['label'])),
+        );
+      }
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.module/function/taxonomy_field_validate/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!taxonomy!taxonomy.module/function/taxonomy_field_validate/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

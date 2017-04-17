@@ -1,0 +1,186 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_filter_xss_attributes - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Processes a string of HTML attributes. ">
+  <meta name="keywords" content="function, filter, xss, attributes, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-common.inc/function/_filter_xss_attributes/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _filter_xss_attributes</h1>     <pre class="signature">_filter_xss_attributes($attr)</pre> <p>Processes a string of HTML attributes.</p> <h3>Return value</h3> <p> Cleaned up version of the HTML attributes.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-6e968b0a1d97db2ae4fc5227df15ee57"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/sanitization/7.x/">Sanitization functions</a></dt> <dd>Functions to sanitize values.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">common.inc</a>, line 1586</dt> <dd>Common functions that many Drupal modules will need to reference.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _filter_xss_attributes($attr) {
+  $attrarr = array();
+  $mode = 0;
+  $attrname = '';
+
+  while (strlen($attr) != 0) {
+    // Was the last operation successful?
+    $working = 0;
+
+    switch ($mode) {
+      case 0:
+        // Attribute name, href for instance.
+        if (preg_match('/^([-a-zA-Z]+)/', $attr, $match)) {
+          $attrname = strtolower($match[1]);
+          $skip = ($attrname == 'style' || substr($attrname, 0, 2) == 'on');
+          $working = $mode = 1;
+          $attr = preg_replace('/^[-a-zA-Z]+/', '', $attr);
+        }
+        break;
+
+      case 1:
+        // Equals sign or valueless ("selected").
+        if (preg_match('/^\s*=\s*/', $attr)) {
+          $working = 1;
+          $mode = 2;
+          $attr = preg_replace('/^\s*=\s*/', '', $attr);
+          break;
+        }
+
+        if (preg_match('/^\s+/', $attr)) {
+          $working = 1;
+          $mode = 0;
+          if (!$skip) {
+            $attrarr[] = $attrname;
+          }
+          $attr = preg_replace('/^\s+/', '', $attr);
+        }
+        break;
+
+      case 2:
+        // Attribute value, a URL after href= for instance.
+        if (preg_match('/^"([^"]*)"(\s+|$)/', $attr, $match)) {
+          $thisval = filter_xss_bad_protocol($match[1]);
+
+          if (!$skip) {
+            $attrarr[] = "$attrname=\"$thisval\"";
+          }
+          $working = 1;
+          $mode = 0;
+          $attr = preg_replace('/^"[^"]*"(\s+|$)/', '', $attr);
+          break;
+        }
+
+        if (preg_match("/^'([^']*)'(\s+|$)/", $attr, $match)) {
+          $thisval = filter_xss_bad_protocol($match[1]);
+
+          if (!$skip) {
+            $attrarr[] = "$attrname='$thisval'";
+          }
+          $working = 1;
+          $mode = 0;
+          $attr = preg_replace("/^'[^']*'(\s+|$)/", '', $attr);
+          break;
+        }
+
+        if (preg_match("%^([^\s\"']+)(\s+|$)%", $attr, $match)) {
+          $thisval = filter_xss_bad_protocol($match[1]);
+
+          if (!$skip) {
+            $attrarr[] = "$attrname=\"$thisval\"";
+          }
+          $working = 1;
+          $mode = 0;
+          $attr = preg_replace("%^[^\s\"']+(\s+|$)%", '', $attr);
+        }
+        break;
+    }
+
+    if ($working == 0) {
+      // Not well formed; remove and try again.
+      $attr = preg_replace('/
+        ^
+        (
+        "[^"]*("|$)     # - a string that starts with a double quote, up until the next double quote or the end of the string
+        |               # or
+        \'[^\']*(\'|$)| # - a string that starts with a quote, up until the next quote or the end of the string
+        |               # or
+        \S              # - a non-whitespace character
+        )*              # any number of the above three
+        \s*             # any number of whitespaces
+        /x', '', $attr);
+      $mode = 0;
+    }
+  }
+
+  // The attribute list ends with a valueless attribute like "selected".
+  if ($mode == 1 &amp;&amp; !$skip) {
+    $attrarr[] = $attrname;
+  }
+  return $attrarr;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!common.inc/function/_filter_xss_attributes/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!common.inc/function/_filter_xss_attributes/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

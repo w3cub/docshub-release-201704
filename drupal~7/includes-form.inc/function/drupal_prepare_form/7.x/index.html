@@ -1,0 +1,211 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_prepare_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Prepares a structured form array. ">
+  <meta name="keywords" content="function, drupal, prepare, form, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-form.inc/function/drupal_prepare_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_prepare_form</h1>     <pre class="signature">drupal_prepare_form($form_id, &amp;$form, &amp;$form_state)</pre> <p>Prepares a structured form array.</p> <p>Adds required elements, executes any hook_form_alter functions, and optionally inserts a validation token to prevent tampering.</p> <h3>Parameters</h3> <p> <strong>$form_id</strong>: A unique string identifying the form for validation, submission, theming, and hook_form_alter functions.</p> <p><strong>$form</strong>: An associative array containing the structure of the form.</p> <p><strong>$form_state</strong>: A keyed array containing the current state of the form. Passed in here so that <a href="../../../../modules-system-system.api.php/function/hook_form_alter/7.x/" title="Perform alterations before a form is rendered." class="local">hook_form_alter</a>() calls can use it, as well.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-cbf4dc40693458a25f9a4b027bda2930"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/form_api/7.x/">Form generation</a></dt> <dd>Functions to enable the processing and display of HTML forms.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">form.inc</a>, line 1005</dt> <dd>Functions for form and batch generation and processing.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_prepare_form($form_id, &amp;$form, &amp;$form_state) {
+  global $user;
+
+  $form['#type'] = 'form';
+  $form_state['programmed'] = isset($form_state['programmed']) ? $form_state['programmed'] : FALSE;
+
+  // Fix the form method, if it is 'get' in $form_state, but not in $form.
+  if ($form_state['method'] == 'get' &amp;&amp; !isset($form['#method'])) {
+    $form['#method'] = 'get';
+  }
+
+  // Generate a new #build_id for this form, if none has been set already. The
+  // form_build_id is used as key to cache a particular build of the form. For
+  // multi-step forms, this allows the user to go back to an earlier build, make
+  // changes, and re-submit.
+  // @see drupal_build_form()
+  // @see drupal_rebuild_form()
+  if (!isset($form['#build_id'])) {
+    $form['#build_id'] = 'form-' . drupal_random_key();
+  }
+  $form['form_build_id'] = array(
+    '#type' =&gt; 'hidden',
+    '#value' =&gt; $form['#build_id'],
+    '#id' =&gt; $form['#build_id'],
+    '#name' =&gt; 'form_build_id',
+    // Form processing and validation requires this value, so ensure the
+    // submitted form value appears literally, regardless of custom #tree
+    // and #parents being set elsewhere.
+    '#parents' =&gt; array('form_build_id'),
+  );
+
+  // Add a token, based on either #token or form_id, to any form displayed to
+  // authenticated users. This ensures that any submitted form was actually
+  // requested previously by the user and protects against cross site request
+  // forgeries.
+  // This does not apply to programmatically submitted forms. Furthermore, since
+  // tokens are session-bound and forms displayed to anonymous users are very
+  // likely cached, we cannot assign a token for them.
+  // During installation, there is no $user yet.
+  if (!empty($user-&gt;uid) &amp;&amp; !$form_state['programmed']) {
+    // Form constructors may explicitly set #token to FALSE when cross site
+    // request forgery is irrelevant to the form, such as search forms.
+    if (isset($form['#token']) &amp;&amp; $form['#token'] === FALSE) {
+      unset($form['#token']);
+    }
+    // Otherwise, generate a public token based on the form id.
+    else {
+      $form['#token'] = $form_id;
+      $form['form_token'] = array(
+        '#id' =&gt; drupal_html_id('edit-' . $form_id . '-form-token'),
+        '#type' =&gt; 'token',
+        '#default_value' =&gt; drupal_get_token($form['#token']),
+        // Form processing and validation requires this value, so ensure the
+        // submitted form value appears literally, regardless of custom #tree
+        // and #parents being set elsewhere.
+        '#parents' =&gt; array('form_token'),
+      );
+    }
+  }
+
+  if (isset($form_id)) {
+    $form['form_id'] = array(
+      '#type' =&gt; 'hidden',
+      '#value' =&gt; $form_id,
+      '#id' =&gt; drupal_html_id("edit-$form_id"),
+      // Form processing and validation requires this value, so ensure the
+      // submitted form value appears literally, regardless of custom #tree
+      // and #parents being set elsewhere.
+      '#parents' =&gt; array('form_id'),
+    );
+  }
+  if (!isset($form['#id'])) {
+    $form['#id'] = drupal_html_id($form_id);
+  }
+
+  $form += element_info('form');
+  $form += array('#tree' =&gt; FALSE, '#parents' =&gt; array());
+
+  if (!isset($form['#validate'])) {
+    // Ensure that modules can rely on #validate being set.
+    $form['#validate'] = array();
+    // Check for a handler specific to $form_id.
+    if (function_exists($form_id . '_validate')) {
+      $form['#validate'][] = $form_id . '_validate';
+    }
+    // Otherwise check whether this is a shared form and whether there is a
+    // handler for the shared $form_id.
+    elseif (isset($form_state['build_info']['base_form_id']) &amp;&amp; function_exists($form_state['build_info']['base_form_id'] . '_validate')) {
+      $form['#validate'][] = $form_state['build_info']['base_form_id'] . '_validate';
+    }
+  }
+
+  if (!isset($form['#submit'])) {
+    // Ensure that modules can rely on #submit being set.
+    $form['#submit'] = array();
+    // Check for a handler specific to $form_id.
+    if (function_exists($form_id . '_submit')) {
+      $form['#submit'][] = $form_id . '_submit';
+    }
+    // Otherwise check whether this is a shared form and whether there is a
+    // handler for the shared $form_id.
+    elseif (isset($form_state['build_info']['base_form_id']) &amp;&amp; function_exists($form_state['build_info']['base_form_id'] . '_submit')) {
+      $form['#submit'][] = $form_state['build_info']['base_form_id'] . '_submit';
+    }
+  }
+
+  // If no #theme has been set, automatically apply theme suggestions.
+  // theme_form() itself is in #theme_wrappers and not #theme. Therefore, the
+  // #theme function only has to care for rendering the inner form elements,
+  // not the form itself.
+  if (!isset($form['#theme'])) {
+    $form['#theme'] = array($form_id);
+    if (isset($form_state['build_info']['base_form_id'])) {
+      $form['#theme'][] = $form_state['build_info']['base_form_id'];
+    }
+  }
+
+  // Invoke hook_form_alter(), hook_form_BASE_FORM_ID_alter(), and
+  // hook_form_FORM_ID_alter() implementations.
+  $hooks = array('form');
+  if (isset($form_state['build_info']['base_form_id'])) {
+    $hooks[] = 'form_' . $form_state['build_info']['base_form_id'];
+  }
+  $hooks[] = 'form_' . $form_id;
+  drupal_alter($hooks, $form, $form_state, $form_id);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!form.inc/function/drupal_prepare_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!form.inc/function/drupal_prepare_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

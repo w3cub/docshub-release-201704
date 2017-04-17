@@ -1,0 +1,141 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Authorize_filetransfer_form_submit - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form submission handler for authorize_filetransfer_form(). ">
+  <meta name="keywords" content="function, authorize, filetransfer, form, submit, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-authorize.inc/function/authorize_filetransfer_form_submit/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function authorize_filetransfer_form_submit</h1>     <pre class="signature">authorize_filetransfer_form_submit($form, &amp;$form_state)</pre> <p>Form submission handler for <a href="../../authorize_filetransfer_form/7.x/" title="Form constructor for the file transfer authorization form." class="local">authorize_filetransfer_form</a>().</p> <h3>See also</h3> <p> <a href="../../authorize_filetransfer_form/7.x/" title="Form constructor for the file transfer authorization form." class="local">authorize_filetransfer_form</a>()</p> <p>authorize_filetransfer_validate()</p> <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">authorize.inc</a>, line 232</dt> <dd>Helper functions and form handlers used for the <a href="../../../../authorize.php/7.x/" title="Administrative script for running authorized file operations." class="local">authorize.php</a> script.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function authorize_filetransfer_form_submit($form, &amp;$form_state) {
+  global $base_url;
+  switch ($form_state['triggering_element']['#name']) {
+    case 'process_updates':
+
+      // Save the connection settings to the DB.
+      $filetransfer_backend = $form_state['values']['connection_settings']['authorize_filetransfer_default'];
+
+      // If the database is available then try to save our settings. We have
+      // to make sure it is available since this code could potentially (will
+      // likely) be called during the installation process, before the
+      // database is set up.
+      try {
+        $connection_settings = array();
+        foreach ($form_state['values']['connection_settings'][$filetransfer_backend] as $key =&gt; $value) {
+          // We do *not* want to store passwords in the database, unless the
+          // backend explicitly says so via the magic #filetransfer_save form
+          // property. Otherwise, we store everything that's not explicitly
+          // marked with #filetransfer_save set to FALSE.
+          if (!isset($form['connection_settings'][$filetransfer_backend][$key]['#filetransfer_save'])) {
+            if ($form['connection_settings'][$filetransfer_backend][$key]['#type'] != 'password') {
+              $connection_settings[$key] = $value;
+            }
+          }
+          // The attribute is defined, so only save if set to TRUE.
+          elseif ($form['connection_settings'][$filetransfer_backend][$key]['#filetransfer_save']) {
+            $connection_settings[$key] = $value;
+          }
+        }
+        // Set this one as the default authorize method.
+        variable_set('authorize_filetransfer_default', $filetransfer_backend);
+        // Save the connection settings minus the password.
+        variable_set('authorize_filetransfer_connection_settings_' . $filetransfer_backend, $connection_settings);
+
+        $filetransfer = authorize_get_filetransfer($filetransfer_backend, $form_state['values']['connection_settings'][$filetransfer_backend]);
+
+        // Now run the operation.
+        authorize_run_operation($filetransfer);
+      }
+      catch (Exception $e) {
+        // If there is no database available, we don't care and just skip
+        // this part entirely.
+      }
+
+      break;
+
+    case 'enter_connection_settings':
+      $form_state['rebuild'] = TRUE;
+      break;
+
+    case 'change_connection_type':
+      $form_state['rebuild'] = TRUE;
+      unset($form_state['values']['connection_settings']['authorize_filetransfer_default']);
+      break;
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!authorize.inc/function/authorize_filetransfer_form_submit/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!authorize.inc/function/authorize_filetransfer_form_submit/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

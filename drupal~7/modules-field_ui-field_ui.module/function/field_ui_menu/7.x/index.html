@@ -1,0 +1,233 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Field_ui_menu - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_menu(). ">
+  <meta name="keywords" content="function, field, ui, menu, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-field_ui-field_ui.module/function/field_ui_menu/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function field_ui_menu</h1>     <pre class="signature">field_ui_menu()</pre> <p>Implements <a href="../../../../modules-system-system.api.php/function/hook_menu/7.x/" title="Define menu items and page callbacks." class="local">hook_menu</a>().</p> <h3>File</h3> 
+<dl> <dt>modules/field_ui/<a href="../../../7.x/">field_ui.module</a>, line 63</dt> <dd>Allows administrators to attach custom fields to fieldable types.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function field_ui_menu() {
+  $items['admin/reports/fields'] = array(
+    'title' =&gt; 'Field list',
+    'description' =&gt; 'Overview of fields on all entity types.',
+    'page callback' =&gt; 'field_ui_fields_list',
+    'access arguments' =&gt; array('administer content types'),
+    'type' =&gt; MENU_NORMAL_ITEM,
+    'file' =&gt; 'field_ui.admin.inc',
+  );
+
+  // Ensure the following is not executed until field_bundles is working and
+  // tables are updated. Needed to avoid errors on initial installation.
+  if (defined('MAINTENANCE_MODE')) {
+    return $items;
+  }
+
+  // Create tabs for all possible bundles.
+  foreach (entity_get_info() as $entity_type =&gt; $entity_info) {
+    if ($entity_info['fieldable']) {
+      foreach ($entity_info['bundles'] as $bundle_name =&gt; $bundle_info) {
+        if (isset($bundle_info['admin'])) {
+          // Extract path information from the bundle.
+          $path = $bundle_info['admin']['path'];
+          // Different bundles can appear on the same path (e.g. %node_type and
+          // %comment_node_type). To allow field_ui_menu_load() to extract the
+          // actual bundle object from the translated menu router path
+          // arguments, we need to identify the argument position of the bundle
+          // name string ('bundle argument') and pass that position to the menu
+          // loader. The position needs to be casted into a string; otherwise it
+          // would be replaced with the bundle name string.
+          if (isset($bundle_info['admin']['bundle argument'])) {
+            $bundle_arg = $bundle_info['admin']['bundle argument'];
+            $bundle_pos = (string) $bundle_arg;
+          }
+          else {
+            $bundle_arg = $bundle_name;
+            $bundle_pos = '0';
+          }
+          // This is the position of the %field_ui_menu placeholder in the
+          // items below.
+          $field_position = count(explode('/', $path)) + 1;
+
+          // Extract access information, providing defaults.
+          $access = array_intersect_key($bundle_info['admin'], drupal_map_assoc(array('access callback', 'access arguments')));
+          $access += array(
+            'access callback' =&gt; 'user_access',
+            'access arguments' =&gt; array('administer fields'),
+          );
+
+          // Add the "administer fields" permission on top of the access
+          // restriction because the field UI should only be accessible to
+          // trusted users.
+          if ($access['access callback'] != 'user_access' || $access['access arguments'] != array('administer fields')) {
+            $access = array(
+              'access callback' =&gt; 'field_ui_admin_access',
+              'access arguments' =&gt; array($access['access callback'], $access['access arguments']),
+            );
+          }
+
+          $items["$path/fields"] = array(
+            'title' =&gt; 'Manage fields',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_field_overview_form', $entity_type, $bundle_arg),
+            'type' =&gt; MENU_LOCAL_TASK,
+            'weight' =&gt; 1,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+          $items["$path/fields/%field_ui_menu"] = array(
+            'load arguments' =&gt; array($entity_type, $bundle_arg, $bundle_pos, '%map'),
+            'title callback' =&gt; 'field_ui_menu_title',
+            'title arguments' =&gt; array($field_position),
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_field_edit_form', $field_position),
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+          $items["$path/fields/%field_ui_menu/edit"] = array(
+            'load arguments' =&gt; array($entity_type, $bundle_arg, $bundle_pos, '%map'),
+            'title' =&gt; 'Edit',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_field_edit_form', $field_position),
+            'type' =&gt; MENU_DEFAULT_LOCAL_TASK,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+          $items["$path/fields/%field_ui_menu/field-settings"] = array(
+            'load arguments' =&gt; array($entity_type, $bundle_arg, $bundle_pos, '%map'),
+            'title' =&gt; 'Field settings',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_field_settings_form', $field_position),
+            'type' =&gt; MENU_LOCAL_TASK,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+          $items["$path/fields/%field_ui_menu/widget-type"] = array(
+            'load arguments' =&gt; array($entity_type, $bundle_arg, $bundle_pos, '%map'),
+            'title' =&gt; 'Widget type',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_widget_type_form', $field_position),
+            'type' =&gt; MENU_LOCAL_TASK,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+          $items["$path/fields/%field_ui_menu/delete"] = array(
+            'load arguments' =&gt; array($entity_type, $bundle_arg, $bundle_pos, '%map'),
+            'title' =&gt; 'Delete',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_field_delete_form', $field_position),
+            'type' =&gt; MENU_LOCAL_TASK,
+            'weight' =&gt; 10,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+
+          // 'Manage display' tab.
+          $items["$path/display"] = array(
+            'title' =&gt; 'Manage display',
+            'page callback' =&gt; 'drupal_get_form',
+            'page arguments' =&gt; array('field_ui_display_overview_form', $entity_type, $bundle_arg, 'default'),
+            'type' =&gt; MENU_LOCAL_TASK,
+            'weight' =&gt; 2,
+            'file' =&gt; 'field_ui.admin.inc',
+          ) + $access;
+
+          // View modes secondary tabs.
+          // The same base $path for the menu item (with a placeholder) can be
+          // used for all bundles of a given entity type; but depending on
+          // administrator settings, each bundle has a different set of view
+          // modes available for customisation. So we define menu items for all
+          // view modes, and use an access callback to determine which ones are
+          // actually visible for a given bundle.
+          $weight = 0;
+          $view_modes = array('default' =&gt; array('label' =&gt; t('Default'))) + $entity_info['view modes'];
+          foreach ($view_modes as $view_mode =&gt; $view_mode_info) {
+            $items["$path/display/$view_mode"] = array(
+              'title' =&gt; $view_mode_info['label'],
+              'page arguments' =&gt; array('field_ui_display_overview_form', $entity_type, $bundle_arg, $view_mode),
+              // The access callback needs to check both the current 'custom
+              // display' setting for the view mode, and the overall access
+              // rules for the bundle admin pages.
+              'access callback' =&gt; '_field_ui_view_mode_menu_access',
+              'access arguments' =&gt; array_merge(array($entity_type, $bundle_arg, $view_mode, $access['access callback']), $access['access arguments']),
+              'type' =&gt; ($view_mode == 'default' ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK),
+              'weight' =&gt; ($view_mode == 'default' ? -10 : $weight++),
+              'file' =&gt; 'field_ui.admin.inc',
+            );
+          }
+        }
+      }
+    }
+  }
+  return $items;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!field_ui!field_ui.module/function/field_ui_menu/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!field_ui!field_ui.module/function/field_ui_menu/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

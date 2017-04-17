@@ -1,0 +1,147 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard_page_build - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_page_build(). ">
+  <meta name="keywords" content="function, dashboard, page, build, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-dashboard-dashboard.module/function/dashboard_page_build/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function dashboard_page_build</h1>     <pre class="signature">dashboard_page_build(&amp;$page)</pre> <p>Implements <a href="../../../../modules-system-system.api.php/function/hook_page_build/7.x/" title="Add elements to a page before it is rendered." class="local">hook_page_build</a>().</p> <p>Display dashboard blocks in the main content region.</p> <h3>File</h3> 
+<dl> <dt>modules/dashboard/<a href="../../../7.x/">dashboard.module</a>, line 139</dt> <dd>Provides a dashboard page in the administrative interface.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function dashboard_page_build(&amp;$page) {
+  global $theme_key;
+
+  if (dashboard_is_visible()) {
+    $block_info = array();
+
+    // Create a wrapper for the dashboard itself, then insert each dashboard
+    // region into it.
+    $page['content']['dashboard'] = array('#theme_wrappers' =&gt; array('dashboard'));
+    foreach (dashboard_regions() as $region) {
+      // Do not show dashboard blocks that are disabled.
+      if ($region == 'dashboard_inactive') {
+        continue;
+      }
+      // Insert regions even when they are empty, so that they will be
+      // displayed when the dashboard is being configured.
+      $page['content']['dashboard'][$region] = !empty($page[$region]) ? $page[$region] : array();
+      $page['content']['dashboard'][$region]['#dashboard_region'] = $region;
+      // Allow each dashboard region to be themed differently, or fall back on
+      // the generic theme wrapper function for dashboard regions.
+      $page['content']['dashboard'][$region]['#theme_wrappers'][] = array($region, 'dashboard_region');
+      unset($page[$region]);
+      $blocks_found = array();
+      foreach ($page['content']['dashboard'][$region] as $item) {
+        if (isset($item['#theme_wrappers']) &amp;&amp; is_array($item['#theme_wrappers']) &amp;&amp; in_array('block', $item['#theme_wrappers'])) {
+          // If this item is a block, ensure it has a subject.
+          if (empty($item['#block']-&gt;subject)) {
+            // Locally cache info data for the object for all blocks, in case
+            // we find a block similarly missing title from the same module.
+            if (!isset($block_info[$item['#block']-&gt;module])) {
+              $block_info[$item['#block']-&gt;module] = module_invoke($item['#block']-&gt;module, 'block_info');
+            }
+            $item['#block']-&gt;subject = $block_info[$item['#block']-&gt;module][$item['#block']-&gt;delta]['info'];
+          }
+          $blocks_found[$item['#block']-&gt;module . '_' . $item['#block']-&gt;delta] = TRUE;
+        }
+      }
+
+      // Find blocks which were not yet displayed on the page (were empty), and
+      // add placeholder items in their place for rendering.
+      $block_list = db_select('block')
+        -&gt;condition('theme', $theme_key)
+        -&gt;condition('status', 1)
+        -&gt;condition('region', $region)
+        -&gt;fields('block')
+        -&gt;execute();
+      foreach ($block_list as $block) {
+        if (!isset($blocks_found[$block-&gt;module . '_' . $block-&gt;delta])) {
+          $block-&gt;enabled = $block-&gt;page_match = TRUE;
+          $block-&gt;content = array('#markup' =&gt; '&lt;div class="dashboard-block-empty"&gt;(empty)&lt;/div&gt;');
+          if (!isset($block_info[$block-&gt;module])) {
+            $block_info[$block-&gt;module] = module_invoke($block-&gt;module, 'block_info');
+          }
+          $block-&gt;subject = t('@title', array('@title' =&gt; $block_info[$block-&gt;module][$block-&gt;delta]['info']));
+          $block_render = array($block-&gt;module . '_' . $block-&gt;delta =&gt; $block);
+          $build = _block_get_renderable_array($block_render);
+          $page['content']['dashboard'][$block-&gt;region][] = $build;
+        }
+      }
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!dashboard!dashboard.module/function/dashboard_page_build/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!dashboard!dashboard.module/function/dashboard_page_build/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

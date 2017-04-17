@@ -1,0 +1,391 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_fix_d7_requirements - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Perform Drupal 6.x to 7.x updates that are required for update.php to function properly. ">
+  <meta name="keywords" content="function, update, fix, d, requirements, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-update.inc/function/update_fix_d7_requirements/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_fix_d7_requirements</h1>     <pre class="signature">update_fix_d7_requirements()</pre> <p>Perform Drupal 6.x to 7.x updates that are required for <a href="../../../../update.php/7.x/" title="Administrative page for handling updates from one Drupal version to another." class="local">update.php</a> to function properly.</p> <p>This function runs when <a href="../../../../update.php/7.x/" title="Administrative page for handling updates from one Drupal version to another." class="local">update.php</a> is run the first time for 7.x, even before updates are selected or performed. It is important that if updates are not ultimately performed that no changes are made which make it impossible to continue using the prior version.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">update.inc</a>, line 478</dt> <dd>Drupal database update API.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_fix_d7_requirements() {
+  global $conf;
+
+  // Rewrite the settings.php file if necessary, see
+  // update_prepare_d7_bootstrap().
+  global $update_rewrite_settings, $db_url, $db_prefix;
+  if (!empty($update_rewrite_settings)) {
+    $databases = update_parse_db_url($db_url, $db_prefix);
+    $salt = drupal_hash_base64(drupal_random_bytes(55));
+    file_put_contents(conf_path() . '/settings.php', "\n" . '$databases = ' . var_export($databases, TRUE) . ";\n\$drupal_hash_salt = '$salt';", FILE_APPEND);
+  }
+  if (drupal_get_installed_schema_version('system') &lt; 7000 &amp;&amp; !variable_get('update_d7_requirements', FALSE)) {
+    // Change 6.x system table field values to 7.x equivalent.
+    // Change field values.
+    db_change_field('system', 'schema_version', 'schema_version', array(
+      'type' =&gt; 'int',
+      'size' =&gt; 'small',
+      'not null' =&gt; TRUE,
+      'default' =&gt; -1)
+    );
+    db_change_field('system', 'status', 'status', array(
+      'type' =&gt; 'int', 'not null' =&gt; TRUE, 'default' =&gt; 0));
+    db_change_field('system', 'weight', 'weight', array(
+      'type' =&gt; 'int', 'not null' =&gt; TRUE, 'default' =&gt; 0));
+    db_change_field('system', 'bootstrap', 'bootstrap', array(
+      'type' =&gt; 'int', 'not null' =&gt; TRUE, 'default' =&gt; 0));
+    // Drop and recreate 6.x indexes.
+    db_drop_index('system', 'bootstrap');
+    db_add_index('system', 'bootstrap', array(
+      'status', 'bootstrap', array('type', 12), 'weight', 'name'));
+
+    db_drop_index('system', 'modules');
+    db_add_index('system', 'modules', array(array(
+      'type', 12), 'status', 'weight', 'name'));
+
+    db_drop_index('system', 'type_name');
+    db_add_index('system', 'type_name', array(array('type', 12), 'name'));
+    // Add 7.x indexes.
+    db_add_index('system', 'system_list', array('weight', 'name'));
+
+    // Add the cache_path table.
+    if (db_table_exists('cache_path')) {
+      db_drop_table('cache_path');
+    }
+    require_once ('./modules/system/system.install');
+    $schema['cache_path'] = system_schema_cache_7054();
+    $schema['cache_path']['description'] = 'Cache table used for path alias lookups.';
+    db_create_table('cache_path', $schema['cache_path']);
+
+    // system_update_7042() renames columns, but these are needed to bootstrap.
+    // Add empty columns for now.
+    db_add_field('url_alias', 'source', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+    db_add_field('url_alias', 'alias', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+
+    // Add new columns to {menu_router}.
+    db_add_field('menu_router', 'delivery_callback', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+    db_add_field('menu_router', 'context', array(
+      'description' =&gt; 'Only for local tasks (tabs) - the context of a local task to control its placement.',
+      'type' =&gt; 'int',
+      'not null' =&gt; TRUE,
+      'default' =&gt; 0,
+    ));
+    db_drop_index('menu_router', 'tab_parent');
+    db_add_index('menu_router', 'tab_parent', array(array('tab_parent', 64), 'weight', 'title'));
+    db_add_field('menu_router', 'theme_callback', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+    db_add_field('menu_router', 'theme_arguments', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+
+    // Add the role_permission table.
+    $schema['role_permission'] = array(
+      'fields' =&gt; array(
+        'rid' =&gt; array(
+          'type' =&gt; 'int',
+          'unsigned' =&gt; TRUE,
+          'not null' =&gt; TRUE,
+        ),
+        'permission' =&gt; array(
+          'type' =&gt; 'varchar',
+          'length' =&gt; 128,
+          'not null' =&gt; TRUE,
+          'default' =&gt; '',
+        ),
+      ),
+      'primary key' =&gt; array('rid', 'permission'),
+      'indexes' =&gt; array(
+        'permission' =&gt; array('permission'),
+      ),
+    );
+    db_create_table('role_permission', $schema['role_permission']);
+
+    // Drops and recreates semaphore value index.
+    db_drop_index('semaphore', 'value');
+    db_add_index('semaphore', 'value', array('value'));
+
+    $schema['date_format_type'] = array(
+      'description' =&gt; 'Stores configured date format types.',
+      'fields' =&gt; array(
+        'type' =&gt; array(
+          'description' =&gt; 'The date format type, e.g. medium.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 64,
+          'not null' =&gt; TRUE,
+        ),
+        'title' =&gt; array(
+          'description' =&gt; 'The human readable name of the format type.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 255,
+          'not null' =&gt; TRUE,
+        ),
+        'locked' =&gt; array(
+          'description' =&gt; 'Whether or not this is a system provided format.',
+          'type' =&gt; 'int',
+          'size' =&gt; 'tiny',
+          'default' =&gt; 0,
+          'not null' =&gt; TRUE,
+        ),
+      ),
+      'primary key' =&gt; array('type'),
+    );
+
+    $schema['date_formats'] = array(
+      'description' =&gt; 'Stores configured date formats.',
+      'fields' =&gt; array(
+        'dfid' =&gt; array(
+          'description' =&gt; 'The date format identifier.',
+          'type' =&gt; 'serial',
+          'not null' =&gt; TRUE,
+          'unsigned' =&gt; TRUE,
+        ),
+        'format' =&gt; array(
+          'description' =&gt; 'The date format string.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 100,
+          'not null' =&gt; TRUE,
+        ),
+        'type' =&gt; array(
+          'description' =&gt; 'The date format type, e.g. medium.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 64,
+          'not null' =&gt; TRUE,
+        ),
+        'locked' =&gt; array(
+          'description' =&gt; 'Whether or not this format can be modified.',
+          'type' =&gt; 'int',
+          'size' =&gt; 'tiny',
+          'default' =&gt; 0,
+          'not null' =&gt; TRUE,
+        ),
+      ),
+      'primary key' =&gt; array('dfid'),
+      'unique keys' =&gt; array('formats' =&gt; array('format', 'type')),
+    );
+
+    $schema['date_format_locale'] = array(
+      'description' =&gt; 'Stores configured date formats for each locale.',
+      'fields' =&gt; array(
+        'format' =&gt; array(
+          'description' =&gt; 'The date format string.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 100,
+          'not null' =&gt; TRUE,
+        ),
+        'type' =&gt; array(
+          'description' =&gt; 'The date format type, e.g. medium.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 64,
+          'not null' =&gt; TRUE,
+        ),
+        'language' =&gt; array(
+          'description' =&gt; 'A {languages}.language for this format to be used with.',
+          'type' =&gt; 'varchar',
+          'length' =&gt; 12,
+          'not null' =&gt; TRUE,
+        ),
+      ),
+      'primary key' =&gt; array('type', 'language'),
+    );
+
+    db_create_table('date_format_type', $schema['date_format_type']);
+    // Sites that have the Drupal 6 Date module installed already have the
+    // following tables.
+    if (db_table_exists('date_formats')) {
+      db_rename_table('date_formats', 'd6_date_formats');
+    }
+    db_create_table('date_formats', $schema['date_formats']);
+    if (db_table_exists('date_format_locale')) {
+      db_rename_table('date_format_locale', 'd6_date_format_locale');
+    }
+    db_create_table('date_format_locale', $schema['date_format_locale']);
+
+    // Add the queue table.
+    $schema['queue'] = array(
+      'description' =&gt; 'Stores items in queues.',
+      'fields' =&gt; array(
+        'item_id' =&gt; array(
+          'type' =&gt; 'serial',
+          'unsigned' =&gt; TRUE,
+          'not null' =&gt; TRUE,
+          'description' =&gt; 'Primary Key: Unique item ID.',
+        ),
+        'name' =&gt; array(
+          'type' =&gt; 'varchar',
+          'length' =&gt; 255,
+          'not null' =&gt; TRUE,
+          'default' =&gt; '',
+          'description' =&gt; 'The queue name.',
+        ),
+        'data' =&gt; array(
+          'type' =&gt; 'blob',
+          'not null' =&gt; FALSE,
+          'size' =&gt; 'big',
+          'serialize' =&gt; TRUE,
+          'description' =&gt; 'The arbitrary data for the item.',
+        ),
+        'expire' =&gt; array(
+          'type' =&gt; 'int',
+          'not null' =&gt; TRUE,
+          'default' =&gt; 0,
+          'description' =&gt; 'Timestamp when the claim lease expires on the item.',
+        ),
+        'created' =&gt; array(
+          'type' =&gt; 'int',
+          'not null' =&gt; TRUE,
+          'default' =&gt; 0,
+          'description' =&gt; 'Timestamp when the item was created.',
+        ),
+      ),
+      'primary key' =&gt; array('item_id'),
+      'indexes' =&gt; array(
+        'name_created' =&gt; array('name', 'created'),
+        'expire' =&gt; array('expire'),
+      ),
+    );
+    // Check for queue table that may remain from D5 or D6, if found
+    //drop it.
+    if (db_table_exists('queue')) {
+      db_drop_table('queue');
+    }
+
+    db_create_table('queue', $schema['queue']);
+
+    // Create the sequences table.
+    $schema['sequences'] = array(
+      'description' =&gt; 'Stores IDs.',
+      'fields' =&gt; array(
+        'value' =&gt; array(
+          'description' =&gt; 'The value of the sequence.',
+          'type' =&gt; 'serial',
+          'unsigned' =&gt; TRUE,
+          'not null' =&gt; TRUE,
+        ),
+      ),
+      'primary key' =&gt; array('value'),
+    );
+    // Check for sequences table that may remain from D5 or D6, if found
+    //drop it.
+    if (db_table_exists('sequences')) {
+      db_drop_table('sequences');
+    }
+    db_create_table('sequences', $schema['sequences']);
+    // Initialize the table with the maximum current increment of the tables
+    // that will rely on it for their ids.
+    $max_aid = db_query('SELECT MAX(aid) FROM {actions_aid}')-&gt;fetchField();
+    $max_uid = db_query('SELECT MAX(uid) FROM {users}')-&gt;fetchField();
+    $max_batch_id = db_query('SELECT MAX(bid) FROM {batch}')-&gt;fetchField();
+    db_insert('sequences')-&gt;fields(array('value' =&gt; max($max_aid, $max_uid, $max_batch_id)))-&gt;execute();
+
+    // Add column for locale context.
+    if (db_table_exists('locales_source')) {
+      db_add_field('locales_source', 'context', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; '', 'description' =&gt; 'The context this string applies to.'));
+    }
+
+    // Rename 'site_offline_message' variable to 'maintenance_mode_message'
+    // and 'site_offline' variable to 'maintenance_mode'.
+    // Old variable is removed in update for system.module, see
+    // system_update_7072().
+    if ($message = variable_get('site_offline_message', NULL)) {
+      variable_set('maintenance_mode_message', $message);
+    }
+    // Old variable is removed in update for system.module, see
+    // system_update_7069().
+    $site_offline = variable_get('site_offline', -1);
+    if ($site_offline != -1) {
+      variable_set('maintenance_mode', $site_offline);
+    }
+
+    // Add ssid column and index.
+    db_add_field('sessions', 'ssid', array('description' =&gt; "Secure session ID. The value is generated by Drupal's session handlers.", 'type' =&gt; 'varchar', 'length' =&gt; 128, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+    db_add_index('sessions', 'ssid', array('ssid'));
+    // Drop existing primary key.
+    db_drop_primary_key('sessions');
+    // Add new primary key.
+    db_add_primary_key('sessions', array('sid', 'ssid'));
+
+    // Allow longer javascript file names.
+    if (db_table_exists('languages')) {
+      db_change_field('languages', 'javascript', 'javascript', array('type' =&gt; 'varchar', 'length' =&gt; 64, 'not null' =&gt; TRUE, 'default' =&gt; ''));
+    }
+
+    // Rename action description to label.
+    db_change_field('actions', 'description', 'label', array('type' =&gt; 'varchar', 'length' =&gt; 255, 'not null' =&gt; TRUE, 'default' =&gt; '0'));
+
+    variable_set('update_d7_requirements', TRUE);
+  }
+
+  update_fix_d7_install_profile();
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!update.inc/function/update_fix_d7_requirements/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!update.inc/function/update_fix_d7_requirements/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

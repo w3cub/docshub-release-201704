@@ -1,0 +1,165 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Batch Operations - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Creates and processes batch operations. ">
+  <meta name="keywords" content="batch, operations, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-form.inc/group/batch/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">Batch operations</h1>      <p>Creates and processes batch operations.</p> <p>Functions allowing forms processing to be spread out over several page requests, thus ensuring that the processing does not get interrupted because of a PHP timeout, while allowing the user to receive feedback on the progress of the ongoing operations.</p> <p>The API is primarily designed to integrate nicely with the Form API workflow, but can also be used by non-Form API scripts (like <a href="../../../../update.php/7.x/" title="Administrative page for handling updates from one Drupal version to another." class="local">update.php</a>) or even simple page callbacks (which should probably be used sparingly).</p> <p>Example:</p> <pre class="php" data-language="php">$batch = array(
+  'title' =&gt; t('Exporting'),
+  'operations' =&gt; array(
+    array('my_function_1', array($account-&gt;uid, 'story')),
+    array('my_function_2', array()),
+  ),
+  'finished' =&gt; 'my_finished_callback',
+  'file' =&gt; 'path_to_file_containing_myfunctions',
+);
+batch_set($batch);
+// Only needed if not inside a form _submit handler.
+// Setting redirect in batch_process.
+batch_process('node/1');
+</pre>
+<p> Note: if the batch 'title', 'init_message', 'progress_message', or 'error_message' could contain any user input, it is the responsibility of the code calling <a href="../../../function/batch_set/7.x/" title="Adds a new batch." class="local">batch_set</a>() to sanitize them first with a function like <a href="../../../../includes-bootstrap.inc/function/check_plain/7.x/" title="Encodes special characters in a plain-text string for display as HTML." class="local">check_plain</a>() or <a href="../../../../includes-common.inc/function/filter_xss/7.x/" title="Filters HTML to prevent cross-site-scripting (XSS) vulnerabilities." class="local">filter_xss</a>(). Furthermore, if the batch operation returns any user input in the 'results' or 'message' keys of $context, it must also sanitize them first.</p> <p>Sample <a href="../../../../modules-system-form.api.php/function/callback_batch_operation/7.x/" title="Perform a single batch operation." class="local">callback_batch_operation</a>():</p> <pre class="php" data-language="php">// Simple and artificial: load a node of a given type for a given user
+function my_function_1($uid, $type, &amp;$context) {
+  // The $context array gathers batch context information about the execution (read),
+  // as well as 'return values' for the current operation (write)
+  // The following keys are provided :
+  // 'results' (read / write): The array of results gathered so far by
+  //   the batch processing, for the current operation to append its own.
+  // 'message' (write): A text message displayed in the progress page.
+  // The following keys allow for multi-step operations :
+  // 'sandbox' (read / write): An array that can be freely used to
+  //   store persistent data between iterations. It is recommended to
+  //   use this instead of $_SESSION, which is unsafe if the user
+  //   continues browsing in a separate window while the batch is processing.
+  // 'finished' (write): A float number between 0 and 1 informing
+  //   the processing engine of the completion level for the operation.
+  //   1 (or no value explicitly set) means the operation is finished
+  //   and the batch processing can continue to the next operation.
+
+  $node = node_load(array('uid' =&gt; $uid, 'type' =&gt; $type));
+  $context['results'][] = $node-&gt;nid . ' : ' . check_plain($node-&gt;title);
+  $context['message'] = check_plain($node-&gt;title);
+}
+
+// More advanced example: multi-step operation - load all nodes, five by five
+function my_function_2(&amp;$context) {
+  if (empty($context['sandbox'])) {
+    $context['sandbox']['progress'] = 0;
+    $context['sandbox']['current_node'] = 0;
+    $context['sandbox']['max'] = db_query('SELECT COUNT(DISTINCT nid) FROM {node}')-&gt;fetchField();
+  }
+  $limit = 5;
+  $result = db_select('node')
+    -&gt;fields('node', array('nid'))
+    -&gt;condition('nid', $context['sandbox']['current_node'], '&gt;')
+    -&gt;orderBy('nid')
+    -&gt;range(0, $limit)
+    -&gt;execute();
+  foreach ($result as $row) {
+    $node = node_load($row-&gt;nid, NULL, TRUE);
+    $context['results'][] = $node-&gt;nid . ' : ' . check_plain($node-&gt;title);
+    $context['sandbox']['progress']++;
+    $context['sandbox']['current_node'] = $node-&gt;nid;
+    $context['message'] = check_plain($node-&gt;title);
+  }
+  if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
+    $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+  }
+}
+</pre>
+<p> Sample <a href="../../../../modules-system-form.api.php/function/callback_batch_finished/7.x/" title="Complete a batch process." class="local">callback_batch_finished</a>():</p> <pre class="php" data-language="php">function my_finished_callback($success, $results, $operations) {
+  // The 'success' parameter means no fatal PHP errors were detected. All
+  // other error management should be handled using 'results'.
+  if ($success) {
+    $message = format_plural(count($results), 'One post processed.', '@count posts processed.');
+  }
+  else {
+    $message = t('Finished with an error.');
+  }
+  drupal_set_message($message);
+  // Providing data for the redirected page is done through $_SESSION.
+  foreach ($results as $result) {
+    $items[] = t('Loaded node %title.', array('%title' =&gt; $result));
+  }
+  $_SESSION['my_batch_results'] = $items;
+}
+</pre> <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">form.inc</a>, line 4405</dt> <dd>Functions for form and batch generation and processing.</dd> </dl> <h3>Functions</h3>
+<div class="view view-api-references view-id-api_references view-display-id-block_items_in_group view-dom-id-ebdb9186701e41005200ff0de60082c8"> <div class="view-content"> <table class="views-table cols-3"> <thead> <tr> <th class="views-field views-field-title active" scope="col"> Name </th> <th class="views-field views-field-file-name" scope="col"> Location </th> <th class="views-field views-field-summary" scope="col"> Description </th> </tr> </thead> <tbody> <tr class="odd views-row-first"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../function/batch_get/7.x/">batch_get</a> </td> <td class="views-field views-field-file-name" data-th="Location"> includes/<a href="../../../7.x/">form.inc</a> </td> <td class="views-field views-field-summary" data-th="Description"> Retrieves the current batch. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../function/batch_process/7.x/">batch_process</a> </td> <td class="views-field views-field-file-name" data-th="Location"> includes/<a href="../../../7.x/">form.inc</a> </td> <td class="views-field views-field-summary" data-th="Description"> Processes the batch. </td> </tr> <tr class="odd"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../function/batch_set/7.x/">batch_set</a> </td> <td class="views-field views-field-file-name" data-th="Location"> includes/<a href="../../../7.x/">form.inc</a> </td> <td class="views-field views-field-summary" data-th="Description"> Adds a new batch. </td> </tr> <tr class="even"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../../modules-system-system.api.php/function/hook_batch_alter/7.x/">hook_batch_alter</a> </td> <td class="views-field views-field-file-name" data-th="Location"> modules/system/<a href="../../../../modules-system-system.api.php/7.x/">system.api.php</a> </td> <td class="views-field views-field-summary" data-th="Description"> Alter batch information before a batch is processed. </td> </tr> <tr class="odd"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../function/_batch_populate_queue/7.x/">_batch_populate_queue</a> </td> <td class="views-field views-field-file-name" data-th="Location"> includes/<a href="../../../7.x/">form.inc</a> </td> <td class="views-field views-field-summary" data-th="Description"> Populates a job queue with the operations of a batch set. </td> </tr> <tr class="even views-row-last"> <td class="views-field views-field-title active" data-th="Name"> <a href="../../../function/_batch_queue/7.x/">_batch_queue</a> </td> <td class="views-field views-field-file-name" data-th="Location"> includes/<a href="../../../7.x/">form.inc</a> </td> <td class="views-field views-field-summary" data-th="Description"> Returns a queue object for a batch set. </td> </tr> </tbody> </table> </div> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!form.inc/group/batch/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!form.inc/group/batch/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

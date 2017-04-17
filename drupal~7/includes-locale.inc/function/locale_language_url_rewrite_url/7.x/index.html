@@ -1,0 +1,165 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Locale_language_url_rewrite_url - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Rewrite URLs for the URL language provider. ">
+  <meta name="keywords" content="function, locale, language, url, rewrite, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-locale.inc/function/locale_language_url_rewrite_url/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function locale_language_url_rewrite_url</h1>     <pre class="signature">locale_language_url_rewrite_url(&amp;$path, &amp;$options)</pre> <p>Rewrite URLs for the URL language provider.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-b33f29d8345cf2b62c7e1016b255dc42"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/locale-languages-negotiation/7.x/">Language negotiation options</a></dt> <dd>Functions for language negotiation.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">locale.inc</a>, line 411</dt> <dd>Administration functions for <a href="https://api.drupal.org/api/drupal/7.x/search/locale.module" title="Multiple implementations exist." class="local" target="_blank">locale.module</a>.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function locale_language_url_rewrite_url(&amp;$path, &amp;$options) {
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['languages'] = &amp;drupal_static(__FUNCTION__);
+  }
+  $languages = &amp;$drupal_static_fast['languages'];
+
+  if (!isset($languages)) {
+    $languages = language_list('enabled');
+    $languages = array_flip(array_keys($languages[1]));
+  }
+
+  // Language can be passed as an option, or we go for current URL language.
+  if (!isset($options['language'])) {
+    global $language_url;
+    $options['language'] = $language_url;
+  }
+  // We allow only enabled languages here.
+  elseif (!isset($languages[$options['language']-&gt;language])) {
+    unset($options['language']);
+    return;
+  }
+
+  if (isset($options['language'])) {
+    switch (variable_get('locale_language_negotiation_url_part', LOCALE_LANGUAGE_NEGOTIATION_URL_PREFIX)) {
+      case LOCALE_LANGUAGE_NEGOTIATION_URL_DOMAIN:
+        if ($options['language']-&gt;domain) {
+          // Save the original base URL. If it contains a port, we need to
+          // retain it below.
+          if (!empty($options['base_url'])) {
+            // The colon in the URL scheme messes up the port checking below.
+            $normalized_base_url = str_replace(array('https://', 'http://'), '', $options['base_url']);
+          }
+
+          // Ask for an absolute URL with our modified base_url.
+          global $is_https;
+          $url_scheme = ($is_https) ? 'https://' : 'http://';
+          $options['absolute'] = TRUE;
+
+          // Take the domain without ports or protocols so we can apply the
+          // protocol needed. The setting might include a protocol.
+          // This is changed in Drupal 8 but we need to keep backwards
+          // compatibility for Drupal 7.
+          $host = 'http://' . str_replace(array('http://', 'https://'), '', $options['language']-&gt;domain);
+          $host = parse_url($host, PHP_URL_HOST);
+
+          // Apply the appropriate protocol to the URL.
+          $options['base_url'] = $url_scheme . $host;
+
+          // In case either the original base URL or the HTTP host contains a
+          // port, retain it.
+          $http_host = $_SERVER['HTTP_HOST'];
+          if (isset($normalized_base_url) &amp;&amp; strpos($normalized_base_url, ':') !== FALSE) {
+            list($host, $port) = explode(':', $normalized_base_url);
+            $options['base_url'] .= ':' . $port;
+          }
+          elseif (strpos($http_host, ':') !== FALSE) {
+            list($host, $port) = explode(':', $http_host);
+            $options['base_url'] .= ':' . $port;
+          }
+
+          if (isset($options['https']) &amp;&amp; variable_get('https', FALSE)) {
+            if ($options['https'] === TRUE) {
+              $options['base_url'] = str_replace('http://', 'https://', $options['base_url']);
+            }
+            elseif ($options['https'] === FALSE) {
+              $options['base_url'] = str_replace('https://', 'http://', $options['base_url']);
+            }
+          }
+        }
+        break;
+
+      case LOCALE_LANGUAGE_NEGOTIATION_URL_PREFIX:
+        if (!empty($options['language']-&gt;prefix)) {
+          $options['prefix'] = $options['language']-&gt;prefix . '/';
+        }
+        break;
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!locale.inc/function/locale_language_url_rewrite_url/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!locale.inc/function/locale_language_url_rewrite_url/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

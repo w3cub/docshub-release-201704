@@ -1,0 +1,129 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_parse_dependency - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Parses a dependency for comparison by drupal_check_incompatibility(). ">
+  <meta name="keywords" content="function, drupal, parse, dependency, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-common.inc/function/drupal_parse_dependency/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_parse_dependency</h1>     <pre class="signature">drupal_parse_dependency($dependency)</pre> <p>Parses a dependency for comparison by <a href="../../drupal_check_incompatibility/7.x/" title="Checks whether a version is compatible with a given dependency." class="local">drupal_check_incompatibility</a>().</p> <h3>Parameters</h3> <p> <strong>$dependency</strong>: A dependency string, which specifies a module dependency, and optionally the project it comes from and versions that are supported. Supported formats include:</p> <ul> <li>'module'</li> <li>'project:module'</li> <li>'project:module (&gt;=version, version)'</li> </ul> <h3>Return value</h3> <p> An associative array with three keys:</p> <ul> <li>'name' includes the name of the thing to depend on (e.g. 'foo').</li> <li>'original_version' contains the original version string (which can be used in the UI for reporting incompatibilities).</li> <li>'versions' is a list of associative arrays, each containing the keys 'op' and 'version'. 'op' can be one of: '=', '==', '!=', '&lt;&gt;', '&lt;', '&lt;=', '&gt;', or '&gt;='. 'version' is one piece like '4.5-beta3'.</li> </ul> <p>Callers should pass this structure to <a href="../../drupal_check_incompatibility/7.x/" title="Checks whether a version is compatible with a given dependency." class="local">drupal_check_incompatibility</a>().</p> <h3>See also</h3> <p> <a href="../../drupal_check_incompatibility/7.x/" title="Checks whether a version is compatible with a given dependency." class="local">drupal_check_incompatibility</a>()</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">common.inc</a>, line 7723</dt> <dd>Common functions that many Drupal modules will need to reference.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_parse_dependency($dependency) {
+  $value = array();
+  // Split out the optional project name.
+  if (strpos($dependency, ':')) {
+    list($project_name, $dependency) = explode(':', $dependency);
+    $value['project'] = $project_name;
+  }
+  // We use named subpatterns and support every op that version_compare
+  // supports. Also, op is optional and defaults to equals.
+  $p_op = '(?P&lt;operation&gt;!=|==|=|&lt;|&lt;=|&gt;|&gt;=|&lt;&gt;)?';
+  // Core version is always optional: 7.x-2.x and 2.x is treated the same.
+  $p_core = '(?:' . preg_quote(DRUPAL_CORE_COMPATIBILITY) . '-)?';
+  $p_major = '(?P&lt;major&gt;\d+)';
+  // By setting the minor version to x, branches can be matched.
+  $p_minor = '(?P&lt;minor&gt;(?:\d+|x)(?:-[A-Za-z]+\d+)?)';
+  $parts = explode('(', $dependency, 2);
+  $value['name'] = trim($parts[0]);
+  if (isset($parts[1])) {
+    $value['original_version'] = ' (' . $parts[1];
+    foreach (explode(',', $parts[1]) as $version) {
+      if (preg_match("/^\s*$p_op\s*$p_core$p_major\.$p_minor/", $version, $matches)) {
+        $op = !empty($matches['operation']) ? $matches['operation'] : '=';
+        if ($matches['minor'] == 'x') {
+          // Drupal considers "2.x" to mean any version that begins with
+          // "2" (e.g. 2.0, 2.9 are all "2.x"). PHP's version_compare(),
+          // on the other hand, treats "x" as a string; so to
+          // version_compare(), "2.x" is considered less than 2.0. This
+          // means that &gt;=2.x and &lt;2.x are handled by version_compare()
+          // as we need, but &gt; and &lt;= are not.
+          if ($op == '&gt;' || $op == '&lt;=') {
+            $matches['major']++;
+          }
+          // Equivalence can be checked by adding two restrictions.
+          if ($op == '=' || $op == '==') {
+            $value['versions'][] = array('op' =&gt; '&lt;', 'version' =&gt; ($matches['major'] + 1) . '.x');
+            $op = '&gt;=';
+          }
+        }
+        $value['versions'][] = array('op' =&gt; $op, 'version' =&gt; $matches['major'] . '.' . $matches['minor']);
+      }
+    }
+  }
+  return $value;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_parse_dependency/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!common.inc/function/drupal_parse_dependency/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,223 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ajax_pre_render_element - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Adds Ajax information about an element to communicate with JavaScript. ">
+  <meta name="keywords" content="function, ajax, pre, render, element, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-ajax.inc/function/ajax_pre_render_element/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function ajax_pre_render_element</h1>     <pre class="signature">ajax_pre_render_element($element)</pre> <p>Adds Ajax information about an element to communicate with JavaScript.</p> <p>If #ajax['path'] is set on an element, this additional JavaScript is added to the page header to attach the Ajax behaviors. See ajax.js for more information.</p> <h3>Parameters</h3> <p> <strong>$element</strong>: An associative array containing the properties of the element. Properties used:</p> <ul> <li>#ajax['event']</li> <li>#ajax['prevent']</li> <li>#ajax['path']</li> <li>#ajax['options']</li> <li>#ajax['wrapper']</li> <li>#ajax['parameters']</li> <li>#ajax['effect']</li> </ul> <h3>Return value</h3> <p> The processed element with the necessary JavaScript attached to it.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-d66e3af9c6a8b96c335ad31f103a26c8"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/ajax/7.x/">Ajax framework</a></dt> <dd>Functions for Drupal's Ajax framework.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">ajax.inc</a>, line 672</dt> <dd>Functions for use with Drupal's Ajax framework.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function ajax_pre_render_element($element) {
+  // Skip already processed elements.
+  if (isset($element['#ajax_processed'])) {
+    return $element;
+  }
+  // Initialize #ajax_processed, so we do not process this element again.
+  $element['#ajax_processed'] = FALSE;
+
+  // Nothing to do if there is neither a callback nor a path.
+  if (!(isset($element['#ajax']['callback']) || isset($element['#ajax']['path']))) {
+    return $element;
+  }
+
+  // Add a reasonable default event handler if none was specified.
+  if (isset($element['#ajax']) &amp;&amp; !isset($element['#ajax']['event'])) {
+    switch ($element['#type']) {
+      case 'submit':
+      case 'button':
+      case 'image_button':
+        // Pressing the ENTER key within a textfield triggers the click event of
+        // the form's first submit button. Triggering Ajax in this situation
+        // leads to problems, like breaking autocomplete textfields, so we bind
+        // to mousedown instead of click.
+        // @see http://drupal.org/node/216059
+        $element['#ajax']['event'] = 'mousedown';
+        // Retain keyboard accessibility by setting 'keypress'. This causes
+        // ajax.js to trigger 'event' when SPACE or ENTER are pressed while the
+        // button has focus.
+        $element['#ajax']['keypress'] = TRUE;
+        // Binding to mousedown rather than click means that it is possible to
+        // trigger a click by pressing the mouse, holding the mouse button down
+        // until the Ajax request is complete and the button is re-enabled, and
+        // then releasing the mouse button. Set 'prevent' so that ajax.js binds
+        // an additional handler to prevent such a click from triggering a
+        // non-Ajax form submission. This also prevents a textfield's ENTER
+        // press triggering this button's non-Ajax form submission behavior.
+        if (!isset($element['#ajax']['prevent'])) {
+          $element['#ajax']['prevent'] = 'click';
+        }
+        break;
+
+      case 'password':
+      case 'textfield':
+      case 'textarea':
+        $element['#ajax']['event'] = 'blur';
+        break;
+
+      case 'radio':
+      case 'checkbox':
+      case 'select':
+        $element['#ajax']['event'] = 'change';
+        break;
+
+      case 'link':
+        $element['#ajax']['event'] = 'click';
+        break;
+
+      default:
+        return $element;
+    }
+  }
+
+  // Attach JavaScript settings to the element.
+  if (isset($element['#ajax']['event'])) {
+    $element['#attached']['library'][] = array('system', 'jquery.form');
+    $element['#attached']['library'][] = array('system', 'drupal.ajax');
+
+    $settings = $element['#ajax'];
+
+    // Assign default settings.
+    $settings += array(
+      'path' =&gt; 'system/ajax',
+      'options' =&gt; array(),
+    );
+
+    // @todo Legacy support. Remove in Drupal 8.
+    if (isset($settings['method']) &amp;&amp; $settings['method'] == 'replace') {
+      $settings['method'] = 'replaceWith';
+    }
+
+    // Change path to URL.
+    $settings['url'] = url($settings['path'], $settings['options']);
+    unset($settings['path'], $settings['options']);
+
+    // Add special data to $settings['submit'] so that when this element
+    // triggers an Ajax submission, Drupal's form processing can determine which
+    // element triggered it.
+    // @see _form_element_triggered_scripted_submission()
+    if (isset($settings['trigger_as'])) {
+      // An element can add a 'trigger_as' key within #ajax to make the element
+      // submit as though another one (for example, a non-button can use this
+      // to submit the form as though a button were clicked). When using this,
+      // the 'name' key is always required to identify the element to trigger
+      // as. The 'value' key is optional, and only needed when multiple elements
+      // share the same name, which is commonly the case for buttons.
+      $settings['submit']['_triggering_element_name'] = $settings['trigger_as']['name'];
+      if (isset($settings['trigger_as']['value'])) {
+        $settings['submit']['_triggering_element_value'] = $settings['trigger_as']['value'];
+      }
+      unset($settings['trigger_as']);
+    }
+    elseif (isset($element['#name'])) {
+      // Most of the time, elements can submit as themselves, in which case the
+      // 'trigger_as' key isn't needed, and the element's name is used.
+      $settings['submit']['_triggering_element_name'] = $element['#name'];
+      // If the element is a (non-image) button, its name may not identify it
+      // uniquely, in which case a match on value is also needed.
+      // @see _form_button_was_clicked()
+      if (isset($element['#button_type']) &amp;&amp; empty($element['#has_garbage_value'])) {
+        $settings['submit']['_triggering_element_value'] = $element['#value'];
+      }
+    }
+
+    // Convert a simple #ajax['progress'] string into an array.
+    if (isset($settings['progress']) &amp;&amp; is_string($settings['progress'])) {
+      $settings['progress'] = array('type' =&gt; $settings['progress']);
+    }
+    // Change progress path to a full URL.
+    if (isset($settings['progress']['path'])) {
+      $settings['progress']['url'] = url($settings['progress']['path']);
+      unset($settings['progress']['path']);
+    }
+
+    $element['#attached']['js'][] = array(
+      'type' =&gt; 'setting',
+      'data' =&gt; array(
+        'ajax' =&gt; array($element['#id'] =&gt; $settings),
+        'urlIsAjaxTrusted' =&gt; array(
+          $settings['url'] =&gt; TRUE,
+        ),
+      ),
+    );
+
+    // Indicate that Ajax processing was successful.
+    $element['#ajax_processed'] = TRUE;
+  }
+  return $element;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_pre_render_element/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!ajax.inc/function/ajax_pre_render_element/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

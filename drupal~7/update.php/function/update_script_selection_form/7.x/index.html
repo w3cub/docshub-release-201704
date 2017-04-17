@@ -1,0 +1,188 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_script_selection_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form constructor for the list of available database module updates. ">
+  <meta name="keywords" content="function, update, script, selection, form, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/update.php/function/update_script_selection_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_script_selection_form</h1>     <pre class="signature">update_script_selection_form($form, &amp;$form_state)</pre> <p>Form constructor for the list of available database module updates.</p>  <h3>File</h3> 
+<dl> <dt>./<a href="../../../7.x/">update.php</a>, line 46</dt> <dd>Administrative page for handling updates from one Drupal version to another.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_script_selection_form($form, &amp;$form_state) {
+  $count = 0;
+  $incompatible_count = 0;
+  $form['start'] = array(
+    '#tree' =&gt; TRUE,
+    '#type' =&gt; 'fieldset',
+    '#collapsed' =&gt; TRUE,
+    '#collapsible' =&gt; TRUE,
+  );
+
+  // Ensure system.module's updates appear first.
+  $form['start']['system'] = array();
+
+  $updates = update_get_update_list();
+  $starting_updates = array();
+  $incompatible_updates_exist = FALSE;
+  foreach ($updates as $module =&gt; $update) {
+    if (!isset($update['start'])) {
+      $form['start'][$module] = array(
+        '#type' =&gt; 'item',
+        '#title' =&gt; $module . ' module',
+        '#markup' =&gt; $update['warning'],
+        '#prefix' =&gt; '&lt;div class="messages warning"&gt;',
+        '#suffix' =&gt; '&lt;/div&gt;',
+      );
+      $incompatible_updates_exist = TRUE;
+      continue;
+    }
+    if (!empty($update['pending'])) {
+      $starting_updates[$module] = $update['start'];
+      $form['start'][$module] = array(
+        '#type' =&gt; 'hidden',
+        '#value' =&gt; $update['start'],
+      );
+      $form['start'][$module . '_updates'] = array(
+        '#theme' =&gt; 'item_list',
+        '#items' =&gt; $update['pending'],
+        '#title' =&gt; $module . ' module',
+      );
+    }
+    if (isset($update['pending'])) {
+      $count = $count + count($update['pending']);
+    }
+  }
+
+  // Find and label any incompatible updates.
+  foreach (update_resolve_dependencies($starting_updates) as $function =&gt; $data) {
+    if (!$data['allowed']) {
+      $incompatible_updates_exist = TRUE;
+      $incompatible_count++;
+      $module_update_key = $data['module'] . '_updates';
+      if (isset($form['start'][$module_update_key]['#items'][$data['number']])) {
+        $text = $data['missing_dependencies'] ? 'This update will been skipped due to the following missing dependencies: &lt;em&gt;' . implode(', ', $data['missing_dependencies']) . '&lt;/em&gt;' : "This update will be skipped due to an error in the module's code.";
+        $form['start'][$module_update_key]['#items'][$data['number']] .= '&lt;div class="warning"&gt;' . $text . '&lt;/div&gt;';
+      }
+      // Move the module containing this update to the top of the list.
+      $form['start'] = array($module_update_key =&gt; $form['start'][$module_update_key]) + $form['start'];
+    }
+  }
+
+  // Warn the user if any updates were incompatible.
+  if ($incompatible_updates_exist) {
+    drupal_set_message('Some of the pending updates cannot be applied because their dependencies were not met.', 'warning');
+  }
+
+  if (empty($count)) {
+    drupal_set_message(t('No pending updates.'));
+    unset($form);
+    $form['links'] = array(
+      '#markup' =&gt; theme('item_list', array('items' =&gt; update_helpful_links())),
+    );
+
+    // No updates to run, so caches won't get flushed later.  Clear them now.
+    drupal_flush_all_caches();
+  }
+  else {
+    $form['help'] = array(
+      '#markup' =&gt; '&lt;p&gt;The version of Drupal you are updating from has been automatically detected.&lt;/p&gt;',
+      '#weight' =&gt; -5,
+    );
+    if ($incompatible_count) {
+      $form['start']['#title'] = format_plural(
+      $count, 
+      '1 pending update (@number_applied to be applied, @number_incompatible skipped)', 
+      '@count pending updates (@number_applied to be applied, @number_incompatible skipped)', 
+      array('@number_applied' =&gt; $count - $incompatible_count, '@number_incompatible' =&gt; $incompatible_count)
+      );
+    }
+    else {
+      $form['start']['#title'] = format_plural($count, '1 pending update', '@count pending updates');
+    }
+    $form['has_js'] = array(
+      '#type' =&gt; 'hidden',
+      '#default_value' =&gt; FALSE,
+    );
+    $form['actions'] = array('#type' =&gt; 'actions');
+    $form['actions']['submit'] = array(
+      '#type' =&gt; 'submit',
+      '#value' =&gt; 'Apply pending updates',
+    );
+  }
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/update.php/function/update_script_selection_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/update.php/function/update_script_selection_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

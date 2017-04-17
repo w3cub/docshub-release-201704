@@ -1,0 +1,132 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_manager_update_ready_form_submit - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form submission handler for update_manager_update_ready_form(). ">
+  <meta name="keywords" content="function, update, manager, ready, form, submit, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-update-update.manager.inc/function/update_manager_update_ready_form_submit/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_manager_update_ready_form_submit</h1>     <pre class="signature">update_manager_update_ready_form_submit($form, &amp;$form_state)</pre> <p>Form submission handler for <a href="../../update_manager_update_ready_form/7.x/" title="Form constructor for the update ready form." class="local">update_manager_update_ready_form</a>().</p> <p>If the site administrator requested that the site is put offline during the update, do so now. Otherwise, pull information about all the required updates out of the SESSION, figure out what Drupal\Core\Updater\Updater class is needed for each one, generate an array of update operations to perform, and hand it all off to <a href="../../../../modules-system-system.module/function/system_authorized_init/7.x/" title="Setup a given callback to run via authorize.php with elevated privileges." class="local">system_authorized_init</a>(), then redirect to <a href="../../../../authorize.php/7.x/" title="Administrative script for running authorized file operations." class="local">authorize.php</a>.</p> <h3>See also</h3> <p> <a href="../../../../modules-update-update.authorize.inc/function/update_authorize_run_update/7.x/" title="Updates existing projects when invoked by authorize.php." class="local">update_authorize_run_update</a>()</p> <p><a href="../../../../modules-system-system.module/function/system_authorized_init/7.x/" title="Setup a given callback to run via authorize.php with elevated privileges." class="local">system_authorized_init</a>()</p> <p><a href="../../../../modules-system-system.module/function/system_authorized_get_url/7.x/" title="Return the URL for the authorize.php script." class="local">system_authorized_get_url</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-afc25b65fd0dbcf4c7bd1c8efcae95bc"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/update_manager_update/7.x/">Update Manager module: update</a></dt> <dd>Update Manager module functionality for updating existing code.</dd> </dl> </div> </div> <h3>File</h3> 
+<dl> <dt>modules/update/<a href="../../../7.x/">update.manager.inc</a>, line 423</dt> <dd>Administrative screens and processing functions of the Update Manager module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_manager_update_ready_form_submit($form, &amp;$form_state) {
+  // Store maintenance_mode setting so we can restore it when done.
+  $_SESSION['maintenance_mode'] = variable_get('maintenance_mode', FALSE);
+  if ($form_state['values']['maintenance_mode'] == TRUE) {
+    variable_set('maintenance_mode', TRUE);
+  }
+
+  if (!empty($_SESSION['update_manager_update_projects'])) {
+    // Make sure the Updater registry is loaded.
+    drupal_get_updaters();
+
+    $updates = array();
+    $directory = _update_manager_extract_directory();
+
+    $projects = $_SESSION['update_manager_update_projects'];
+    unset($_SESSION['update_manager_update_projects']);
+
+    foreach ($projects as $project =&gt; $url) {
+      $project_location = $directory . '/' . $project;
+      $updater = Updater::factory($project_location);
+      $project_real_location = drupal_realpath($project_location);
+      $updates[] = array(
+        'project' =&gt; $project,
+        'updater_name' =&gt; get_class($updater),
+        'local_url' =&gt; $project_real_location,
+      );
+    }
+
+    // If the owner of the last directory we extracted is the same as the
+    // owner of our configuration directory (e.g. sites/default) where we're
+    // trying to install the code, there's no need to prompt for FTP/SSH
+    // credentials. Instead, we instantiate a FileTransferLocal and invoke
+    // update_authorize_run_update() directly.
+    if (fileowner($project_real_location) == fileowner(conf_path())) {
+      module_load_include('inc', 'update', 'update.authorize');
+      $filetransfer = new FileTransferLocal(DRUPAL_ROOT);
+      update_authorize_run_update($filetransfer, $updates);
+    }
+    // Otherwise, go through the regular workflow to prompt for FTP/SSH
+    // credentials and invoke update_authorize_run_update() indirectly with
+    // whatever FileTransfer object authorize.php creates for us.
+    else {
+      system_authorized_init('update_authorize_run_update', drupal_get_path('module', 'update') . '/update.authorize.inc', array($updates), t('Update manager'));
+      $form_state['redirect'] = system_authorized_get_url();
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!update!update.manager.inc/function/update_manager_update_ready_form_submit/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!update!update.manager.inc/function/update_manager_update_ready_form_submit/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

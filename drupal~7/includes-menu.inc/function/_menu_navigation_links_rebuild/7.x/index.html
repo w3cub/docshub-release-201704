@@ -1,0 +1,181 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_menu_navigation_links_rebuild - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Builds menu links for the items in the menu router. ">
+  <meta name="keywords" content="function, menu, navigation, links, rebuild, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-menu.inc/function/_menu_navigation_links_rebuild/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _menu_navigation_links_rebuild</h1>     <pre class="signature">_menu_navigation_links_rebuild($menu)</pre> <p>Builds menu links for the items in the menu router.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-365a7cd68488d7ced985d7ad8ed26659"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/menu/7.x/">Menu system</a></dt> <dd>Define the navigation menus, and route page requests to code based on URLs.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">menu.inc</a>, line 2880</dt> <dd>API for the Drupal menu system.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _menu_navigation_links_rebuild($menu) {
+  // Add normal and suggested items as links.
+  $menu_links = array();
+  foreach ($menu as $path =&gt; $item) {
+    if ($item['_visible']) {
+      $menu_links[$path] = $item;
+      $sort[$path] = $item['_number_parts'];
+    }
+  }
+  if ($menu_links) {
+    // Keep an array of processed menu links, to allow menu_link_save() to
+    // check this for parents instead of querying the database.
+    $parent_candidates = array();
+    // Make sure no child comes before its parent.
+    array_multisort($sort, SORT_NUMERIC, $menu_links);
+
+    foreach ($menu_links as $key =&gt; $item) {
+      $existing_item = db_select('menu_links')
+        -&gt;fields('menu_links')
+        -&gt;condition('link_path', $item['path'])
+        -&gt;condition('module', 'system')
+        -&gt;execute()-&gt;fetchAssoc();
+      if ($existing_item) {
+        $item['mlid'] = $existing_item['mlid'];
+        // A change in hook_menu may move the link to a different menu
+        if (empty($item['menu_name']) || ($item['menu_name'] == $existing_item['menu_name'])) {
+          $item['menu_name'] = $existing_item['menu_name'];
+          $item['plid'] = $existing_item['plid'];
+        }
+        else {
+          // It moved to a new menu. Let menu_link_save() try to find a new
+          // parent based on the path.
+          unset($item['plid']);
+        }
+        $item['has_children'] = $existing_item['has_children'];
+        $item['updated'] = $existing_item['updated'];
+      }
+      if ($existing_item &amp;&amp; $existing_item['customized']) {
+        $parent_candidates[$existing_item['mlid']] = $existing_item;
+      }
+      else {
+        $item = _menu_link_build($item);
+        menu_link_save($item, $existing_item, $parent_candidates);
+        $parent_candidates[$item['mlid']] = $item;
+        unset($menu_links[$key]);
+      }
+    }
+  }
+  $paths = array_keys($menu);
+  // Updated and customized items whose router paths are gone need new ones.
+  $result = db_select('menu_links', NULL, array('fetch' =&gt; PDO::FETCH_ASSOC))
+    -&gt;fields('menu_links', array(
+      'link_path',
+      'mlid',
+      'router_path',
+      'updated',
+    ))
+    -&gt;condition(db_or()
+      -&gt;condition('updated', 1)
+      -&gt;condition(db_and()
+        -&gt;condition('router_path', $paths, 'NOT IN')
+        -&gt;condition('external', 0)
+        -&gt;condition('customized', 1)
+        )
+      )
+    -&gt;execute();
+  foreach ($result as $item) {
+    $router_path = _menu_find_router_path($item['link_path']);
+    if (!empty($router_path) &amp;&amp; ($router_path != $item['router_path'] || $item['updated'])) {
+      // If the router path and the link path matches, it's surely a working
+      // item, so we clear the updated flag.
+      $updated = $item['updated'] &amp;&amp; $router_path != $item['link_path'];
+      db_update('menu_links')
+        -&gt;fields(array(
+          'router_path' =&gt; $router_path,
+          'updated' =&gt; (int) $updated,
+        ))
+        -&gt;condition('mlid', $item['mlid'])
+        -&gt;execute();
+    }
+  }
+  // Find any item whose router path does not exist any more.
+  $result = db_select('menu_links')
+    -&gt;fields('menu_links')
+    -&gt;condition('router_path', $paths, 'NOT IN')
+    -&gt;condition('external', 0)
+    -&gt;condition('updated', 0)
+    -&gt;condition('customized', 0)
+    -&gt;orderBy('depth', 'DESC')
+    -&gt;execute();
+  // Remove all such items. Starting from those with the greatest depth will
+  // minimize the amount of re-parenting done by menu_link_delete().
+  foreach ($result as $item) {
+    _menu_delete_item($item, TRUE);
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!menu.inc/function/_menu_navigation_links_rebuild/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!menu.inc/function/_menu_navigation_links_rebuild/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

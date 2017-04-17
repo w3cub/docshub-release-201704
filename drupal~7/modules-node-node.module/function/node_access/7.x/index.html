@@ -1,0 +1,181 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Node_access - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Determines whether the current user may perform the operation on the node. ">
+  <meta name="keywords" content="function, node, access, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-node-node.module/function/node_access/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function node_access</h1>     <pre class="signature">node_access($op, $node, $account = NULL)</pre> <p>Determines whether the current user may perform the operation on the node.</p> <h3>Parameters</h3> <p> <strong>$op</strong>: The operation to be performed on the node. Possible values are:</p> <ul> <li>"view"</li> <li>"update"</li> <li>"delete"</li> <li>"create"</li> </ul> <p><strong>$node</strong>: The node object on which the operation is to be performed, or node type (e.g. 'forum') for "create" operation.</p> <p><strong>$account</strong>: Optional, a user object representing the user for whom the operation is to be performed. Determines access for a user other than the current user.</p> <h3>Return value</h3> <p> TRUE if the operation may be performed, FALSE otherwise.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-08f7afc33fb45e5add7e67d873ec95b9"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/node_access/7.x/">Node access rights</a></dt> <dd>The node access system determines who can do what to which nodes.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/node/<a href="../../../7.x/">node.module</a>, line 2990</dt> <dd>The core that allows content to be submitted to the site. Modules and scripts may programmatically submit nodes using the usual form API pattern.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function node_access($op, $node, $account = NULL) {
+  $rights = &amp;drupal_static(__FUNCTION__, array());
+
+  if (!$node || !in_array($op, array('view', 'update', 'delete', 'create'), TRUE)) {
+    // If there was no node to check against, or the $op was not one of the
+    // supported ones, we return access denied.
+    return FALSE;
+  }
+  // If no user object is supplied, the access check is for the current user.
+  if (empty($account)) {
+    $account = $GLOBALS['user'];
+  }
+
+  // $node may be either an object or a node type. Since node types cannot be
+  // an integer, use either nid or type as the static cache id.
+
+  $cid = is_object($node) ? $node-&gt;nid : $node;
+
+  // If we've already checked access for this node, user and op, return from
+  // cache.
+  if (isset($rights[$account-&gt;uid][$cid][$op])) {
+    return $rights[$account-&gt;uid][$cid][$op];
+  }
+
+  if (user_access('bypass node access', $account)) {
+    $rights[$account-&gt;uid][$cid][$op] = TRUE;
+    return TRUE;
+  }
+  if (!user_access('access content', $account)) {
+    $rights[$account-&gt;uid][$cid][$op] = FALSE;
+    return FALSE;
+  }
+
+  // We grant access to the node if both of the following conditions are met:
+  // - No modules say to deny access.
+  // - At least one module says to grant access.
+  // If no module specified either allow or deny, we fall back to the
+  // node_access table.
+  $access = module_invoke_all('node_access', $node, $op, $account);
+  if (in_array(NODE_ACCESS_DENY, $access, TRUE)) {
+    $rights[$account-&gt;uid][$cid][$op] = FALSE;
+    return FALSE;
+  }
+  elseif (in_array(NODE_ACCESS_ALLOW, $access, TRUE)) {
+    $rights[$account-&gt;uid][$cid][$op] = TRUE;
+    return TRUE;
+  }
+
+  // Check if authors can view their own unpublished nodes.
+  if ($op == 'view' &amp;&amp; !$node-&gt;status &amp;&amp; user_access('view own unpublished content', $account) &amp;&amp; $account-&gt;uid == $node-&gt;uid &amp;&amp; $account-&gt;uid != 0) {
+    $rights[$account-&gt;uid][$cid][$op] = TRUE;
+    return TRUE;
+  }
+
+  // If the module did not override the access rights, use those set in the
+  // node_access table.
+  if ($op != 'create' &amp;&amp; $node-&gt;nid) {
+    if (module_implements('node_grants')) {
+      $query = db_select('node_access');
+      $query-&gt;addExpression('1');
+      $query-&gt;condition('grant_' . $op, 1, '&gt;=');
+      $nids = db_or()-&gt;condition('nid', $node-&gt;nid);
+      if ($node-&gt;status) {
+        $nids-&gt;condition('nid', 0);
+      }
+      $query-&gt;condition($nids);
+      $query-&gt;range(0, 1);
+
+      $grants = db_or();
+      foreach (node_access_grants($op, $account) as $realm =&gt; $gids) {
+        foreach ($gids as $gid) {
+          $grants-&gt;condition(db_and()
+            -&gt;condition('gid', $gid)
+            -&gt;condition('realm', $realm)
+            );
+        }
+      }
+      if (count($grants) &gt; 0) {
+        $query-&gt;condition($grants);
+      }
+      $result = (bool) $query
+      -&gt;execute()
+        -&gt;fetchField();
+      $rights[$account-&gt;uid][$cid][$op] = $result;
+      return $result;
+    }
+    elseif (is_object($node) &amp;&amp; $op == 'view' &amp;&amp; $node-&gt;status) {
+      // If no modules implement hook_node_grants(), the default behavior is to
+      // allow all users to view published nodes, so reflect that here.
+      $rights[$account-&gt;uid][$cid][$op] = TRUE;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!node!node.module/function/node_access/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!node!node.module/function/node_access/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,146 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Aggregator_refresh - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Checks a news feed for new items. ">
+  <meta name="keywords" content="function, aggregator, refresh, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-aggregator-aggregator.module/function/aggregator_refresh/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function aggregator_refresh</h1>     <pre class="signature">aggregator_refresh($feed)</pre> <p>Checks a news feed for new items.</p> <h3>Parameters</h3> <p> <strong>$feed</strong>: An object describing the feed to be refreshed.</p>  <h3>File</h3> 
+<dl> <dt>modules/aggregator/<a href="../../../7.x/">aggregator.module</a>, line 612</dt> <dd>Used to aggregate syndicated content (RSS, RDF, and Atom).</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function aggregator_refresh($feed) {
+  // Store feed URL to track changes.
+  $feed_url = $feed-&gt;url;
+
+  // Fetch the feed.
+  list($fetcher, $parser, $processors) = _aggregator_get_variables();
+  $success = module_invoke($fetcher, 'aggregator_fetch', $feed);
+
+  // We store the hash of feed data in the database. When refreshing a
+  // feed we compare stored hash and new hash calculated from downloaded
+  // data. If both are equal we say that feed is not updated.
+  $hash = hash('sha256', $feed-&gt;source_string);
+
+  if ($success &amp;&amp; ($feed-&gt;hash != $hash)) {
+    // Parse the feed.
+    if (module_invoke($parser, 'aggregator_parse', $feed)) {
+      // Update feed with parsed data.
+      db_merge('aggregator_feed')
+        -&gt;key(array('fid' =&gt; $feed-&gt;fid))
+        -&gt;fields(array(
+          'url' =&gt; $feed-&gt;url,
+          'link' =&gt; empty($feed-&gt;link) ? $feed-&gt;url : $feed-&gt;link,
+          'description' =&gt; empty($feed-&gt;description) ? '' : $feed-&gt;description,
+          'image' =&gt; empty($feed-&gt;image) ? '' : $feed-&gt;image,
+          'hash' =&gt; $hash,
+          'etag' =&gt; empty($feed-&gt;etag) ? '' : $feed-&gt;etag,
+          'modified' =&gt; empty($feed-&gt;modified) ? 0 : $feed-&gt;modified,
+        ))
+        -&gt;execute();
+
+      // Log if feed URL has changed.
+      if ($feed-&gt;url != $feed_url) {
+        watchdog('aggregator', 'Updated URL for feed %title to %url.', array('%title' =&gt; $feed-&gt;title, '%url' =&gt; $feed-&gt;url));
+      }
+
+      watchdog('aggregator', 'There is new syndicated content from %site.', array('%site' =&gt; $feed-&gt;title));
+      drupal_set_message(t('There is new syndicated content from %site.', array('%site' =&gt; $feed-&gt;title)));
+
+      // If there are items on the feed, let all enabled processors do their work on it.
+      if (@count($feed-&gt;items)) {
+        foreach ($processors as $processor) {
+          module_invoke($processor, 'aggregator_process', $feed);
+        }
+      }
+    }
+  }
+  else {
+    drupal_set_message(t('There is no new syndicated content from %site.', array('%site' =&gt; $feed-&gt;title)));
+  }
+
+  // Regardless of successful or not, indicate that this feed has been checked.
+  db_update('aggregator_feed')
+    -&gt;fields(array('checked' =&gt; REQUEST_TIME, 'queued' =&gt; 0))
+    -&gt;condition('fid', $feed-&gt;fid)
+    -&gt;execute();
+
+  // Expire old feed items.
+  if (function_exists('aggregator_expire')) {
+    aggregator_expire($feed);
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!aggregator!aggregator.module/function/aggregator_refresh/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!aggregator!aggregator.module/function/aggregator_refresh/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

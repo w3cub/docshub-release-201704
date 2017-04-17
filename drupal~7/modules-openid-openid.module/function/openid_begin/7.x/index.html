@@ -1,0 +1,142 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Openid_begin - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" The initial step of OpenID authentication responsible for the following&#58; ">
+  <meta name="keywords" content="function, openid, begin, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-openid-openid.module/function/openid_begin/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function openid_begin</h1>     <pre class="signature">openid_begin($claimed_id, $return_to = '', $form_values = array())</pre> <p>The initial step of OpenID authentication responsible for the following:</p> <ul> <li>Perform discovery on the claimed OpenID.</li> <li>If possible, create an association with the Provider's endpoint.</li> <li>Create the authentication request.</li> <li>Perform the appropriate redirect.</li> </ul> <h3>Parameters</h3> <p> <strong>$claimed_id The OpenID to authenticate</strong>:</p> <p><strong>$return_to The endpoint to return to from the OpenID Provider</strong>:</p>  <h3>File</h3> 
+<dl> <dt>modules/openid/<a href="../../../7.x/">openid.module</a>, line 261</dt> <dd>Implement OpenID Relying Party support for Drupal</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function openid_begin($claimed_id, $return_to = '', $form_values = array()) {
+  module_load_include('inc', 'openid');
+
+  $service = NULL;
+  $claimed_id = openid_normalize($claimed_id);
+  $discovery = openid_discovery($claimed_id);
+
+  if (!empty($discovery['services'])) {
+    $service = _openid_select_service($discovery['services']);
+  }
+
+  // Quit if the discovery result was empty or if we can't select any service.
+  if (!$discovery || !$service) {
+    form_set_error('openid_identifier', t('Sorry, that is not a valid OpenID. Ensure you have spelled your ID correctly.'));
+    return;
+  }
+
+  // Set claimed id from discovery.
+  if (!empty($discovery['claimed_id'])) {
+    $claimed_id = $discovery['claimed_id'];
+  }
+
+  // Store discovered information in the users' session so we don't have to rediscover.
+  $_SESSION['openid']['service'] = $service;
+  // Store the claimed id
+  $_SESSION['openid']['claimed_id'] = $claimed_id;
+  // Store the login form values so we can pass them to
+  // user_exteral_login later.
+  $_SESSION['openid']['user_login_values'] = $form_values;
+
+  // If a supported math library is present, then create an association.
+  $assoc_handle = '';
+  if (_openid_get_math_library()) {
+    $assoc_handle = openid_association($service['uri']);
+  }
+
+  if (in_array('http://specs.openid.net/auth/2.0/server', $service['types'])) {
+    // User entered an OP Identifier.
+    $claimed_id = $identity = 'http://specs.openid.net/auth/2.0/identifier_select';
+  }
+  else {
+    // Use Claimed ID and/or OP-Local Identifier from service description, if
+    // available.
+    if (!empty($service['claimed_id'])) {
+      $claimed_id = $service['claimed_id'];
+    }
+    $identity = !empty($service['identity']) ? $service['identity'] : $claimed_id;
+  }
+  $request = openid_authentication_request($claimed_id, $identity, $return_to, $assoc_handle, $service);
+
+  if ($service['version'] == 2) {
+    openid_redirect($service['uri'], $request);
+  }
+  else {
+    openid_redirect_http($service['uri'], $request);
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!openid!openid.module/function/openid_begin/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!openid!openid.module/function/openid_begin/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

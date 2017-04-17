@@ -1,0 +1,187 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Field_ui_field_overview_form_submit - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form submission handler for field_ui_field_overview_form(). ">
+  <meta name="keywords" content="function, field, ui, overview, form, submit, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-field_ui-field_ui.admin.inc/function/field_ui_field_overview_form_submit/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function field_ui_field_overview_form_submit</h1>     <pre class="signature">field_ui_field_overview_form_submit($form, &amp;$form_state)</pre> <p>Form submission handler for <a href="../../field_ui_field_overview_form/7.x/" title="Form constructor for the 'Manage fields' form of a bundle." class="local">field_ui_field_overview_form</a>().</p> <h3>See also</h3> <p> <a href="../../field_ui_field_overview_form_validate/7.x/" title="Form validation handler for field_ui_field_overview_form()." class="local">field_ui_field_overview_form_validate</a>()</p> <h3>File</h3> 
+<dl> <dt>modules/field_ui/<a href="../../../7.x/">field_ui.admin.inc</a>, line 774</dt> <dd>Administrative interface for custom field type creation.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function field_ui_field_overview_form_submit($form, &amp;$form_state) {
+  $form_values = $form_state['values']['fields'];
+  $entity_type = $form['#entity_type'];
+  $bundle = $form['#bundle'];
+  $admin_path = _field_ui_bundle_admin_path($entity_type, $bundle);
+
+  $bundle_settings = field_bundle_settings($entity_type, $bundle);
+
+  // Update field weights.
+  foreach ($form_values as $key =&gt; $values) {
+    if (in_array($key, $form['#fields'])) {
+      $instance = field_read_instance($entity_type, $key, $bundle);
+      $instance['widget']['weight'] = $values['weight'];
+      field_update_instance($instance);
+    }
+    elseif (in_array($key, $form['#extra'])) {
+      $bundle_settings['extra_fields']['form'][$key]['weight'] = $values['weight'];
+    }
+  }
+
+  field_bundle_settings($entity_type, $bundle, $bundle_settings);
+
+  $destinations = array();
+
+  // Create new field.
+  $field = array();
+  if (!empty($form_values['_add_new_field']['field_name'])) {
+    $values = $form_values['_add_new_field'];
+
+    $field = array(
+      'field_name' =&gt; $values['field_name'],
+      'type' =&gt; $values['type'],
+      'translatable' =&gt; $values['translatable'],
+    );
+    $instance = array(
+      'field_name' =&gt; $field['field_name'],
+      'entity_type' =&gt; $entity_type,
+      'bundle' =&gt; $bundle,
+      'label' =&gt; $values['label'],
+      'widget' =&gt; array(
+        'type' =&gt; $values['widget_type'],
+        'weight' =&gt; $values['weight'],
+      ),
+    );
+
+    // Create the field and instance.
+    try {
+      field_create_field($field);
+      field_create_instance($instance);
+
+      $destinations[] = $admin_path . '/fields/' . $field['field_name'] . '/field-settings';
+      $destinations[] = $admin_path . '/fields/' . $field['field_name'];
+
+      // Store new field information for any additional submit handlers.
+      $form_state['fields_added']['_add_new_field'] = $field['field_name'];
+    }
+    catch (Exception $e) {
+      drupal_set_message(t('There was a problem creating field %label: !message', array('%label' =&gt; $instance['label'], '!message' =&gt; $e-&gt;getMessage())), 'error');
+    }
+  }
+
+  // Add existing field.
+  if (!empty($form_values['_add_existing_field']['field_name'])) {
+    $values = $form_values['_add_existing_field'];
+    $field = field_info_field($values['field_name']);
+    if (!empty($field['locked'])) {
+      drupal_set_message(t('The field %label cannot be added because it is locked.', array('%label' =&gt; $values['label'])), 'error');
+    }
+    else {
+      $instance = array(
+        'field_name' =&gt; $field['field_name'],
+        'entity_type' =&gt; $entity_type,
+        'bundle' =&gt; $bundle,
+        'label' =&gt; $values['label'],
+        'widget' =&gt; array(
+          'type' =&gt; $values['widget_type'],
+          'weight' =&gt; $values['weight'],
+        ),
+      );
+
+      try {
+        field_create_instance($instance);
+        $destinations[] = $admin_path . '/fields/' . $instance['field_name'] . '/edit';
+        // Store new field information for any additional submit handlers.
+        $form_state['fields_added']['_add_existing_field'] = $instance['field_name'];
+      }
+      catch (Exception $e) {
+        drupal_set_message(t('There was a problem creating field instance %label: @message.', array('%label' =&gt; $instance['label'], '@message' =&gt; $e-&gt;getMessage())), 'error');
+      }
+    }
+  }
+
+  if ($destinations) {
+    $destination = drupal_get_destination();
+    $destinations[] = $destination['destination'];
+    unset($_GET['destination']);
+    $form_state['redirect'] = field_ui_get_destinations($destinations);
+  }
+  else {
+    drupal_set_message(t('Your settings have been saved.'));
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!field_ui!field_ui.admin.inc/function/field_ui_field_overview_form_submit/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!field_ui!field_ui.admin.inc/function/field_ui_field_overview_form_submit/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

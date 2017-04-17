@@ -1,0 +1,196 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_mail - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Composes and optionally sends an e-mail message. ">
+  <meta name="keywords" content="function, drupal, mail, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-mail.inc/function/drupal_mail/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_mail</h1>     <pre class="signature">drupal_mail($module, $key, $to, $language, $params = array(), $from = NULL, $send = TRUE)</pre> <p>Composes and optionally sends an e-mail message.</p> <p>Sending an e-mail works with defining an e-mail template (subject, text and possibly e-mail headers) and the replacement values to use in the appropriate places in the template. Processed e-mail templates are requested from <a href="../../../../modules-system-system.api.php/function/hook_mail/7.x/" title="Prepare a message based on parameters; called from drupal_mail()." class="local">hook_mail</a>() from the module sending the e-mail. Any module can modify the composed e-mail message array using <a href="../../../../modules-system-system.api.php/function/hook_mail_alter/7.x/" title="Alter an email message created with the drupal_mail() function." class="local">hook_mail_alter</a>(). Finally <a href="../../drupal_mail_system/7.x/" title="Returns an object that implements the MailSystemInterface interface." class="local">drupal_mail_system</a>()-&gt;mail() sends the e-mail, which can be reused if the exact same composed e-mail is to be sent to multiple recipients.</p> <p>Finding out what language to send the e-mail with needs some consideration. If you send e-mail to a user, her preferred language should be fine, so use <a href="../../../../modules-user-user.module/function/user_preferred_language/7.x/" title="Get the language object preferred by the user. This user preference can
+be set on the user account editing page, and is only available if there
+are more than one languages enabled on the site. If the user did not
+choose a preferred language, or is the…" class="local">user_preferred_language</a>(). If you send email based on form values filled on the page, there are two additional choices if you are not sending the e-mail to a user on the site. You can either use the language used to generate the page ($language global variable) or the site default language. See <a href="../../../../includes-bootstrap.inc/function/language_default/7.x/" title="Returns the default language, as an object, or one of its properties." class="local">language_default</a>(). The former is good if sending e-mail to the person filling the form, the later is good if you send e-mail to an address previously set up (like contact addresses in a contact form).</p> <p>Taking care of always using the proper language is even more important when sending e-mails in a row to multiple users. Hook_mail() abstracts whether the mail text comes from an administrator setting or is static in the source code. It should also deal with common mail tokens, only receiving $params which are unique to the actual e-mail at hand.</p> <p>An example:</p> <pre class="php" data-language="php">  function example_notify($accounts) {
+    foreach ($accounts as $account) {
+      $params['account'] = $account;
+      // example_mail() will be called based on the first drupal_mail() parameter.
+      drupal_mail('example', 'notice', $account-&gt;mail, user_preferred_language($account), $params);
+    }
+  }
+
+  function example_mail($key, &amp;$message, $params) {
+    $data['user'] = $params['account'];
+    $options['language'] = $message['language'];
+    user_mail_tokens($variables, $data, $options);
+    switch($key) {
+      case 'notice':
+        // If the recipient can receive such notices by instant-message, do
+        // not send by email.
+        if (example_im_send($key, $message, $params)) {
+          $message['send'] = FALSE;
+          break;
+        }
+        $langcode = $message['language']-&gt;language;
+        $message['subject'] = t('Notification from !site', $variables, array('langcode' =&gt; $langcode));
+        $message['body'][] = t("Dear !username\n\nThere is new content available on the site.", $variables, array('langcode' =&gt; $langcode));
+        break;
+    }
+  }
+</pre>
+<p> Another example, which uses <a href="../7.x/" title="Composes and optionally sends an e-mail message." class="local active">drupal_mail</a>() to format a message for sending later:</p> <pre class="php" data-language="php">  $params = array('current_conditions' =&gt; $data);
+  $to = 'user@example.com';
+  $message = drupal_mail('example', 'notice', $to, $language, $params, FALSE);
+  // Only add to the spool if sending was not canceled.
+  if ($message['send']) {
+    example_spool_message($message);
+  }
+</pre> <h3>Parameters</h3> <p> <strong>$module</strong>: A module name to invoke <a href="../../../../modules-system-system.api.php/function/hook_mail/7.x/" title="Prepare a message based on parameters; called from drupal_mail()." class="local">hook_mail</a>() on. The {$module}_mail() hook will be called to complete the $message structure which will already contain common defaults.</p> <p><strong>$key</strong>: A key to identify the e-mail sent. The final e-mail id for e-mail altering will be {$module}_{$key}.</p> <p><strong>$to</strong>: The e-mail address or addresses where the message will be sent to. The formatting of this string will be validated with the <a href="http://php.net/manual/filter.filters.validate.php" target="_blank">PHP e-mail validation filter.</a> Some examples are:</p> <ul> <li><a href="../mailto:user@example.com/">user@example.com</a></li> <li>
+<a href="../mailto:user@example.com/">user@example.com</a>, <a href="../mailto:anotheruser@example.com/">anotheruser@example.com</a>
+</li> <li>User &lt;<a href="../mailto:user@example.com/">user@example.com</a>&gt;</li> <li>User &lt;<a href="../mailto:user@example.com/">user@example.com</a>&gt;, Another User &lt;<a href="../mailto:anotheruser@example.com/">anotheruser@example.com</a>&gt;</li> </ul> <p><strong>$language</strong>: Language object to use to compose the e-mail.</p> <p><strong>$params</strong>: Optional parameters to build the e-mail.</p> <p><strong>$from</strong>: Sets From to this value, if given.</p> <p><strong>$send</strong>: If TRUE, <a href="../7.x/" title="Composes and optionally sends an e-mail message." class="local active">drupal_mail</a>() will call <a href="../../drupal_mail_system/7.x/" title="Returns an object that implements the MailSystemInterface interface." class="local">drupal_mail_system</a>()-&gt;mail() to deliver the message, and store the result in $message['result']. Modules implementing <a href="../../../../modules-system-system.api.php/function/hook_mail_alter/7.x/" title="Alter an email message created with the drupal_mail() function." class="local">hook_mail_alter</a>() may cancel sending by setting $message['send'] to FALSE.</p> <h3>Return value</h3> <p> The $message array structure containing all details of the message. If already sent ($send = TRUE), then the 'result' element will contain the success indicator of the e-mail, failure being already written to the watchdog. (Success means nothing more than the message being accepted at php-level, which still doesn't guarantee it to be delivered.)</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">mail.inc</a>, line 122</dt> <dd>API functions for processing and sending e-mail.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_mail($module, $key, $to, $language, $params = array(), $from = NULL, $send = TRUE) {
+  $default_from = variable_get('site_mail', ini_get('sendmail_from'));
+
+  // Bundle up the variables into a structured array for altering.
+  $message = array(
+    'id' =&gt; $module . '_' . $key,
+    'module' =&gt; $module,
+    'key' =&gt; $key,
+    'to' =&gt; $to,
+    'from' =&gt; isset($from) ? $from : $default_from,
+    'language' =&gt; $language,
+    'params' =&gt; $params,
+    'send' =&gt; TRUE,
+    'subject' =&gt; '',
+    'body' =&gt; array()
+  );
+
+  // Build the default headers
+  $headers = array(
+    'MIME-Version' =&gt; '1.0',
+    'Content-Type' =&gt; 'text/plain; charset=UTF-8; format=flowed; delsp=yes',
+    'Content-Transfer-Encoding' =&gt; '8Bit',
+    'X-Mailer' =&gt; 'Drupal'
+  );
+  if ($default_from) {
+    // To prevent e-mail from looking like spam, the addresses in the Sender and
+    // Return-Path headers should have a domain authorized to use the originating
+    // SMTP server.
+    $headers['From'] = $headers['Sender'] = $headers['Return-Path'] = $default_from;
+  }
+  if ($from) {
+    $headers['From'] = $from;
+  }
+  $message['headers'] = $headers;
+
+  // Build the e-mail (get subject and body, allow additional headers) by
+  // invoking hook_mail() on this module. We cannot use module_invoke() as
+  // we need to have $message by reference in hook_mail().
+  if (function_exists($function = $module . '_mail')) {
+    $function($key, $message, $params);
+  }
+
+  // Invoke hook_mail_alter() to allow all modules to alter the resulting e-mail.
+  drupal_alter('mail', $message);
+
+  // Retrieve the responsible implementation for this message.
+  $system = drupal_mail_system($module, $key);
+
+  // Format the message body.
+  $message = $system-&gt;format($message);
+
+  // Optionally send e-mail.
+  if ($send) {
+    // The original caller requested sending. Sending was canceled by one or
+    // more hook_mail_alter() implementations. We set 'result' to NULL, because
+    // FALSE indicates an error in sending.
+    if (empty($message['send'])) {
+      $message['result'] = NULL;
+    }
+    // Sending was originally requested and was not canceled.
+    else {
+      $message['result'] = $system-&gt;mail($message);
+      // Log errors.
+      if (!$message['result']) {
+        watchdog('mail', 'Error sending e-mail (from %from to %to).', array('%from' =&gt; $message['from'], '%to' =&gt; $message['to']), WATCHDOG_ERROR);
+        drupal_set_message(t('Unable to send e-mail. Contact the site administrator if the problem persists.'), 'error');
+      }
+    }
+  }
+
+  return $message;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!mail.inc/function/drupal_mail/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!mail.inc/function/drupal_mail/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

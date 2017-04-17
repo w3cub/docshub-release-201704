@@ -1,0 +1,174 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Search_admin_settings - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Menu callback&#58; displays the search module settings page. ">
+  <meta name="keywords" content="function, search, admin, settings, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-search-search.admin.inc/function/search_admin_settings/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function search_admin_settings</h1>     <pre class="signature">search_admin_settings($form)</pre> <p>Menu callback: displays the search module settings page.</p> <h3>See also</h3> <p> <a href="../../search_admin_settings_validate/7.x/" title="Form validation handler for search_admin_settings()." class="local">search_admin_settings_validate</a>()</p> <p><a href="../../search_admin_settings_submit/7.x/" title="Form submission handler for search_admin_settings()." class="local">search_admin_settings_submit</a>()</p> <p><a href="../../search_admin_reindex_submit/7.x/" title="Form submission handler for reindex button on search_admin_settings_form()." class="local">search_admin_reindex_submit</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-f40c2f8c42012d219f6e59d941bdba4c"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../../includes-form.inc/group/forms/7.x/">Form builder functions</a></dt> <dd>Functions that build an abstract representation of a HTML form.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/search/<a href="../../../7.x/">search.admin.inc</a>, line 52</dt> <dd>Admin page callbacks for the search module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function search_admin_settings($form) {
+  // Collect some stats
+  $remaining = 0;
+  $total = 0;
+  foreach (variable_get('search_active_modules', array('node', 'user')) as $module) {
+    if ($status = module_invoke($module, 'search_status')) {
+      $remaining += $status['remaining'];
+      $total += $status['total'];
+    }
+  }
+
+  $count = format_plural($remaining, 'There is 1 item left to index.', 'There are @count items left to index.');
+  $percentage = ((int) min(100, 100 * ($total - $remaining) / max(1, $total))) . '%';
+  $status = '&lt;p&gt;&lt;strong&gt;' . t('%percentage of the site has been indexed.', array('%percentage' =&gt; $percentage)) . ' ' . $count . '&lt;/strong&gt;&lt;/p&gt;';
+  $form['status'] = array('#type' =&gt; 'fieldset', '#title' =&gt; t('Indexing status'));
+  $form['status']['status'] = array('#markup' =&gt; $status);
+  $form['status']['wipe'] = array('#type' =&gt; 'submit', '#value' =&gt; t('Re-index site'), '#submit' =&gt; array('search_admin_reindex_submit'));
+
+  $items = drupal_map_assoc(array(10, 20, 50, 100, 200, 500));
+
+  // Indexing throttle:
+  $form['indexing_throttle'] = array(
+    '#type' =&gt; 'fieldset',
+    '#title' =&gt; t('Indexing throttle')
+  );
+  $form['indexing_throttle']['search_cron_limit'] = array(
+    '#type' =&gt; 'select',
+    '#title' =&gt; t('Number of items to index per cron run'),
+    '#default_value' =&gt; variable_get('search_cron_limit', 100),
+    '#options' =&gt; $items,
+    '#description' =&gt; t('The maximum number of items indexed in each pass of a &lt;a href="@cron"&gt;cron maintenance task&lt;/a&gt;. If necessary, reduce the number of items to prevent timeouts and memory errors while indexing.', array('@cron' =&gt; url('admin/reports/status')))
+  );
+  // Indexing settings:
+  $form['indexing_settings'] = array(
+    '#type' =&gt; 'fieldset',
+    '#title' =&gt; t('Indexing settings')
+  );
+  $form['indexing_settings']['info'] = array(
+    '#markup' =&gt; t('&lt;p&gt;&lt;em&gt;Changing the settings below will cause the site index to be rebuilt. The search index is not cleared but systematically updated to reflect the new settings. Searching will continue to work but new content won\'t be indexed until all existing content has been re-indexed.&lt;/em&gt;&lt;/p&gt;&lt;p&gt;&lt;em&gt;The default settings should be appropriate for the majority of sites.&lt;/em&gt;&lt;/p&gt;')
+  );
+  $form['indexing_settings']['minimum_word_size'] = array(
+    '#type' =&gt; 'textfield',
+    '#title' =&gt; t('Minimum word length to index'),
+    '#default_value' =&gt; variable_get('minimum_word_size', 3),
+    '#size' =&gt; 5,
+    '#maxlength' =&gt; 3,
+    '#description' =&gt; t('The number of characters a word has to be to be indexed. A lower setting means better search result ranking, but also a larger database. Each search query must contain at least one keyword that is this size (or longer).'),
+    '#element_validate' =&gt; array('element_validate_integer_positive'),
+  );
+  $form['indexing_settings']['overlap_cjk'] = array(
+    '#type' =&gt; 'checkbox',
+    '#title' =&gt; t('Simple CJK handling'),
+    '#default_value' =&gt; variable_get('overlap_cjk', TRUE),
+    '#description' =&gt; t('Whether to apply a simple Chinese/Japanese/Korean tokenizer based on overlapping sequences. Turn this off if you want to use an external preprocessor for this instead. Does not affect other languages.')
+  );
+
+  $form['active'] = array(
+    '#type' =&gt; 'fieldset',
+    '#title' =&gt; t('Active search modules')
+  );
+  $module_options = _search_get_module_names();
+  $form['active']['search_active_modules'] = array(
+    '#type' =&gt; 'checkboxes',
+    '#title' =&gt; t('Active modules'),
+    '#title_display' =&gt; 'invisible',
+    '#default_value' =&gt; variable_get('search_active_modules', array('node', 'user')),
+    '#options' =&gt; $module_options,
+    '#description' =&gt; t('Choose which search modules are active from the available modules.')
+  );
+  $form['active']['search_default_module'] = array(
+    '#title' =&gt; t('Default search module'),
+    '#type' =&gt; 'radios',
+    '#default_value' =&gt; variable_get('search_default_module', 'node'),
+    '#options' =&gt; $module_options,
+    '#description' =&gt; t('Choose which search module is the default.')
+  );
+  $form['#validate'][] = 'search_admin_settings_validate';
+  $form['#submit'][] = 'search_admin_settings_submit';
+
+  // Per module settings
+  foreach (variable_get('search_active_modules', array('node', 'user')) as $module) {
+    $added_form = module_invoke($module, 'search_admin');
+    if (is_array($added_form)) {
+      $form = array_merge($form, $added_form);
+    }
+  }
+
+  return system_settings_form($form);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!search!search.admin.inc/function/search_admin_settings/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!search!search.admin.inc/function/search_admin_settings/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

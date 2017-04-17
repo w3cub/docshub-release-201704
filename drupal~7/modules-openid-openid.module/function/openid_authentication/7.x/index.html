@@ -1,0 +1,154 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Openid_authentication - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Authenticate a user or attempt registration. ">
+  <meta name="keywords" content="function, openid, authentication, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-openid-openid.module/function/openid_authentication/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function openid_authentication</h1>     <pre class="signature">openid_authentication($response)</pre> <p>Authenticate a user or attempt registration.</p> <h3>Parameters</h3> <p> <strong>$response Response values from the OpenID Provider.</strong>:</p>  <h3>File</h3> 
+<dl> <dt>modules/openid/<a href="../../../7.x/">openid.module</a>, line 658</dt> <dd>Implement OpenID Relying Party support for Drupal</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function openid_authentication($response) {
+  $identity = $response['openid.claimed_id'];
+  $account = user_external_load($identity);
+
+  // Tries to load user account if user_external_load fails due to possibly
+  // incompletely stored OpenID identifier in the authmap.
+  if (!isset($account-&gt;uid) &amp;&amp; variable_get('openid_less_obtrusive_transition', FALSE)) {
+    module_load_include('inc', 'openid');
+    $account = _openid_invalid_openid_transition($identity, $response);
+  }
+
+  if (isset($account-&gt;uid)) {
+    if (!variable_get('user_email_verification', TRUE) || $account-&gt;login) {
+      // Check if user is blocked.
+      $state['values']['name'] = $account-&gt;name;
+      user_login_name_validate(array(), $state);
+      if (!form_get_errors()) {
+        // Load global $user and perform final login tasks.
+        $form_state['uid'] = $account-&gt;uid;
+        user_login_submit(array(), $form_state);
+        // Let other modules act on OpenID login
+        module_invoke_all('openid_response', $response, $account);
+      }
+    }
+    else {
+      drupal_set_message(t('You must validate your email address for this account before logging in via OpenID.'));
+    }
+  }
+  elseif (variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)) {
+    // Register new user.
+
+    // Save response for use in openid_form_user_register_form_alter().
+    $_SESSION['openid']['response'] = $response;
+
+    $form_state['values'] = array();
+    $form_state['values']['op'] = t('Create new account');
+    drupal_form_submit('user_register_form', $form_state);
+
+    if (!empty($form_state['user'])) {
+      module_invoke_all('openid_response', $response, $form_state['user']);
+      drupal_goto();
+    }
+
+    $messages = drupal_get_messages('error');
+    if (empty($form_state['values']['name']) || empty($form_state['values']['mail'])) {
+      // If the OpenID provider did not provide both a user name and an email
+      // address, ask the user to complete the registration manually instead of
+      // showing the error messages about the missing values generated by FAPI.
+      drupal_set_message(t('Complete the registration by filling out the form below. If you already have an account, you can &lt;a href="@login"&gt;log in&lt;/a&gt; now and add your OpenID under "My account".', array('@login' =&gt; url('user/login'))), 'warning');
+    }
+    else {
+      drupal_set_message(t('Account registration using the information provided by your OpenID provider failed due to the reasons listed below. Complete the registration by filling out the form below. If you already have an account, you can &lt;a href="@login"&gt;log in&lt;/a&gt; now and add your OpenID under "My account".', array('@login' =&gt; url('user/login'))), 'warning');
+      // Append form validation errors below the above warning.
+      foreach ($messages['error'] as $message) {
+        drupal_set_message($message, 'error');
+      }
+    }
+
+    // We were unable to register a valid new user. Redirect to the normal
+    // registration page and prefill with the values we received.
+    $destination = drupal_get_destination();
+    unset($_GET['destination']);
+    drupal_goto('user/register', array('query' =&gt; $destination));
+  }
+  else {
+    drupal_set_message(t('Only site administrators can create new user accounts.'), 'error');
+  }
+  drupal_goto();
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!openid!openid.module/function/openid_authentication/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!openid!openid.module/function/openid_authentication/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

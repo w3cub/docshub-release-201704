@@ -1,0 +1,287 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>User_save - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Save changes to a user account or add a new user. ">
+  <meta name="keywords" content="function, user, save, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-user-user.module/function/user_save/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function user_save</h1>     <pre class="signature">user_save($account, $edit = array(), $category = 'account')</pre> <p>Save changes to a user account or add a new user.</p> <p>@todo D8: Drop $edit and fix <a href="../7.x/" title="Save changes to a user account or add a new user." class="local active">user_save</a>() to be consistent with others.</p> <h3>Parameters</h3> <p> <strong>$account</strong>: (optional) The user object to modify or add. If you want to modify an existing user account, you will need to ensure that (a) $account is an object, and (b) you have set $account-&gt;uid to the numeric user ID of the user account you wish to modify. If you want to create a new user account, you can set $account-&gt;is_new to TRUE or omit the $account-&gt;uid field.</p> <p><strong>$edit</strong>: An array of fields and values to save. For example <a href="http://php.net/array" title="array array([mixed $... = ''])
+  Create an array" class="php-manual" target="_blank">array</a>('name' =&gt; 'My name'). Key / value pairs added to the $edit['data'] will be serialized and saved in the {users.data} column.</p> <p><strong>$category</strong>: (optional) The category for storing profile information in.</p> <h3>Return value</h3> <p> A fully-loaded $user object upon successful save or FALSE if the save failed.</p>  <h3>File</h3> 
+<dl> <dt>modules/user/<a href="../../../7.x/">user.module</a>, line 424</dt> <dd>Enables the user registration and login system.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function user_save($account, $edit = array(), $category = 'account') {
+  $transaction = db_transaction();
+  try {
+    if (isset($edit['pass']) &amp;&amp; strlen(trim($edit['pass'])) &gt; 0) {
+      // Allow alternate password hashing schemes.
+      require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+      $edit['pass'] = user_hash_password(trim($edit['pass']));
+      // Abort if the hashing failed and returned FALSE.
+      if (!$edit['pass']) {
+        return FALSE;
+      }
+    }
+    else {
+      // Avoid overwriting an existing password with a blank password.
+      unset($edit['pass']);
+    }
+    if (isset($edit['mail'])) {
+      $edit['mail'] = trim($edit['mail']);
+    }
+
+    // Load the stored entity, if any.
+    if (!empty($account-&gt;uid) &amp;&amp; !isset($account-&gt;original)) {
+      $account-&gt;original = entity_load_unchanged('user', $account-&gt;uid);
+    }
+
+    if (empty($account)) {
+      $account = new stdClass();
+    }
+    if (!isset($account-&gt;is_new)) {
+      $account-&gt;is_new = empty($account-&gt;uid);
+    }
+    // Prepopulate $edit['data'] with the current value of $account-&gt;data.
+    // Modules can add to or remove from this array in hook_user_presave().
+    if (!empty($account-&gt;data)) {
+      $edit['data'] = !empty($edit['data']) ? array_merge($account-&gt;data, $edit['data']) : $account-&gt;data;
+    }
+
+    // Invoke hook_user_presave() for all modules.
+    user_module_invoke('presave', $edit, $account, $category);
+
+    // Invoke presave operations of Field Attach API and Entity API. Those APIs
+    // require a fully-fledged and updated entity object. Therefore, we need to
+    // copy any new property values of $edit into it.
+    foreach ($edit as $key =&gt; $value) {
+      $account-&gt;$key = $value;
+    }
+    field_attach_presave('user', $account);
+    module_invoke_all('entity_presave', $account, 'user');
+
+    if (is_object($account) &amp;&amp; !$account-&gt;is_new) {
+      // Process picture uploads.
+      if (!empty($account-&gt;picture-&gt;fid) &amp;&amp; (!isset($account-&gt;original-&gt;picture-&gt;fid) || $account-&gt;picture-&gt;fid != $account-&gt;original-&gt;picture-&gt;fid)) {
+        $picture = $account-&gt;picture;
+        // If the picture is a temporary file move it to its final location and
+        // make it permanent.
+        if (!$picture-&gt;status) {
+          $info = image_get_info($picture-&gt;uri);
+          $picture_directory = file_default_scheme() . '://' . variable_get('user_picture_path', 'pictures');
+
+          // Prepare the pictures directory.
+          file_prepare_directory($picture_directory, FILE_CREATE_DIRECTORY);
+          $destination = file_stream_wrapper_uri_normalize($picture_directory . '/picture-' . $account-&gt;uid . '-' . REQUEST_TIME . '.' . $info['extension']);
+
+          // Move the temporary file into the final location.
+          if ($picture = file_move($picture, $destination, FILE_EXISTS_RENAME)) {
+            $picture-&gt;status = FILE_STATUS_PERMANENT;
+            $account-&gt;picture = file_save($picture);
+            file_usage_add($picture, 'user', 'user', $account-&gt;uid);
+          }
+        }
+        // Delete the previous picture if it was deleted or replaced.
+        if (!empty($account-&gt;original-&gt;picture-&gt;fid)) {
+          file_usage_delete($account-&gt;original-&gt;picture, 'user', 'user', $account-&gt;uid);
+          file_delete($account-&gt;original-&gt;picture);
+        }
+      }
+      elseif (isset($edit['picture_delete']) &amp;&amp; $edit['picture_delete']) {
+        file_usage_delete($account-&gt;original-&gt;picture, 'user', 'user', $account-&gt;uid);
+        file_delete($account-&gt;original-&gt;picture);
+      }
+      // Save the picture object, if it is set. drupal_write_record() expects
+      // $account-&gt;picture to be a FID.
+      $picture = empty($account-&gt;picture) ? NULL : $account-&gt;picture;
+      $account-&gt;picture = empty($account-&gt;picture-&gt;fid) ? 0 : $account-&gt;picture-&gt;fid;
+
+      // Do not allow 'uid' to be changed.
+      $account-&gt;uid = $account-&gt;original-&gt;uid;
+      // Save changes to the user table.
+      $success = drupal_write_record('users', $account, 'uid');
+      // Restore the picture object.
+      $account-&gt;picture = $picture;
+      if ($success === FALSE) {
+        // The query failed - better to abort the save than risk further
+        // data loss.
+        return FALSE;
+      }
+
+      // Reload user roles if provided.
+      if ($account-&gt;roles != $account-&gt;original-&gt;roles) {
+        db_delete('users_roles')
+          -&gt;condition('uid', $account-&gt;uid)
+          -&gt;execute();
+
+        $query = db_insert('users_roles')-&gt;fields(array('uid', 'rid'));
+        foreach (array_keys($account-&gt;roles) as $rid) {
+          if (!in_array($rid, array(DRUPAL_ANONYMOUS_RID, DRUPAL_AUTHENTICATED_RID))) {
+            $query-&gt;values(array(
+              'uid' =&gt; $account-&gt;uid,
+              'rid' =&gt; $rid,
+            ));
+          }
+        }
+        $query-&gt;execute();
+      }
+
+      // Delete a blocked user's sessions to kick them if they are online.
+      if ($account-&gt;original-&gt;status != $account-&gt;status &amp;&amp; $account-&gt;status == 0) {
+        drupal_session_destroy_uid($account-&gt;uid);
+      }
+
+      // If the password changed, delete all open sessions and recreate
+      // the current one.
+      if ($account-&gt;pass != $account-&gt;original-&gt;pass) {
+        drupal_session_destroy_uid($account-&gt;uid);
+        if ($account-&gt;uid == $GLOBALS['user']-&gt;uid) {
+          drupal_session_regenerate();
+        }
+      }
+
+      // Save Field data.
+      field_attach_update('user', $account);
+
+      // Send emails after we have the new user object.
+      if ($account-&gt;status != $account-&gt;original-&gt;status) {
+        // The user's status is changing; conditionally send notification email.
+        $op = $account-&gt;status == 1 ? 'status_activated' : 'status_blocked';
+        _user_mail_notify($op, $account);
+      }
+
+      // Update $edit with any interim changes to $account.
+      foreach ($account as $key =&gt; $value) {
+        if (!property_exists($account-&gt;original, $key) || $value !== $account-&gt;original-&gt;$key) {
+          $edit[$key] = $value;
+        }
+      }
+      user_module_invoke('update', $edit, $account, $category);
+      module_invoke_all('entity_update', $account, 'user');
+    }
+    else {
+      // Allow 'uid' to be set by the caller. There is no danger of writing an
+      // existing user as drupal_write_record will do an INSERT.
+      if (empty($account-&gt;uid)) {
+        $account-&gt;uid = db_next_id(db_query('SELECT MAX(uid) FROM {users}')-&gt;fetchField());
+      }
+      // Allow 'created' to be set by the caller.
+      if (!isset($account-&gt;created)) {
+        $account-&gt;created = REQUEST_TIME;
+      }
+      $success = drupal_write_record('users', $account);
+      if ($success === FALSE) {
+        // On a failed INSERT some other existing user's uid may be returned.
+        // We must abort to avoid overwriting their account.
+        return FALSE;
+      }
+
+      // Make sure $account is properly initialized.
+      $account-&gt;roles[DRUPAL_AUTHENTICATED_RID] = 'authenticated user';
+
+      field_attach_insert('user', $account);
+      $edit = (array) $account;
+      user_module_invoke('insert', $edit, $account, $category);
+      module_invoke_all('entity_insert', $account, 'user');
+
+      // Save user roles. Skip built-in roles, and ones that were already saved
+      // to the database during hook calls.
+      $rids_to_skip = array_merge(array(DRUPAL_ANONYMOUS_RID, DRUPAL_AUTHENTICATED_RID), db_query('SELECT rid FROM {users_roles} WHERE uid = :uid', array(':uid' =&gt; $account-&gt;uid))-&gt;fetchCol());
+      if ($rids_to_save = array_diff(array_keys($account-&gt;roles), $rids_to_skip)) {
+        $query = db_insert('users_roles')-&gt;fields(array('uid', 'rid'));
+        foreach ($rids_to_save as $rid) {
+          $query-&gt;values(array(
+            'uid' =&gt; $account-&gt;uid,
+            'rid' =&gt; $rid,
+          ));
+        }
+        $query-&gt;execute();
+      }
+    }
+    // Clear internal properties.
+    unset($account-&gt;is_new);
+    unset($account-&gt;original);
+    // Clear the static loading cache.
+    entity_get_controller('user')-&gt;resetCache(array($account-&gt;uid));
+
+    return $account;
+  }
+  catch (Exception $e) {
+    $transaction-&gt;rollback();
+    watchdog_exception('user', $e);
+    throw $e;
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!user!user.module/function/user_save/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!user!user.module/function/user_save/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

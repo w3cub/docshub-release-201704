@@ -1,0 +1,165 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_results_page - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Displays results of the update script with any accompanying errors. ">
+  <meta name="keywords" content="function, update, results, page, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/update.php/function/update_results_page/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_results_page</h1>     <pre class="signature">update_results_page()</pre> <p>Displays results of the update script with any accompanying errors.</p>  <h3>File</h3> 
+<dl> <dt>./<a href="../../../7.x/">update.php</a>, line 164</dt> <dd>Administrative page for handling updates from one Drupal version to another.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_results_page() {
+  drupal_set_title('Drupal database update');
+  $links = update_helpful_links();
+
+  update_task_list();
+  // Report end result.
+  if (module_exists('dblog') &amp;&amp; user_access('access site reports')) {
+    $log_message = ' All errors have been &lt;a href="' . base_path() . '?q=admin/reports/dblog"&gt;logged&lt;/a&gt;.';
+  }
+  else {
+    $log_message = ' All errors have been logged.';
+  }
+
+  if ($_SESSION['update_success']) {
+    $output = '&lt;p&gt;Updates were attempted. If you see no failures below, you may proceed happily back to your &lt;a href="' . base_path() . '"&gt;site&lt;/a&gt;. Otherwise, you may need to update your database manually.' . $log_message . '&lt;/p&gt;';
+  }
+  else {
+    $updates_remaining = reset($_SESSION['updates_remaining']);
+    list($module, $version) = array_pop($updates_remaining);
+    $output = '&lt;p class="error"&gt;The update process was aborted prematurely while running &lt;strong&gt;update #' . $version . ' in ' . $module . '.module&lt;/strong&gt;.' . $log_message;
+    if (module_exists('dblog')) {
+      $output .= ' You may need to check the &lt;code&gt;watchdog&lt;/code&gt; database table manually.';
+    }
+    $output .= '&lt;/p&gt;';
+  }
+
+  if (!empty($GLOBALS['update_free_access'])) {
+    $output .= "&lt;p&gt;&lt;strong&gt;Reminder: don't forget to set the &lt;code&gt;\$update_free_access&lt;/code&gt; value in your &lt;code&gt;settings.php&lt;/code&gt; file back to &lt;code&gt;FALSE&lt;/code&gt;.&lt;/strong&gt;&lt;/p&gt;";
+  }
+
+  $output .= theme('item_list', array('items' =&gt; $links));
+
+  // Output a list of queries executed.
+  if (!empty($_SESSION['update_results'])) {
+    $all_messages = '';
+    foreach ($_SESSION['update_results'] as $module =&gt; $updates) {
+      if ($module != '#abort') {
+        $module_has_message = FALSE;
+        $query_messages = '';
+        foreach ($updates as $number =&gt; $queries) {
+          $messages = array();
+          foreach ($queries as $query) {
+            // If there is no message for this update, don't show anything.
+            if (empty($query['query'])) {
+              continue;
+            }
+
+            if ($query['success']) {
+              $messages[] = '&lt;li class="success"&gt;' . $query['query'] . '&lt;/li&gt;';
+            }
+            else {
+              $messages[] = '&lt;li class="failure"&gt;&lt;strong&gt;Failed:&lt;/strong&gt; ' . $query['query'] . '&lt;/li&gt;';
+            }
+          }
+
+          if ($messages) {
+            $module_has_message = TRUE;
+            $query_messages .= '&lt;h4&gt;Update #' . $number . "&lt;/h4&gt;\n";
+            $query_messages .= '&lt;ul&gt;' . implode("\n", $messages) . "&lt;/ul&gt;\n";
+          }
+        }
+
+        // If there were any messages in the queries then prefix them with the
+        // module name and add it to the global message list.
+        if ($module_has_message) {
+          $all_messages .= '&lt;h3&gt;' . $module . " module&lt;/h3&gt;\n" . $query_messages;
+        }
+      }
+    }
+    if ($all_messages) {
+      $output .= '&lt;div id="update-results"&gt;&lt;h2&gt;The following updates returned messages&lt;/h2&gt;';
+      $output .= $all_messages;
+      $output .= '&lt;/div&gt;';
+    }
+  }
+  unset($_SESSION['update_results']);
+  unset($_SESSION['update_success']);
+
+  return $output;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/update.php/function/update_results_page/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/update.php/function/update_results_page/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,154 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Node_feed - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Generates and prints an RSS feed. ">
+  <meta name="keywords" content="function, node, feed, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-node-node.module/function/node_feed/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function node_feed</h1>     <pre class="signature">node_feed($nids = FALSE, $channel = array())</pre> <p>Generates and prints an RSS feed.</p> <p>Generates an RSS feed from an array of node IDs, and prints it with an HTTP header, with Content Type set to RSS/XML.</p> <h3>Parameters</h3> <p> <strong>$nids</strong>: An array of node IDs (nid). Defaults to FALSE so empty feeds can be generated with passing an empty array, if no items are to be added to the feed.</p> <p><strong>$channel</strong>: An associative array containing title, link, description and other keys, to be parsed by <a href="../../../../includes-common.inc/function/format_rss_channel/7.x/" title="Formats an RSS channel." class="local">format_rss_channel</a>() and <a href="../../../../includes-common.inc/function/format_xml_elements/7.x/" title="Formats XML elements." class="local">format_xml_elements</a>(). A list of channel elements can be found at the <a href="http://cyber.law.harvard.edu/rss/rss.html" target="_blank">RSS 2.0 Specification.</a> The link should be an absolute URL.</p>  <h3>File</h3> 
+<dl> <dt>modules/node/<a href="../../../7.x/">node.module</a>, line 2575</dt> <dd>The core that allows content to be submitted to the site. Modules and scripts may programmatically submit nodes using the usual form API pattern.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function node_feed($nids = FALSE, $channel = array()) {
+  global $base_url, $language_content;
+
+  if ($nids === FALSE) {
+    $nids = db_select('node', 'n')
+      -&gt;fields('n', array('nid', 'created'))
+      -&gt;condition('n.promote', 1)
+      -&gt;condition('n.status', 1)
+      -&gt;orderBy('n.created', 'DESC')
+      -&gt;range(0, variable_get('feed_default_items', 10))
+      -&gt;addTag('node_access')
+      -&gt;execute()
+      -&gt;fetchCol();
+  }
+
+  $item_length = variable_get('feed_item_length', 'fulltext');
+  $namespaces = array('xmlns:dc' =&gt; 'http://purl.org/dc/elements/1.1/');
+
+  // Load all nodes to be rendered.
+  $nodes = node_load_multiple($nids);
+  $items = '';
+  foreach ($nodes as $node) {
+    $item_text = '';
+
+    $node-&gt;link = url("node/$node-&gt;nid", array('absolute' =&gt; TRUE));
+    $node-&gt;rss_namespaces = array();
+    $account = user_load($node-&gt;uid);
+    $node-&gt;rss_elements = array(
+      array('key' =&gt; 'pubDate', 'value' =&gt; gmdate('r', $node-&gt;created)),
+      array('key' =&gt; 'dc:creator', 'value' =&gt; format_username($account)),
+      array('key' =&gt; 'guid', 'value' =&gt; $node-&gt;nid . ' at ' . $base_url, 'attributes' =&gt; array('isPermaLink' =&gt; 'false'))
+    );
+
+    // The node gets built and modules add to or modify $node-&gt;rss_elements
+    // and $node-&gt;rss_namespaces.
+    $build = node_view($node, 'rss');
+    unset($build['#theme']);
+
+    if (!empty($node-&gt;rss_namespaces)) {
+      $namespaces = array_merge($namespaces, $node-&gt;rss_namespaces);
+    }
+
+    if ($item_length != 'title') {
+      // We render node contents and force links to be last.
+      $build['links']['#weight'] = 1000;
+      $item_text .= drupal_render($build);
+    }
+
+    $items .= format_rss_item($node-&gt;title, $node-&gt;link, $item_text, $node-&gt;rss_elements);
+  }
+
+  $channel_defaults = array(
+    'version' =&gt; '2.0',
+    'title' =&gt; variable_get('site_name', 'Drupal'),
+    'link' =&gt; $base_url,
+    'description' =&gt; variable_get('feed_description', ''),
+    'language' =&gt; $language_content-&gt;language
+  );
+  $channel_extras = array_diff_key($channel, $channel_defaults);
+  $channel = array_merge($channel_defaults, $channel);
+
+  $output = "&lt;?xml version=\"1.0\" encoding=\"utf-8\"?&gt;\n";
+  $output .= "&lt;rss version=\"" . $channel["version"] . "\" xml:base=\"" . $base_url . "\" " . drupal_attributes($namespaces) . "&gt;\n";
+  $output .= format_rss_channel($channel['title'], $channel['link'], $channel['description'], $items, $channel['language'], $channel_extras);
+  $output .= "&lt;/rss&gt;\n";
+
+  drupal_add_http_header('Content-Type', 'application/rss+xml; charset=utf-8');
+  print $output;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!node!node.module/function/node_feed/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!node!node.module/function/node_feed/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

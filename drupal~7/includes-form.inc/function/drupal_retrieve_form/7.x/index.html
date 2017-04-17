@@ -1,0 +1,168 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Drupal_retrieve_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Retrieves the structured array that defines a given form. ">
+  <meta name="keywords" content="function, drupal, retrieve, form, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-form.inc/function/drupal_retrieve_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function drupal_retrieve_form</h1>     <pre class="signature">drupal_retrieve_form($form_id, &amp;$form_state)</pre> <p>Retrieves the structured array that defines a given form.</p> <h3>Parameters</h3> <p> <strong>$form_id</strong>: The unique string identifying the desired form. If a function with that name exists, it is called to build the form array. Modules that need to generate the same form (or very similar forms) using different $form_ids can implement <a href="../../../../modules-system-system.api.php/function/hook_forms/7.x/" title="Map form_ids to form builder functions." class="local">hook_forms</a>(), which maps different $form_id values to the proper form constructor function.</p> <p><strong>$form_state</strong>: A keyed array containing the current state of the form, including the additional arguments to <a href="../../drupal_get_form/7.x/" title="Returns a renderable form array for a given form ID." class="local">drupal_get_form</a>() or <a href="../../drupal_form_submit/7.x/" title="Retrieves, populates, and processes a form." class="local">drupal_form_submit</a>() in the 'args' component of the array.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-9dbbf5d7a019c4693fdbc7bf3bb6da3d"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/form_api/7.x/">Form generation</a></dt> <dd>Functions to enable the processing and display of HTML forms.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">form.inc</a>, line 764</dt> <dd>Functions for form and batch generation and processing.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function drupal_retrieve_form($form_id, &amp;$form_state) {
+  $forms = &amp;drupal_static(__FUNCTION__);
+
+  // Record the $form_id.
+  $form_state['build_info']['form_id'] = $form_id;
+
+  // Record the filepath of the include file containing the original form, so
+  // the form builder callbacks can be loaded when the form is being rebuilt
+  // from cache on a different path (such as 'system/ajax'). See
+  // form_get_cache(). Don't do this in maintenance mode as Drupal may not be
+  // fully bootstrapped (i.e. during installation) in which case
+  // menu_get_item() is not available.
+  if (!isset($form_state['build_info']['files']['menu']) &amp;&amp; !defined('MAINTENANCE_MODE')) {
+    $item = menu_get_item();
+    if (!empty($item['include_file'])) {
+      // Do not use form_load_include() here, as the file is already loaded.
+      // Anyway, form_get_cache() is able to handle filepaths too.
+      $form_state['build_info']['files']['menu'] = $item['include_file'];
+    }
+  }
+
+  // We save two copies of the incoming arguments: one for modules to use
+  // when mapping form ids to constructor functions, and another to pass to
+  // the constructor function itself.
+  $args = $form_state['build_info']['args'];
+
+  // We first check to see if there's a function named after the $form_id.
+  // If there is, we simply pass the arguments on to it to get the form.
+  if (!function_exists($form_id)) {
+    // In cases where many form_ids need to share a central constructor function,
+    // such as the node editing form, modules can implement hook_forms(). It
+    // maps one or more form_ids to the correct constructor functions.
+    //
+    // We cache the results of that hook to save time, but that only works
+    // for modules that know all their form_ids in advance. (A module that
+    // adds a small 'rate this comment' form to each comment in a list
+    // would need a unique form_id for each one, for example.)
+    //
+    // So, we call the hook if $forms isn't yet populated, OR if it doesn't
+    // yet have an entry for the requested form_id.
+    if (!isset($forms) || !isset($forms[$form_id])) {
+      $forms = module_invoke_all('forms', $form_id, $args);
+    }
+    $form_definition = $forms[$form_id];
+    if (isset($form_definition['callback arguments'])) {
+      $args = array_merge($form_definition['callback arguments'], $args);
+    }
+    if (isset($form_definition['callback'])) {
+      $callback = $form_definition['callback'];
+      $form_state['build_info']['base_form_id'] = isset($form_definition['base_form_id']) ? $form_definition['base_form_id'] : $callback;
+    }
+    // In case $form_state['wrapper_callback'] is not defined already, we also
+    // allow hook_forms() to define one.
+    if (!isset($form_state['wrapper_callback']) &amp;&amp; isset($form_definition['wrapper_callback'])) {
+      $form_state['wrapper_callback'] = $form_definition['wrapper_callback'];
+    }
+  }
+
+  $form = array();
+  // We need to pass $form_state by reference in order for forms to modify it,
+  // since call_user_func_array() requires that referenced variables are passed
+  // explicitly.
+  $args = array_merge(array($form, &amp;$form_state), $args);
+
+  // When the passed $form_state (not using drupal_get_form()) defines a
+  // 'wrapper_callback', then it requests to invoke a separate (wrapping) form
+  // builder function to pre-populate the $form array with form elements, which
+  // the actual form builder function ($callback) expects. This allows for
+  // pre-populating a form with common elements for certain forms, such as
+  // back/next/save buttons in multi-step form wizards. See drupal_build_form().
+  if (isset($form_state['wrapper_callback']) &amp;&amp; is_callable($form_state['wrapper_callback'])) {
+    $form = call_user_func_array($form_state['wrapper_callback'], $args);
+    // Put the prepopulated $form into $args.
+    $args[0] = $form;
+  }
+
+  // If $callback was returned by a hook_forms() implementation, call it.
+  // Otherwise, call the function named after the form id.
+  $form = call_user_func_array(isset($callback) ? $callback : $form_id, $args);
+  $form['#form_id'] = $form_id;
+
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!form.inc/function/drupal_retrieve_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!form.inc/function/drupal_retrieve_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

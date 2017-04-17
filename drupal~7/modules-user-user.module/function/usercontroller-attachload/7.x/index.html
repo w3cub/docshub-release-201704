@@ -1,0 +1,124 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>UserController&#58;&#58;attachLoad - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Attaches data to entities upon loading. ">
+  <meta name="keywords" content="function, usercontroller, attachload, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-user-user.module/function/usercontroller-attachload/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function UserController::attachLoad</h1>     <pre class="signature"><a href="../../../class/usercontroller/7.x/">UserController</a>::attachLoad(&amp;$queried_users, $revision_id = FALSE)</pre> <p>Attaches data to entities upon loading.</p> <p>This will attach fields, if the entity is fieldable. It calls <a href="../../../../modules-system-system.api.php/function/hook_entity_load/7.x/" title="Act on entities when loaded." class="local">hook_entity_load</a>() for modules which need to add data to all entities. It also calls hook_TYPE_load() on the loaded entities. For example <a href="../../../../modules-node-node.api.php/function/hook_node_load/7.x/" title="Act on arbitrary nodes being loaded from the database." class="local">hook_node_load</a>() or <a href="../../../../modules-user-user.api.php/function/hook_user_load/7.x/" title="Act on user objects when loaded from the database." class="local">hook_user_load</a>(). If your hook_TYPE_load() expects special parameters apart from the queried entities, you can set $this-&gt;hookLoadArguments prior to calling the method. See <a href="../../../../modules-node-node.module/function/nodecontroller-attachload/7.x/" title="Attaches data to entities upon loading." class="local">NodeController::attachLoad</a>() for an example.</p> <h3>Parameters</h3> <p> <strong>$queried_entities</strong>: Associative array of query results, keyed on the entity ID.</p> <p><strong>$revision_id</strong>: ID of the revision that was loaded, or FALSE if the most current revision was loaded.</p> <p class="api-override">Overrides <a href="../../../../includes-entity.inc/function/drupaldefaultentitycontroller-attachload/7.x/">DrupalDefaultEntityController::attachLoad</a></p> <h3>File</h3> 
+<dl> <dt>modules/user/<a href="../../../7.x/">user.module</a>, line 302</dt> <dd>Enables the user registration and login system.</dd> </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/usercontroller/7.x/">UserController</a> </dt> <dd>Controller class for users.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function attachLoad(&amp;$queried_users, $revision_id = FALSE) {
+  // Build an array of user picture IDs so that these can be fetched later.
+  $picture_fids = array();
+  foreach ($queried_users as $key =&gt; $record) {
+    $picture_fids[] = $record-&gt;picture;
+    $queried_users[$key]-&gt;data = unserialize($record-&gt;data);
+    $queried_users[$key]-&gt;roles = array();
+    if ($record-&gt;uid) {
+      $queried_users[$record-&gt;uid]-&gt;roles[DRUPAL_AUTHENTICATED_RID] = 'authenticated user';
+    }
+    else {
+      $queried_users[$record-&gt;uid]-&gt;roles[DRUPAL_ANONYMOUS_RID] = 'anonymous user';
+    }
+  }
+
+  // Add any additional roles from the database.
+  $result = db_query('SELECT r.rid, r.name, ur.uid FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid IN (:uids)', array(':uids' =&gt; array_keys($queried_users)));
+  foreach ($result as $record) {
+    $queried_users[$record-&gt;uid]-&gt;roles[$record-&gt;rid] = $record-&gt;name;
+  }
+
+  // Add the full file objects for user pictures if enabled.
+  if (!empty($picture_fids) &amp;&amp; variable_get('user_pictures', 0)) {
+    $pictures = file_load_multiple($picture_fids);
+    foreach ($queried_users as $account) {
+      if (!empty($account-&gt;picture) &amp;&amp; isset($pictures[$account-&gt;picture])) {
+        $account-&gt;picture = $pictures[$account-&gt;picture];
+      }
+      else {
+        $account-&gt;picture = NULL;
+      }
+    }
+  }
+  // Call the default attachLoad() method. This will add fields and call
+  // hook_user_load().
+  parent::attachLoad($queried_users, $revision_id);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!user!user.module/function/UserController::attachLoad/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!user!user.module/function/UserController::attachLoad/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

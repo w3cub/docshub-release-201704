@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Module_implements - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Determines which modules are implementing a hook. ">
+  <meta name="keywords" content="function, module, implements, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-module.inc/function/module_implements/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function module_implements</h1>     <pre class="signature">module_implements($hook, $sort = FALSE, $reset = FALSE)</pre> <p>Determines which modules are implementing a hook.</p> <p>Lazy-loaded include files specified with "group" via <a href="../../../../modules-system-system.api.php/function/hook_hook_info/7.x/" title="Defines one or more hooks that are exposed by a module." class="local">hook_hook_info</a>() or <a href="../../../../modules-system-system.api.php/function/hook_module_implements_alter/7.x/" title="Alter the registry of modules implementing a hook." class="local">hook_module_implements_alter</a>() will be automatically included by this function when necessary.</p> <h3>Parameters</h3> <p> <strong>string $hook</strong>: The name of the hook (e.g. "help" or "menu").</p> <p><strong>bool $sort</strong>: By default, modules are ordered by weight and filename, settings this option to TRUE, module list will be ordered by module name.</p> <p><strong>bool $reset</strong>: For internal use only: Whether to force the stored list of hook implementations to be regenerated (such as after enabling a new module, before processing hook_enable).</p> <h3>Return value</h3> <p> An array with the names of the modules which are implementing this hook.</p> <h3>See also</h3> <p> <a href="../../module_implements_write_cache/7.x/" title="Writes the hook implementation cache." class="local">module_implements_write_cache</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-e25b5db2c825f1a75b2675ef28e7281c"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/hooks/7.x/">Hooks</a></dt> <dd>Allow modules to interact with the Drupal core.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">module.inc</a>, line 718</dt> <dd>API for loading and interacting with Drupal modules.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function module_implements($hook, $sort = FALSE, $reset = FALSE) {
+  // Use the advanced drupal_static() pattern, since this is called very often.
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['implementations'] = &amp;drupal_static(__FUNCTION__);
+    $drupal_static_fast['verified'] = &amp;drupal_static(__FUNCTION__ . ':verified');
+  }
+  $implementations = &amp;$drupal_static_fast['implementations'];
+  $verified = &amp;$drupal_static_fast['verified'];
+
+  // We maintain a persistent cache of hook implementations in addition to the
+  // static cache to avoid looping through every module and every hook on each
+  // request. Benchmarks show that the benefit of this caching outweighs the
+  // additional database hit even when using the default database caching
+  // backend and only a small number of modules are enabled. The cost of the
+  // cache_get() is more or less constant and reduced further when non-database
+  // caching backends are used, so there will be more significant gains when a
+  // large number of modules are installed or hooks invoked, since this can
+  // quickly lead to module_hook() being called several thousand times
+  // per request.
+  if ($reset) {
+    $implementations = array();
+    $verified = array();
+    cache_set('module_implements', array(), 'cache_bootstrap');
+    drupal_static_reset('module_hook_info');
+    drupal_static_reset('drupal_alter');
+    cache_clear_all('hook_info', 'cache_bootstrap');
+    cache_clear_all('system_cache_tables', 'cache');
+    return;
+  }
+
+  // Fetch implementations from cache.
+  // This happens on the first call to module_implements(*, *, FALSE) during a
+  // request, but also when $implementations have been reset, e.g. after
+  // module_enable().
+  if (empty($implementations)) {
+    $implementations = cache_get('module_implements', 'cache_bootstrap');
+    if ($implementations === FALSE) {
+      $implementations = array();
+    }
+    else {
+      $implementations = $implementations-&gt;data;
+    }
+    // Forget all previously "verified" hooks, in case that $implementations
+    // were cleared via drupal_static_reset('module_implements') instead of
+    // module_implements(*, *, TRUE).
+    $verified = array();
+  }
+
+  if (!isset($implementations[$hook])) {
+    // The hook is not cached, so ensure that whether or not it has
+    // implementations, that the cache is updated at the end of the request.
+    $implementations['#write_cache'] = TRUE;
+    // Discover implementations for this hook.
+    $hook_info = module_hook_info();
+    $implementations[$hook] = array();
+    $list = module_list(FALSE, FALSE, $sort);
+    foreach ($list as $module) {
+      $include_file = isset($hook_info[$hook]['group']) &amp;&amp; module_load_include('inc', $module, $module . '.' . $hook_info[$hook]['group']);
+      // Since module_hook() may needlessly try to load the include file again,
+      // function_exists() is used directly here.
+      if (function_exists($module . '_' . $hook)) {
+        $implementations[$hook][$module] = $include_file ? $hook_info[$hook]['group'] : FALSE;
+      }
+    }
+    // Allow modules to change the weight of specific implementations, but avoid
+    // an infinite loop.
+    if ($hook != 'module_implements_alter') {
+      // Remember the implementations before hook_module_implements_alter().
+      $implementations_before = $implementations[$hook];
+      drupal_alter('module_implements', $implementations[$hook], $hook);
+      // Verify implementations that were added or modified.
+      foreach (array_diff_assoc($implementations[$hook], $implementations_before) as $module =&gt; $group) {
+        // If drupal_alter('module_implements') changed or added a $group, the
+        // respective file needs to be included.
+        if ($group) {
+          module_load_include('inc', $module, "$module.$group");
+        }
+        // If a new implementation was added, verify that the function exists.
+        if (!function_exists($module . '_' . $hook)) {
+          unset($implementations[$hook][$module]);
+        }
+      }
+    }
+    // Implementations for this hook are now "verified".
+    $verified[$hook] = TRUE;
+  }
+  elseif (!isset($verified[$hook])) {
+    // Implementations for this hook were in the cache, but they are not
+    // "verified" yet.
+    foreach ($implementations[$hook] as $module =&gt; $group) {
+      // If this hook implementation is stored in a lazy-loaded file, so include
+      // that file first.
+      if ($group) {
+        module_load_include('inc', $module, "$module.$group");
+      }
+      // It is possible that a module removed a hook implementation without the
+      // implementations cache being rebuilt yet, so we check whether the
+      // function exists on each request to avoid undefined function errors.
+      // Since module_hook() may needlessly try to load the include file again,
+      // function_exists() is used directly here.
+      if (!function_exists($module . '_' . $hook)) {
+        // Clear out the stale implementation from the cache and force a cache
+        // refresh to forget about no longer existing hook implementations.
+        unset($implementations[$hook][$module]);
+        $implementations['#write_cache'] = TRUE;
+      }
+    }
+    $verified[$hook] = TRUE;
+  }
+
+  return array_keys($implementations[$hook]);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!module.inc/function/module_implements/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!module.inc/function/module_implements/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

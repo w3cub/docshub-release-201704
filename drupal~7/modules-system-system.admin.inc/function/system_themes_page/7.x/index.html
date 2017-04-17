@@ -1,0 +1,200 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>System_themes_page - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Menu callback; displays a listing of all themes. ">
+  <meta name="keywords" content="function, system, themes, page, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-system-system.admin.inc/function/system_themes_page/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function system_themes_page</h1>     <pre class="signature">system_themes_page()</pre> <p>Menu callback; displays a listing of all themes.</p>  <h3>File</h3> 
+<dl> <dt>modules/system/<a href="../../../7.x/">system.admin.inc</a>, line 136</dt> <dd>Admin page callbacks for the system module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function system_themes_page() {
+  // Get current list of themes.
+  $themes = system_rebuild_theme_data();
+  uasort($themes, 'system_sort_modules_by_info_name');
+
+  $theme_default = variable_get('theme_default', 'bartik');
+  $theme_groups = array();
+
+  foreach ($themes as &amp;$theme) {
+    if (!empty($theme-&gt;info['hidden'])) {
+      continue;
+    }
+    $admin_theme_options[$theme-&gt;name] = $theme-&gt;info['name'];
+    $theme-&gt;is_default = ($theme-&gt;name == $theme_default);
+
+    // Identify theme screenshot.
+    $theme-&gt;screenshot = NULL;
+    // Create a list which includes the current theme and all its base themes.
+    if (isset($themes[$theme-&gt;name]-&gt;base_themes)) {
+      $theme_keys = array_keys($themes[$theme-&gt;name]-&gt;base_themes);
+      $theme_keys[] = $theme-&gt;name;
+    }
+    else {
+      $theme_keys = array($theme-&gt;name);
+    }
+    // Look for a screenshot in the current theme or in its closest ancestor.
+    foreach (array_reverse($theme_keys) as $theme_key) {
+      if (isset($themes[$theme_key]) &amp;&amp; file_exists($themes[$theme_key]-&gt;info['screenshot'])) {
+        $theme-&gt;screenshot = array(
+          'path' =&gt; $themes[$theme_key]-&gt;info['screenshot'],
+          'alt' =&gt; t('Screenshot for !theme theme', array('!theme' =&gt; $theme-&gt;info['name'])),
+          'title' =&gt; t('Screenshot for !theme theme', array('!theme' =&gt; $theme-&gt;info['name'])),
+          'attributes' =&gt; array('class' =&gt; array('screenshot')),
+        );
+        break;
+      }
+    }
+
+    if (empty($theme-&gt;status)) {
+      // Ensure this theme is compatible with this version of core.
+      // Require the 'content' region to make sure the main page
+      // content has a common place in all themes.
+      $theme-&gt;incompatible_core = !isset($theme-&gt;info['core']) || ($theme-&gt;info['core'] != DRUPAL_CORE_COMPATIBILITY) || (!isset($theme-&gt;info['regions']['content']));
+      $theme-&gt;incompatible_php = version_compare(phpversion(), $theme-&gt;info['php']) &lt; 0;
+    }
+    $query['token'] = drupal_get_token('system-theme-operation-link');
+    $theme-&gt;operations = array();
+    if (!empty($theme-&gt;status) || !$theme-&gt;incompatible_core &amp;&amp; !$theme-&gt;incompatible_php) {
+      // Create the operations links.
+      $query['theme'] = $theme-&gt;name;
+      if (drupal_theme_access($theme)) {
+        $theme-&gt;operations[] = array(
+          'title' =&gt; t('Settings'),
+          'href' =&gt; 'admin/appearance/settings/' . $theme-&gt;name,
+          'attributes' =&gt; array('title' =&gt; t('Settings for !theme theme', array('!theme' =&gt; $theme-&gt;info['name']))),
+        );
+      }
+      if (!empty($theme-&gt;status)) {
+        if (!$theme-&gt;is_default) {
+          $theme-&gt;operations[] = array(
+            'title' =&gt; t('Disable'),
+            'href' =&gt; 'admin/appearance/disable',
+            'query' =&gt; $query,
+            'attributes' =&gt; array('title' =&gt; t('Disable !theme theme', array('!theme' =&gt; $theme-&gt;info['name']))),
+          );
+          $theme-&gt;operations[] = array(
+            'title' =&gt; t('Set default'),
+            'href' =&gt; 'admin/appearance/default',
+            'query' =&gt; $query,
+            'attributes' =&gt; array('title' =&gt; t('Set !theme as default theme', array('!theme' =&gt; $theme-&gt;info['name']))),
+          );
+        }
+      }
+      else {
+        $theme-&gt;operations[] = array(
+          'title' =&gt; t('Enable'),
+          'href' =&gt; 'admin/appearance/enable',
+          'query' =&gt; $query,
+          'attributes' =&gt; array('title' =&gt; t('Enable !theme theme', array('!theme' =&gt; $theme-&gt;info['name']))),
+        );
+        $theme-&gt;operations[] = array(
+          'title' =&gt; t('Enable and set default'),
+          'href' =&gt; 'admin/appearance/default',
+          'query' =&gt; $query,
+          'attributes' =&gt; array('title' =&gt; t('Enable !theme as default theme', array('!theme' =&gt; $theme-&gt;info['name']))),
+        );
+      }
+    }
+
+    // Add notes to default and administration theme.
+    $theme-&gt;notes = array();
+    $theme-&gt;classes = array();
+    if ($theme-&gt;is_default) {
+      $theme-&gt;classes[] = 'theme-default';
+      $theme-&gt;notes[] = t('default theme');
+    }
+
+    // Sort enabled and disabled themes into their own groups.
+    $theme_groups[$theme-&gt;status ? 'enabled' : 'disabled'][] = $theme;
+  }
+
+  // There are two possible theme groups.
+  $theme_group_titles = array(
+    'enabled' =&gt; format_plural(count($theme_groups['enabled']), 'Enabled theme', 'Enabled themes'),
+  );
+  if (!empty($theme_groups['disabled'])) {
+    $theme_group_titles['disabled'] = format_plural(count($theme_groups['disabled']), 'Disabled theme', 'Disabled themes');
+  }
+
+  uasort($theme_groups['enabled'], 'system_sort_themes');
+  drupal_alter('system_themes_page', $theme_groups);
+
+  $admin_form = drupal_get_form('system_themes_admin_form', $admin_theme_options);
+  return theme('system_themes_page', array('theme_groups' =&gt; $theme_groups, 'theme_group_titles' =&gt; $theme_group_titles)) . drupal_render($admin_form);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!system!system.admin.inc/function/system_themes_page/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!system!system.admin.inc/function/system_themes_page/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

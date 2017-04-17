@@ -1,0 +1,190 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>File_file_download - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_file_download(). ">
+  <meta name="keywords" content="function, file, download, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-file-file.module/function/file_file_download/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function file_file_download</h1>     <pre class="signature">file_file_download($uri, $field_type = 'file')</pre> <p>Implements <a href="../../../../modules-system-system.api.php/function/hook_file_download/7.x/" title="Control access to private file downloads and specify HTTP headers." class="local">hook_file_download</a>().</p> <p>This function takes an extra parameter $field_type so that it may be re-used by other File-like modules, such as Image.</p>  <h3>File</h3> 
+<dl> <dt>modules/file/<a href="../../../7.x/">file.module</a>, line 123</dt> <dd>Defines a "managed_file" Form API field and a "file" field for Field module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function file_file_download($uri, $field_type = 'file') {
+  global $user;
+
+  // Get the file record based on the URI. If not in the database just return.
+  $files = file_load_multiple(array(), array('uri' =&gt; $uri));
+  if (count($files)) {
+    foreach ($files as $item) {
+      // Since some database servers sometimes use a case-insensitive comparison
+      // by default, double check that the filename is an exact match.
+      if ($item-&gt;uri === $uri) {
+        $file = $item;
+        break;
+      }
+    }
+  }
+  if (!isset($file)) {
+    return;
+  }
+
+  // Find out which (if any) fields of this type contain the file.
+  $references = file_get_file_references($file, NULL, FIELD_LOAD_CURRENT, $field_type);
+
+  // Stop processing if there are no references in order to avoid returning
+  // headers for files controlled by other modules. Make an exception for
+  // temporary files where the host entity has not yet been saved (for example,
+  // an image preview on a node/add form) in which case, allow download by the
+  // file's owner.
+  if (empty($references) &amp;&amp; ($file-&gt;status == FILE_STATUS_PERMANENT || $file-&gt;uid != $user-&gt;uid)) {
+    return;
+  }
+
+  // Default to allow access.
+  $denied = FALSE;
+  // Loop through all references of this file. If a reference explicitly allows
+  // access to the field to which this file belongs, no further checks are done
+  // and download access is granted. If a reference denies access, eventually
+  // existing additional references are checked. If all references were checked
+  // and no reference denied access, access is granted as well. If at least one
+  // reference denied access, access is denied.
+  foreach ($references as $field_name =&gt; $field_references) {
+    foreach ($field_references as $entity_type =&gt; $type_references) {
+      foreach ($type_references as $id =&gt; $reference) {
+        // Try to load $entity and $field.
+        $entity = entity_load($entity_type, array($id));
+        $entity = reset($entity);
+        $field = field_info_field($field_name);
+
+        // Load the field item that references the file.
+        $field_item = NULL;
+        if ($entity) {
+          // Load all field items for that entity.
+          $field_items = field_get_items($entity_type, $entity, $field_name);
+
+          // Find the field item with the matching URI.
+          foreach ($field_items as $item) {
+            if ($item['uri'] == $uri) {
+              $field_item = $item;
+              break;
+            }
+          }
+        }
+
+        // Check that $entity, $field and $field_item were loaded successfully
+        // and check if access to that field is not disallowed. If any of these
+        // checks fail, stop checking access for this reference.
+        if (empty($entity) || empty($field) || empty($field_item) || !field_access('view', $field, $entity_type, $entity)) {
+          $denied = TRUE;
+          break;
+        }
+
+        // Invoke hook and collect grants/denies for download access.
+        // Default to FALSE and let entities overrule this ruling.
+        $grants = array('system' =&gt; FALSE);
+        foreach (module_implements('file_download_access') as $module) {
+          $grants = array_merge($grants, array($module =&gt; module_invoke($module, 'file_download_access', $field_item, $entity_type, $entity)));
+        }
+        // Allow other modules to alter the returned grants/denies.
+        drupal_alter('file_download_access', $grants, $field_item, $entity_type, $entity);
+
+        if (in_array(TRUE, $grants)) {
+          // If TRUE is returned, access is granted and no further checks are
+          // necessary.
+          $denied = FALSE;
+          break 3;
+        }
+
+        if (in_array(FALSE, $grants)) {
+          // If an implementation returns FALSE, access to this entity is denied
+          // but the file could belong to another entity to which the user might
+          // have access. Continue with these.
+          $denied = TRUE;
+        }
+      }
+    }
+  }
+
+  // Access specifically denied.
+  if ($denied) {
+    return -1;
+  }
+
+  // Access is granted.
+  $headers = file_get_content_headers($file);
+  return $headers;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!file!file.module/function/file_file_download/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!file!file.module/function/file_file_download/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,157 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Locale_language_from_browser - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Identify language from the Accept-language HTTP header we got. ">
+  <meta name="keywords" content="function, locale, language, from, browser, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-locale.inc/function/locale_language_from_browser/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function locale_language_from_browser</h1>     <pre class="signature">locale_language_from_browser($languages)</pre> <p>Identify language from the Accept-language HTTP header we got.</p> <p>We perform browser accept-language parsing only if page cache is disabled, otherwise we would cache a user-specific preference.</p> <h3>Parameters</h3> <p> <strong>$languages</strong>: An array of language objects for enabled languages ordered by weight.</p> <h3>Return value</h3> <p> A valid language code on success, FALSE otherwise.</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-3ea5f5bc485f0981adaa1bfc6549a25a"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../group/locale-languages-negotiation/7.x/">Language negotiation options</a></dt> <dd>Functions for language negotiation.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">locale.inc</a>, line 131</dt> <dd>Administration functions for <a href="https://api.drupal.org/api/drupal/7.x/search/locale.module" title="Multiple implementations exist." class="local" target="_blank">locale.module</a>.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function locale_language_from_browser($languages) {
+  if (empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+    return FALSE;
+  }
+
+  // The Accept-Language header contains information about the language
+  // preferences configured in the user's browser / operating system.
+  // RFC 2616 (section 14.4) defines the Accept-Language header as follows:
+  //   Accept-Language = "Accept-Language" ":"
+  //                  1#( language-range [ ";" "q" "=" qvalue ] )
+  //   language-range  = ( ( 1*8ALPHA *( "-" 1*8ALPHA ) ) | "*" )
+  // Samples: "hu, en-us;q=0.66, en;q=0.33", "hu,en-us;q=0.5"
+  $browser_langcodes = array();
+  if (preg_match_all('@(?&lt;=[, ]|^)([a-zA-Z-]+|\*)(?:;q=([0-9.]+))?(?:$|\s*,\s*)@', trim($_SERVER['HTTP_ACCEPT_LANGUAGE']), $matches, PREG_SET_ORDER)) {
+    foreach ($matches as $match) {
+      // We can safely use strtolower() here, tags are ASCII.
+      // RFC2616 mandates that the decimal part is no more than three digits,
+      // so we multiply the qvalue by 1000 to avoid floating point comparisons.
+      $langcode = strtolower($match[1]);
+      $qvalue = isset($match[2]) ? (float) $match[2] : 1;
+      $browser_langcodes[$langcode] = (int) ($qvalue * 1000);
+    }
+  }
+
+  // We should take pristine values from the HTTP headers, but Internet Explorer
+  // from version 7 sends only specific language tags (eg. fr-CA) without the
+  // corresponding generic tag (fr) unless explicitly configured. In that case,
+  // we assume that the lowest value of the specific tags is the value of the
+  // generic language to be as close to the HTTP 1.1 spec as possible.
+  // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.4 and
+  // http://blogs.msdn.com/b/ie/archive/2006/10/17/accept-language-header-for-internet-explorer-7.aspx
+  asort($browser_langcodes);
+  foreach ($browser_langcodes as $langcode =&gt; $qvalue) {
+    $generic_tag = strtok($langcode, '-');
+    if (!isset($browser_langcodes[$generic_tag])) {
+      $browser_langcodes[$generic_tag] = $qvalue;
+    }
+  }
+
+  // Find the enabled language with the greatest qvalue, following the rules
+  // of RFC 2616 (section 14.4). If several languages have the same qvalue,
+  // prefer the one with the greatest weight.
+  $best_match_langcode = FALSE;
+  $max_qvalue = 0;
+  foreach ($languages as $langcode =&gt; $language) {
+    // Language tags are case insensitive (RFC2616, sec 3.10).
+    $langcode = strtolower($langcode);
+
+    // If nothing matches below, the default qvalue is the one of the wildcard
+    // language, if set, or is 0 (which will never match).
+    $qvalue = isset($browser_langcodes['*']) ? $browser_langcodes['*'] : 0;
+
+    // Find the longest possible prefix of the browser-supplied language
+    // ('the language-range') that matches this site language ('the language tag').
+    $prefix = $langcode;
+    do {
+      if (isset($browser_langcodes[$prefix])) {
+        $qvalue = $browser_langcodes[$prefix];
+        break;
+      }
+    } 
+     while ($prefix = substr($prefix, 0, strrpos($prefix, '-')));
+
+    // Find the best match.
+    if ($qvalue &gt; $max_qvalue) {
+      $best_match_langcode = $language-&gt;language;
+      $max_qvalue = $qvalue;
+    }
+  }
+
+  return $best_match_langcode;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!locale.inc/function/locale_language_from_browser/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!locale.inc/function/locale_language_from_browser/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

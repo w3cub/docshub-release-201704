@@ -1,0 +1,155 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_drupal_session_read - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Reads an entire session from the database (internal use only). ">
+  <meta name="keywords" content="function, drupal, session, read, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-session.inc/function/_drupal_session_read/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _drupal_session_read</h1>     <pre class="signature">_drupal_session_read($sid)</pre> <p>Reads an entire session from the database (internal use only).</p> <p>Also initializes the $user object for the user associated with the session. This function is registered with <a href="http://php.net/session_set_save_handler" title="bool session_set_save_handler(callable $open, callable $close, callable $read, callable $write, callable $destroy, callable $gc [, callable $create_sid = '', SessionHandlerInterface $sessionhandler [, bool $register_shutdown = true]])
+  Sets user-level session storage functions" class="php-manual" target="_blank">session_set_save_handler</a>() to support database-backed sessions. It is called on every page load when PHP sets up the $_SESSION superglobal.</p> <p>This function is an internal function and must not be called directly. Doing so may result in logging out the current user, corrupting session data or other unexpected behavior. Session data must always be accessed via the $_SESSION superglobal.</p> <h3>Parameters</h3> <p> <strong>$sid</strong>: The session ID of the session to retrieve.</p> <h3>Return value</h3> <p> The user's session, or an empty string if no session exists.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">session.inc</a>, line 70</dt> <dd>User session handling functions.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _drupal_session_read($sid) {
+  global $user, $is_https;
+
+  // Write and Close handlers are called after destructing objects
+  // since PHP 5.0.5.
+  // Thus destructors can use sessions but session handler can't use objects.
+  // So we are moving session closure before destructing objects.
+  drupal_register_shutdown_function('session_write_close');
+
+  // Handle the case of first time visitors and clients that don't store
+  // cookies (eg. web crawlers).
+  $insecure_session_name = substr(session_name(), 1);
+  if (empty($sid) || (!isset($_COOKIE[session_name()]) &amp;&amp; !isset($_COOKIE[$insecure_session_name]))) {
+    $user = drupal_anonymous_user();
+    return '';
+  }
+
+  // Otherwise, if the session is still active, we have a record of the
+  // client's session in the database. If it's HTTPS then we are either have
+  // a HTTPS session or we are about to log in so we check the sessions table
+  // for an anonymous session with the non-HTTPS-only cookie.
+  if ($is_https) {
+    $user = db_query("SELECT u.*, s.* FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.ssid = :ssid", array(':ssid' =&gt; $sid))-&gt;fetchObject();
+    if (!$user) {
+      if (isset($_COOKIE[$insecure_session_name])) {
+        $user = db_query("SELECT u.*, s.* FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.sid = :sid AND s.uid = 0", array(
+          ':sid' =&gt; $_COOKIE[$insecure_session_name]))
+          -&gt;fetchObject();
+      }
+    }
+  }
+  else {
+    $user = db_query("SELECT u.*, s.* FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.sid = :sid", array(':sid' =&gt; $sid))-&gt;fetchObject();
+  }
+
+  // We found the client's session record and they are an authenticated,
+  // active user.
+  if ($user &amp;&amp; $user-&gt;uid &gt; 0 &amp;&amp; $user-&gt;status == 1) {
+    // This is done to unserialize the data member of $user.
+    $user-&gt;data = unserialize($user-&gt;data);
+
+    // Add roles element to $user.
+    $user-&gt;roles = array();
+    $user-&gt;roles[DRUPAL_AUTHENTICATED_RID] = 'authenticated user';
+    $user-&gt;roles += db_query("SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = :uid", array(':uid' =&gt; $user-&gt;uid))-&gt;fetchAllKeyed(0, 1);
+  }
+  elseif ($user) {
+    // The user is anonymous or blocked. Only preserve two fields from the
+    // {sessions} table.
+    $account = drupal_anonymous_user();
+    $account-&gt;session = $user-&gt;session;
+    $account-&gt;timestamp = $user-&gt;timestamp;
+    $user = $account;
+  }
+  else {
+    // The session has expired.
+    $user = drupal_anonymous_user();
+    $user-&gt;session = '';
+  }
+
+  // Store the session that was read for comparison in _drupal_session_write().
+  $last_read = &amp;drupal_static('drupal_session_last_read');
+  $last_read = array(
+    'sid' =&gt; $sid,
+    'value' =&gt; $user-&gt;session,
+  );
+
+  return $user-&gt;session;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!session.inc/function/_drupal_session_read/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!session.inc/function/_drupal_session_read/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

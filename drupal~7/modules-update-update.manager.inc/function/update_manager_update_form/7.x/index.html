@@ -1,0 +1,289 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_manager_update_form - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Form constructor for the update form of the Update Manager module. ">
+  <meta name="keywords" content="function, update, manager, form, -, drupal, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/modules-update-update.manager.inc/function/update_manager_update_form/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_manager_update_form</h1>     <pre class="signature">update_manager_update_form($form, $form_state = array(), $context)</pre> <p>Form constructor for the update form of the Update Manager module.</p> <p>This presents a table with all projects that have available updates with checkboxes to select which ones to upgrade.</p> <h3>Parameters</h3> <p> <strong>$context</strong>: String representing the context from which we're trying to update. Allowed values are 'module', 'theme', and 'report'.</p> <h3>See also</h3> <p> <a href="../../update_manager_update_form_validate/7.x/" title="Form validation handler for update_manager_update_form()." class="local">update_manager_update_form_validate</a>()</p> <p><a href="../../update_manager_update_form_submit/7.x/" title="Form submission handler for update_manager_update_form()." class="local">update_manager_update_form_submit</a>()</p> <p><a href="../../../../modules-update-update.module/function/update_menu/7.x/" title="Implements hook_menu()." class="local">update_menu</a>()</p> <h3>Related topics</h3> <div class="view view-api-references view-id-api_references view-display-id-block_related_topics view-dom-id-e3b88bdf0c9badf66391796dc7ba24cc"> <div class="view-content"> <dl api-related-topics> <dt><a href="../../../../includes-form.inc/group/forms/7.x/">Form builder functions</a></dt> <dd>Functions that build an abstract representation of a HTML form.</dd> <dt><a href="../../../group/update_manager_update/7.x/">Update Manager module: update</a></dt> <dd>Update Manager module functionality for updating existing code.</dd> </dl> </div> </div>  <h3>File</h3> 
+<dl> <dt>modules/update/<a href="../../../7.x/">update.manager.inc</a>, line 62</dt> <dd>Administrative screens and processing functions of the Update Manager module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_manager_update_form($form, $form_state = array(), $context) {
+  if (!_update_manager_check_backends($form, 'update')) {
+    return $form;
+  }
+
+  $form['#theme'] = 'update_manager_update_form';
+
+  $available = update_get_available(TRUE);
+  if (empty($available)) {
+    $form['message'] = array(
+      '#markup' =&gt; t('There was a problem getting update information. Try again later.'),
+    );
+    return $form;
+  }
+
+  $form['#attached']['css'][] = drupal_get_path('module', 'update') . '/update.css';
+
+  // This will be a nested array. The first key is the kind of project, which
+  // can be either 'enabled', 'disabled', 'manual' (projects which require
+  // manual updates, such as core). Then, each subarray is an array of
+  // projects of that type, indexed by project short name, and containing an
+  // array of data for cells in that project's row in the appropriate table.
+  $projects = array();
+
+  // This stores the actual download link we're going to update from for each
+  // project in the form, regardless of if it's enabled or disabled.
+  $form['project_downloads'] = array('#tree' =&gt; TRUE);
+
+  module_load_include('inc', 'update', 'update.compare');
+  $project_data = update_calculate_project_data($available);
+  foreach ($project_data as $name =&gt; $project) {
+    // Filter out projects which are up to date already.
+    if ($project['status'] == UPDATE_CURRENT) {
+      continue;
+    }
+    // The project name to display can vary based on the info we have.
+    if (!empty($project['title'])) {
+      if (!empty($project['link'])) {
+        $project_name = l($project['title'], $project['link']);
+      }
+      else {
+        $project_name = check_plain($project['title']);
+      }
+    }
+    elseif (!empty($project['info']['name'])) {
+      $project_name = check_plain($project['info']['name']);
+    }
+    else {
+      $project_name = check_plain($name);
+    }
+    if ($project['project_type'] == 'theme' || $project['project_type'] == 'theme-disabled') {
+      $project_name .= ' ' . t('(Theme)');
+    }
+
+    if (empty($project['recommended'])) {
+      // If we don't know what to recommend they upgrade to, we should skip
+      // the project entirely.
+      continue;
+    }
+
+    $recommended_release = $project['releases'][$project['recommended']];
+    $recommended_version = $recommended_release['version'] . ' ' . l(t('(Release notes)'), $recommended_release['release_link'], array('attributes' =&gt; array('title' =&gt; t('Release notes for @project_title', array('@project_title' =&gt; $project['title'])))));
+    if ($recommended_release['version_major'] != $project['existing_major']) {
+      $recommended_version .= '&lt;div title="Major upgrade warning" class="update-major-version-warning"&gt;' . t('This update is a major version update which means that it may not be backwards compatible with your currently running version.  It is recommended that you read the release notes and proceed at your own risk.') . '&lt;/div&gt;';
+    }
+
+    // Create an entry for this project.
+    $entry = array(
+      'title' =&gt; $project_name,
+      'installed_version' =&gt; $project['existing_version'],
+      'recommended_version' =&gt; $recommended_version,
+    );
+
+    switch ($project['status']) {
+      case UPDATE_NOT_SECURE:
+      case UPDATE_REVOKED:
+        $entry['title'] .= ' ' . t('(Security update)');
+        $entry['#weight'] = -2;
+        $type = 'security';
+        break;
+
+      case UPDATE_NOT_SUPPORTED:
+        $type = 'unsupported';
+        $entry['title'] .= ' ' . t('(Unsupported)');
+        $entry['#weight'] = -1;
+        break;
+
+      case UPDATE_UNKNOWN:
+      case UPDATE_NOT_FETCHED:
+      case UPDATE_NOT_CHECKED:
+      case UPDATE_NOT_CURRENT:
+        $type = 'recommended';
+        break;
+
+      default:
+        // Jump out of the switch and onto the next project in foreach.
+        continue 2;
+    }
+
+    $entry['#attributes'] = array('class' =&gt; array('update-' . $type));
+
+    // Drupal core needs to be upgraded manually.
+    $needs_manual = $project['project_type'] == 'core';
+
+    if ($needs_manual) {
+      // There are no checkboxes in the 'Manual updates' table so it will be
+      // rendered by theme('table'), not theme('tableselect'). Since the data
+      // formats are incompatible, we convert now to the format expected by
+      // theme('table').
+      unset($entry['#weight']);
+      $attributes = $entry['#attributes'];
+      unset($entry['#attributes']);
+      $entry = array(
+        'data' =&gt; $entry,
+      ) + $attributes;
+    }
+    else {
+      $form['project_downloads'][$name] = array(
+        '#type' =&gt; 'value',
+        '#value' =&gt; $recommended_release['download_link'],
+      );
+    }
+
+    // Based on what kind of project this is, save the entry into the
+    // appropriate subarray.
+    switch ($project['project_type']) {
+      case 'core':
+        // Core needs manual updates at this time.
+        $projects['manual'][$name] = $entry;
+        break;
+
+      case 'module':
+      case 'theme':
+        $projects['enabled'][$name] = $entry;
+        break;
+
+      case 'module-disabled':
+      case 'theme-disabled':
+        $projects['disabled'][$name] = $entry;
+        break;
+    }
+  }
+
+  if (empty($projects)) {
+    $form['message'] = array(
+      '#markup' =&gt; t('All of your projects are up to date.'),
+    );
+    return $form;
+  }
+
+  $headers = array(
+    'title' =&gt; array(
+      'data' =&gt; t('Name'),
+      'class' =&gt; array('update-project-name'),
+    ),
+    'installed_version' =&gt; t('Installed version'),
+    'recommended_version' =&gt; t('Recommended version'),
+  );
+
+  if (!empty($projects['enabled'])) {
+    $form['projects'] = array(
+      '#type' =&gt; 'tableselect',
+      '#header' =&gt; $headers,
+      '#options' =&gt; $projects['enabled'],
+    );
+    if (!empty($projects['disabled'])) {
+      $form['projects']['#prefix'] = '&lt;h2&gt;' . t('Enabled') . '&lt;/h2&gt;';
+    }
+  }
+
+  if (!empty($projects['disabled'])) {
+    $form['disabled_projects'] = array(
+      '#type' =&gt; 'tableselect',
+      '#header' =&gt; $headers,
+      '#options' =&gt; $projects['disabled'],
+      '#weight' =&gt; 1,
+      '#prefix' =&gt; '&lt;h2&gt;' . t('Disabled') . '&lt;/h2&gt;',
+    );
+  }
+
+  // If either table has been printed yet, we need a submit button and to
+  // validate the checkboxes.
+  if (!empty($projects['enabled']) || !empty($projects['disabled'])) {
+    $form['actions'] = array('#type' =&gt; 'actions');
+    $form['actions']['submit'] = array(
+      '#type' =&gt; 'submit',
+      '#value' =&gt; t('Download these updates'),
+    );
+    $form['#validate'][] = 'update_manager_update_form_validate';
+  }
+
+  if (!empty($projects['manual'])) {
+    $prefix = '&lt;h2&gt;' . t('Manual updates required') . '&lt;/h2&gt;';
+    $prefix .= '&lt;p&gt;' . t('Updates of Drupal core are not supported at this time.') . '&lt;/p&gt;';
+    $form['manual_updates'] = array(
+      '#type' =&gt; 'markup',
+      '#markup' =&gt; theme('table', array('header' =&gt; $headers, 'rows' =&gt; $projects['manual'])),
+      '#prefix' =&gt; $prefix,
+      '#weight' =&gt; 120,
+    );
+  }
+
+  return $form;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/modules!update!update.manager.inc/function/update_manager_update_form/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/modules!update!update.manager.inc/function/update_manager_update_form/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

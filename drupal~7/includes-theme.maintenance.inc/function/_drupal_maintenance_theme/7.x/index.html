@@ -1,0 +1,154 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_drupal_maintenance_theme - Drupal 7 - W3cubDocs</title>
+  
+  <meta name="description" content=" Sets up the theming system for maintenance page. ">
+  <meta name="keywords" content="function, drupal, maintenance, theme, -, drupal~7">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~7/includes-theme.maintenance.inc/function/_drupal_maintenance_theme/7.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~7.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~7/" class="_nav-link" title="" style="margin-left:0;">Drupal 7</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _drupal_maintenance_theme</h1>     <pre class="signature">_drupal_maintenance_theme()</pre> <p>Sets up the theming system for maintenance page.</p> <p>Used for site installs, updates and when the site is in maintenance mode. It also applies when the database is unavailable or bootstrap was not complete. Seven is always used for the initial install and update operations. In other cases, Bartik is used, but this can be overridden by setting a "maintenance_theme" key in the $conf variable in settings.php.</p>  <h3>File</h3> 
+<dl> <dt>includes/<a href="../../../7.x/">theme.maintenance.inc</a>, line 17</dt> <dd>Theming for maintenance pages.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _drupal_maintenance_theme() {
+  global $theme, $theme_key, $conf;
+
+  // If $theme is already set, assume the others are set too, and do nothing.
+  if (isset($theme)) {
+    return;
+  }
+
+  require_once DRUPAL_ROOT . '/' . variable_get('path_inc', 'includes/path.inc');
+  require_once DRUPAL_ROOT . '/includes/theme.inc';
+  require_once DRUPAL_ROOT . '/includes/common.inc';
+  require_once DRUPAL_ROOT . '/includes/unicode.inc';
+  require_once DRUPAL_ROOT . '/includes/file.inc';
+  require_once DRUPAL_ROOT . '/includes/module.inc';
+  unicode_check();
+
+  // Install and update pages are treated differently to prevent theming overrides.
+  if (defined('MAINTENANCE_MODE') &amp;&amp; (MAINTENANCE_MODE == 'install' || MAINTENANCE_MODE == 'update')) {
+    $custom_theme = (isset($conf['maintenance_theme']) ? $conf['maintenance_theme'] : 'seven');
+  }
+  else {
+    // The bootstrap was not complete. So we are operating in a crippled
+    // environment, we need to bootstrap just enough to allow hook invocations
+    // to work. See _drupal_log_error().
+    if (!class_exists('Database', FALSE)) {
+      require_once DRUPAL_ROOT . '/includes/database/database.inc';
+    }
+
+    // We use the default theme as the maintenance theme. If a default theme
+    // isn't specified in the database or in settings.php, we use Bartik.
+    $custom_theme = variable_get('maintenance_theme', variable_get('theme_default', 'bartik'));
+  }
+
+  // Ensure that system.module is loaded.
+  if (!function_exists('_system_rebuild_theme_data')) {
+    $module_list['system']['filename'] = 'modules/system/system.module';
+    module_list(TRUE, FALSE, FALSE, $module_list);
+    drupal_load('module', 'system');
+  }
+
+  $themes = list_themes();
+
+  // list_themes() triggers a drupal_alter() in maintenance mode, but we can't
+  // let themes alter the .info data until we know a theme's base themes. So
+  // don't set global $theme until after list_themes() builds its cache.
+  $theme = $custom_theme;
+
+  // Store the identifier for retrieving theme settings with.
+  $theme_key = $theme;
+
+  // Find all our ancestor themes and put them in an array.
+  $base_theme = array();
+  $ancestor = $theme;
+  while ($ancestor &amp;&amp; isset($themes[$ancestor]-&gt;base_theme)) {
+    $base_theme[] = $new_base_theme = $themes[$themes[$ancestor]-&gt;base_theme];
+    $ancestor = $themes[$ancestor]-&gt;base_theme;
+  }
+  _drupal_theme_initialize($themes[$theme], array_reverse($base_theme), '_theme_load_offline_registry');
+
+  // These are usually added from system_init() -except maintenance.css.
+  // When the database is inactive it's not called so we add it here.
+  $path = drupal_get_path('module', 'system');
+  drupal_add_css($path . '/system.base.css');
+  drupal_add_css($path . '/system.admin.css');
+  drupal_add_css($path . '/system.menus.css');
+  drupal_add_css($path . '/system.messages.css');
+  drupal_add_css($path . '/system.theme.css');
+  drupal_add_css($path . '/system.maintenance.css');
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/includes!theme.maintenance.inc/function/_drupal_maintenance_theme/7.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/includes!theme.maintenance.inc/function/_drupal_maintenance_theme/7.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
