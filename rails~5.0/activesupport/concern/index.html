@@ -1,0 +1,185 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActiveSupport&#58;&#58;Concern - Ruby on Rails 5.0 - W3cubDocs</title>
+  
+  <meta name="description" content=" A typical module looks like this&#58; ">
+  <meta name="keywords" content="module, activesupport, concern, -, ruby, on, rails, rails~5.0">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~5.0/activesupport/concern/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~5.0.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~5.0/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 5.0</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-ActiveSupport::Concern" class="module"> module ActiveSupport::Concern </h1> <section class="description"> <p>A typical module looks like this:</p> <pre>module M
+  def self.included(base)
+    base.extend ClassMethods
+    base.class_eval do
+      scope :disabled, -&gt; { where(disabled: true) }
+    end
+  end
+
+  module ClassMethods
+    ...
+  end
+end</pre> <p>By using <code>ActiveSupport::Concern</code> the above module could instead be written as:</p> <pre>require 'active_support/concern'
+
+module M
+  extend ActiveSupport::Concern
+
+  included do
+    scope :disabled, -&gt; { where(disabled: true) }
+  end
+
+  class_methods do
+    ...
+  end
+end</pre> <p>Moreover, it gracefully handles module dependencies. Given a <code>Foo</code> module and a <code>Bar</code> module which depends on the former, we would typically write the following:</p> <pre>module Foo
+  def self.included(base)
+    base.class_eval do
+      def self.method_injected_by_foo
+        ...
+      end
+    end
+  end
+end
+
+module Bar
+  def self.included(base)
+    base.method_injected_by_foo
+  end
+end
+
+class Host
+  include Foo # We need to include this dependency for Bar
+  include Bar # Bar is the module that Host really needs
+end</pre> <p>But why should <code>Host</code> care about <code>Bar</code>'s dependencies, namely <code>Foo</code>? We could try to hide these from <code>Host</code> directly including <code>Foo</code> in <code>Bar</code>:</p> <pre class="ruby" data-language="ruby">module Bar
+  include Foo
+  def self.included(base)
+    base.method_injected_by_foo
+  end
+end
+
+class Host
+  include Bar
+end
+</pre> <p>Unfortunately this won't work, since when <code>Foo</code> is included, its <code>base</code> is the <code>Bar</code> module, not the <code>Host</code> class. With <code>ActiveSupport::Concern</code>, module dependencies are properly resolved:</p> <pre>require 'active_support/concern'
+
+module Foo
+  extend ActiveSupport::Concern
+  included do
+    def self.method_injected_by_foo
+      ...
+    end
+  end
+end
+
+module Bar
+  extend ActiveSupport::Concern
+  include Foo
+
+  included do
+    self.method_injected_by_foo
+  end
+end
+
+class Host
+  include Bar # It works, now Bar takes care of its dependencies
+end</pre> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-append_features"> <span class="method-name">append_features</span><span class="method-args">(base)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="append_features-source"> <pre class="ruby" data-language="ruby"># File activesupport/lib/active_support/concern.rb, line 111
+def append_features(base)
+  if base.instance_variable_defined?(:@_dependencies)
+    base.instance_variable_get(:@_dependencies) &lt;&lt; self
+    return false
+  else
+    return false if base &lt; self
+    @_dependencies.each { |dep| base.include(dep) }
+    super
+    base.extend const_get(:ClassMethods) if const_defined?(:ClassMethods)
+    base.class_eval(&amp;@_included_block) if instance_variable_defined?(:@_included_block)
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-class_methods"> <span class="method-name">class_methods</span><span class="method-args">(&amp;class_methods_module_definition)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="class_methods-source"> <pre class="ruby" data-language="ruby"># File activesupport/lib/active_support/concern.rb, line 134
+def class_methods(&amp;class_methods_module_definition)
+  mod = const_defined?(:ClassMethods, false) ?
+    const_get(:ClassMethods) :
+    const_set(:ClassMethods, Module.new)
+
+  mod.module_eval(&amp;class_methods_module_definition)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-included"> <span class="method-name">included</span><span class="method-args">(base = nil, &amp;block)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-calls-super"> Calls superclass method </div> <div class="method-source-code" id="included-source"> <pre class="ruby" data-language="ruby"># File activesupport/lib/active_support/concern.rb, line 124
+def included(base = nil, &amp;block)
+  if base.nil?
+    raise MultipleIncludedBlocks if instance_variable_defined?(:@_included_block)
+
+    @_included_block = block
+  else
+    super
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2017 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

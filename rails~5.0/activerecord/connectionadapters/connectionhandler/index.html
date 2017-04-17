@@ -1,0 +1,157 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActiveRecord&#58;&#58;ConnectionAdapters&#58;&#58;ConnectionHandler - Ruby on Rails 5.0 - W3cubDocs</title>
+  
+  <meta name="description" content=" ConnectionHandler is a collection of ConnectionPool objects. It is used for keeping separate connection pools that connect to different databases. ">
+  <meta name="keywords" content="class, activerecord, connectionadapters, connectionhandler, -, ruby, on, rails, rails~5.0">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~5.0/activerecord/connectionadapters/connectionhandler/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~5.0.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~5.0/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 5.0</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-ActiveRecord::ConnectionAdapters::ConnectionHandler" class="class"> class ActiveRecord::ConnectionAdapters::ConnectionHandler </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../../../object/">Object</a></dd>
+</dl> <section class="description"> <p><a href="../connectionhandler/">ConnectionHandler</a> is a collection of <a href="../connectionpool/">ConnectionPool</a> objects. It is used for keeping separate connection pools that connect to different databases.</p> <p>For example, suppose that you have 5 models, with the following hierarchy:</p> <pre class="ruby" data-language="ruby">class Author &lt; ActiveRecord::Base
+end
+
+class BankAccount &lt; ActiveRecord::Base
+end
+
+class Book &lt; ActiveRecord::Base
+  establish_connection "library_db"
+end
+
+class ScaryBook &lt; Book
+end
+
+class GoodBook &lt; Book
+end
+</pre> <p>And a database.yml that looked like this:</p> <pre>development:
+  database: my_application
+  host: localhost
+
+library_db:
+  database: library
+  host: some.library.org</pre> <p>Your primary database in the development environment is “my_application” but the Book model connects to a separate database called “library_db” (this can even be a database on a different machine).</p> <p>Book, ScaryBook and GoodBook will all use the same connection pool to “library_db” while Author, BankAccount, and any other models you create will use the default connection pool to “my_application”.</p> <p>The various connection pools are managed by a single instance of <a href="../connectionhandler/">ConnectionHandler</a> accessible via <a href="../../core/#method-c-connection_handler">ActiveRecord::Core.connection_handler</a>. All Active Record models use this handler to determine the connection pool that they should use.</p> <p>The <a href="../connectionhandler/">ConnectionHandler</a> class is not coupled with the Active models, as it has no knowlodge about the model. The model, needs to pass a specification name to the handler, in order to lookup the correct connection pool.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-name">new</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="new-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 836
+def initialize
+  # These caches are keyed by spec.name (ConnectionSpecification#name).
+  @owner_to_pool = Concurrent::Map.new(:initial_capacity =&gt; 2) do |h,k|
+    h[k] = Concurrent::Map.new(:initial_capacity =&gt; 2)
+  end
+end</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-active_connections-3F"> <span class="method-name">active_connections?</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns true if there are any active connections among the connection pools that the <a href="../connectionhandler/">ConnectionHandler</a> is managing.</p> <div class="method-source-code" id="active_connections-3F-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 854
+def active_connections?
+  connection_pool_list.any?(&amp;:active_connection?)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-clear_active_connections-21"> <span class="method-name">clear_active_connections!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns any connections in use by the current thread back to the pool, and also returns connections to the pool cached by threads that are no longer alive.</p> <div class="method-source-code" id="clear_active_connections-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 861
+def clear_active_connections!
+  connection_pool_list.each(&amp;:release_connection)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-clear_all_connections-21"> <span class="method-name">clear_all_connections!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="clear_all_connections-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 872
+def clear_all_connections!
+  connection_pool_list.each(&amp;:disconnect!)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-clear_reloadable_connections-21"> <span class="method-name">clear_reloadable_connections!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Clears the cache which maps classes.</p> <p>See <a href="../connectionpool/#method-i-clear_reloadable_connections-21">ActiveRecord::ConnectionAdapters::ConnectionPool#clear_reloadable_connections!</a> for details.</p> <div class="method-source-code" id="clear_reloadable_connections-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 868
+def clear_reloadable_connections!
+  connection_pool_list.each(&amp;:clear_reloadable_connections!)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-connected-3F"> <span class="method-name">connected?</span><span class="method-args">(spec_name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns true if a connection that's accessible to this class has already been opened.</p> <div class="method-source-code" id="connected-3F-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 890
+def connected?(spec_name)
+  conn = retrieve_connection_pool(spec_name)
+  conn &amp;&amp; conn.connected?
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-connection_pool_list"> <span class="method-name">connection_pool_list</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="connection_pool_list-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 843
+def connection_pool_list
+  owner_to_pool.values.compact
+end</pre> </div> </div> <div class="aliases"> Also aliased as: <a href="../connectionhandler/#method-i-connection_pools">connection_pools</a> </div> </div> <div class="method-detail method-alias"> <div class="method-heading" id="method-i-connection_pools"> <span class="method-name">connection_pools</span><span class="method-args">()</span> </div>  <div class="aliases"> Alias for: <a href="../connectionhandler/#method-i-connection_pool_list">connection_pool_list</a> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-establish_connection"> <span class="method-name">establish_connection</span><span class="method-args">(spec)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="establish_connection-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 848
+def establish_connection(spec)
+  owner_to_pool[spec.name] = ConnectionAdapters::ConnectionPool.new(spec)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-remove_connection"> <span class="method-name">remove_connection</span><span class="method-args">(spec_name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Remove the connection for this class. This will close the active connection and the defined connection (if they exist). The result can be used as an argument for <a href="../connectionhandler/#method-i-establish_connection">#establish_connection</a>, for easily re-establishing the connection.</p> <div class="method-source-code" id="remove_connection-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 899
+def remove_connection(spec_name)
+  if pool = owner_to_pool.delete(spec_name)
+    pool.automatic_reconnect = false
+    pool.disconnect!
+    pool.spec.config
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-retrieve_connection_pool"> <span class="method-name">retrieve_connection_pool</span><span class="method-args">(spec_name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Retrieving the connection pool happens a lot so we cache it in @class_to_pool. This makes retrieving the connection pool O(1) once the process is warm. When a connection is established or removed, we invalidate the cache.</p> <p>Ideally we would use fetch here, as <span>class_to_pool</span> may sometimes be nil. However, benchmarking (<a href="https://gist.github.com/jonleighton/3552829" target="_blank">gist.github.com/jonleighton/3552829</a>) showed that fetch is significantly slower than []. So in the nil case, no caching will take place, but that's ok since the nil case is not the common one that we wish to optimise for.</p> <div class="method-source-code" id="retrieve_connection_pool-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb, line 916
+def retrieve_connection_pool(spec_name)
+  owner_to_pool.fetch(spec_name) do
+    if ancestor_pool = pool_from_any_process_for(spec_name)
+      # A connection was established in an ancestor process that must have
+      # subsequently forked. We can't reuse the connection, but we can copy
+      # the specification and establish a new connection with it.
+      establish_connection(ancestor_pool.spec).tap do |pool|
+        pool.schema_cache = ancestor_pool.schema_cache if ancestor_pool.schema_cache
+      end
+    else
+      owner_to_pool[spec_name] = nil
+    end
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2017 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

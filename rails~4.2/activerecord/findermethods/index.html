@@ -1,0 +1,367 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActiveRecord&#58;&#58;FinderMethods - Ruby on Rails 4.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Returns true if a record exists in the table that matches the id or conditions given, or false otherwise. The argument can take six forms&#58; ">
+  <meta name="keywords" content="module, activerecord, findermethods, -, ruby, on, rails, rails~4.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~4.2/activerecord/findermethods/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~4.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~4.2/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 4.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-ActiveRecord::FinderMethods" class="module"> module ActiveRecord::FinderMethods </h1>  <section id="5Buntitled-5D" class="documentation-section"> <section class="constants-list"> <header> <h3>Constants</h3> </header> <dl> <dt id="ONE_AS_ONE">ONE_AS_ONE </dt>
+
+</dl> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-exists-3F"> <span class="method-name">exists?</span><span class="method-args">(conditions = :none)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns <code>true</code> if a record exists in the table that matches the <code>id</code> or conditions given, or <code>false</code> otherwise. The argument can take six forms:</p> <ul>
+<li> <p><a href="../../integer/">Integer</a> - Finds the record with this primary key.</p> </li>
+<li> <p><a href="../../string/">String</a> - Finds the record with a primary key corresponding to this string (such as <code>'5'</code>).</p> </li>
+<li> <p><a href="../../array/">Array</a> - Finds the record that matches these <code>find</code>-style conditions (such as <code>['name LIKE ?',
+"%#{query}%"]</code>).</p> </li>
+<li> <p><a href="../../hash/">Hash</a> - Finds the record that matches these <code>find</code>-style conditions (such as <code>{name:
+'David'}</code>).</p> </li>
+<li> <p><code>false</code> - Returns always <code>false</code>.</p> </li>
+<li> <p>No args - Returns <code>false</code> if the table is empty, <code>true</code> otherwise.</p> </li>
+</ul> <p>For more information about specifying conditions as a hash or array, see the Conditions section in the introduction to <code>ActiveRecord::Base</code>.</p> <p>Note: You can't pass in a condition as a string (like <code>name =
+'Jamie'</code>), since it would be sanitized and then queried against the primary key column, like <code>id = 'name =
+\'Jamie\''</code>.</p> <pre class="ruby" data-language="ruby">Person.exists?(5)
+Person.exists?('5')
+Person.exists?(['name LIKE ?', "%#{query}%"])
+Person.exists?(id: [1, 4, 8])
+Person.exists?(name: 'David')
+Person.exists?(false)
+Person.exists?
+</pre> <div class="method-source-code" id="exists-3F-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 277
+    def exists?(conditions = :none)
+      if Base === conditions
+        conditions = conditions.id
+        ActiveSupport::Deprecation.warn("          You are passing an instance of ActiveRecord::Base to `exists?`.
+          Please pass the id of the object by calling `.id`
+".squish)
+      end
+
+      return false if !conditions
+
+      relation = apply_join_dependency(self, construct_join_dependency)
+      return false if ActiveRecord::NullRelation === relation
+
+      relation = relation.except(:select, :order).select(ONE_AS_ONE).limit(1)
+
+      case conditions
+      when Array, Hash
+        relation = relation.where(conditions)
+      else
+        unless conditions == :none
+          relation = relation.where(primary_key =&gt; conditions)
+        end
+      end
+
+      connection.select_value(relation, "#{name} Exists", relation.arel.bind_values + relation.bind_values) ? true : false
+    end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-fifth"> <span class="method-name">fifth</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the fifth record. If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.fifth # returns the fifth object fetched by SELECT * FROM people
+Person.offset(3).fifth # returns the fifth object from OFFSET 3 (which is OFFSET 7)
+Person.where(["user_name = :u", { u: user_name }]).fifth
+</pre> <div class="method-source-code" id="fifth-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 224
+def fifth
+  find_nth(4, offset_index)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-fifth-21"> <span class="method-name">fifth!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>fifth</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found.</p> <div class="method-source-code" id="fifth-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 230
+def fifth!
+  find_nth! 4
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find"> <span class="method-name">find</span><span class="method-args">(*args) { |*block_args| ... }</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find by id - This can either be a specific id (1), a list of ids (1, 5, 6), or an array of ids ([5, 6, 10]). If no record can be found for all of the listed ids, then <a href="../recordnotfound/">RecordNotFound</a> will be raised. If the primary key is an integer, find by id coerces its arguments using <code>to_i</code>.</p> <pre class="ruby" data-language="ruby">Person.find(1)          # returns the object for ID = 1
+Person.find("1")        # returns the object for ID = 1
+Person.find("31-sarah") # returns the object for ID = 31
+Person.find(1, 2, 6)    # returns an array for objects with IDs in (1, 2, 6)
+Person.find([7, 17])    # returns an array for objects with IDs in (7, 17)
+Person.find([1])        # returns an array for the object with ID = 1
+Person.where("administrator = 1").order("created_on DESC").find(1)
+</pre> <p><code>ActiveRecord::RecordNotFound</code> will be raised if one or more ids are not found.</p> <p>NOTE: The returned records may not be in the same order as the ids you provide since database rows are unordered. You'd need to provide an explicit <code>order</code> option if you want the results are sorted.</p> <h4 id="method-i-find-label-Find+with+lock">Find with lock</h4> <p>Example for find with a lock: Imagine two concurrent transactions: each will read <code>person.visits == 2</code>, add 1 to it, and save, resulting in two saves of <code>person.visits = 3</code>. By locking the row, the second transaction has to wait until the first is finished; we get the expected <code>person.visits == 4</code>.</p> <pre class="ruby" data-language="ruby">Person.transaction do
+  person = Person.lock(true).find(1)
+  person.visits += 1
+  person.save!
+end
+</pre> <h4 id="method-i-find-label-Variations+of+find">Variations of <code>find</code>
+</h4> <pre class="ruby" data-language="ruby">Person.where(name: 'Spartacus', rating: 4)
+# returns a chainable list (which can be empty).
+
+Person.find_by(name: 'Spartacus', rating: 4)
+# returns the first item or nil.
+
+Person.where(name: 'Spartacus', rating: 4).first_or_initialize
+# returns the first item or returns a new instance (requires you call .save to persist against the database).
+
+Person.where(name: 'Spartacus', rating: 4).first_or_create
+# returns the first item or creates it and returns it, available since Rails 3.2.1.
+</pre> <h4 id="method-i-find-label-Alternatives+for+find">Alternatives for <code>find</code>
+</h4> <pre class="ruby" data-language="ruby">Person.where(name: 'Spartacus', rating: 4).exists?(conditions = :none)
+# returns a boolean indicating if any record with the given conditions exist.
+
+Person.where(name: 'Spartacus', rating: 4).select("field1, field2, field3")
+# returns a chainable list of instances with only the mentioned fields.
+
+Person.where(name: 'Spartacus', rating: 4).ids
+# returns an Array of ids, available since Rails 3.2.1.
+
+Person.where(name: 'Spartacus', rating: 4).pluck(:field1, :field2)
+# returns an Array of the required fields, available since Rails 3.1.
+</pre> <div class="method-source-code" id="find-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 67
+def find(*args)
+  if block_given?
+    to_a.find(*args) { |*block_args| yield(*block_args) }
+  else
+    find_with_ids(*args)
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_by"> <span class="method-name">find_by</span><span class="method-args">(*args)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Finds the first record matching the specified conditions. There is no implied ordering so if order matters, you should specify it yourself.</p> <p>If no record is found, returns <code>nil</code>.</p> <pre class="ruby" data-language="ruby">Post.find_by name: 'Spartacus', rating: 4
+Post.find_by "published_at &lt; ?", 2.weeks.ago
+</pre> <div class="method-source-code" id="find_by-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 83
+def find_by(*args)
+  where(*args).take
+rescue RangeError
+  nil
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_by-21"> <span class="method-name">find_by!</span><span class="method-args">(*args)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Like <code>find_by</code>, except that if no record is found, raises an <code>ActiveRecord::RecordNotFound</code> error.</p> <div class="method-source-code" id="find_by-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 91
+def find_by!(*args)
+  where(*args).take!
+rescue RangeError
+  raise RecordNotFound, "Couldn't find #{@klass.name} with an out of range value"
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-first"> <span class="method-name">first</span><span class="method-args">(limit = nil)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the first record (or first N records if a parameter is supplied). If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.first # returns the first object fetched by SELECT * FROM people ORDER BY people.id LIMIT 1
+Person.where(["user_name = ?", user_name]).first
+Person.where(["user_name = :u", { u: user_name }]).first
+Person.order("created_on DESC").offset(5).first
+Person.first(3) # returns the first three objects fetched by SELECT * FROM people ORDER BY people.id LIMIT 3
+</pre> <div class="method-source-code" id="first-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 123
+def first(limit = nil)
+  if limit
+    find_nth_with_limit(offset_index, limit)
+  else
+    find_nth(0, offset_index)
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-first-21"> <span class="method-name">first!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>first</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found. Note that <code>first!</code> accepts no arguments.</p> <div class="method-source-code" id="first-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 133
+def first!
+  find_nth! 0
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-forty_two"> <span class="method-name">forty_two</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the forty-second record. Also known as accessing “the reddit”. If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.forty_two # returns the forty-second object fetched by SELECT * FROM people
+Person.offset(3).forty_two # returns the forty-second object from OFFSET 3 (which is OFFSET 44)
+Person.where(["user_name = :u", { u: user_name }]).forty_two
+</pre> <div class="method-source-code" id="forty_two-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 240
+def forty_two
+  find_nth(41, offset_index)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-forty_two-21"> <span class="method-name">forty_two!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>forty_two</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found.</p> <div class="method-source-code" id="forty_two-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 246
+def forty_two!
+  find_nth! 41
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-fourth"> <span class="method-name">fourth</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the fourth record. If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.fourth # returns the fourth object fetched by SELECT * FROM people
+Person.offset(3).fourth # returns the fourth object from OFFSET 3 (which is OFFSET 6)
+Person.where(["user_name = :u", { u: user_name }]).fourth
+</pre> <div class="method-source-code" id="fourth-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 208
+def fourth
+  find_nth(3, offset_index)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-fourth-21"> <span class="method-name">fourth!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>fourth</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found.</p> <div class="method-source-code" id="fourth-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 214
+def fourth!
+  find_nth! 3
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-last"> <span class="method-name">last</span><span class="method-args">(limit = nil)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the last record (or last N records if a parameter is supplied). If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.last # returns the last object fetched by SELECT * FROM people
+Person.where(["user_name = ?", user_name]).last
+Person.order("created_on DESC").offset(5).last
+Person.last(3) # returns the last three objects fetched by SELECT * FROM people.
+</pre> <p>Take note that in that last case, the results are sorted in ascending order:</p> <pre>[#&lt;Person id:2&gt;, #&lt;Person id:3&gt;, #&lt;Person id:4&gt;]</pre> <p>and not:</p> <pre>[#&lt;Person id:4&gt;, #&lt;Person id:3&gt;, #&lt;Person id:2&gt;]</pre> <div class="method-source-code" id="last-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 152
+def last(limit = nil)
+  if limit
+    if order_values.empty? &amp;&amp; primary_key
+      order(arel_table[primary_key].desc).limit(limit).reverse
+    else
+      to_a.last(limit)
+    end
+  else
+    find_last
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-last-21"> <span class="method-name">last!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>last</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found. Note that <code>last!</code> accepts no arguments.</p> <div class="method-source-code" id="last-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 166
+def last!
+  last or raise RecordNotFound.new("Couldn't find #{@klass.name} with [#{arel.where_sql}]")
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-second"> <span class="method-name">second</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the second record. If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.second # returns the second object fetched by SELECT * FROM people
+Person.offset(3).second # returns the second object from OFFSET 3 (which is OFFSET 4)
+Person.where(["user_name = :u", { u: user_name }]).second
+</pre> <div class="method-source-code" id="second-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 176
+def second
+  find_nth(1, offset_index)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-second-21"> <span class="method-name">second!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>second</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found.</p> <div class="method-source-code" id="second-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 182
+def second!
+  find_nth! 1
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-take"> <span class="method-name">take</span><span class="method-args">(limit = nil)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Gives a record (or N records if a parameter is supplied) without any implied order. The order will depend on the database implementation. If an order is supplied it will be respected.</p> <pre class="ruby" data-language="ruby">Person.take # returns an object fetched by SELECT * FROM people LIMIT 1
+Person.take(5) # returns 5 objects fetched by SELECT * FROM people LIMIT 5
+Person.where(["name LIKE '%?'", name]).take
+</pre> <div class="method-source-code" id="take-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 104
+def take(limit = nil)
+  limit ? limit(limit).to_a : find_take
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-take-21"> <span class="method-name">take!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>take</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found. Note that <code>take!</code> accepts no arguments.</p> <div class="method-source-code" id="take-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 110
+def take!
+  take or raise RecordNotFound.new("Couldn't find #{@klass.name} with [#{arel.where_sql}]")
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-third"> <span class="method-name">third</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Find the third record. If no order is defined it will order by primary key.</p> <pre class="ruby" data-language="ruby">Person.third # returns the third object fetched by SELECT * FROM people
+Person.offset(3).third # returns the third object from OFFSET 3 (which is OFFSET 5)
+Person.where(["user_name = :u", { u: user_name }]).third
+</pre> <div class="method-source-code" id="third-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 192
+def third
+  find_nth(2, offset_index)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-third-21"> <span class="method-name">third!</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Same as <code>third</code> but raises <code>ActiveRecord::RecordNotFound</code> if no record is found.</p> <div class="method-source-code" id="third-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 198
+def third!
+  find_nth! 2
+end</pre> </div> </div> </div> </section> <section id="protected-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Protected Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-find_last"> <span class="method-name">find_last</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_last-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 503
+def find_last
+  if loaded?
+    @records.last
+  else
+    @last ||=
+      if limit_value
+        to_a.last
+      else
+        reverse_order.limit(1).to_a.first
+      end
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_nth"> <span class="method-name">find_nth</span><span class="method-args">(index, offset)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_nth-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 479
+def find_nth(index, offset)
+  if loaded?
+    @records[index]
+  else
+    offset += index
+    @offsets[offset] ||= find_nth_with_limit(offset, 1).first
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_nth-21"> <span class="method-name">find_nth!</span><span class="method-args">(index)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_nth-21-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 488
+def find_nth!(index)
+  find_nth(index, offset_index) or raise RecordNotFound.new("Couldn't find #{@klass.name} with [#{arel.where_sql}]")
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_nth_with_limit"> <span class="method-name">find_nth_with_limit</span><span class="method-args">(offset, limit)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_nth_with_limit-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 492
+def find_nth_with_limit(offset, limit)
+  relation = if order_values.empty? &amp;&amp; primary_key
+               order(arel_table[primary_key].asc)
+             else
+               self
+             end
+
+  relation = relation.offset(offset) unless offset.zero?
+  relation.limit(limit).to_a
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_one"> <span class="method-name">find_one</span><span class="method-args">(id)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_one-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 432
+    def find_one(id)
+      if ActiveRecord::Base === id
+        id = id.id
+        ActiveSupport::Deprecation.warn("          You are passing an instance of ActiveRecord::Base to `find`.
+          Please pass the id of the object by calling `.id`
+".squish)
+      end
+
+      relation = where(primary_key =&gt; id)
+      record = relation.take
+
+      raise_record_not_found_exception!(id, 0, 1) unless record
+
+      record
+    end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_some"> <span class="method-name">find_some</span><span class="method-args">(ids)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_some-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 449
+def find_some(ids)
+  result = where(primary_key =&gt; ids).to_a
+
+  expected_size =
+    if limit_value &amp;&amp; ids.size &gt; limit_value
+      limit_value
+    else
+      ids.size
+    end
+
+  # 11 ids with limit 3, offset 9 should give 2 results.
+  if offset_value &amp;&amp; (ids.size - offset_value &lt; expected_size)
+    expected_size = ids.size - offset_value
+  end
+
+  if result.size == expected_size
+    result
+  else
+    raise_record_not_found_exception!(ids, result.size, expected_size)
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_take"> <span class="method-name">find_take</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_take-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 471
+def find_take
+  if loaded?
+    @records.first
+  else
+    @take ||= limit(1).to_a.first
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_with_ids"> <span class="method-name">find_with_ids</span><span class="method-args">(*ids)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="find_with_ids-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/finder_methods.rb, line 411
+def find_with_ids(*ids)
+  raise UnknownPrimaryKey.new(@klass) if primary_key.nil?
+
+  expects_array = ids.first.kind_of?(Array)
+  return ids.first if expects_array &amp;&amp; ids.first.empty?
+
+  ids = ids.flatten.compact.uniq
+
+  case ids.size
+  when 0
+    raise RecordNotFound, "Couldn't find #{@klass.name} without an ID"
+  when 1
+    result = find_one(ids.first)
+    expects_array ? [ result ] : result
+  else
+    find_some(ids)
+  end
+rescue RangeError
+  raise RecordNotFound, "Couldn't find #{@klass.name} with an out of range ID"
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2017 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

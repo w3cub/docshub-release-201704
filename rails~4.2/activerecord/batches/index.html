@@ -1,0 +1,159 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>ActiveRecord&#58;&#58;Batches - Ruby on Rails 4.2 - W3cubDocs</title>
+  
+  <meta name="description" content="Looping through a collection of records from the database (using the all method, for example) is very inefficient since it will try to instantiate &hellip;">
+  <meta name="keywords" content="module, activerecord, batches, -, ruby, on, rails, rails~4.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rails~4.2/activerecord/batches/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rails~4.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rails~4.2/" class="_nav-link" title="" style="margin-left:0;">Ruby on Rails 4.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-ActiveRecord::Batches" class="module"> module ActiveRecord::Batches </h1>  <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-find_each"> <span class="method-name">find_each</span><span class="method-args">(options = {}) { |record| ... }</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Looping through a collection of records from the database (using the <code>all</code> method, for example) is very inefficient since it will try to instantiate all the objects at once.</p> <p>In that case, batch processing methods allow you to work with the records in batches, thereby greatly reducing memory consumption.</p> <p>The <a href="../batches/#method-i-find_each">find_each</a> method uses <a href="../batches/#method-i-find_in_batches">find_in_batches</a> with a batch size of 1000 (or as specified by the <code>:batch_size</code> option).</p> <pre class="ruby" data-language="ruby">Person.find_each do |person|
+  person.do_awesome_stuff
+end
+
+Person.where("age &gt; 21").find_each do |person|
+  person.party_all_night!
+end
+</pre> <p>If you do not provide a block to <a href="../batches/#method-i-find_each">find_each</a>, it will return an Enumerator for chaining with other methods:</p> <pre class="ruby" data-language="ruby">Person.find_each.with_index do |person, index|
+  person.award_trophy(index + 1)
+end
+</pre> <h4 id="method-i-find_each-label-Options">Options</h4> <ul>
+<li> <p><code>:batch_size</code> - Specifies the size of the batch. Default to 1000.</p> </li>
+<li> <p><code>:start</code> - Specifies the starting point for the batch processing.</p> </li>
+</ul> <p>This is especially useful if you want multiple workers dealing with the same processing queue. You can make worker 1 handle all the records between id 0 and 10,000 and worker 2 handle from 10,000 and beyond (by setting the <code>:start</code> option on that worker).</p> <pre class="ruby" data-language="ruby"># Let's process for a batch of 2000 records, skipping the first 2000 rows
+Person.find_each(start: 2000, batch_size: 2000) do |person|
+  person.party_all_night!
+end
+</pre> <p>NOTE: It's not possible to set the order. That is automatically set to ascending on the primary key (“id ASC”) to make the batch ordering work. This also means that this method only works with integer-based primary keys.</p> <p>NOTE: You can't set the limit either, that's used to control the batch sizes.</p> <div class="method-source-code" id="find_each-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/batches.rb, line 48
+def find_each(options = {})
+  if block_given?
+    find_in_batches(options) do |records|
+      records.each { |record| yield record }
+    end
+  else
+    enum_for :find_each, options do
+      options[:start] ? where(table[primary_key].gteq(options[:start])).size : size
+    end
+  end
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-find_in_batches"> <span class="method-name">find_in_batches</span><span class="method-args">(options = {}) { |records| ... }</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Yields each batch of records that was found by the find <code>options</code> as an array.</p> <pre class="ruby" data-language="ruby">Person.where("age &gt; 21").find_in_batches do |group|
+  sleep(50) # Make sure it doesn't get too crowded in there!
+  group.each { |person| person.party_all_night! }
+end
+</pre> <p>If you do not provide a block to <a href="../batches/#method-i-find_in_batches">find_in_batches</a>, it will return an Enumerator for chaining with other methods:</p> <pre class="ruby" data-language="ruby">Person.find_in_batches.with_index do |group, batch|
+  puts "Processing group ##{batch}"
+  group.each(&amp;:recover_from_last_night!)
+end
+</pre> <p>To be yielded each record one by one, use <a href="../batches/#method-i-find_each">find_each</a> instead.</p> <h4 id="method-i-find_in_batches-label-Options">Options</h4> <ul>
+<li> <p><code>:batch_size</code> - Specifies the size of the batch. Default to 1000.</p> </li>
+<li> <p><code>:start</code> - Specifies the starting point for the batch processing.</p> </li>
+</ul> <p>This is especially useful if you want multiple workers dealing with the same processing queue. You can make worker 1 handle all the records between id 0 and 10,000 and worker 2 handle from 10,000 and beyond (by setting the <code>:start</code> option on that worker).</p> <pre class="ruby" data-language="ruby"># Let's process the next 2000 records
+Person.find_in_batches(start: 2000, batch_size: 2000) do |group|
+  group.each { |person| person.party_all_night! }
+end
+</pre> <p>NOTE: It's not possible to set the order. That is automatically set to ascending on the primary key (“id ASC”) to make the batch ordering work. This also means that this method only works with integer-based primary keys.</p> <p>NOTE: You can't set the limit either, that's used to control the batch sizes.</p> <div class="method-source-code" id="find_in_batches-source"> <pre class="ruby" data-language="ruby"># File activerecord/lib/active_record/relation/batches.rb, line 98
+def find_in_batches(options = {})
+  options.assert_valid_keys(:start, :batch_size)
+
+  relation = self
+  start = options[:start]
+  batch_size = options[:batch_size] || 1000
+
+  unless block_given?
+    return to_enum(:find_in_batches, options) do
+      total = start ? where(table[primary_key].gteq(start)).size : size
+      (total - 1).div(batch_size) + 1
+    end
+  end
+
+  if logger &amp;&amp; (arel.orders.present? || arel.taken.present?)
+    logger.warn("Scoped order and limit are ignored, it's forced to be batch order and batch size")
+  end
+
+  relation = relation.reorder(batch_order).limit(batch_size)
+  records = start ? relation.where(table[primary_key].gteq(start)).to_a : relation.to_a
+
+  while records.any?
+    records_size = records.size
+    primary_key_offset = records.last.id
+    raise "Primary key not included in the custom select clause" unless primary_key_offset
+
+    yield records
+
+    break if records_size &lt; batch_size
+
+    records = relation.where(table[primary_key].gt(primary_key_offset)).to_a
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    © 2004–2017 David Heinemeier Hansson<br>Licensed under the MIT License.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
