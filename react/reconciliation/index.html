@@ -1,0 +1,121 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Reconciliation - React - W3cubDocs</title>
+  
+  <meta name="description" content="React provides a declarative API so that you don&#39;t have to worry about exactly what changes on every update. This makes writing applications a &hellip;">
+  <meta name="keywords" content="reconciliation, -, react">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/react/reconciliation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/react.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/react/" class="_nav-link" title="" style="margin-left:0;">React</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1> Reconciliation </h1>  <p>React provides a declarative API so that you don't have to worry about exactly what changes on every update. This makes writing applications a lot easier, but it might not be obvious how this is implemented within React. This article explains the choices we made in React's "diffing" algorithm so that component updates are predictable while being fast enough for high-performance apps.</p> <h2>Motivation</h2> <p>When you use React, at a single point in time you can think of the <code>render()</code> function as creating a tree of React elements. On the next state or props update, that <code>render()</code> function will return a different tree of React elements. React then needs to figure out how to efficiently update the UI to match the most recent tree.</p> <p>There are some generic solutions to this algorithmic problem of generating the minimum number of operations to transform one tree into another. However, the <a href="http://grfia.dlsi.ua.es/ml/algorithms/references/editsurvey_bille.pdf" target="_blank">state of the art algorithms</a> have a complexity in the order of O(n<sup>3</sup>) where n is the number of elements in the tree.</p> <p>If we used this in React, displaying 1000 elements would require in the order of one billion comparisons. This is far too expensive. Instead, React implements a heuristic O(n) algorithm based on two assumptions:</p> <ol> <li>Two elements of different types will produce different trees.</li> <li>The developer can hint at which child elements may be stable across different renders with a <code>key</code> prop.</li> </ol> <p>In practice, these assumptions are valid for almost all practical use cases.</p> <h2>The Diffing Algorithm</h2> <p>When diffing two trees, React first compares the two root elements. The behavior is different depending on the types of the root elements.</p> <h3>Elements Of Different Types</h3> <p>Whenever the root elements have different types, React will tear down the old tree and build the new tree from scratch. Going from <code>&lt;a&gt;</code> to <code>&lt;img&gt;</code>, or from <code>&lt;Article&gt;</code> to <code>&lt;Comment&gt;</code>, or from <code>&lt;Button&gt;</code> to <code>&lt;div&gt;</code> - any of those will lead to a full rebuild.</p> <p>When tearing down a tree, old DOM nodes are destroyed. Component instances receive <code>componentWillUnmount()</code>. When building up a new tree, new DOM nodes are inserted into the DOM. Component instances receive <code>componentWillMount()</code> and then <code>componentDidMount()</code>. Any state associated with the old tree is lost.</p> <p>Any components below the root will also get unmounted and have their state destroyed. For example, when diffing:</p> <pre class="highlight" data-language="xml">&lt;div&gt;
+  &lt;Counter /&gt;
+&lt;/div&gt;
+
+&lt;span&gt;
+  &lt;Counter /&gt;
+&lt;/span&gt;</pre> <p>This will destroy the old <code>Counter</code> and remount a new one.</p> <h3>DOM Elements Of The Same Type</h3> <p>When comparing two React DOM elements of the same type, React looks at the attributes of both, keeps the same underlying DOM node, and only updates the changed attributes. For example:</p> <pre class="highlight" data-language="xml">&lt;div className="before" title="stuff" /&gt;
+
+&lt;div className="after" title="stuff" /&gt;</pre> <p>By comparing these two elements, React knows to only modify the <code>className</code> on the underlying DOM node.</p> <p>When updating <code>style</code>, React also knows to update only the properties that changed. For example:</p> <pre class="highlight" data-language="xml">&lt;div style={{color: 'red', fontWeight: 'bold'}} /&gt;
+
+&lt;div style={{color: 'green', fontWeight: 'bold'}} /&gt;</pre> <p>When converting between these two elements, React knows to only modify the <code>color</code> style, not the <code>fontWeight</code>.</p> <p>After handling the DOM node, React then recurses on the children.</p> <h3>Component Elements Of The Same Type</h3> <p>When a component updates, the instance stays the same, so that state is maintained across renders. React updates the props of the underlying component instance to match the new element, and calls <code>componentWillReceiveProps()</code> and <code>componentWillUpdate()</code> on the underlying instance.</p> <p>Next, the <code>render()</code> method is called and the diff algorithm recurses on the previous result and the new result.</p> <h3>Recursing On Children</h3> <p>By default, when recursing on the children of a DOM node, React just iterates over both lists of children at the same time and generates a mutation whenever there's a difference.</p> <p>For example, when adding an element at the end of the children, converting between these two trees works well:</p> <pre class="highlight" data-language="xml">&lt;ul&gt;
+  &lt;li&gt;first&lt;/li&gt;
+  &lt;li&gt;second&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;first&lt;/li&gt;
+  &lt;li&gt;second&lt;/li&gt;
+  &lt;li&gt;third&lt;/li&gt;
+&lt;/ul&gt;</pre> <p>React will match the two <code>&lt;li&gt;first&lt;/li&gt;</code> trees, match the two <code>&lt;li&gt;second&lt;/li&gt;</code> trees, and then insert the <code>&lt;li&gt;third&lt;/li&gt;</code> tree.</p> <p>If you implement it naively, inserting an element at the beginning has worse performance. For example, converting between these two trees works poorly:</p> <pre class="highlight" data-language="xml">&lt;ul&gt;
+  &lt;li&gt;Duke&lt;/li&gt;
+  &lt;li&gt;Villanova&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Connecticut&lt;/li&gt;
+  &lt;li&gt;Duke&lt;/li&gt;
+  &lt;li&gt;Villanova&lt;/li&gt;
+&lt;/ul&gt;</pre> <p>React will mutate every child instead of realizing it can keep the <code>&lt;li&gt;Duke&lt;/li&gt;</code> and <code>&lt;li&gt;Villanova&lt;/li&gt;</code> subtrees intact. This inefficiency can be a problem.</p> <h3>Keys</h3> <p>In order to solve this issue, React supports a <code>key</code> attribute. When children have keys, React uses the key to match children in the original tree with children in the subsequent tree. For example, adding a <code>key</code> to our inefficient example above can make the tree conversion efficient:</p> <pre class="highlight" data-language="xml">&lt;ul&gt;
+  &lt;li key="2015"&gt;Duke&lt;/li&gt;
+  &lt;li key="2016"&gt;Villanova&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ul&gt;
+  &lt;li key="2014"&gt;Connecticut&lt;/li&gt;
+  &lt;li key="2015"&gt;Duke&lt;/li&gt;
+  &lt;li key="2016"&gt;Villanova&lt;/li&gt;
+&lt;/ul&gt;</pre> <p>Now React knows that the element with key <code>'2014'</code> is the new one, and the elements with the keys <code>'2015'</code> and <code>'2016'</code> have just moved.</p> <p>In practice, finding a key is usually not hard. The element you are going to display may already have a unique ID, so the key can just come from your data:</p> <pre class="highlight" data-language="js">&lt;li key={item.id}&gt;{item.name}&lt;/li&gt;</pre> <p>When that's not the case, you can add a new ID property to your model or hash some parts of the content to generate a key. The key only has to be unique among its siblings, not globally unique.</p> <p>As a last resort, you can pass item's index in the array as a key. This can work well if the items are never reordered, but reorders will be slow.</p> <h2>Tradeoffs</h2> <p>It is important to remember that the reconciliation algorithm is an implementation detail. React could rerender the whole app on every action; the end result would be the same. We are regularly refining the heuristics in order to make common use cases faster.</p> <p>In the current implementation, you can express the fact that a subtree has been moved amongst its siblings, but you cannot tell that it has moved somewhere else. The algorithm will rerender that full subtree.</p> <p>Because React relies on heuristics, if the assumptions behind them are not met, performance will suffer.</p> <ol> <li><p>The algorithm will not try to match subtrees of different component types. If you see yourself alternating between two component types with very similar output, you may want to make it the same type. In practice, we haven't found this to be an issue.</p></li> <li><p>Keys should be stable, predictable, and unique. Unstable keys (like those produced by <code>Math.random()</code>) will cause many component instances and DOM nodes to be unnecessarily recreated, which can cause performance degradation and lost state in child components.</p></li> </ol>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Facebook Inc.<br>Licensed under the Creative Commons Attribution 4.0 International Public License.<br>
+    <a href="https://facebook.github.io/react/docs/reconciliation.html" class="_attribution-link" target="_blank">https://facebook.github.io/react/docs/reconciliation.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

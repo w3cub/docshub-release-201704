@@ -1,0 +1,284 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>State and Lifecycle - React - W3cubDocs</title>
+  
+  <meta name="description" content=" Consider the ticking clock example from one of the previous sections. ">
+  <meta name="keywords" content="state, and, lifecycle, -, react">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/react/state-and-lifecycle/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/react.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/react/" class="_nav-link" title="" style="margin-left:0;">React</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1> State and Lifecycle </h1>  <p>Consider the ticking clock example from <a href="../rendering-elements/#updating-the-rendered-element">one of the previous sections</a>.</p> <p>So far we have only learned one way to update the UI.</p> <p>We call <code>ReactDOM.render()</code> to change the rendered output:</p> <pre class="highlight" data-language="js">function tick() {
+  const element = (
+    &lt;div&gt;
+      &lt;h1&gt;Hello, world!&lt;/h1&gt;
+      &lt;h2&gt;It is {new Date().toLocaleTimeString()}.&lt;/h2&gt;
+    &lt;/div&gt;
+  );
+  ReactDOM.render(
+    element,
+    document.getElementById('root')
+  );
+}
+
+setInterval(tick, 1000);</pre> <p><a href="http://codepen.io/gaearon/pen/gwoJZk?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>In this section, we will learn how to make the <code>Clock</code> component truly reusable and encapsulated. It will set up its own timer and update itself every second.</p> <p>We can start by encapsulating how the clock looks:</p> <pre class="highlight" data-language="js">function Clock(props) {
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Hello, world!&lt;/h1&gt;
+      &lt;h2&gt;It is {props.date.toLocaleTimeString()}.&lt;/h2&gt;
+    &lt;/div&gt;
+  );
+}
+
+function tick() {
+  ReactDOM.render(
+    &lt;Clock date={new Date()} /&gt;,
+    document.getElementById('root')
+  );
+}
+
+setInterval(tick, 1000);</pre> <p><a href="http://codepen.io/gaearon/pen/dpdoYR?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>However, it misses a crucial requirement: the fact that the <code>Clock</code> sets up a timer and updates the UI every second should be an implementation detail of the <code>Clock</code>.</p> <p>Ideally we want to write this once and have the <code>Clock</code> update itself:</p> <pre class="highlight" data-language="js">ReactDOM.render(
+  &lt;Clock /&gt;,
+  document.getElementById('root')
+);</pre> <p>To implement this, we need to add "state" to the <code>Clock</code> component.</p> <p>State is similar to props, but it is private and fully controlled by the component.</p> <p>We <a href="../components-and-props/#functional-and-class-components">mentioned before</a> that components defined as classes have some additional features. Local state is exactly that: a feature available only to classes.</p> <h2>Converting a Function to a Class</h2> <p>You can convert a functional component like <code>Clock</code> to a class in five steps:</p> <ol> <li><p>Create an <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Classes" target="_blank">ES6 class</a> with the same name that extends <code>React.Component</code>.</p></li> <li><p>Add a single empty method to it called <code>render()</code>.</p></li> <li><p>Move the body of the function into the <code>render()</code> method.</p></li> <li><p>Replace <code>props</code> with <code>this.props</code> in the <code>render()</code> body.</p></li> <li><p>Delete the remaining empty function declaration.</p></li> </ol> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.props.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}</pre> <p><a href="http://codepen.io/gaearon/pen/zKRGpo?editors=0010" target="_blank">Try it on CodePen.</a></p> <p><code>Clock</code> is now defined as a class rather than a function.</p> <p>This lets us use additional features such as local state and lifecycle hooks.</p> <h2>Adding Local State to a Class</h2> <p>We will move the <code>date</code> from props to state in three steps:</p> <p>1) Replace <code>this.props.date</code> with <code>this.state.date</code> in the <code>render()</code> method:</p> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}</pre> <p>2) Add a <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Classes#Constructor" target="_blank">class constructor</a> that assigns the initial <code>this.state</code>:</p> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {date: new Date()};
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}</pre> <p>Note how we pass <code>props</code> to the base constructor:</p> <pre class="highlight" data-language="js">constructor(props) {
+    super(props);
+    this.state = {date: new Date()};
+  }</pre> <p>Class components should always call the base constructor with <code>props</code>.</p> <p>3) Remove the <code>date</code> prop from the <code>&lt;Clock /&gt;</code> element:</p> <pre class="highlight" data-language="js">ReactDOM.render(
+  &lt;Clock /&gt;,
+  document.getElementById('root')
+);</pre> <p>We will later add the timer code back to the component itself.</p> <p>The result looks like this:</p> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {date: new Date()};
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+ReactDOM.render(
+  &lt;Clock /&gt;,
+  document.getElementById('root')
+);</pre> <p><a href="http://codepen.io/gaearon/pen/KgQpJd?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>Next, we'll make the <code>Clock</code> set up its own timer and update itself every second.</p> <h2>Adding Lifecycle Methods to a Class</h2> <p>In applications with many components, it's very important to free up resources taken by the components when they are destroyed.</p> <p>We want to <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setInterval" target="_blank">set up a timer</a> whenever the <code>Clock</code> is rendered to the DOM for the first time. This is called "mounting" in React.</p> <p>We also want to <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/clearInterval" target="_blank">clear that timer</a> whenever the DOM produced by the <code>Clock</code> is removed. This is called "unmounting" in React.</p> <p>We can declare special methods on the component class to run some code when a component mounts and unmounts:</p> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {date: new Date()};
+  }
+
+  componentDidMount() {
+
+  }
+
+  componentWillUnmount() {
+
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}</pre> <p>These methods are called "lifecycle hooks".</p> <p>The <code>componentDidMount()</code> hook runs after the component output has been rendered to the DOM. This is a good place to set up a timer:</p> <pre class="highlight" data-language="js">componentDidMount() {
+    this.timerID = setInterval(
+      () =&gt; this.tick(),
+      1000
+    );
+  }</pre> <p>Note how we save the timer ID right on <code>this</code>.</p> <p>While <code>this.props</code> is set up by React itself and <code>this.state</code> has a special meaning, you are free to add additional fields to the class manually if you need to store something that is not used for the visual output.</p> <p>If you don't use something in <code>render()</code>, it shouldn't be in the state.</p> <p>We will tear down the timer in the <code>componentWillUnmount()</code> lifecycle hook:</p> <pre class="highlight" data-language="js">componentWillUnmount() {
+    clearInterval(this.timerID);
+  }</pre> <p>Finally, we will implement the <code>tick()</code> method that runs every second.</p> <p>It will use <code>this.setState()</code> to schedule updates to the component local state:</p> <pre class="highlight" data-language="js">class Clock extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {date: new Date()};
+  }
+
+  componentDidMount() {
+    this.timerID = setInterval(
+      () =&gt; this.tick(),
+      1000
+    );
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.timerID);
+  }
+
+  tick() {
+    this.setState({
+      date: new Date()
+    });
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;h1&gt;Hello, world!&lt;/h1&gt;
+        &lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+ReactDOM.render(
+  &lt;Clock /&gt;,
+  document.getElementById('root')
+);</pre> <p><a href="http://codepen.io/gaearon/pen/amqdNA?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>Now the clock ticks every second.</p> <p>Let's quickly recap what's going on and the order in which the methods are called:</p> <p>1) When <code>&lt;Clock /&gt;</code> is passed to <code>ReactDOM.render()</code>, React calls the constructor of the <code>Clock</code> component. Since <code>Clock</code> needs to display the current time, it initializes <code>this.state</code> with an object including the current time. We will later update this state.</p> <p>2) React then calls the <code>Clock</code> component's <code>render()</code> method. This is how React learns what should be displayed on the screen. React then updates the DOM to match the <code>Clock</code>'s render output.</p> <p>3) When the <code>Clock</code> output is inserted in the DOM, React calls the <code>componentDidMount()</code> lifecycle hook. Inside it, the <code>Clock</code> component asks the browser to set up a timer to call <code>tick()</code> once a second.</p> <p>4) Every second the browser calls the <code>tick()</code> method. Inside it, the <code>Clock</code> component schedules a UI update by calling <code>setState()</code> with an object containing the current time. Thanks to the <code>setState()</code> call, React knows the state has changed, and calls <code>render()</code> method again to learn what should be on the screen. This time, <code>this.state.date</code> in the <code>render()</code> method will be different, and so the render output will include the updated time. React updates the DOM accordingly.</p> <p>5) If the <code>Clock</code> component is ever removed from the DOM, React calls the <code>componentWillUnmount()</code> lifecycle hook so the timer is stopped.</p> <h2>Using State Correctly</h2> <p>There are three things you should know about <code>setState()</code>.</p> <h3>Do Not Modify State Directly</h3> <p>For example, this will not re-render a component:</p> <pre class="highlight" data-language="js">// Wrong
+this.state.comment = 'Hello';</pre> <p>Instead, use <code>setState()</code>:</p> <pre class="highlight" data-language="js">// Correct
+this.setState({comment: 'Hello'});</pre> <p>The only place where you can assign <code>this.state</code> is the constructor.</p> <h3>State Updates May Be Asynchronous</h3> <p>React may batch multiple <code>setState()</code> calls into a single update for performance.</p> <p>Because <code>this.props</code> and <code>this.state</code> may be updated asynchronously, you should not rely on their values for calculating the next state.</p> <p>For example, this code may fail to update the counter:</p> <pre class="highlight" data-language="js">// Wrong
+this.setState({
+  counter: this.state.counter + this.props.increment,
+});</pre> <p>To fix it, use a second form of <code>setState()</code> that accepts a function rather than an object. That function will receive the previous state as the first argument, and the props at the time the update is applied as the second argument:</p> <pre class="highlight" data-language="js">// Correct
+this.setState((prevState, props) =&gt; ({
+  counter: prevState.counter + props.increment
+}));</pre> <p>We used an <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/Arrow_functions" target="_blank">arrow function</a> above, but it also works with regular functions:</p> <pre class="highlight" data-language="js">// Correct
+this.setState(function(prevState, props) {
+  return {
+    counter: prevState.counter + props.increment
+  };
+});</pre> <h3>State Updates are Merged</h3> <p>When you call <code>setState()</code>, React merges the object you provide into the current state.</p> <p>For example, your state may contain several independent variables:</p> <pre class="highlight" data-language="js">constructor(props) {
+    super(props);
+    this.state = {
+      posts: [],
+      comments: []
+    };
+  }</pre> <p>Then you can update them independently with separate <code>setState()</code> calls:</p> <pre class="highlight" data-language="js">componentDidMount() {
+    fetchPosts().then(response =&gt; {
+      this.setState({
+        posts: response.posts
+      });
+    });
+
+    fetchComments().then(response =&gt; {
+      this.setState({
+        comments: response.comments
+      });
+    });
+  }</pre> <p>The merging is shallow, so <code>this.setState({comments})</code> leaves <code>this.state.posts</code> intact, but completely replaces <code>this.state.comments</code>.</p> <h2>The Data Flows Down</h2> <p>Neither parent nor child components can know if a certain component is stateful or stateless, and they shouldn't care whether it is defined as a function or a class.</p> <p>This is why state is often called local or encapsulated. It is not accessible to any component other than the one that owns and sets it.</p> <p>A component may choose to pass its state down as props to its child components:</p> <pre class="highlight" data-language="js">&lt;h2&gt;It is {this.state.date.toLocaleTimeString()}.&lt;/h2&gt;</pre> <p>This also works for user-defined components:</p> <pre class="highlight" data-language="js">&lt;FormattedDate date={this.state.date} /&gt;</pre> <p>The <code>FormattedDate</code> component would receive the <code>date</code> in its props and wouldn't know whether it came from the <code>Clock</code>'s state, from the <code>Clock</code>'s props, or was typed by hand:</p> <pre class="highlight" data-language="js">function FormattedDate(props) {
+  return &lt;h2&gt;It is {props.date.toLocaleTimeString()}.&lt;/h2&gt;;
+}</pre> <p><a href="http://codepen.io/gaearon/pen/zKRqNB?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>This is commonly called a "top-down" or "unidirectional" data flow. Any state is always owned by some specific component, and any data or UI derived from that state can only affect components "below" them in the tree.</p> <p>If you imagine a component tree as a waterfall of props, each component's state is like an additional water source that joins it at an arbitrary point but also flows down.</p> <p>To show that all components are truly isolated, we can create an <code>App</code> component that renders three <code>&lt;Clock&gt;</code>s:</p> <pre class="highlight" data-language="js">function App() {
+  return (
+    &lt;div&gt;
+      &lt;Clock /&gt;
+      &lt;Clock /&gt;
+      &lt;Clock /&gt;
+    &lt;/div&gt;
+  );
+}
+
+ReactDOM.render(
+  &lt;App /&gt;,
+  document.getElementById('root')
+);</pre> <p><a href="http://codepen.io/gaearon/pen/vXdGmd?editors=0010" target="_blank">Try it on CodePen.</a></p> <p>Each <code>Clock</code> sets up its own timer and updates independently.</p> <p>In React apps, whether a component is stateful or stateless is considered an implementation detail of the component that may change over time. You can use stateless components inside stateful components, and vice versa.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Facebook Inc.<br>Licensed under the Creative Commons Attribution 4.0 International Public License.<br>
+    <a href="https://facebook.github.io/react/docs/state-and-lifecycle.html" class="_attribution-link" target="_blank">https://facebook.github.io/react/docs/state-and-lifecycle.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
