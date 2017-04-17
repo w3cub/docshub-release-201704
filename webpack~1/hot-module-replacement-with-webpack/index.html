@@ -1,0 +1,181 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Hot Module Replacement With Webpack - Webpack 1 - W3cubDocs</title>
+  
+  <meta name="description" content=" Note that Hot Module Replacement (HMR) is still an experimental feature. ">
+  <meta name="keywords" content="hot, module, replacement, with, webpack, -, webpack~1">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~1/hot-module-replacement-with-webpack/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~1.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~1/" class="_nav-link" title="" style="margin-left:0;">webpack 1</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Hot Module Replacement With Webpack</h1>
+<p><em>Note that Hot Module Replacement (HMR) is still an experimental feature.</em></p>
+<h2 id="introduction">Introduction</h2>
+<p>Hot Module Replacement (HMR) exchanges, adds, or removes modules while an application is running <strong>without</strong> a page reload.</p>
+<h3 id="prerequirements">Prerequirements</h3>
+<ul>
+<li>Using Plugins: <a href="http://webpack.github.io/docs/using-plugins.html" target="_blank">http://webpack.github.io/docs/using-plugins.html</a>
+</li>
+<li>Code Splitting: <a href="http://webpack.github.io/docs/code-splitting.html" target="_blank">http://webpack.github.io/docs/code-splitting.html</a>
+</li>
+<li>webpack-dev-server: <a href="http://webpack.github.io/docs/webpack-dev-server.html" target="_blank">http://webpack.github.io/docs/webpack-dev-server.html</a>
+</li>
+</ul>
+<h3 id="how-does-it-work">How does it work?</h3>
+<p>Webpacks adds a small HMR runtime to the bundle, during the build process, that runs inside your app. When the build completes, Webpack does not exit but stays active, watching the source files for changes. If Webpack detects a source file change, it rebuilds only the changed module(s). Depending on the settings, Webpack will either send a signal to the HMR runtime, or the HMR runtime will poll webpack for changes. Either way, the changed module is sent to the HMR runtime which then tries to apply the hot update. First it checks whether the updated module can self-accept. If not, it checks those modules that have <code>required</code> the updated module. If these too do not accept the update, it bubbles up another level, to the modules that <code>require</code>d the modules that <code>require</code>d the changed module. This bubbling-up will continue until either the update is accepted, or the app entry point is reached, in which case the hot update fails.</p>
+<h4 id="from-the-app-view">From the app view</h4>
+<p>The app code asks the HMR runtime to check for updates. The HMR runtime downloads the updates (async) and tells the app code that an update is available. The app code asks the HMR runtime to apply updates. The HMR runtime applies the update (sync). The app code may or may not require user interaction in this process (you decide).</p>
+<h4 id="from-the-compiler-view">From the compiler (webpack) view</h4>
+<p>In addition to the normal assets, the compiler needs to emit the “Update” to allow updating the previous version to the current version. The “Update” contains two parts:</p>
+<ol>
+<li>the update manifest (json)</li>
+<li>one or multiple update chunks (js)</li>
+</ol>
+<p>The manifest contains the new compilation hash and a list of all update chunks (2.).</p>
+<p>The update chunks contains code for all updated modules in this chunk (or a flag if a module was removed).</p>
+<p>The compiler also makes sure that module and chunk ids are consistent between these builds. It uses a “records” json file to store them between builds (or it stores them in memory).</p>
+<h4 id="from-the-module-view">From the module view</h4>
+<p>HMR is an opt-in feature, so it only affects modules that contain HMR code. The documentation describes the API that is available in modules. In general, the module developer writes handlers that are called when a dependency of this module is updated. They can also write a handler that is called when this module is updated.</p>
+<p>In most cases it’s not mandatory to write HMR code in every module. If a module has no HMR handlers the update bubbles up. This means a single handler can handle an update to a complete module tree. If a single module in this tree is updated, the complete module tree is reloaded (only reloaded not transferred).</p>
+<h4 id="from-the-hmr-runtime-view">From the HMR runtime view (technical)</h4>
+<p>For the module system runtime is additional code emitted to track module <code>parents</code> and <code>children</code>.</p>
+<p>On the management side the runtime supports two methods: <code>check</code> and <code>apply</code>.</p>
+<p>A <code>check</code> does an HTTP request to the update manifest. When this request fails, there is no update available. Otherwise the list of updated chunks is compared to the list of currently loaded chunks. For each loaded chunk the corresponding update chunk is downloaded. All module updates are stored in the runtime as update. The runtime switches into the <code>ready</code> state, meaning an update has been downloaded and is ready to be applied.</p>
+<p>For each new chunk request in the ready state the update chunk is also downloaded.</p>
+<p>The <code>apply</code> method flags all updated modules as invalid. For each invalid module there needs to be a update handler in the module or update handlers in every parent. Else the invalid module bundles up and marks all parents as invalid too. This process continues until no more “bubbling up” occurs. If it bubbles up from an entry point the process fails.</p>
+<p>Now all invalid modules are disposed (dispose handler) and unloaded. Then the current hash is updated and all “accept” handlers are called. The runtime switches back to the <code>idle</code> state and everything continues as normal.</p>
+<h4 id="generated-files">Generated files (technical)</h4>
+<p>The left side represents the initial compiler pass. The right side represents an additional pass with module 4 and 9 updated.</p>
+<p><img src="http://webpack.github.io/assets/HMR.svg" alt="generated update chunks"></p>
+<h3 id="what-can-i-do-with-it">What can I do with it?</h3>
+<p>You can use it in development as a replacement for LiveReload. Actually the webpack-dev-server supports a hot mode which tries to update with HMR before trying to reload the whole page. You only need to add the <code>webpack/hot/dev-server</code> entry point and call the dev-server with <code>--hot</code>.</p>
+<p><code>webpack/hot/dev-server</code> will reload the entire page if the HMR update fails. If you want to <a href="https://github.com/webpack/webpack/issues/418" target="_blank">reload the page on your own</a>, you can add <code>webpack/hot/only-dev-server</code> to the entry point instead.</p>
+<p>You can also use it in production as an updating mechanism. Here you would need to write your own management code that integrates HMR with your app.</p>
+<p>Some loaders already generate modules that are hot-updateable (e.g. the <code>style-loader</code> can exchange a stylesheet). In these cases, you don’t need to do anything special.</p>
+<h3 id="what-is-needed-to-use-it">What is needed to use it?</h3>
+<p>A module can only be updated if you “accept” it. So you need to <code>module.hot.accept</code> the module in the parents or the parents of the parents. For example, a router or a subview would be a good place.</p>
+<p>If you only want to use it with the webpack-dev-server, just add <code>webpack/hot/dev-server</code> as entry point. Else you need some HMR management code that calls <code>check</code> and <code>apply</code>.</p>
+<p>You need to enable records in the Compiler to track module id between processes. (watch mode and the webpack-dev-server keep records in memory, so you don’t need it for development)</p>
+<p>You need to enable HMR in the Compiler to let it add the HMR runtime.</p>
+<h3 id="what-makes-it-so-cool">What makes it so cool?</h3>
+<ul>
+<li>It’s like LiveReload but for every module, so to speak.</li>
+<li>You can use it in production.</li>
+<li>The updates respect your Code Splitting and only download updates for the changed parts of your app.</li>
+<li>You can use it for parts of your application and it doesn’t affect other modules.</li>
+<li>If HMR is disabled all HMR code is removed by the compiler (wrap it in <code><span class="keyword">if</span>(module.hot)</code>)</li>
+</ul>
+<h3 id="caveats">Caveats</h3>
+<ul>
+<li>It’s experimental and not tested thoroughly.</li>
+<li>Expect some bugs</li>
+<li>Theoretically usable in production, but it maybe too early to use it for something serious</li>
+<li>The module ids need to be tracked between compilations so you need to store them (<code>records</code>)</li>
+<li>Optimizer cannot optimize module ids anymore after the first compilation. Therefore the bundle size is affected a little bit.</li>
+<li>HMR runtime code increases bundle size.</li>
+<li>For production usage additional testing is required to test the HMR handlers. This could be pretty difficult.</li>
+</ul>
+<h2 id="tutorial">Tutorial</h2>
+<p>To use hot code replacement with webpack you need four things:</p>
+<ul>
+<li>records (<code>--records-path</code>, <code>recordsPath: ...</code>)</li>
+<li>globally enable hot code replacement (<code>HotModuleReplacementPlugin</code>)</li>
+<li>hot replacement code in your code <code>module.hot.accept</code>
+</li>
+<li>hot replacement management code in your code <code>module.hot.check</code>, <code>module.hot.apply</code>
+</li>
+</ul>
+<p>A small testcase:</p>
+<pre data-language="javascript">/* style.css */
+body {
+    background: red;
+}</pre>
+<pre data-language="javascript">/* entry.js */
+require("./style.css");
+document.write("&lt;input type='text' /&gt;");</pre>
+<p>That’s enough to use hot code replacement with the dev-server.</p>
+<pre data-language="javascript">npm install webpack webpack-dev-server -g
+npm install webpack css-loader style-loader
+webpack-dev-server ./entry --hot --inline --module-bind "css=style\!css"</pre>
+<p>The dev server provides in memory records, which is good for development.</p>
+<p>The <code>--hot</code> switch enables hot code replacement.</p>
+<blockquote><p>This adds the <code>HotModuleReplacementPlugin</code>. Make sure to use either the <code>--hot</code> flag, or the <code>HotModuleReplacementPlugin</code> in your <code>webpack.config.js</code>, but never both at the same time as in that case, the HMR plugin will actually be added twice, breaking the setup.</p></blockquote>
+<p>There is special management code for the dev-server at <code>webpack/hot/dev-server</code>, which is automatically added by <code>--inline</code>. (You don’t have to add it to your <code>webpack.config.js</code>)</p>
+<p>The <code>style-loader</code> already includes hot replacement code.</p>
+<p>If you visit <a href="http://localhost:8080/bundle" target="_blank">http://localhost:8080/bundle</a> you should see the page with a red background and a input box. Type some text into the input box and edit <code>style.css</code> to have another background color.</p>
+<p>Voilà… The background updates but without full page refresh. Text and selection in the input box should stay.</p>
+<p>Read more about how to write you own hot replacement (management) code: <a href="../hot-module-replacement/">hot module replacement</a></p>
+<p>Check the <a href="http://webpack.github.io/example-app/" target="_blank">example-app</a> for a demo without coding. (<em>Note: It’s a bit old, so don’t look at the source code, because the HMR API changed a bit in between</em>)</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the MIT License.<br>
+    <a href="https://webpack.github.io/docs/hot-module-replacement-with-webpack.html" class="_attribution-link" target="_blank">https://webpack.github.io/docs/hot-module-replacement-with-webpack.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

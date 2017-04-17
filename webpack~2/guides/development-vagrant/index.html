@@ -1,0 +1,117 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Development&#58; Vagrant - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content="If you have a more advanced project and use Vagrant to run your development environment in a Virtual Machine, you&#39;ll often want to also run &hellip;">
+  <meta name="keywords" content="development, -, vagrant, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/development-vagrant/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Development - Vagrant</h1>
+<p>If you have a more advanced project and use <a href="https://www.vagrantup.com/" target="_blank">Vagrant</a> to run your development environment in a Virtual Machine, you'll often want to also run webpack in the VM.</p> <h2 class="header" id="configuring-the-project">Configuring the Project</h2> <p>To start, make sure that the <code>Vagrantfile</code> has a static IP;</p> <pre data-language="ruby">Vagrant.configure("2") do |config|
+  config.vm.network :private_network, ip: "10.10.10.61"
+end
+</pre> <p>Next, install webpack and webpack-dev-server in your project;</p> <pre data-language="bash">npm install webpack webpack-dev-server --save-dev
+</pre> <p>Make sure to have a <code>webpack.config.js</code> file. If you haven't already, use this as a minimal example to get started:</p> <pre data-language="js">module.exports = {
+  context: __dirname,
+  entry: "./app.js"
+};
+</pre> <p>And create a <code>index.html</code> file. The script tag should point to your bundle. If <code>output.filename</code> is not specified in the config, this will be <code>bundle.js</code>.</p> <pre data-language="html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;script src="/bundle.js" charset="utf-8"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h2&gt;Heey!&lt;/h2&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre> <p>Note that you also need to create an <code>app.js</code> file.</p> <h2 class="header" id="running-the-server">Running the Server</h2> <p>Now, let's run the server:</p> <pre data-language="bash">webpack-dev-server --host 0.0.0.0 --public 10.10.10.61:8080 --watch-poll
+</pre> <p>By default the server will only be accessible from localhost. We'll be accessing it from our host PC, so we need to change <code>--host</code> to allow this.</p> <p>webpack-dev-server will include a script in your bundle that connects to a WebSocket to reload when a change in any of your files occurs. The <code>--public</code> flag makes sure the script knows where to look for the WebSocket. The server will use port <code>8080</code> by default, so we should also specify that here.</p> <p><code>--watch-poll</code> makes sure that webpack can detect changes in your files. By default webpack listens to events triggered by the filesystem, but VirtualBox has many problems with this.</p> <p>The server should be accessible on <code>http://10.10.10.61:8080</code> now. If you make a change in <code>app.js</code>, it should live reload.</p> <h2 class="header" id="advanced-usage-with-nginx">Advanced Usage with nginx</h2> <p>To mimic a more production-like environment, it is also possible to proxy the webpack-dev-server with nginx.</p> <p>In your nginx config file, add the following:</p> <pre data-language="nginx">server {
+  location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    error_page 502 @start-webpack-dev-server;
+  }
+
+  location @start-webpack-dev-server {
+    default_type text/plain;
+    return 502 "Please start the webpack-dev-server first.";
+  }
+}
+</pre> <p>The <code>proxy_set_header</code> lines are important, because they allow the WebSockets to work correctly.</p> <p>The command to start webpack-dev-server can then be changed to this:</p> <pre data-language="bash">webpack-dev-server --public 10.10.10.61 --watch-poll
+</pre> <p>This makes the server only accessible on <code>127.0.0.1</code>, which is fine, because nginx takes care of making it available on your host PC.</p> <h2 class="header" id="conclusion">Conclusion</h2> <p>We made the Vagrant box accessible from a static IP, and then made webpack-dev-server publicly accessible so it is reachable from a browser. We then tackled a common problem that VirtualBox doesn't send out filesystem events, causing the server to not reload on file changes.</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/development-vagrant/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/development-vagrant/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,148 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Shimming - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content="webpack as a module bundler can understand modules written as ES2015 modules, CommonJS or AMD. But many times, while using third party libraries, we &hellip;">
+  <meta name="keywords" content="shimming, -, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/shimming/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Shimming</h1>
+<p><code>webpack</code> as a module bundler can understand modules written as ES2015 modules, CommonJS or AMD. But many times, while using third party libraries, we see that they expect dependencies which are global, AKA <code>$</code> for <code>jquery</code>. They might also be creating global variables which need to be exported. Here we will see different ways to help webpack understand these <strong>broken modules</strong>.</p> <h2 class="header" id="prefer-unminified-commonjs-amd-files-over-bundled-dist-versions-">Prefer unminified CommonJS/AMD files over bundled <code>dist</code> versions.</h2> <p>Most modules link the <code>dist</code> version in the <code>main</code> field of their <code>package.json</code>. While this is useful for most developers, for webpack it is better to alias the src version because this way webpack is able to optimize dependencies better. However in most cases <code>dist</code> works fine as well.</p> <pre data-language="javascript">// webpack.config.js
+
+module.exports = {
+    ...
+    resolve: {
+        alias: {
+            jquery: "jquery/src/jquery"
+        }
+    }
+};
+</pre> <h2 class="header" id="provideplugin"><code>ProvidePlugin</code></h2> <p>The <a href="../../plugins/provide-plugin/"><code>ProvidePlugin</code></a> makes a module available as a variable in every other module required by <code>webpack</code>. The module is required only if you use the variable. Most legacy modules rely on the presence of specific globals, like jQuery plugins do on <code>$</code> or <code>jQuery</code>. In this scenario, you can configure webpack to prepend <code>var $ = require(“jquery”)</code> every time it encounters the global <code>$</code> identifier.</p> <pre data-language="javascript">module.exports = {
+  plugins: [
+    new webpack.ProvidePlugin({
+      $: 'jquery',
+      jQuery: 'jquery'
+    })
+  ]
+};
+</pre> <p>This plugin is also capable of providing only a certain export of a module by configuring it with an array path using this format: <code>[module, child, ...children?]</code> The following configuration will correctly import function <code>__assign</code> from TypeScript's <code>tslib</code> package, and provide it wherever it's invoked.</p> <pre data-language="javascript">module.exports = {
+  plugins: [
+    new webpack.ProvidePlugin({
+      __assign: ['tslib', '__assign'],
+      __extends: ['tslib', '__extends'],
+    })
+  ]
+};
+</pre> <h2 class="header" id="imports-loader"><code>imports-loader</code></h2> <p><a href="../../loaders/imports-loader/"><code>imports-loader</code></a> inserts necessary globals into the required legacy module. For example, Some legacy modules rely on <code>this</code> being the <code>window</code> object. This becomes a problem when the module is executed in a CommonJS context where <code>this</code> equals <code>module.exports</code>. In this case you can override <code>this</code> using the <code>imports-loader</code>.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">module.exports = {
+  module: {
+    rules: [{
+      test: require.resolve("some-module"),
+      use: 'imports-loader?this=&gt;window'
+    }]
+  }
+};
+</pre> <p>There are modules that support different <a href="../../concepts/modules/">module styles</a>, like AMD, CommonJS and legacy. However, most of the time they first check for <code>define</code> and then use some quirky code to export properties. In these cases, it could help to force the CommonJS path by setting <code>define = false</code>:</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">module.exports = {
+  module: {
+    rules: [{
+      test: require.resolve("some-module"),
+      use: 'imports-loader?define=&gt;false'
+    }]
+  }
+};
+</pre> <h2 class="header" id="exports-loader"><code>exports-loader</code></h2> <p>Let's say a library creates a global variable that it expects its consumers to use; In this case, we can use <a href="../../loaders/exports-loader/"><code>exports-loader</code></a>, to export that global variable in CommonJS format. For instance, in order to export <code>file</code> as <code>file</code> and <code>helpers.parse</code> as <code>parse</code>:</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">module.exports = {
+  module: {
+    rules: [{
+      test: require.resolve("some-module"),
+      use: 'exports-loader?file,parse=helpers.parse'
+      // adds below code the file's source:
+      //  exports["file"] = file;
+      //  exports["parse"] = helpers.parse;
+    }]
+  }
+};
+</pre> <h2 class="header" id="script-loader"><code>script-loader</code></h2> <p>The <a href="../../loaders/script-loader/"><code>script-loader</code></a> evaluates code in the global context, just like you would add the code into a <code>script</code> tag. In this mode, every normal library should work. <code>require</code>, <code>module</code>, etc. are undefined.</p> <blockquote class="warning"> The file is added as string to the bundle. It is not minimized by <code>webpack</code>, so use a minimized version. There is also no dev tool support for libraries added by this loader. </blockquote>
+<p>Assuming you have a <code>legacy.js</code> file containing …</p> <pre data-language="javascript">GLOBAL_CONFIG = {};
+</pre> <p>… using the <code>script-loader</code> …</p> <pre data-language="javascript">require('script-loader!legacy.js');
+</pre> <p>… basically yields:</p> <pre data-language="javascript">eval("GLOBAL_CONFIG = {};");
+</pre> <h2 class="header" id="noparse-option">
+<code>noParse</code> option</h2> <p>When there is no AMD/CommonJS version of the module and you want to include the <code>dist</code>, you can flag this module as <a href="../../configuration/module/#module-noparse"><code>noParse</code></a>. Then <code>webpack</code> will just include the module without parsing it, which can be used to improve the build time.</p> <blockquote class="warning"> Any feature requiring the AST, like the <code>ProvidePlugin</code>, will not work. </blockquote>
+<pre data-language="javascript">module.exports = {
+  module: {
+    noParse: /jquery|backbone/
+  }
+};
+</pre> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/shimming/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/shimming/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

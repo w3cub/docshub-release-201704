@@ -1,0 +1,229 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Caching - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content=" To enable long-term caching of static resources produced by webpack&#58; ">
+  <meta name="keywords" content="caching, -, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/caching/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Caching</h1>
+<p>To enable long-term caching of static resources produced by webpack:</p> <ol> <li>Use <code>[chunkhash]</code> to add a content-dependent cache-buster to each file.</li> <li>Extract the webpack manifest into a separate file.</li> <li>
+<p>Ensure that the entry point chunk containing the bootstrapping code doesn’t change hash over time for the same set of dependencies.</p> <p> For even more optimized setup:</p> </li> <li>Use compiler stats to get the file names when requiring resources in HTML.</li> <li>Generate the chunk manifest JSON and inline it into the HTML page before loading resources.</li> </ol> <h2 class="header" id="the-problem">The problem</h2> <p>Each time something needs to be updated in our code, it has to be re-deployed on the server and then re-downloaded by all clients. This is clearly inefficient since fetching resources over the network can be slow. This is why browsers cache static resources.</p> <p>The way it works has a pitfall: If we don’t change filenames of our resources when deploying a new version, the browser might think it hasn’t been updated and client will get a cached version of it.</p> <p>A simple way to tell the browser to download a newer version is to alter the asset’s file name. In a pre-webpack era we used to add a build number to the filenames as a parameter and then increment it:</p> <pre data-language="bash">application.js?build=1
+application.css?build=1
+</pre> <p>It is even easier to do with webpack. Each webpack build generates a unique hash which can be used to compose a filename, by including output <a href="../../concepts/output/#options">placeholders</a>. The following example config will generate 2 files (1 per entry) with hashes in filenames:</p> <pre data-language="js">// webpack.config.js
+const path = require("path");
+
+module.exports = {
+  entry: {
+    vendor: "./src/vendor.js",
+    main: "./src/index.js"
+  },
+  output: {
+    path: path.join(__dirname, "build"),
+    filename: "[name].[hash].js"
+  }
+};
+</pre> <p>Running webpack with this config will produce the following output:</p> <pre data-language="bash">Hash: 2a6c1fee4b5b0d2c9285
+Version: webpack 2.2.0
+Time: 62ms
+                         Asset     Size  Chunks             Chunk Names
+vendor.2a6c1fee4b5b0d2c9285.js  2.58 kB       0  [emitted]  vendor
+  main.2a6c1fee4b5b0d2c9285.js  2.57 kB       1  [emitted]  main
+   [0] ./src/index.js 63 bytes {1} [built]
+   [1] ./src/vendor.js 63 bytes {0} [built]
+</pre> <p>But the problem here is, builds after <em>any file update</em> will update all filenames and clients will have to re-download all application code. So how can we guarantee that clients always get the latest versions of assets without re-downloading all of them?</p> <h2 class="header" id="generating-unique-hashes-for-each-file">Generating unique hashes for each file</h2> <p>What if we could produce the same filename, if the contents of the file did not change between builds? For example, it would be unnecessary to re-download a vendor file, when no dependencies have been updated, only application code.</p> <p>webpack allows you to generate hashes depending on file contents, by replacing the placeholder <code>[hash]</code> with <code>[chunkhash]</code>. Here is the updated config:</p> <pre data-language="diff">module.exports = {
+  /*...*/
+  output: {
+    /*...*/
+-   filename: "[name].[hash].js"
++   filename: "[name].[chunkhash].js"
+  }
+};
+</pre> <p>This config will also create 2 files, but in this case, each file will get its own unique hash.</p> <pre data-language="bash">Hash: cfba4af36e2b11ef15db
+Version: webpack 2.2.0
+Time: 66ms
+                         Asset     Size  Chunks             Chunk Names
+vendor.50cfb8f89ce2262e5325.js  2.58 kB       0  [emitted]  vendor
+  main.70b594fe8b07bcedaa98.js  2.57 kB       1  [emitted]  main
+   [0] ./src/index.js 63 bytes {1} [built]
+   [1] ./src/vendor.js 63 bytes {0} [built]
+</pre> <blockquote class="tip"> Don’t use [chunkhash] in development since this will increase compilation time. Separate development and production configs and use [name].js for development and [name].[chunkhash].js in production. </blockquote>
+<h2 class="header" id="get-filenames-from-webpack-compilation-stats">Get filenames from webpack compilation stats</h2> <p>When working in development mode, you just reference JavaScript files by entry point name in your HTML.</p> <pre data-language="html">&lt;script src="vendor.js"&gt;&lt;/script&gt;
+&lt;script src="main.js"&gt;&lt;/script&gt;
+</pre> <p>Although, each time we build for production, we’ll get different file names. Something, that looks like this:</p> <pre data-language="html">&lt;script src="vendor.50cfb8f89ce2262e5325.js"&gt;&lt;/script&gt;
+&lt;script src="main.70b594fe8b07bcedaa98.js"&gt;&lt;/script&gt;
+</pre> <p>In order to reference a correct file in the HTML, we’ll need information about our build. This can be extracted from webpack compilation stats by using this plugin:</p> <pre data-language="js">// webpack.config.js
+const path = require("path");
+
+module.exports = {
+  /*...*/
+  plugins: [
+    function() {
+      this.plugin("done", function(stats) {
+        require("fs").writeFileSync(
+          path.join(__dirname, "build", "stats.json"),
+          JSON.stringify(stats.toJson()));
+      });
+    }
+  ]
+};
+</pre> <p>Alternatively, just use one of these plugins to export JSON files:</p> <ul> <li><a href="https://www.npmjs.com/package/webpack-manifest-plugin" target="_blank">https://www.npmjs.com/package/webpack-manifest-plugin</a></li> <li><a href="https://www.npmjs.com/package/assets-webpack-plugin" target="_blank">https://www.npmjs.com/package/assets-webpack-plugin</a></li> </ul> <p>A sample output when using <code>WebpackManifestPlugin</code> in our config looks like:</p> <pre data-language="json">{
+  "main.js": "main.155567618f4367cd1cb8.js",
+  "vendor.js": "vendor.c2330c22cd2decb5da5a.js"
+}
+</pre> <h2 class="header" id="deterministic-hashes">Deterministic hashes</h2> <p>To minimize the size of generated files, webpack uses identifiers instead of module names. During compilation, identifiers are generated, mapped to chunk filenames and then put into a JavaScript object called <em>chunk manifest</em>. To generate identifiers that are preserved over builds, webpack supplies the <code>NamedModulesPlugin</code> (recommended for development) and <code>HashedModuleIdsPlugin</code> (recommended for production).</p> <blockquote class="todo"> When exist, link to <code>NamedModulesPlugin</code> and <code>HashedModuleIdsPlugin</code> docs pages </blockquote>
+<blockquote class="todo"> Describe how the option <code>recordsPath</code> option works </blockquote>
+<p>The chunk manifest (along with bootstrapping/runtime code) is then placed into the entry chunk and it is crucial for webpack-packaged code to work.</p> <blockquote class="tip"> Separate your vendor and application code with <a href="../../plugins/commons-chunk-plugin/">CommonsChunkPlugin</a> and create an explicit vendor chunk to prevent it from changing too often. When <code>CommonsChunkPlugin</code> is used, the runtime code is moved to the <em>last</em> common entry. </blockquote>
+<p>The problem with this, is the same as before: Whenever we change any part of the code it will, even if the rest of its contents wasn’t altered, update our entry chunk to include the new manifest. This in turn, will lead to a new hash and dismiss the long-term caching.</p> <p>To fix that, we should use <a href="https://github.com/diurnalist/chunk-manifest-webpack-plugin" target="_blank"><code>ChunkManifestWebpackPlugin</code></a>, which will extract the manifest to a separate JSON file. This replaces the chunk manifest with a variable in the webpack runtime. But we can do even better; we can extract the runtime into a separate entry by using <code>CommonsChunkPlugin</code>. Here is an updated <code>webpack.config.js</code> which will produce the manifest and runtime files in our build directory:</p> <pre data-language="js">// webpack.config.js
+var ChunkManifestPlugin = require("chunk-manifest-webpack-plugin");
+
+module.exports = {
+  /*...*/
+  plugins: [
+    /*...*/
+    new webpack.optimize.CommonsChunkPlugin({
+      name: ["vendor", "manifest"], // vendor libs + extracted manifest
+      minChunks: Infinity,
+    }),
+    /*...*/
+    new ChunkManifestPlugin({
+      filename: "chunk-manifest.json",
+      manifestVariable: "webpackManifest"
+    })
+  ]
+};
+</pre> <p>As we removed the manifest from the entry chunk, now it’s our responsibility to provide webpack with it. The <code>manifestVariable</code> option in the example above is the name of the global variable where webpack will look for the manifest JSON. This <em>should be defined before we require our bundle in HTML</em>. This is achieved by inlining the contents of the JSON in HTML. Our HTML head section should look like this:</p> <pre data-language="html">&lt;html&gt;
+  &lt;head&gt;
+    &lt;script&gt;
+    //&lt;![CDATA[
+    window.webpackManifest = {"0":"main.5f020f80c23aa50ebedf.js","1":"vendor.81adc64d405c8b218485.js"}
+    //]]&gt;
+    &lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre> <p>At the end of the day, the hashes for the files should be based on the file content. For this use <a href="https://github.com/alexindigo/webpack-chunk-hash" target="_blank">webpack-chunk-hash</a> or <a href="https://github.com/erm0l0v/webpack-md5-hash" target="_blank">webpack-md5-hash</a>.</p> <p>So the final <code>webpack.config.js</code> should look like this:</p> <pre data-language="js">var path = require("path");
+var webpack = require("webpack");
+var ChunkManifestPlugin = require("chunk-manifest-webpack-plugin");
+var WebpackChunkHash = require("webpack-chunk-hash");
+
+module.exports = {
+  entry: {
+    vendor: "./src/vendor.js", // vendor reference file(s)
+    main: "./src/index.js" // application code
+  },
+  output: {
+    path: path.join(__dirname, "build"),
+    filename: "[name].[chunkhash].js",
+    chunkFilename: "[name].[chunkhash].js"
+  },
+  plugins: [
+    new webpack.optimize.CommonsChunkPlugin({
+      name: ["vendor", "manifest"], // vendor libs + extracted manifest
+      minChunks: Infinity,
+    }),
+    new webpack.HashedModuleIdsPlugin(),
+    new WebpackChunkHash(),
+    new ChunkManifestPlugin({
+      filename: "chunk-manifest.json",
+      manifestVariable: "webpackManifest"
+    })
+  ]
+};
+</pre> <p>Using this config the vendor chunk should not be changing its hash, unless you update its code or dependencies. Here is a sample output for 2 runs with <code>moduleB.js</code> being changed between the runs:</p> <pre data-language="bash">&gt; node_modules/.bin/webpack
+
+Hash: f0ae5bf7c6a1fd3b2127
+Version: webpack 2.2.0
+Time: 102ms
+                           Asset       Size  Chunks             Chunk Names
+    main.9ebe4bf7d99ffc17e75f.js  509 bytes    0, 2  [emitted]  main
+  vendor.81adc64d405c8b218485.js  159 bytes    1, 2  [emitted]  vendor
+             chunk-manifest.json   73 bytes          [emitted]
+manifest.d41d8cd98f00b204e980.js    5.56 kB       2  [emitted]  manifest
+</pre> <pre data-language="bash">&gt; node_modules/.bin/webpack
+
+Hash: b5fb8e138b039ab515f3
+Version: webpack 2.2.0
+Time: 87ms
+                           Asset       Size  Chunks             Chunk Names
+    main.5f020f80c23aa50ebedf.js  521 bytes    0, 2  [emitted]  main
+  vendor.81adc64d405c8b218485.js  159 bytes    1, 2  [emitted]  vendor
+             chunk-manifest.json   73 bytes          [emitted]
+manifest.d41d8cd98f00b204e980.js    5.56 kB       2  [emitted]  manifest
+</pre> <p>Notice that <strong>vendor chunk has the same filename</strong>, and <strong>so does the manifest</strong> since we’ve extracted the manifest chunk!</p> <h2 class="header" id="manifest-inlining">Manifest inlining</h2> <p>Inlining the chunk manifest and webpack runtime (to prevent extra HTTP requests), depends on your server setup. There is a nice <a href="https://brigade.engineering/setting-up-webpack-with-rails-c62aea149679" target="_blank">walkthrough for Rails-based projects</a>. For server-side rendering in Node.js you can use <a href="https://github.com/halt-hammerzeit/webpack-isomorphic-tools" target="_blank">webpack-isomorphic-tools</a>.</p> <blockquote class="tip"> If your application doesn’t rely on any server-side rendering, it’s often enough to generate a single <code>index.html</code> file for your application. To do so, use i.e. <a href="https://github.com/ampedandwired/html-webpack-plugin" target="_blank"><code>HtmlWebpackPlugin</code></a> in combination with <a href="https://github.com/numical/script-ext-html-webpack-plugin" target="_blank"><code>ScriptExtHtmlWebpackPlugin</code></a> or <a href="https://github.com/szrenwei/inline-manifest-webpack-plugin" target="_blank"><code>InlineManifestWebpackPlugin</code></a>. It will simplify the setup dramatically. </blockquote>
+<h2 class="header" id="references">References</h2> <ul> <li><a href="https://medium.com/@okonetchnikov/long-term-caching-of-static-assets-with-webpack-1ecb139adb95#.vtwnssps4" target="_blank">https://medium.com/@okonetchnikov/long-term-caching-of-static-assets-with-webpack-1ecb139adb95#.vtwnssps4</a></li> <li><a href="https://gist.github.com/sokra/ff1b0290282bfa2c037bdb6dcca1a7aa" target="_blank">https://gist.github.com/sokra/ff1b0290282bfa2c037bdb6dcca1a7aa</a></li> <li><a href="https://github.com/webpack/webpack/issues/1315" target="_blank">https://github.com/webpack/webpack/issues/1315</a></li> <li><a href="https://github.com/webpack/webpack.js.org/issues/652" target="_blank">https://github.com/webpack/webpack.js.org/issues/652</a></li> <li><a href="https://presentations.survivejs.com/advanced-webpack/" target="_blank">https://presentations.survivejs.com/advanced-webpack/</a></li> </ul> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/caching/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/caching/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

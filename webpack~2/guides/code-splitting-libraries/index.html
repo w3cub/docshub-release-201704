@@ -1,0 +1,202 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Code Splitting&#58; Libraries - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content="A typical application uses third party libraries for framework&#47;functionality needs. Particular versions of these libraries are used and code &hellip;">
+  <meta name="keywords" content="code, splitting, -, libraries, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/code-splitting-libraries/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Code Splitting - Libraries</h1>
+<p>A typical application uses third party libraries for framework/functionality needs. Particular versions of these libraries are used and code here does not change often. However, the application code changes frequently.</p> <p>Bundling application code with third party code would be inefficient. This is because the browser can cache asset files based on the cache header and files can be cached without needing to call the cdn again if its contents don't change. To take advantage of this, we want to keep the hash of the vendor files constant regardless of application code changes.</p> <p>We can do this only when we separate the bundles for vendor and application code.</p> <p>Let's consider a sample application that uses <a href="https://www.npmjs.com/package/moment" target="_blank">momentjs</a>, a commonly used time formatting library.</p> <p>Install <code>moment</code> as follows in your application directory.</p> <p><code>npm install --save moment</code></p> <p>The index file will require <code>moment</code> as a dependency and log the current date as follows</p> <p><strong>index.js</strong></p> <pre data-language="javascript">var moment = require('moment');
+console.log(moment().format());
+</pre> <p>We can bundle the application with webpack using the following config</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">var path = require('path');
+
+module.exports = function(env) {
+    return {
+        entry: './index.js',
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        }
+    }
+}
+</pre> <p>On running <code>webpack</code> in your application, if you inspect the resulting bundle, you will see that <code>moment</code> and <code>index.js</code> have been bundled in <code>bundle.js</code>.</p> <p>This is not ideal for the application. If the code in <code>index.js</code> changes, then the whole bundle is rebuilt. The browser will have to load a new copy of the new bundle even though most of it hasn't changed at all.</p> <h2 class="header" id="multiple-entries">Multiple Entries</h2> <p>Let's try to mitigate this by adding a separate entry point for <code>moment</code> and name it <code>vendor</code></p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">var path = require('path');
+
+module.exports = function(env) {
+    return {
+        entry: {
+            main: './index.js',
+            vendor: 'moment'
+        },
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        }
+    }
+}
+</pre> <p>On running <code>webpack</code> now, we see that two bundles have been created. If you inspect these though, you will find that the code for <code>moment</code> is present in both the files! The reason for that is <code>moment</code> is a dependency of the main application (e.g. index.js) and each entry point will bundle its own dependencies.</p> <p>It is for this reason, that we will need to use the <a href="../../plugins/commons-chunk-plugin/">CommonsChunkPlugin</a>.</p> <h2 class="header" id="commonschunkplugin"><code>CommonsChunkPlugin</code></h2> <p>This is a pretty complex plugin. It fundamentally allows us to extract all the common modules from different bundles and add them to the common bundle. If a common bundle does not exist, then it creates a new one.</p> <p>We can modify our webpack config file to use the <code>CommonsChunkPlugin</code> as follows</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">var webpack = require('webpack');
+var path = require('path');
+
+module.exports = function(env) {
+    return {
+        entry: {
+            main: './index.js',
+            vendor: 'moment'
+        },
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        },
+        plugins: [
+            new webpack.optimize.CommonsChunkPlugin({
+                name: 'vendor' // Specify the common bundle's name.
+            })
+        ]
+    }
+}
+</pre> <p>Now run <code>webpack</code> on your application. Bundle inspection shows that <code>moment</code> code is present only in the vendor bundle.</p> <h2 class="header" id="implicit-common-vendor-chunk">Implicit Common Vendor Chunk</h2> <p>You can configure a <code>CommonsChunkPlugin</code> instance to only accept vendor libraries.</p> <p> <strong>webpack.config.js</strong></p> <pre data-language="javascript">var webpack = require('webpack');
+var path = require('path');
+
+module.exports = function() {
+    return {
+        entry: {
+            main: './index.js'
+        },
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        },
+        plugins: [
+            new webpack.optimize.CommonsChunkPlugin({
+                name: 'vendor',
+                minChunks: function (module) {
+                   // this assumes your vendor imports exist in the node_modules directory
+                   return module.context &amp;&amp; module.context.indexOf('node_modules') !== -1;
+                }
+            })
+        ]
+    };
+}
+</pre> <h2 class="header" id="manifest-file">Manifest File</h2> <p>But, if we change application code and run <code>webpack</code> again, we see that the hash for the vendor file changes. Even though we achieved separate bundles for <code>vendor</code> and <code>main</code> bundles, we see that the <code>vendor</code> bundle changes when the application code changes. This means that we still don't reap the benefits of browser caching because the hash for vendor file changes on every build and the browser will have to reload the file.</p> <p>The issue here is that on every build, webpack generates some webpack runtime code, which helps webpack do its job. When there is a single bundle, the runtime code resides in it. But when multiple bundles are generated, the runtime code is extracted into the common module, here the <code>vendor</code> file.</p> <p>To prevent this, we need to extract out the runtime into a separate manifest file. Even though we are creating another bundle, the overhead is offset by the long term caching benefits that we obtain on the <code>vendor</code> file.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">var webpack = require('webpack');
+var path = require('path');
+
+module.exports = function(env) {
+    return {
+        entry: {
+            main: './index.js',
+            vendor: 'moment'
+        },
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        },
+        plugins: [
+            new webpack.optimize.CommonsChunkPlugin({
+                names: ['vendor', 'manifest'] // Specify the common bundle's name.
+            })
+        ]
+    }
+};
+</pre> <p>With the above webpack config, we see three bundles being generated. <code>vendor</code>, <code>main</code> and <code>manifest</code> bundles. </p> <p>Using what we have learned so far, we could also achieve the same result with an implicit common vendor chunk.</p> <p> <strong>webpack.config.js</strong></p> <pre data-language="javascript">var webpack = require('webpack');
+var path = require('path');
+
+module.exports = function() {
+    return {
+        entry: {
+            main: './index.js' //Notice that we do not have an explicit vendor entry here
+        },
+        output: {
+            filename: '[name].[chunkhash].js',
+            path: path.resolve(__dirname, 'dist')
+        },
+        plugins: [
+            new webpack.optimize.CommonsChunkPlugin({
+                name: 'vendor',
+                minChunks: function (module) {
+                   // this assumes your vendor imports exist in the node_modules directory
+                   return module.context &amp;&amp; module.context.indexOf('node_modules') !== -1;
+                }
+            }),
+            //CommonChunksPlugin will now extract all the common modules from vendor and main bundles
+            new webpack.optimize.CommonsChunkPlugin({ 
+                name: 'manifest' //But since there are no more common modules between them we end up with just the runtime code included in the manifest file
+            })
+        ]
+    };
+}
+</pre> <blockquote class="tip"> Note that long-term bundle caching is achieved with content-based hashing policy <code>chunkhash</code>. Learn more about <a href="../caching/">caching</a>. </blockquote>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/code-splitting-libraries/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/code-splitting-libraries/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

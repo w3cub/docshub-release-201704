@@ -1,0 +1,243 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Hot Module Replacement&#58; React - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content="As explained in detail on the concept page, Hot Module Replacement (HMR) exchanges, adds, or removes modules while an application is running, &hellip;">
+  <meta name="keywords" content="hot, module, replacement, -, react, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/hmr-react/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Hot Module Replacement - React</h1>
+<p>As explained in detail on the <a href="../../concepts/hot-module-replacement/">concept page</a>, Hot Module Replacement (HMR) exchanges, adds, or removes modules while an application is running, without a page reload. HMR is particularly useful in applications using a single state tree since components are "dumb" and will reflect the latest application state, even after their source is changed and they are replaced.</p> <p>The approach described below specifically uses Babel and React, but HMR can be done in a variety of other ways, using other tools.</p> <blockquote class="tip"> If you'd like to see examples of other approaches please request them, or better yet <a href="https://github.com/webpack/webpack.js.org" target="_blank">open up a PR with an addition</a>. </blockquote>
+<h2 class="header" id="project-config">Project Config</h2> <p>This guide will be demonstrating HMR using Babel on a React app, with PostCSS (using CSS Modules).</p> <p>First, install the following dev dependencies:</p> <pre data-language="bash">npm install --save-dev webpack webpack-dev-server
+npm install --save-dev babel-core babel-loader babel-preset-es2015 babel-preset-react
+npm install --save-dev style-loader css-loader postcss-loader
+</pre> <p>In addition you'll need to install React, ReactDOM and <code>react-hot-loader</code> (make sure to use the <code>next</code> release of this package)</p> <pre data-language="bash">npm install --save react react-dom react-hot-loader@next
+</pre> <h3 class="header" id="babel-config">Babel Config</h3> <p>Create a <code>.babelrc</code> with the following options:</p> <p><strong>.babelrc</strong></p> <pre data-language="json">{
+  "presets": [
+    ["es2015", {"modules": false}],
+    // webpack understands the native import syntax, and uses it for tree shaking
+
+    "react"
+    // Transpile React components to JavaScript
+  ],
+  "plugins": [
+    "react-hot-loader/babel"
+    // Enables React code to work with HMR.
+  ]
+}
+</pre> <p>We need to use ES2015 modules to make HMR work properly. To do this, set the <code>module</code> option to false in our es2015 preset. We can do something similar using <code>babel-preset-env</code>:</p> <pre data-language="json">["env", {"modules": false}]
+</pre> <p>Setting Babel's module plugin to false helps fix many issues (see <a href="../migrating/#mixing-es2015-with-amd-and-commonjs">Migrating from v1 to v2</a> and <a href="http://www.2ality.com/2015/12/webpack-tree-shaking.html" target="_blank">webpack-tree-shaking</a>).</p> <p>Note: Node.js doesn't support ES2015 modules yet and using ES2015 modules in your webpack 2 configuration file will cause an <a href="https://github.com/webpack/webpack.js.org/issues/154" target="_blank">issue</a>.</p> <p>To work around this you will need two <code>.babelrc</code> file to transpile the configuration and app code separately: </p> <ol> <li>in the project root directory with <code>"presets": ["es2015"]</code>
+</li> <li>in the source directory for app code</li> </ol> <h3 class="header" id="webpack-configuration">Webpack configuration</h3> <p>For this example, we will use a single webpack config file, with the following assumptions:</p> <ul> <li>all app source code lives inside the <code>&lt;root&gt;/src</code> folder</li> <li>the entry point to the app is at <code>/src/index.js</code>
+</li> </ul> <blockquote class="tip"> Please review the <a href="../../configuration/dev-server/">webpack-dev-server options</a> and the <a href="../../concepts/">concept pages</a> to familiarize yourself with the concepts below </blockquote>
+<p><strong>webpack.config.js</strong></p> <pre data-language="js">const { resolve } = require('path');
+const webpack = require('webpack');
+
+module.exports = {
+  context: resolve(__dirname, 'src'),
+
+  entry: [
+    'react-hot-loader/patch',
+    // activate HMR for React
+
+    'webpack-dev-server/client?http://localhost:8080',
+    // bundle the client for webpack-dev-server
+    // and connect to the provided endpoint
+
+    'webpack/hot/only-dev-server',
+    // bundle the client for hot reloading
+    // only- means to only hot reload for successful updates
+
+    './index.js'
+    // the entry point of our app
+  ],
+  output: {
+    filename: 'bundle.js',
+    // the output bundle
+
+    path: resolve(__dirname, 'dist'),
+
+    publicPath: '/'
+    // necessary for HMR to know where to load the hot update chunks
+  },
+
+  devtool: 'inline-source-map',
+
+  devServer: {
+    hot: true,
+    // enable HMR on the server
+
+    contentBase: resolve(__dirname, 'dist'),
+    // match the output path
+
+    publicPath: '/'
+    // match the output `publicPath`
+  },
+
+  module: {
+    rules: [
+      {
+        test: /\.jsx?$/,
+        use: [ 'babel-loader', ],
+        exclude: /node_modules/
+      },
+      {
+        test: /\.css$/,
+        use: [ 'style-loader', 'css-loader?modules', 'postcss-loader', ],
+      },
+    ],
+  },
+
+  plugins: [
+    new webpack.HotModuleReplacementPlugin(),
+    // enable HMR globally
+
+    new webpack.NamedModulesPlugin(),
+    // prints more readable module names in the browser console on HMR updates
+  ],
+};
+</pre> <h3 class="header" id="app-code">App code</h3> <p>Let's set up our React app:</p> <p><strong>src/index.js</strong></p> <pre data-language="js">import React from 'react';
+import ReactDOM from 'react-dom';
+
+import { AppContainer } from 'react-hot-loader';
+// AppContainer is a necessary wrapper component for HMR
+
+import App from './components/App';
+
+const render = (Component) =&gt; {
+  ReactDOM.render(
+    &lt;AppContainer&gt;
+      &lt;Component/&gt;
+    &lt;/AppContainer&gt;,
+    document.getElementById('root')
+  );
+};
+
+render(App);
+
+// Hot Module Replacement API
+if (module.hot) {
+  module.hot.accept('./components/App', () =&gt; {
+    render(App)
+  });
+}
+</pre> <p><strong>src/components/App.js</strong></p> <pre data-language="js">import React from 'react';
+import styles from './App.css';
+
+const App = () =&gt; (
+  &lt;div className={styles.app}&gt;
+    &lt;h2&gt;Hello, &lt;/h2&gt;
+  &lt;/div&gt;
+);
+
+export default App;
+</pre> <p><strong>src/components/App.css</strong></p> <pre data-language="css">.app {
+  text-size-adjust: none;
+  font-family: helvetica, arial, sans-serif;
+  line-height: 200%;
+  padding: 6px 20px 30px;
+}
+</pre> <p>Important to note:</p> <ol> <li>
+<p>Setting set <code>devServer: { hot: true }</code> causes webpack will expose the <code>module.hot</code> API to our code</p> </li> <li>
+<p>We use the <code>module.hot</code> hook to enable HMR for specific resources (<code>App.js</code> in this example). The most important property here is <code>module.hot.accept</code>, which specifies how to handle changes to specific dependencies.</p> </li> <li>
+<p>Whenever <code>src/components/App.js</code> or its dependencies are changed <code>module.hot.accept</code> will fire the <code>render</code> method. The <code>render</code> method will even fire when <code>App.css</code> is changed because it is included in <code>App.js</code>.</p> </li> </ol> <p><strong>dist/index.html</strong></p> <pre data-language="html">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;title&gt;Example Index&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id="root"&gt;&lt;/div&gt;
+  &lt;script src="bundle.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre> <p>We need to put the index.html file in our <code>dist</code> folder because <code>webpack-dev-server</code> will not run without it.</p> <h3 class="header" id="putting-it-all-together">Putting it all together</h3> <p>Finally, lets add a start task to <code>package.json</code>, that calls the <code>webpack-dev-server</code> binary.</p> <p><strong>package.json</strong></p> <pre data-language="json">{
+  ...
+  "scripts" : {
+    "start" : "webpack-dev-server"
+  }
+  ...
+}
+</pre> <p>When we run <code>npm start</code>, it will launch the webpack dev server, causing our code to be transpiled by Babel, and bundled. Open a browser to <code>http://localhost:8080</code>, and check the JS console for logs similar to:</p> <pre data-language="bash">dev-server.js:49[HMR] Waiting for update signal from WDS…
+only-dev-server.js:74[HMR] Waiting for update signal from WDS…
+client?c7c8:24 [WDS] Hot Module Replacement enabled.
+</pre> <p>When you edit and save your <code>App.js</code> file, you should see something like the following in the console, and the App should update with changes.</p> <pre data-language="bash">[WDS] App updated. Recompiling…
+client?c7c8:91 [WDS] App hot update…
+dev-server.js:45 [HMR] Checking for updates on the server…
+log-apply-result.js:20 [HMR] Updated modules:
+log-apply-result.js:22 [HMR]  - ./components/App.js
+dev-server.js:27 [HMR] App is up to date.
+</pre> <p>Note that HMR specifies the paths of the updated modules because we're using <code>NamedModulesPlugin</code>.</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/hmr-react/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/hmr-react/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

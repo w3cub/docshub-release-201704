@@ -1,0 +1,199 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Code Splitting&#58; Using require.ensure - Webpack 2 - W3cubDocs</title>
+  
+  <meta name="description" content=" In this section, we will discuss how webpack splits code using require.ensure(). ">
+  <meta name="keywords" content="code, splitting, -, using, require, ensure, webpack, webpack~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/webpack~2/guides/code-splitting-require/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/webpack~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/webpack~2/" class="_nav-link" title="" style="margin-left:0;">webpack 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _webpack">
+				
+<h1>Code Splitting - Using require.ensure</h1>
+<p>In this section, we will discuss how webpack splits code using <code>require.ensure()</code>.</p> <blockquote class="warning"> <code>require.ensure</code> is specific to webpack, see <a href="../code-splitting-import/"><code>import()</code></a> for a proposal for ECMAScript. </blockquote>
+<h2 class="header" id="require-ensure-"><code>require.ensure()</code></h2> <p>webpack statically parses for <code>require.ensure()</code> in the code while building. Any module that is referenced as a dependency or <code>require()</code>d within the callback function, will be added to a new chunk. This new chunk is written to an async bundle that is loaded on demand by webpack through jsonp.</p> <p>The syntax is as follows:</p> <pre data-language="javascript">require.ensure(dependencies: String[], callback: function(require), chunkName: String)
+</pre> <h4 class="header" id="dependencies">dependencies</h4> <p>This is an array of strings where we can declare all the modules that need to be made available before all the code in the callback function can be executed.</p> <h4 class="header" id="callback">callback</h4> <p>This is the callback function that webpack will execute once the dependencies are loaded. An implementation of the <code>require</code> function is sent as a parameter to this function. The function body can use this to further <code>require()</code> modules it needs for execution.</p> <h4 class="header" id="chunkname">chunkName</h4> <p>The <code>chunkName</code> is a name given to the chunk created by this particular <code>require.ensure()</code>. By passing the same <code>chunkName</code> to various <code>require.ensure()</code> calls, we can combine their code into a single chunk, resulting in only one bundle that the browser must load.</p> <h2 class="header" id="example">Example</h2> <p>Let us consider the following file structure:</p> <pre data-language="bash">.
+├── dist
+├── js
+│   ├── a.js
+│   ├── b.js
+│   ├── c.js
+│   └── entry.js
+└── webpack.config.js
+</pre> <p><strong>entry.js</strong></p> <pre data-language="javascript">require('./a');
+require.ensure(['./b'], function(require){
+    require('./c');
+    console.log('done!');
+});
+</pre> <p><strong>a.js</strong></p> <pre data-language="javascript">console.log('***** I AM a *****');
+</pre> <p><strong>b.js</strong></p> <pre data-language="javascript">console.log('***** I AM b *****');
+</pre> <p><strong>c.js</strong></p> <pre data-language="javascript">console.log('***** I AM c *****');
+</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="javascript">var path = require('path');
+
+module.exports = function(env) {
+    return {
+        entry: './js/entry.js',
+        output: {
+            filename: 'bundle.js',
+            path: path.resolve(__dirname, 'dist'),
+            publicPath: 'https://cdn.example.com/assets/',
+            // tell webpack where to load the on-demand bundles. 
+
+            pathinfo: true,
+            // show comments in bundles, just to beautify the output of this example.
+            // should not be used for production.
+        }
+    }
+}
+</pre> <blockquote class="tip"> <code>output.publicPath</code> is an important option when using code-splitting, it is used to tell webpack where to load your bundles on-demand, see the <a href="../../configuration/output/#output-publicpath">configuration documentation</a>. </blockquote>
+<p>On running webpack on this project, we find that webpack has created two new bundles, <code>bundle.js</code> and <code>0.bundle.js</code>.</p> <p><code>entry.js</code> and <code>a.js</code> are bundled in <code>bundle.js</code>.</p> <p><strong>bundle.js</strong></p> <pre data-language="javascript">/******/ (function(modules) { // webpackBootstrap
+//webpack bootstrap code...
+
+/******/     // __webpack_public_path__
+/******/     __webpack_require__.p = "https://cdn.example.com/assets/";
+
+// webpack bootstrap code...
+/******/ })
+/******/ ([
+/* 0 */
+/* unknown exports provided */
+/* all exports used */
+/*!*****************!*\
+  !*** ./js/a.js ***!
+  \*****************/
+/***/ (function(module, exports) {
+
+console.log('***** I AM a *****');
+
+
+/***/ }),
+/* 1 */,
+/* 2 */,
+/* 3 */
+/* unknown exports provided */
+/* all exports used */
+/*!*********************!*\
+  !*** ./js/entry.js ***!
+  \*********************/
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(/*! ./a */ 0);
+__webpack_require__.e/* require.ensure */(0).then((function(require){
+    __webpack_require__(/*! ./c */ 2);
+    console.log('done!');
+}).bind(null, __webpack_require__)).catch(__webpack_require__.oe);
+
+
+/***/ })
+/******/ ]);
+</pre> <blockquote class="tip"> We can see the specified <strong>webpack public path</strong> on <code>__webpack_require__.p</code> in the bootstrap code, it corresponds to our <code>output.publicPath</code> configuration on above. </blockquote>
+<p><code>b.js</code> and <code>c.js</code> are bundled in <code>0.bundle.js</code>.</p> <p><strong>0.bundle.js</strong></p> <pre data-language="javascript">webpackJsonp([0],[
+/* 0 */,
+/* 1 */
+/* unknown exports provided */
+/* all exports used */
+/*!*****************!*\
+  !*** ./js/b.js ***!
+  \*****************/
+/***/ (function(module, exports) {
+
+console.log('***** I AM b *****');
+
+
+/***/ }),
+/* 2 */
+/* unknown exports provided */
+/* all exports used */
+/*!*****************!*\
+  !*** ./js/c.js ***!
+  \*****************/
+/***/ (function(module, exports) {
+
+console.log('***** I AM c *****');
+
+
+
+/***/ })
+]);
+</pre> <p>Now just add <code>bundle.js</code> in your HTML file and open it in your broswer, the <code>0.bundle.js</code> will be loaded on demand (from <code>https://cdn.example.com/assets/0.bundle.js</code>) by webpack.</p> <p><strong>More examples</strong></p> <ul> <li><a href="https://github.com/webpack/webpack/tree/master/examples/code-splitting" target="_blank">https://github.com/webpack/webpack/tree/master/examples/code-splitting</a></li> <li>
+<a href="https://github.com/webpack/webpack/tree/master/examples/named-chunks" target="_blank">https://github.com/webpack/webpack/tree/master/examples/named-chunks</a> – illustrates the use of <code>chunkName</code>
+</li> </ul> <h2 class="header" id="promise-polyfill">Promise polyfill</h2> <blockquote class="warning"> <code>require.ensure</code> relies on <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank"><code>Promise</code></a> internally. See <a href="../code-splitting-import/#promise-polyfill">this section</a> for possible polyfills. </blockquote>
+<h2 class="header" id="gotchas-for-require-ensure-">Gotchas for <code>require.ensure()</code>
+</h2> <h3 class="header" id="empty-array-as-parameter">Empty Array as Parameter</h3> <pre data-language="javascript">require.ensure([], function(require){
+    require('./a.js');
+});
+</pre> <p>The above code ensures that a split point is created and <code>a.js</code> is bundled separately by webpack.</p> <h3 class="header" id="dependencies-as-parameter">Dependencies as Parameter</h3> <pre data-language="javascript">require.ensure(['./b.js'], function(require) {
+    require('./c.js');
+});
+</pre> <p>In the above code, <code>b.js</code> and <code>c.js</code> are bundled together and split from the main bundle. But only the contents of <code>c.js</code> are executed. The contents of <code>b.js</code> are only made available and not executed. To execute <code>b.js</code>, we will have to require it in a sync manner like <code>require('./b.js')</code> for the JavaScript to get executed.</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2016 Tobias Koppers<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://webpack.js.org/guides/code-splitting-require/" class="_attribution-link" target="_blank">https://webpack.js.org/guides/code-splitting-require/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
