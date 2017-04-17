@@ -1,0 +1,440 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Render Functions - Vue.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content="Vue recommends using templates to build your HTML in the vast majority of cases. There are situations however, where you really need the full &hellip;">
+  <meta name="keywords" content="render, functions, -, vue, js, vue~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vue~2/guide/render-function/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vue~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vue~2/" class="_nav-link" title="" style="margin-left:0;">Vue.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vue">
+				
+<h1>Render Functions</h1> <h2 id="Basics">
+Basics</h2>
+<p>Vue recommends using templates to build your HTML in the vast majority of cases. There are situations however, where you really need the full programmatic power of JavaScript. That’s where you can use the <strong>render function</strong>, a closer-to-the-compiler alternative to templates.</p> <p>Let’s dive into a simple example where a <code>render</code> function would be practical. Say you want to generate anchored headings:</p> <pre class="highlight html" data-language="html">&lt;h1&gt;
+  &lt;a name="hello-world" href="#hello-world"&gt;
+    Hello world!
+  &lt;/a&gt;
+&lt;/h1&gt;</pre> <p>For the HTML above, you decide you want this component interface:</p> <pre class="highlight html" data-language="html">&lt;anchored-heading :level="1"&gt;Hello world!&lt;/anchored-heading&gt;</pre> <p>When you get started with a component that just generates a heading based on the <code>level</code> prop, you quickly arrive at this:</p> <pre class="highlight html" data-language="html">&lt;script type="text/x-template" id="anchored-heading-template"&gt;
+  &lt;div&gt;
+    &lt;h1 v-if="level === 1"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h1&gt;
+    &lt;h2 v-if="level === 2"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h2&gt;
+    &lt;h3 v-if="level === 3"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h3&gt;
+    &lt;h4 v-if="level === 4"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h4&gt;
+    &lt;h5 v-if="level === 5"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h5&gt;
+    &lt;h6 v-if="level === 6"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h6&gt;
+  &lt;/div&gt;
+&lt;/script&gt;</pre> <pre class="highlight js" data-language="js">Vue.component('anchored-heading', {
+  template: '#anchored-heading-template',
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> <p>That template doesn’t feel great. It’s not only verbose, but we’re duplicating <code>&lt;slot&gt;&lt;/slot&gt;</code> for every heading level and will have to do the same when we add the anchor element. The whole thing is also wrapped in a useless <code>div</code> because components must contain exactly one root node.</p> <p>While templates work great for most components, it’s clear that this isn’t one of them. So let’s try rewriting it with a <code>render</code> function:</p> <pre class="highlight js" data-language="js">Vue.component('anchored-heading', {
+  render: function (createElement) {
+    return createElement(
+      'h' + this.level,   // tag name
+      this.$slots.default // array of children
+    )
+  },
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> <p>Much simpler! Sort of. The code is shorter, but also requires greater familiarity with Vue instance properties. In this case, you have to know that when you pass children without a <code>slot</code> attribute into a component, like the <code>Hello world!</code> inside of <code>anchored-heading</code>, those children are stored on the component instance at <code>$slots.default</code>. If you haven’t already, <strong>it’s recommended to read through the <a href="../../api/#vm-slots">instance properties API</a> before diving into render functions.</strong></p> <h2 id="createElement-Arguments">
+<code>createElement</code> Arguments</h2>
+<p>The second thing you’ll have to become familiar with is how to use template features in the <code>createElement</code> function. Here are the arguments that <code>createElement</code> accepts:</p> <pre class="highlight js" data-language="js">// @returns {VNode}
+createElement(
+  // {String | Object | Function}
+  // An HTML tag name, component options, or function
+  // returning one of these. Required.
+  'div',
+
+  // {Object}
+  // A data object corresponding to the attributes
+  // you would use in a template. Optional.
+  {
+    // (see details in the next section below)
+  },
+
+  // {String | Array}
+  // Children VNodes. Optional.
+  [
+    createElement('h1', 'hello world'),
+    createElement(MyComponent, {
+      props: {
+        someProp: 'foo'
+      }
+    }),
+    'bar'
+  ]
+)</pre> <h3 id="The-Data-Object-In-Depth">
+The Data Object In-Depth</h3>
+<p>One thing to note: similar to how <code>v-bind:class</code> and <code>v-bind:style</code> have special treatment in templates, they have their own top-level fields in VNode data objects. This object also allows you to bind normal HTML attributes as well as DOM properties such as <code>innerHTML</code> (this would replace the <code>v-html</code> directive):</p> <pre class="highlight js" data-language="js">{
+  // Same API as `v-bind:class`
+  'class': {
+    foo: true,
+    bar: false
+  },
+  // Same API as `v-bind:style`
+  style: {
+    color: 'red',
+    fontSize: '14px'
+  },
+  // Normal HTML attributes
+  attrs: {
+    id: 'foo'
+  },
+  // Component props
+  props: {
+    myProp: 'bar'
+  },
+  // DOM properties
+  domProps: {
+    innerHTML: 'baz'
+  },
+  // Event handlers are nested under "on", though
+  // modifiers such as in v-on:keyup.enter are not
+  // supported. You'll have to manually check the
+  // keyCode in the handler instead.
+  on: {
+    click: this.clickHandler
+  },
+  // For components only. Allows you to listen to
+  // native events, rather than events emitted from
+  // the component using vm.$emit.
+  nativeOn: {
+    click: this.nativeClickHandler
+  },
+  // Custom directives. Note that the binding's
+  // oldValue cannot be set, as Vue keeps track
+  // of it for you.
+  directives: [
+    {
+      name: 'my-custom-directive',
+      value: '2'
+      expression: '1 + 1',
+      arg: 'foo',
+      modifiers: {
+        bar: true
+      }
+    }
+  ],
+  // Scoped slots in the form of
+  // { name: props =&gt; VNode | Array&lt;VNode&gt; }
+  scopedSlots: {
+    default: props =&gt; createElement('span', props.text)
+  },
+  // The name of the slot, if this component is the
+  // child of another component
+  slot: 'name-of-slot'
+  // Other special top-level properties
+  key: 'myKey',
+  ref: 'myRef'
+}</pre> <h3 id="Complete-Example">
+Complete Example</h3>
+<p>With this knowledge, we can now finish the component we started:</p> <pre class="highlight js" data-language="js">var getChildrenTextContent = function (children) {
+  return children.map(function (node) {
+    return node.children
+      ? getChildrenTextContent(node.children)
+      : node.text
+  }).join('')
+}
+
+Vue.component('anchored-heading', {
+  render: function (createElement) {
+    // create kebabCase id
+    var headingId = getChildrenTextContent(this.$slots.default)
+      .toLowerCase()
+      .replace(/\W+/g, '-')
+      .replace(/(^\-|\-$)/g, '')
+
+    return createElement(
+      'h' + this.level,
+      [
+        createElement('a', {
+          attrs: {
+            name: headingId,
+            href: '#' + headingId
+          }
+        }, this.$slots.default)
+      ]
+    )
+  },
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> <h3 id="Constraints">
+Constraints</h3>
+<h4 id="VNodes-Must-Be-Unique">
+VNodes Must Be Unique</h4>
+<p>All VNodes in the component tree must be unique. That means the following render function is invalid:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  var myParagraphVNode = createElement('p', 'hi')
+  return createElement('div', [
+    // Yikes - duplicate VNodes!
+    myParagraphVNode, myParagraphVNode
+  ])
+}</pre> <p>If you really want to duplicate the same element/component many times, you can do so with a factory function. For example, the following render function is a perfectly valid way of rendering 20 identical paragraphs:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  return createElement('div',
+    Array.apply(null, { length: 20 }).map(function () {
+      return createElement('p', 'hi')
+    })
+  )
+}</pre> <h2 id="Replacing-Template-Features-with-Plain-JavaScript">
+Replacing Template Features with Plain JavaScript</h2>
+<h3 id="v-if-and-v-for">
+<code>v-if</code> and <code>v-for</code>
+</h3>
+<p>Wherever something can be easily accomplished in plain JavaScript, Vue render functions do not provide a proprietary alternative. For example, in a template using <code>v-if</code> and <code>v-for</code>:</p> <pre class="highlight html" data-language="html">&lt;ul v-if="items.length"&gt;
+  &lt;li v-for="item in items"&gt;{{ item.name }}&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p v-else&gt;No items found.&lt;/p&gt;</pre> <p>This could be rewritten with JavaScript’s <code>if</code>/<code>else</code> and <code>map</code> in a render function:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  if (this.items.length) {
+    return createElement('ul', this.items.map(function (item) {
+      return createElement('li', item.name)
+    }))
+  } else {
+    return createElement('p', 'No items found.')
+  }
+}</pre> <h3 id="v-model">
+<code>v-model</code>
+</h3>
+<p>There is no direct <code>v-model</code> counterpart in render functions - you will have to implement the logic yourself:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  var self = this
+  return createElement('input', {
+    domProps: {
+      value: self.value
+    },
+    on: {
+      input: function (event) {
+        self.value = event.target.value
+        self.$emit('input', event.target.value)
+      }
+    }
+  })
+}</pre> <p>This is the cost of going lower-level, but it also gives you much more control over the interaction details compared to <code>v-model</code>.</p> <h3 id="Event-amp-Key-Modifiers">
+Event &amp; Key Modifiers</h3>
+<p>For the <code>.capture</code> and <code>.once</code> event modifiers, Vue offers prefixes that can be used with <code>on</code>:</p> <table> <thead> <tr> <th>Modifier(s)</th> <th>Prefix</th> </tr> </thead> <tbody> <tr> <td><code>.capture</code></td> <td><code>!</code></td> </tr> <tr> <td><code>.once</code></td> <td><code>~</code></td> </tr> <tr> <td>
+<code>.capture.once</code> or<br><code>.once.capture</code>
+</td> <td><code>~!</code></td> </tr> </tbody> </table> <p>For example:</p> <pre class="highlight javascript" data-language="javascript">on: {
+  '!click': this.doThisInCapturingMode,
+  '~keyup': this.doThisOnce,
+  `~!mouseover`: this.doThisOnceInCapturingMode
+}</pre> <p>For all other event and key modifiers, no proprietary prefix is necessary, because you can simply use event methods in the handler:</p> <table> <thead> <tr> <th>Modifier(s)</th> <th>Equivalent in Handler</th> </tr> </thead> <tbody> <tr> <td><code>.stop</code></td> <td><code>event.stopPropagation()</code></td> </tr> <tr> <td><code>.prevent</code></td> <td><code>event.preventDefault()</code></td> </tr> <tr> <td><code>.self</code></td> <td><code>if (event.target !== event.currentTarget) return</code></td> </tr> <tr> <td>Keys:<br><code>.enter</code>, <code>.13</code>
+</td> <td>
+<code>if (event.keyCode !== 13) return</code> (change <code>13</code> to <a href="http://keycode.info/" target="_blank" rel="external">another key code</a> for other key modifiers)</td> </tr> <tr> <td>Modifiers Keys:<br><code>.ctrl</code>, <code>.alt</code>, <code>.shift</code>, <code>.meta</code>
+</td> <td>
+<code>if (!event.ctrlKey) return</code> (change <code>ctrlKey</code> to <code>altKey</code>, <code>shiftKey</code>, or <code>metaKey</code>, respectively)</td> </tr> </tbody> </table> <p>Here’s an example with all of these modifiers used together:</p> <pre class="highlight javascript" data-language="javascript">on: {
+  keyup: function (event) {
+    // Abort if the element emitting the event is not
+    // the element the event is bound to
+    if (event.target !== event.currentTarget) return
+    // Abort if the key that went up is not the enter
+    // key (13) and the shift key was not held down
+    // at the same time
+    if (!event.shiftKey || event.keyCode !== 13) return
+    // Stop event propagation
+    event.stopPropagation()
+    // Prevent the default keyup handler for this element
+    event.preventDefault()
+    // ...
+  }
+}</pre> <h3 id="Slots">
+Slots</h3>
+<p>You can access static slot contents as Arrays of VNodes from <a href="../../api/#vm-slots"><code>this.$slots</code></a>:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  // &lt;div&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/div&gt;
+  return createElement('div', this.$slots.default)
+}</pre> <p>And access scoped slots as functions that return VNodes from <a href="../../api/#vm-scopedSlots"><code>this.$scopedSlots</code></a>:</p> <pre class="highlight js" data-language="js">render: function (createElement) {
+  // &lt;div&gt;&lt;slot :text="msg"&gt;&lt;/slot&gt;&lt;/div&gt;
+  return createElement('div', [
+    this.$scopedSlots.default({
+      text: this.msg
+    })
+  ])
+}</pre> <p>To pass scoped slots to a child component using render functions, use the <code>scopedSlots</code> field in VNode data:</p> <pre class="highlight js" data-language="js">render (createElement) {
+  return createElement('div', [
+    createElement('child', {
+      // pass scopedSlots in the data object
+      // in the form of { name: props =&gt; VNode | Array&lt;VNode&gt; }
+      scopedSlots: {
+        default: function (props) {
+          return createElement('span', props.text)
+        }
+      }
+    })
+  ])
+}</pre> <h2 id="JSX">
+JSX</h2>
+<p>If you’re writing a lot of <code>render</code> functions, it might feel painful to write something like this:</p> <pre class="highlight js" data-language="js">createElement(
+  'anchored-heading', {
+    props: {
+      level: 1
+    }
+  }, [
+    createElement('span', 'Hello'),
+    ' world!'
+  ]
+)</pre> <p>Especially when the template version is so simple in comparison:</p> <pre class="highlight html" data-language="html">&lt;anchored-heading :level="1"&gt;
+  &lt;span&gt;Hello&lt;/span&gt; world!
+&lt;/anchored-heading&gt;</pre> <p>That’s why there’s a <a href="https://github.com/vuejs/babel-plugin-transform-vue-jsx" target="_blank" rel="external">Babel plugin</a> to use JSX with Vue, getting us back to a syntax that’s closer to templates:</p> <pre class="highlight js" data-language="js">import AnchoredHeading from './AnchoredHeading.vue'
+
+new Vue({
+  el: '#demo',
+  render (h) {
+    return (
+      &lt;AnchoredHeading level={1}&gt;
+        &lt;span&gt;Hello&lt;/span&gt; world!
+      &lt;/AnchoredHeading&gt;
+    )
+  }
+})</pre> <p class="tip">Aliasing <code>createElement</code> to <code>h</code> is a common convention you’ll see in the Vue ecosystem and is actually required for JSX. If <code>h</code> is not available in the scope, your app will throw an error.</p> <p>For more on how JSX maps to JavaScript, see the <a href="https://github.com/vuejs/babel-plugin-transform-vue-jsx#usage" target="_blank" rel="external">usage docs</a>.</p> <h2 id="Functional-Components">
+Functional Components</h2>
+<p>The anchored heading component we created earlier is relatively simple. It doesn’t manage any state, watch any state passed to it, and it has no lifecycle methods. Really, it’s just a function with some props.</p> <p>In cases like this, we can mark components as <code>functional</code>, which means that they’re stateless (no <code>data</code>) and instanceless (no <code>this</code> context). A <strong>functional component</strong> looks like this:</p> <pre class="highlight js" data-language="js">Vue.component('my-component', {
+  functional: true,
+  // To compensate for the lack of an instance,
+  // we are now provided a 2nd context argument.
+  render: function (createElement, context) {
+    // ...
+  },
+  // Props are optional
+  props: {
+    // ...
+  }
+})</pre> <p>Everything the component needs is passed through <code>context</code>, which is an object containing:</p> <ul> <li>
+<code>props</code>: An object of the provided props</li> <li>
+<code>children</code>: An array of the VNode children</li> <li>
+<code>slots</code>: A function returning a slots object</li> <li>
+<code>data</code>: The entire data object passed to the component</li> <li>
+<code>parent</code>: A reference to the parent component</li> </ul> <p>After adding <code>functional: true</code>, updating the render function of our anchored heading component would simply require adding the <code>context</code> argument, updating <code>this.$slots.default</code> to <code>context.children</code>, then updating <code>this.level</code> to <code>context.props.level</code>.</p> <p>Since functional components are just functions, they’re much cheaper to render. However, this also mean that functional components don’t show up in VueJS Chrome dev tools component tree.</p> <p>They’re also very useful as wrapper components. For example, when you need to:</p> <ul> <li>Programmatically choose one of several other components to delegate to</li> <li>Manipulate children, props, or data before passing them on to a child component</li> </ul> <p>Here’s an example of a <code>smart-list</code> component that delegates to more specific components, depending on the props passed to it:</p> <pre class="highlight js" data-language="js">var EmptyList = { /* ... */ }
+var TableList = { /* ... */ }
+var OrderedList = { /* ... */ }
+var UnorderedList = { /* ... */ }
+
+Vue.component('smart-list', {
+  functional: true,
+  render: function (createElement, context) {
+    function appropriateListComponent () {
+      var items = context.props.items
+
+      if (items.length === 0)           return EmptyList
+      if (typeof items[0] === 'object') return TableList
+      if (context.props.isOrdered)      return OrderedList
+
+      return UnorderedList
+    }
+
+    return createElement(
+      appropriateListComponent(),
+      context.data,
+      context.children
+    )
+  },
+  props: {
+    items: {
+      type: Array,
+      required: true
+    },
+    isOrdered: Boolean
+  }
+})</pre> <h3 id="slots-vs-children">
+<code>slots()</code> vs <code>children</code>
+</h3>
+<p>You may wonder why we need both <code>slots()</code> and <code>children</code>. Wouldn’t <code>slots().default</code> be the same as <code>children</code>? In some cases, yes - but what if you have a functional component with the following children?</p> <pre class="highlight html" data-language="html">&lt;my-functional-component&gt;
+  &lt;p slot="foo"&gt;
+    first
+  &lt;/p&gt;
+  &lt;p&gt;second&lt;/p&gt;
+&lt;/my-functional-component&gt;</pre> <p>For this component, <code>children</code> will give you both paragraphs, <code>slots().default</code> will give you only the second, and <code>slots().foo</code> will give you only the first. Having both <code>children</code> and <code>slots()</code> therefore allows you to choose whether this component knows about a slot system or perhaps delegates that responsibility to another component by simply passing along <code>children</code>.</p> <h2 id="Template-Compilation">
+Template Compilation</h2>
+<p>You may be interested to know that Vue’s templates actually compile to render functions. This is an implementation detail you usually don’t need to know about, but if you’d like to see how specific template features are compiled, you may find it interesting. Below is a little demo using <code>Vue.compile</code> to live-compile a template string:</p> <div id="vue-compile-demo" class="demo">Live examples are not available on DevDocs, sorry.</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Evan You, Vue.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://vuejs.org/v2/guide/render-function" class="_attribution-link" target="_blank">https://vuejs.org/v2/guide/render-function</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

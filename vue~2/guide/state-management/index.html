@@ -1,0 +1,123 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>State Management - Vue.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content="Large applications can often grow in complexity, due to multiple pieces of state scattered across many components and the interactions between them &hellip;">
+  <meta name="keywords" content="state, management, -, vue, js, vue~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vue~2/guide/state-management/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vue~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vue~2/" class="_nav-link" title="" style="margin-left:0;">Vue.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vue">
+				
+<h1>State Management</h1> <h2 id="Official-Flux-Like-Implementation">
+Official Flux-Like Implementation</h2>
+<p>Large applications can often grow in complexity, due to multiple pieces of state scattered across many components and the interactions between them. To solve this problem, Vue offers <a href="https://github.com/vuejs/vuex" target="_blank" rel="external">vuex</a>: our own Elm-inspired state management library. It even integrates into <a href="https://github.com/vuejs/vue-devtools" target="_blank" rel="external">vue-devtools</a>, providing zero-setup access to time travel.</p> <h3 id="Information-for-React-Developers">
+Information for React Developers</h3>
+<p>If you’re coming from React, you may be wondering how vuex compares to <a href="https://github.com/reactjs/redux" target="_blank" rel="external">redux</a>, the most popular Flux implementation in that ecosystem. Redux is actually view-layer agnostic, so it can easily be used with Vue via some <a href="https://github.com/egoist/revue" target="_blank" rel="external">simple bindings</a>. Vuex is different in that it <em>knows</em> it’s in a Vue app. This allows it to better integrate with Vue, offering a more intuitive API and improved development experience.</p> <h2 id="Simple-State-Management-from-Scratch">
+Simple State Management from Scratch</h2>
+<p>It is often overlooked that the source of truth in Vue applications is the raw <code>data</code> object - a Vue instance simply proxies access to it. Therefore, if you have a piece of state that should be shared by multiple instances, you can simply share it by identity:</p> <pre class="highlight js" data-language="js">const sourceOfTruth = {}
+
+const vmA = new Vue({
+  data: sourceOfTruth
+})
+
+const vmB = new Vue({
+  data: sourceOfTruth
+})</pre> <p>Now whenever <code>sourceOfTruth</code> is mutated, both <code>vmA</code> and <code>vmB</code> will update their views automatically. Subcomponents within each of these instances would also have access via <code>this.$root.$data</code>. We have a single source of truth now, but debugging would be a nightmare. Any piece of data could be changed by any part of our app at any time, without leaving a trace.</p> <p>To help solve this problem, we can adopt a simple <strong>store pattern</strong>:</p> <pre class="highlight js" data-language="js">var store = {
+  debug: true,
+  state: {
+    message: 'Hello!'
+  },
+  setMessageAction (newValue) {
+    this.debug &amp;&amp; console.log('setMessageAction triggered with', newValue)
+    this.state.message = newValue
+  },
+  clearMessageAction () {
+    this.debug &amp;&amp; console.log('clearMessageAction triggered')
+    this.state.message = ''
+  }
+}</pre> <p>Notice all actions that mutate the store’s state are put inside the store itself. This type of centralized state management makes it easier to understand what type of mutations could happen and how are they triggered. Now when something goes wrong, we’ll also have a log of what happened leading up to the bug.</p> <p>In addition, each instance/component can still own and manage its own private state:</p> <pre class="highlight js" data-language="js">var vmA = new Vue({
+  data: {
+    privateState: {},
+    sharedState: store.state
+  }
+})
+
+var vmB = new Vue({
+  data: {
+    privateState: {},
+    sharedState: store.state
+  }
+})</pre> <p><img src="https://vuejs.org/images/state.png" alt="State Management"></p> <p class="tip">It’s important to note that you should never replace the original state object in your actions - the components and the store need to share reference to the same object in order for mutations to be observed.</p> <p>As we continue developing the convention where components are never allowed to directly mutate state that belongs to a store, but should instead dispatch events that notify the store to perform actions, we eventually arrive at the <a href="https://facebook.github.io/flux/" target="_blank" rel="external">Flux</a> architecture. The benefit of this convention is we can record all state mutations happening to the store and implement advanced debugging helpers such as mutation logs, snapshots, and history re-rolls / time travel.</p> <p>This brings us full circle back to <a href="https://github.com/vuejs/vuex" target="_blank" rel="external">vuex</a>, so if you’ve read this far it’s probably time to try it out!</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Evan You, Vue.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://vuejs.org/v2/guide/state-management.html" class="_attribution-link" target="_blank">https://vuejs.org/v2/guide/state-management.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

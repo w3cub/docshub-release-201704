@@ -1,0 +1,126 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Production Deployment Tips - Vue.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content="During development, Vue provides a lot of warnings to help you with common errors and pitfalls. However, these warning strings become useless in &hellip;">
+  <meta name="keywords" content="production, deployment, tips, -, vue, js, vue~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vue~2/guide/deployment/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vue~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vue~2/" class="_nav-link" title="" style="margin-left:0;">Vue.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vue">
+				
+<h1>Production Deployment Tips</h1> <h2 id="Turn-on-Production-Mode">
+Turn on Production Mode</h2>
+<p>During development, Vue provides a lot of warnings to help you with common errors and pitfalls. However, these warning strings become useless in production and bloat your app’s payload size. In addition, some of these warning checks have small runtime costs that can be avoided in production mode.</p> <h3 id="Without-Build-Tools">
+Without Build Tools</h3>
+<p>If you are using the standalone build, i.e. directly including Vue via a script tag without a build tool, make sure to use the minified version (<code>vue.min.js</code>) for production. Both versions can be found in the <a href="../installation/#Direct-lt-script-gt-Include">Installation guide</a>.</p> <h3 id="With-Build-Tools">
+With Build Tools</h3>
+<p>When using a build tool like Webpack or Browserify, the production mode will be determined by <code>process.env.NODE_ENV</code> inside Vue’s source code, and it will be in development mode by default. Both build tools provide ways to overwrite this variable to enable Vue’s production mode, and warnings will be stripped by minifiers during the build. All <code>vue-cli</code> templates have these pre-configured for you, but it would be beneficial to know how it is done:</p> <h4 id="Webpack">
+Webpack</h4>
+<p>Use Webpack’s <a href="https://webpack.js.org/plugins/define-plugin/" target="_blank" rel="external">DefinePlugin</a> to indicate a production environment, so that warning blocks can be automatically dropped by UglifyJS during minification. Example config:</p> <pre class="highlight js" data-language="js">var webpack = require('webpack')
+
+module.exports = {
+  // ...
+  plugins: [
+    // ...
+    new webpack.DefinePlugin({
+      'process.env': {
+        NODE_ENV: '"production"'
+      }
+    })
+  ]
+}</pre> <h4 id="Browserify">
+Browserify</h4>
+<ul> <li>
+<p>Run your bundling command with the actual <code>NODE_ENV</code> environment variable set to <code>"production"</code>. This tells <code>vueify</code> to avoid including hot-reload and development related code.</p> </li> <li>
+<p>Apply a global <a href="https://github.com/hughsk/envify" target="_blank" rel="external">envify</a> transform to your bundle. This allows the minifier to strip out all the warnings in Vue’s source code wrapped in env variable conditional blocks. For example:</p> <pre class="highlight bash" data-language="bash">NODE_ENV=production browserify -g envify -e main.js | uglifyjs -c -m &gt; build.js</pre> </li> </ul> <h4 id="Rollup">
+Rollup</h4>
+<p>Use <a href="https://github.com/rollup/rollup-plugin-replace" target="_blank" rel="external">rollup-plugin-replace</a>:</p> <pre class="highlight js" data-language="js">const replace = require('rollup-plugin-replace')
+
+rollup({
+  // ...
+  plugins: [
+    replace({
+      'process.env.NODE_ENV': JSON.stringify( 'production' )
+    })
+  ]
+}).then(...)</pre> <h2 id="Pre-Compiling-Templates">
+Pre-Compiling Templates</h2>
+<p>When using in-DOM templates or in-JavaScript template strings, the template-to-render-function compilation is performed on the fly. This is usually fast enough in most cases, but is best avoided if your application is performance-sensitive.</p> <p>The easiest way to pre-compile templates is using <a href="../single-file-components/">Single-File Components</a> - the associated build setups automatically performs pre-compilation for you, so the built code contains the already compiled render functions instead of raw template strings.</p> <p>If you are using Webpack, and prefer separating JavaScript and template files, you can use <a href="https://github.com/ktsn/vue-template-loader" target="_blank" rel="external">vue-template-loader</a>, which also transforms the template files into JavaScript render functions during the build step.</p> <h2 id="Extracting-Component-CSS">
+Extracting Component CSS</h2>
+<p>When using Single-File Components, the CSS inside components are injected dynamically as <code>&lt;style&gt;</code> tags via JavaScript. This has a small runtime cost, and if you are using server-side rendering it will cause a “flash of unstyled content”. Extracting the CSS across all components into the same file and avoid these issues, and also result in better CSS minification and caching.</p> <p>Refer to the respective build tool documentations to see how it’s done:</p> <ul> <li>
+<a href="http://vue-loader.vuejs.org/en/configurations/extract-css.html" target="_blank" rel="external">Webpack + vue-loader</a> (the <code>vue-cli</code> webpack template has this pre-configured)</li> <li><a href="https://github.com/vuejs/vueify#css-extraction" target="_blank" rel="external">Browserify + vueify</a></li> <li><a href="https://github.com/znck/rollup-plugin-vue#options" target="_blank" rel="external">Rollup + rollup-plugin-vue</a></li> </ul> <h2 id="Tracking-Runtime-Errors">
+Tracking Runtime Errors</h2>
+<p>If a runtime error occurs during a component’s render, it will be passed to the global <code>Vue.config.errorHandler</code> config function if it has been set. It might be a good idea to leverage this hook together with an error-tracking service like <a href="https://sentry.io" target="_blank" rel="external">Sentry</a>, which provides <a href="https://sentry.io/for/vue/" target="_blank" rel="external">an official integration</a> for Vue.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Evan You, Vue.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://vuejs.org/v2/guide/deployment.html" class="_attribution-link" target="_blank">https://vuejs.org/v2/guide/deployment.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

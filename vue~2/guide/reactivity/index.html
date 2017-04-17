@@ -1,0 +1,135 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Reactivity in Depth - Vue.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content="We’ve covered most of the basics - now it’s time to take a deep dive! One of Vue’s most distinct features is the unobtrusive reactivity system. &hellip;">
+  <meta name="keywords" content="reactivity, depth, -, vue, js, vue~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vue~2/guide/reactivity/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vue~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vue~2/" class="_nav-link" title="" style="margin-left:0;">Vue.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vue">
+				
+<h1>Reactivity in Depth</h1> <p>We’ve covered most of the basics - now it’s time to take a deep dive! One of Vue’s most distinct features is the unobtrusive reactivity system. Models are just plain JavaScript objects. When you modify them, the view updates. It makes state management very simple and intuitive, but it’s also important to understand how it works to avoid some common gotchas. In this section, we are going to dig into some of the lower-level details of Vue’s reactivity system.</p> <h2 id="How-Changes-Are-Tracked">
+How Changes Are Tracked</h2>
+<p>When you pass a plain JavaScript object to a Vue instance as its <code>data</code> option, Vue will walk through all of its properties and convert them to getter/setters using <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty" target="_blank" rel="external">Object.defineProperty</a>. This is an ES5-only and un-shimmable feature, which is why Vue doesn’t support IE8 and below.</p> <p>The getter/setters are invisible to the user, but under the hood they enable Vue to perform dependency-tracking and change-notification when properties are accessed or modified. One caveat is that browser consoles format getter/setters differently when converted data objects are logged, so you may want to install <a href="https://github.com/vuejs/vue-devtools" target="_blank" rel="external">vue-devtools</a> for a more inspection-friendly interface.</p> <p>Every component instance has a corresponding <strong>watcher</strong> instance, which records any properties “touched” during the component’s render as dependencies. Later on when a dependency’s setter is triggered, it notifies the watcher, which in turn causes the component to re-render.</p> <p><img src="https://vuejs.org/images/data.png" alt="Reactivity Cycle"></p> <h2 id="Change-Detection-Caveats">
+Change Detection Caveats</h2>
+<p>Due to the limitations of modern JavaScript (and the abandonment of <code>Object.observe</code>), Vue <strong>cannot detect property addition or deletion</strong>. Since Vue performs the getter/setter conversion process during instance initialization, a property must be present in the <code>data</code> object in order for Vue to convert it and make it reactive. For example:</p> <pre class="highlight js" data-language="js">var vm = new Vue({
+  data: {
+    a: 1
+  }
+})
+// `vm.a` is now reactive
+
+vm.b = 2
+// `vm.b` is NOT reactive</pre> <p>Vue does not allow dynamically adding new root-level reactive properties to an already created instance. However, it’s possible to add reactive properties to a nested object using the <code>Vue.set(object, key, value)</code> method:</p> <pre class="highlight js" data-language="js">Vue.set(vm.someObject, 'b', 2)</pre> <p>You can also use the <code>vm.$set</code> instance method, which is just an alias to the global <code>Vue.set</code>:</p> <pre class="highlight js" data-language="js">this.$set(this.someObject, 'b', 2)</pre> <p>Sometimes you may want to assign a number of properties to an existing object, for example using <code>Object.assign()</code> or <code>_.extend()</code>. However, new properties added to the object will not trigger changes. In such cases, create a fresh object with properties from both the original object and the mixin object:</p> <pre class="highlight js" data-language="js">// instead of `Object.assign(this.someObject, { a: 1, b: 2 })`
+this.someObject = Object.assign({}, this.someObject, { a: 1, b: 2 })</pre> <p>There are also a few array-related caveats, which were discussed earlier in the <a href="../list/#Caveats">list rendering section</a>.</p> <h2 id="Declaring-Reactive-Properties">
+Declaring Reactive Properties</h2>
+<p>Since Vue doesn’t allow dynamically adding root-level reactive properties, you have to initialize Vue instances by declaring all root-level reactive data properties upfront, even just with an empty value:</p> <pre class="highlight js" data-language="js">var vm = new Vue({
+  data: {
+    // declare message with an empty value
+    message: ''
+  },
+  template: '&lt;div&gt;{{ message }}&lt;/div&gt;'
+})
+// set `message` later
+vm.message = 'Hello!'</pre> <p>If you don’t declare <code>message</code> in the data option, Vue will warn you that the render function is trying to access a property that doesn’t exist.</p> <p>There are technical reasons behind this restriction - it eliminates a class of edge cases in the dependency tracking system, and also makes Vue instances play nicer with type checking systems. But there is also an important consideration in terms of code maintainability: the <code>data</code> object is like the schema for your component’s state. Declaring all reactive properties upfront makes the component code easier to understand when revisited later or read by another developer.</p> <h2 id="Async-Update-Queue">
+Async Update Queue</h2>
+<p>In case you haven’t noticed yet, Vue performs DOM updates <strong>asynchronously</strong>. Whenever a data change is observed, it will open a queue and buffer all the data changes that happen in the same event loop. If the same watcher is triggered multiple times, it will be pushed into the queue only once. This buffered de-duplication is important in avoiding unnecessary calculations and DOM manipulations. Then, in the next event loop “tick”, Vue flushes the queue and performs the actual (already de-duped) work. Internally Vue tries native <code>Promise.then</code> and <code>MutationObserver</code> for the asynchronous queuing and falls back to <code>setTimeout(fn, 0)</code>.</p> <p>For example, when you set <code>vm.someData = 'new value'</code>, the component will not re-render immediately. It will update in the next “tick”, when the queue is flushed. Most of the time we don’t need to care about this, but it can be tricky when you want to do something that depends on the post-update DOM state. Although Vue.js generally encourages developers to think in a “data-driven” fashion and avoid touching the DOM directly, sometimes it might be necessary to get your hands dirty. In order to wait until Vue.js has finished updating the DOM after a data change, you can use <code>Vue.nextTick(callback)</code> immediately after the data is changed. The callback will be called after the DOM has been updated. For example:</p> <pre class="highlight html" data-language="html">&lt;div id="example"&gt;{{ message }}&lt;/div&gt;</pre> <pre class="highlight js" data-language="js">var vm = new Vue({
+  el: '#example',
+  data: {
+    message: '123'
+  }
+})
+vm.message = 'new message' // change data
+vm.$el.textContent === 'new message' // false
+Vue.nextTick(function () {
+  vm.$el.textContent === 'new message' // true
+})</pre> <p>There is also the <code>vm.$nextTick()</code> instance method, which is especially handy inside components, because it doesn’t need global <code>Vue</code> and its callback’s <code>this</code> context will be automatically bound to the current Vue instance:</p> <pre class="highlight js" data-language="js">Vue.component('example', {
+  template: '&lt;span&gt;{{ message }}&lt;/span&gt;',
+  data: function () {
+    return {
+      message: 'not updated'
+    }
+  },
+  methods: {
+    updateMessage: function () {
+      this.message = 'updated'
+      console.log(this.$el.textContent) // =&gt; 'not updated'
+      this.$nextTick(function () {
+        console.log(this.$el.textContent) // =&gt; 'updated'
+      })
+    }
+  }
+})</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Evan You, Vue.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://vuejs.org/v2/guide/reactivity.html" class="_attribution-link" target="_blank">https://vuejs.org/v2/guide/reactivity.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,262 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Transitioning State - Vue.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Vue’s transition system offers many simple ways to animate entering, leaving, and lists, but what about animating your data itself? For example&#58; ">
+  <meta name="keywords" content="transitioning, state, -, vue, js, vue~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vue~2/guide/transitioning-state/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vue~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vue~2/" class="_nav-link" title="" style="margin-left:0;">Vue.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vue">
+				
+<h1>Transitioning State</h1> <p>Vue’s transition system offers many simple ways to animate entering, leaving, and lists, but what about animating your data itself? For example:</p> <ul> <li>numbers and calculations</li> <li>colors displayed</li> <li>the positions of SVG nodes</li> <li>the sizes and other properties of elements</li> </ul> <p>All of these are either already stored as raw numbers or can be converted into numbers. Once we do that, we can animate these state changes using 3rd-party libraries to tween state, in combination with Vue’s reactivity and component systems.</p> <h2 id="Animating-State-with-Watchers">
+Animating State with Watchers</h2>
+<p>Watchers allow us to animate changes of any numerical property into another property. That may sound complicated in the abstract, so let’s dive into an example using Tween.js:</p> <pre class="highlight html" data-language="html">&lt;script src="https://unpkg.com/tween.js@16.3.4"&gt;&lt;/script&gt;
+
+&lt;div id="animated-number-demo"&gt;
+  &lt;input v-model.number="number" type="number" step="20"&gt;
+  &lt;p&gt;{{ animatedNumber }}&lt;/p&gt;
+&lt;/div&gt;</pre> <pre class="highlight js" data-language="js">new Vue({
+  el: '#animated-number-demo',
+  data: {
+    number: 0,
+    animatedNumber: 0
+  },
+  watch: {
+    number: function(newValue, oldValue) {
+      var vm = this
+      var animationFrame
+      function animate (time) {
+        TWEEN.update(time)
+        animationFrame = requestAnimationFrame(animate)
+      }
+      new TWEEN.Tween({ tweeningNumber: oldValue })
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .to({ tweeningNumber: newValue }, 500)
+        .onUpdate(function () {
+          vm.animatedNumber = this.tweeningNumber.toFixed(0)
+        })
+        .onComplete(function () {
+          cancelAnimationFrame(animationFrame)
+        })
+        .start()
+      animationFrame = requestAnimationFrame(animate)
+    }
+  }
+})</pre>  <div id="animated-number-demo" class="demo">Live examples are not available on DevDocs, sorry.</div>  <p>When you update the number, the change is animated below the input. This makes for a nice demo, but what about something that isn’t directly stored as a number, like any valid CSS color for example? Here’s how we could accomplish this with the addition of Color.js:</p> <pre class="highlight html" data-language="html">&lt;script src="https://unpkg.com/tween.js@16.3.4"&gt;&lt;/script&gt;
+&lt;script src="https://unpkg.com/color-js@1.0.3/color.js"&gt;&lt;/script&gt;
+
+&lt;div id="example-7"&gt;
+  &lt;input
+    v-model="colorQuery"
+    v-on:keyup.enter="updateColor"
+    placeholder="Enter a color"
+  &gt;
+  &lt;button v-on:click="updateColor"&gt;Update&lt;/button&gt;
+  &lt;p&gt;Preview:&lt;/p&gt;
+  &lt;span
+    v-bind:style="{ backgroundColor: tweenedCSSColor }"
+    class="example-7-color-preview"
+  &gt;&lt;/span&gt;
+  &lt;p&gt;{{ tweenedCSSColor }}&lt;/p&gt;
+&lt;/div&gt;</pre> <pre class="highlight js" data-language="js">var Color = net.brehaut.Color
+
+new Vue({
+  el: '#example-7',
+  data: {
+    colorQuery: '',
+    color: {
+      red: 0,
+      green: 0,
+      blue: 0,
+      alpha: 1
+    },
+    tweenedColor: {}
+  },
+  created: function () {
+    this.tweenedColor = Object.assign({}, this.color)
+  },
+  watch: {
+    color: function () {
+      var animationFrame
+      function animate (time) {
+        TWEEN.update(time)
+        animationFrame = requestAnimationFrame(animate)
+      }
+      new TWEEN.Tween(this.tweenedColor)
+        .to(this.color, 750)
+        .onComplete(function () {
+          cancelAnimationFrame(animationFrame)
+        })
+        .start()
+      animationFrame = requestAnimationFrame(animate)
+    }
+  },
+  computed: {
+    tweenedCSSColor: function () {
+      return new Color({
+        red: this.tweenedColor.red,
+        green: this.tweenedColor.green,
+        blue: this.tweenedColor.blue,
+        alpha: this.tweenedColor.alpha
+      }).toCSS()
+    }
+  },
+  methods: {
+    updateColor: function () {
+      this.color = new Color(this.colorQuery).toRGB()
+      this.colorQuery = ''
+    }
+  }
+})</pre> <pre class="highlight css" data-language="css">.example-7-color-preview {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+}</pre>   <div id="example-7" class="demo">Live examples are not available on DevDocs, sorry.</div>   <h2 id="Dynamic-State-Transitions">
+Dynamic State Transitions</h2>
+<p>Just as with Vue’s transition components, the data backing state transitions can be updated in real time, which is especially useful for prototyping! Even using a simple SVG polygon, you can achieve many effects that would be difficult to conceive of until you’ve played with the variables a little.</p>  <div id="svg-polygon-demo" class="demo">Live examples are not available on DevDocs, sorry.</div>   <p>See <a href="https://jsfiddle.net/chrisvfritz/65gLu2b6/" target="_blank" rel="external">this fiddle</a> for the complete code behind the above demo.</p> <h2 id="Organizing-Transitions-into-Components">
+Organizing Transitions into Components</h2>
+<p>Managing many state transitions can quickly increase the complexity of a Vue instance or component. Fortunately, many animations can be extracted out into dedicated child components. Let’s do this with the animated integer from our earlier example:</p> <pre class="highlight html" data-language="html">&lt;script src="https://unpkg.com/tween.js@16.3.4"&gt;&lt;/script&gt;
+
+&lt;div id="example-8"&gt;
+  &lt;input v-model.number="firstNumber" type="number" step="20"&gt; +
+  &lt;input v-model.number="secondNumber" type="number" step="20"&gt; =
+  {{ result }}
+  &lt;p&gt;
+    &lt;animated-integer v-bind:value="firstNumber"&gt;&lt;/animated-integer&gt; +
+    &lt;animated-integer v-bind:value="secondNumber"&gt;&lt;/animated-integer&gt; =
+    &lt;animated-integer v-bind:value="result"&gt;&lt;/animated-integer&gt;
+  &lt;/p&gt;
+&lt;/div&gt;</pre> <pre class="highlight js" data-language="js">// This complex tweening logic can now be reused between
+// any integers we may wish to animate in our application.
+// Components also offer a clean interface for configuring
+// more dynamic transitions and complex transition
+// strategies.
+Vue.component('animated-integer', {
+  template: '&lt;span&gt;{{ tweeningValue }}&lt;/span&gt;',
+  props: {
+    value: {
+      type: Number,
+      required: true
+    }
+  },
+  data: function () {
+    return {
+      tweeningValue: 0
+    }
+  },
+  watch: {
+    value: function (newValue, oldValue) {
+      this.tween(oldValue, newValue)
+    }
+  },
+  mounted: function () {
+    this.tween(0, this.value)
+  },
+  methods: {
+    tween: function (startValue, endValue) {
+      var vm = this
+      var animationFrame
+      function animate (time) {
+        TWEEN.update(time)
+        animationFrame = requestAnimationFrame(animate)
+      }
+      new TWEEN.Tween({ tweeningValue: startValue })
+        .to({ tweeningValue: endValue }, 500)
+        .onUpdate(function () {
+          vm.tweeningValue = this.tweeningValue.toFixed(0)
+        })
+        .onComplete(function () {
+          cancelAnimationFrame(animationFrame)
+        })
+        .start()
+      animationFrame = requestAnimationFrame(animate)
+    }
+  }
+})
+
+// All complexity has now been removed from the main Vue instance!
+new Vue({
+  el: '#example-8',
+  data: {
+    firstNumber: 20,
+    secondNumber: 40
+  },
+  computed: {
+    result: function () {
+      return this.firstNumber + this.secondNumber
+    }
+  }
+})</pre>  <div id="example-8" class="demo">Live examples are not available on DevDocs, sorry.</div>  <p>Within child components, we can use any combination of transition strategies that have been covered on this page, along with those offered by Vue’s <a href="../transitions/">built-in transition system</a>. Together, there are very few limits to what can be accomplished.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2017 Evan You, Vue.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://vuejs.org/v2/guide/transitioning-state.html" class="_attribution-link" target="_blank">https://vuejs.org/v2/guide/transitioning-state.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
