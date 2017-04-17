@@ -1,0 +1,113 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TensorBoard&#58; Embedding Visualization - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="Embeddings are ubiquitous in machine learning, appearing in recommender systems, NLP, and many other applications. Indeed, in the context of &hellip;">
+  <meta name="keywords" content="tensorboard, embedding, visualization, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/get_started/embedding_viz/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> TensorBoard: Embedding Visualization </h1>     <p>Embeddings are ubiquitous in machine learning, appearing in recommender systems, NLP, and many other applications. Indeed, in the context of TensorFlow, it's natural to view tensors (or slices of tensors) as points in space, so almost any TensorFlow system will naturally give rise to various embeddings.</p> <p>To learn more about embeddings and how to train them, see the <a href="../../tutorials/word2vec/">Vector Representations of Words</a> tutorial. If you are interested in embeddings of images, check out <a href="http://colah.github.io/posts/2014-10-Visualizing-MNIST/" target="_blank">this article</a> for interesting visualizations of MNIST images. On the other hand, if you are interested in word embeddings, <a href="http://colah.github.io/posts/2015-01-Visualizing-Representations/" target="_blank">this article</a> gives a good introduction.</p> <p>TensorBoard has a built-in visualizer, called the Embedding Projector, for interactive visualization and analysis of high-dimensional data like embeddings. It is meant to be useful for developers and researchers alike. It reads from the checkpoint files where you save your tensorflow variables. Although it's most useful for embeddings, it will load any 2D tensor, potentially including your training weights.</p> <video autoplay loop style="max-width: 100%;"> <source src="https://www.tensorflow.org/images/embedding-mnist.mp4" type="video/mp4"> Sorry, your browser doesn't support HTML5 video in MP4 format. </source></video> <p>By default, the Embedding Projector performs 3-dimensional <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">principal component analysis</a>, meaning it takes your high-dimensional data and tries to find a structure-preserving projection onto three dimensional space. Basically, it does this by rotating your data so that the first three dimensions reveal as much of the variance in the data as possible. There's a nice visual explanation <a href="http://setosa.io/ev/principal-component-analysis/" target="_blank">here</a>. Another extremely useful projection you can use is <a href="https://en.wikipedia.org/wiki/T-distributed_stochastic_neighbor_embedding" target="_blank">t-SNE</a>. We talk about more t-SNE later in the tutorial.</p> <p>If you are working with an embedding, you'll probably want to attach labels/images to the data points to tell the visualizer what label/image each data point corresponds to. You can do this by generating a metadata file, and attaching it to the tensor using our Python API, or uploading it to an already-running TensorBoard.</p> <h2 id="setup">Setup</h2> <p>For in depth information on how to run TensorBoard and make sure you are logging all the necessary information, see <a href="../summaries_and_tensorboard/">TensorBoard: Visualizing Learning</a>.</p> <p>To visualize your embeddings, there are 3 things you need to do:</p> <p>1) Setup a 2D tensor variable(s) that holds your embedding(s).</p> <pre class="prettyprint lang-python" data-language="python">embedding_var = tf.Variable(....)
+</pre> <p>2) Periodically save your embeddings in a <code>LOG_DIR</code>.</p> <pre class="prettyprint lang-python" data-language="python">saver = tf.train.Saver()
+saver.save(session, os.path.join(LOG_DIR, "model.ckpt"), step)
+</pre> <p>The following step is not required, however if you have any metadata (labels, images) associated with your embedding, you need to link them to the tensor so TensorBoard knows about it.</p> <p>3) Associate metadata with your embedding.</p> <pre class="prettyprint lang-python" data-language="python">from tensorflow.contrib.tensorboard.plugins import projector
+# Use the same LOG_DIR where you stored your checkpoint.
+summary_writer = tf.train.SummaryWriter(LOG_DIR)
+
+# Format: tensorflow/contrib/tensorboard/plugins/projector/projector_config.proto
+config = projector.ProjectorConfig()
+
+# You can add multiple embeddings. Here we add only one.
+embedding = config.embeddings.add()
+embedding.tensor_name = embedding_var.name
+# Link this tensor to its metadata file (e.g. labels).
+embedding.metadata_path = os.path.join(LOG_DIR, 'metadata.tsv')
+
+# Saves a configuration file that TensorBoard will read during startup.
+projector.visualize_embeddings(summary_writer, config)
+</pre> <p>After running your model and training your embeddings, run TensorBoard and point it to the <code>LOG_DIR</code> of the job.</p> <pre class="prettyprint lang-python" data-language="python">tensorboard --logdir=LOG_DIR
+</pre> <p>Then click on the <em>Embeddings</em> tab on the top pane and select the appropriate run (if there are more than one run).</p> <h2 id="metadata_optional">Metadata (optional)</h2> <p>Usually embeddings have metadata associated with it (e.g. labels, images). The metadata should be stored in a separate file outside of the model checkpoint since the metadata is not a trainable parameter of the model. The format should be a TSV file with the first line containing column headers and subsequent lines contain the metadata values. Here's an example:</p> <pre class="prettyprint" data-language="cpp">Name\tType\n
+Caterpie\tBug\n
+Charmeleon\tFire\n
+…
+</pre> <p>There is no explicit key shared with the main data file; instead, the order in the metadata file is assumed to match the order in the embedding tensor. In other words, the first line is the header information and the (i+1)-th line in the metadata file corresponds to the i-th row of the embedding tensor stored in the checkpoint.</p> <aside class="note"><strong>Note:</strong><span> If the TSV metadata file has only a single column, then we don’t expect a header row, and assume each row is the label of the embedding. We include this exception because it matches the commonly-used "vocab file" format.</span></aside> <h3 id="images">Images</h3> <p>If you have images associated with your embeddings, you will need to produce a single image consisting of small thumbnails of each data point. This is known as the <a href="https://www.google.com/webhp#q=what+is+a+sprite+image" target="_blank">sprite image</a>. The sprite should have the same number of rows and columns with thumbnails stored in row-first order: the first data point placed in the top left and the last data point in the bottom right:</p> <table style="border: none;"> <tr style="background-color: transparent;"> <td style="border: 1px solid black">0</td> <td style="border: 1px solid black">1</td> <td style="border: 1px solid black">2</td> </tr> <tr style="background-color: transparent;"> <td style="border: 1px solid black">3</td> <td style="border: 1px solid black">4</td> <td style="border: 1px solid black">5</td> </tr> <tr style="background-color: transparent;"> <td style="border: 1px solid black">6</td> <td style="border: 1px solid black">7</td> <td style="border: 1px solid black"></td> </tr> </table> <p>Note in the example above that the last row doesn't have to be filled. For a concrete example of a sprite, see <a href="https://www.tensorflow.org/images/mnist_10k_sprite.png" target="_blank">this sprite image</a> of 10,000 MNIST digits (100x100).</p> <aside class="note"><strong>Note:</strong><span> We currently support sprites up to 8192px X 8192px.</span></aside> <p>After constructing the sprite, you need to tell the Embedding Projector where to find it:</p> <pre class="prettyprint lang-python" data-language="python">embedding.sprite.image_path = PATH_TO_SPRITE_IMAGE
+# Specify the width and height of a single thumbnail.
+embedding.sprite.single_image_dim.extend([w, h])
+</pre> <h2 id="interaction">Interaction</h2> <p>The Embedding Projector has three panels:</p> <ol> <li>
+<em>Data panel</em> on the top left, where you can choose the run, the embedding tensor and data columns to color and label points by.</li> <li>
+<em>Projections panel</em> on the bottom left, where you choose the type of projection (e.g. PCA, t-SNE).</li> <li>
+<em>Inspector panel</em> on the right side, where you can search for particular points and see a list of nearest neighbors.</li> </ol> <h3 id="projections">Projections</h3> <p>The Embedding Projector has three methods of reducing the dimensionality of a data set: two linear and one nonlinear. Each method can be used to create either a two- or three-dimensional view.</p> <p><strong>Principal Component Analysis</strong> A straightforward technique for reducing dimensions is Principal Component Analysis (PCA). The Embedding Projector computes the top 10 principal components. The menu lets you project those components onto any combination of two or three. PCA is a linear projection, often effective at examining global geometry.</p> <p><strong>t-SNE</strong> A popular non-linear dimensionality reduction technique is t-SNE. The Embedding Projector offers both two- and three-dimensional t-SNE views. Layout is performed client-side animating every step of the algorithm. Because t-SNE often preserves some local structure, it is useful for exploring local neighborhoods and finding clusters. Although extremely useful for visualizing high-dimensional data, t-SNE plots can sometimes be mysterious or misleading. See this <a href="http://distill.pub/2016/misread-tsne/" target="_blank">great article</a> for how to use t-SNE effectively.</p> <p><strong>Custom</strong> You can also construct specialized linear projections based on text searches for finding meaningful directions in space. To define a projection axis, enter two search strings or regular expressions. The program computes the centroids of the sets of points whose labels match these searches, and uses the difference vector between centroids as a projection axis.</p> <h3 id="navigation">Navigation</h3> <p>To explore a data set, you can navigate the views in either a 2D or a 3D mode, zooming, rotating, and panning using natural click-and-drag gestures. Clicking on a point causes the right pane to show an explicit textual list of nearest neighbors, along with distances to the current point. The nearest-neighbor points themselves are highlighted on the projection.</p> <p>Zooming into the cluster gives some information, but it is sometimes more helpful to restrict the view to a subset of points and perform projections only on those points. To do so, you can select points in multiple ways:</p> <ol> <li>After clicking on a point, its nearest neighbors are also selected.</li> <li>After a search, the points matching the query are selected.</li> <li>Enabling selection, clicking on a point and dragging defines a selection sphere.</li> </ol> <p>After selecting a set of points, you can isolate those points for further analysis on their own with the "Isolate Points" button in the Inspector pane on the right hand side.</p> <p><img alt="Selection of nearest neighbors" src="https://www.tensorflow.org/images/embedding-nearest-points.png" title="Selection of nearest neighbors"> <em>Selection of the nearest neighbors of “important” in a word embedding dataset.</em></p> <p>The combination of filtering with custom projection can be powerful. Below, we filtered the 100 nearest neighbors of “politics” and projected them onto the “best” - “worst” vector as an x axis. The y axis is random.</p> <p>You can see that on the right side we have “ideas”, “science”, “perspective”, “journalism” while on the left we have “crisis”, “violence” and “conflict”.</p> <table width="100%;"> <tr> <td style="width: 30%;"> <img src="https://www.tensorflow.org/images/embedding-custom-controls.png" alt="Custom controls panel" title="Custom controls panel"> </td> <td style="width: 70%;"> <img src="https://www.tensorflow.org/images/embedding-custom-projection.png" alt="Custom projection" title="Custom projection"> </td> </tr> <tr> <td style="width: 30%;"> Custom projection controls. </td> <td style="width: 70%;"> Custom projection of neighbors of "politics" onto "best" - "worst" vector. </td> </tr> </table> <h3 id="collaborative_features">Collaborative Features</h3> <p>To share your findings, you can use the bookmark panel in the bottom right corner and save the current state (including computed coordinates of any projection) as a small file. The Projector can then be pointed to a set of one or more of these files, producing the panel below. Other users can then walk through a sequence of bookmarks.</p> <p><img src="https://www.tensorflow.org/images/embedding-bookmark.png" alt="Bookmark panel" style="width:300px;"></p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/get_started/embedding_viz" class="_attribution-link" target="_blank">https://www.tensorflow.org/get_started/embedding_viz</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

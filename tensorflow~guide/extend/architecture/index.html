@@ -1,0 +1,87 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TensorFlow Architecture - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="We designed TensorFlow for large-scale distributed training and inference, but it is also flexible enough to support experimentation with new &hellip;">
+  <meta name="keywords" content="tensorflow, architecture, -, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/extend/architecture/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> TensorFlow Architecture </h1>     <p>We designed TensorFlow for large-scale distributed training and inference, but it is also flexible enough to support experimentation with new machine learning models and system-level optimizations.</p> <p>This document describes the system architecture that makes possible this combination of scale and flexibility. It assumes that you have basic familiarity with TensorFlow programming concepts such as the computation graph, operations, and sessions. See <a href="../../">Getting Started</a> for an introduction to these topics. Some familiarity with <a href="../../deploy/distributed/">distributed TensorFlow</a> will also be helpful.</p> <p>This document is for developers who want to extend TensorFlow in some way not supported by current APIs, hardware engineers who want to optimize for TensorFlow, implementers of machine learning systems working on scaling and distribution, or anyone who wants to look under Tensorflow's hood. After reading it you should understand TensorFlow architecture well enough to read and modify the core TensorFlow code.</p> <h2 id="overview">Overview</h2> <p>The TensorFlow runtime is a cross-platform library. Figure 1 illustrates its general architecture. A C API separates user level code in different languages from the core runtime.</p> <p><img alt="TensorFlow Layers" src="https://www.tensorflow.org/images/layers.png" width="300"></p> <p><strong>Figure 1</strong></p> <p>This document focuses on the following layers:</p> <ul> <li>
+<strong>Client</strong>:</li> <li>Defines the computation as a dataflow graph.</li> <li>Initiates graph execution using a <a href="https://www.tensorflow.org/code/tensorflow/python/client/session.py" target="_blank"><strong>session</strong></a>
+</li> <li><strong>Distributed Master</strong></li> <li>Prunes a specific subgraph from the graph, as defined by the arguments to Session.run().</li> <li>Partitions the subgraph into multiple pieces that run in different processes and devices.</li> <li>Distributes the graph pieces to worker services.</li> <li>Initiates graph piece execution by worker services.</li> <li>
+<strong>Worker Services</strong> (one for each task)</li> <li>Schedule the execution of graph operations using kernel implementations appropriate to the available hardware (CPUs, GPUs, etc).</li> <li>Send and receive operation results to and from other worker services.</li> <li><strong>Kernel Implementations</strong></li> <li>Perform the computation for individual graph operations.</li> </ul> <p>Figure 2 illustrates the interaction of these components. "/job:worker/task:0" and "/job:ps/task:0" are both tasks with worker services. "PS" stands for "parameter server": a task responsible for storing and updating the model's parameters. Other tasks send updates to these parameters as they work on optimizing the parameters. This particular division of labor between tasks is not required, but it is common for distributed training.</p> <p><img alt="TensorFlow Architecture Diagram" src="https://www.tensorflow.org/images/diag1.svg" width="500"></p> <p><strong>Figure 2</strong></p> <p>Note that the Distributed Master and Worker Service only exist in distributed TensorFlow. The single-process version of TensorFlow includes a special Session implementation that does everything the distributed master does but only communicates with devices in the local process.</p> <p>The following sections describe the core TensorFlow layers in greater detail and step through the processing of an example graph.</p> <h2 id="client">Client</h2> <p>Users write the client TensorFlow program that builds the computation graph. This program can either directly compose individual operations or use a convenience library like the Estimators API to compose neural network layers and other higher-level abstractions. TensorFlow supports multiple client languages, and we have prioritized Python and C++, because our internal users are most familiar with these languages. As features become more established, we typically port them to C++, so that users can access an optimized implementation from all client languages. Most of the training libraries are still Python-only, but C++ does have support for efficient inference.</p> <p>The client creates a session, which sends the graph definition to the distributed master as a <a href="https://www.tensorflow.org/api_docs/python/tf/GraphDef" target="_blank"><code>tf.GraphDef</code></a> protocol buffer. When the client evaluates a node or nodes in the graph, the evaluation triggers a call to the distributed master to initiate computation.</p> <p>In Figure 3, the client has built a graph that applies weights (w) to a feature vector (x), adds a bias term (b) and saves the result in a variable (s).</p> <p><img alt="TensorFlow Architecture Diagram: Client" src="https://www.tensorflow.org/images/graph_client.svg" width="700"></p> <p><strong>Figure 3</strong></p> <h3 id="code">Code</h3> <ul> <li><a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank"><code>tf.Session</code></a></li> </ul> <h2 id="distributed_master">Distributed master</h2> <p>The distributed master:</p> <ul> <li>prunes the graph to obtain the subgraph required to evaluate the nodes requested by the client,</li> <li>partitions the graph to obtain graph pieces for each participating device, and</li> <li>caches these pieces so that they may be re-used in subsequent steps.</li> </ul> <p>Since the master sees the overall computation for a step, it applies standard optimizations such as common subexpression elimination and constant folding. It then coordinates execution of the optimized subgraphs across a set of tasks.</p> <p><img alt="TensorFlow Architecture Diagram: Master" src="https://www.tensorflow.org/images/graph_master_cln.svg" width="700"></p> <p><strong>Figure 4</strong></p> <p>Figure 5 shows a possible partition of our example graph. The distributed master has grouped the model parameters in order to place them together on the parameter server.</p> <p><img alt="Partitioned Graph" src="https://www.tensorflow.org/images/graph_split1.svg" width="700"></p> <p><strong>Figure 5</strong></p> <p>Where graph edges are cut by the partition, the distributed master inserts send and receive nodes to pass information between the distributed tasks (Figure 6).</p> <p><img alt="Partitioned Graph" src="https://www.tensorflow.org/images/graph_split2.svg" width="700"></p> <p><strong>Figure 6</strong></p> <p>The distributed master then ships the graph pieces to the distributed tasks.</p> <p><img alt="Partitioned Graph" src="https://www.tensorflow.org/images/graph_workers_cln.svg" width="700"></p> <p><strong>Figure 7</strong></p> <h3 id="code_1">Code</h3> <ul> <li><a href="https://www.tensorflow.org/code/tensorflow/core/protobuf/master_service.proto" target="_blank">MasterService API definition</a></li> <li><a href="https://www.tensorflow.org/code/tensorflow/core/distributed_runtime/master_interface.h" target="_blank">Master interface</a></li> </ul> <h2 id="worker_service">Worker Service</h2> <p>The worker service in each task:</p> <ul> <li>handles requests from the master,</li> <li>schedules the execution of the kernels for the operations that comprise a local subgraph, and</li> <li>mediates direct communication between tasks.</li> </ul> <p>We optimize the worker service for running large graphs with low overhead. Our current implementation can execute tens of thousands of subgraphs per second, which enables a large number of replicas to make rapid, fine-grained training steps. The worker service dispatches kernels to local devices and runs kernels in parallel when possible, for example by using multiple CPU cores or GPU streams.</p> <p>We specialize Send and Recv operations for each pair of source and destination device types:</p> <ul> <li>Transfers between local CPU and GPU devices use the <code>cudaMemcpyAsync()</code> API to overlap computation and data transfer.</li> <li>Transfers between two local GPUs use peer-to-peer DMA, to avoid an expensive copy via the host CPU.</li> </ul> <p>For transfers between tasks, TensorFlow uses multiple protocols, including:</p> <ul> <li>gRPC over TCP.</li> <li>RDMA over Converged Ethernet.</li> </ul> <p>We also have preliminary support for NVIDIA's NCCL library for multi-GPU communication (see <a href="https://www.tensorflow.org/code/tensorflow/contrib/nccl/python/ops/nccl_ops.py" target="_blank"><code>tf.contrib.nccl</code></a>).</p> <p><img alt="Partitioned Graph" src="https://www.tensorflow.org/images/graph_send_recv.svg" width="700"></p> <p><strong>Figure 8</strong></p> <h3 id="code_2">Code</h3> <ul> <li><a href="https://www.tensorflow.org/code/tensorflow/core/protobuf/worker_service.proto" target="_blank">WorkerService API definition</a></li> <li><a href="https://www.tensorflow.org/code/tensorflow/core/distributed_runtime/worker_interface.h" target="_blank">Worker interface</a></li> <li><a href="https://www.tensorflow.org/code/tensorflow/core/distributed_runtime/rpc/rpc_rendezvous_mgr.h" target="_blank">Remote rendezvous (for Send and Recv implementations)</a></li> </ul> <h2 id="kernel_implementations">Kernel Implementations</h2> <p>The runtime contains over 200 standard operations, including mathematical, array manipulation, control flow, and state management operations. Each of these operations can have kernel implementations optimized for a variety of devices. Many of the operation kernels are implemented using Eigen::Tensor, which uses C++ templates to generate efficient parallel code for multicore CPUs and GPUs; however, we liberally use libraries like cuDNN where a more efficient kernel implementation is possible. We have also implemented <a href="../../performance/quantization/">quantization</a>, which enables faster inference in environments such as mobile devices and high-throughput datacenter applications, and use the <a href="https://github.com/google/gemmlowp" target="_blank">gemmlowp</a> low-precision matrix library to accelerate quantized computation.</p> <p>If it is difficult or inefficient to represent a subcomputation as a composition of operations, users can register additional kernels that provide an efficient implementation written in C++. For example, we recommend registering your own fused kernels for some performance critical operations, such as the ReLU and Sigmoid activation functions and their corresponding gradients. The <a href="../../performance/xla/">XLA Compiler</a> has an experimental implementation of automatic kernel fusion.</p> <h3 id="code_3">Code</h3> <ul> <li><a href="https://www.tensorflow.org/code/tensorflow/core/framework/op_kernel.h" target="_blank"><code>OpKernel</code> interface</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/extend/architecture" class="_attribution-link" target="_blank">https://www.tensorflow.org/extend/architecture</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

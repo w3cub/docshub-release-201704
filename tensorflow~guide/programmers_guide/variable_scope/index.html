@@ -1,0 +1,221 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Sharing Variables - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="You can create, initialize, save and load single variables in the way described in the Variables HowTo. But when building complex models you often &hellip;">
+  <meta name="keywords" content="sharing, variables, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/variable_scope/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Sharing Variables </h1>     <p>You can create, initialize, save and load single variables in the way described in the <a href="../variables/">Variables HowTo</a>. But when building complex models you often need to share large sets of variables and you might want to initialize all of them in one place. This tutorial shows how this can be done using <code>tf.variable_scope()</code> and the <code>tf.get_variable()</code>.</p> <h2 id="the_problem">The Problem</h2> <p>Imagine you create a simple model for image filters, similar to our <a href="../../tutorials/deep_cnn/">Convolutional Neural Networks Tutorial</a> model but with only 2 convolutions (for simplicity of this example). If you use just <code>tf.Variable</code>, as explained in <a href="../variables/">Variables HowTo</a>, your model might look like this.</p> <pre class="prettyprint lang-python" data-language="python">def my_image_filter(input_images):
+    conv1_weights = tf.Variable(tf.random_normal([5, 5, 32, 32]),
+        name="conv1_weights")
+    conv1_biases = tf.Variable(tf.zeros([32]), name="conv1_biases")
+    conv1 = tf.nn.conv2d(input_images, conv1_weights,
+        strides=[1, 1, 1, 1], padding='SAME')
+    relu1 = tf.nn.relu(conv1 + conv1_biases)
+
+    conv2_weights = tf.Variable(tf.random_normal([5, 5, 32, 32]),
+        name="conv2_weights")
+    conv2_biases = tf.Variable(tf.zeros([32]), name="conv2_biases")
+    conv2 = tf.nn.conv2d(relu1, conv2_weights,
+        strides=[1, 1, 1, 1], padding='SAME')
+    return tf.nn.relu(conv2 + conv2_biases)
+</pre> <p>As you can easily imagine, models quickly get much more complicated than this one, and even here we already have 4 different variables: <code>conv1_weights</code>, <code>conv1_biases</code>, <code>conv2_weights</code>, and <code>conv2_biases</code>.</p> <p>The problem arises when you want to reuse this model. Assume you want to apply your image filter to 2 different images, <code>image1</code> and <code>image2</code>. You want both images processed by the same filter with the same parameters. You can call <code>my_image_filter()</code> twice, but this will create two sets of variables, 4 variables in each one, for a total of 8 variables.</p> <pre class="prettyprint lang-python" data-language="python"># First call creates one set of 4 variables.
+result1 = my_image_filter(image1)
+# Another set of 4 variables is created in the second call.
+result2 = my_image_filter(image2)
+</pre> <p>A common way to share variables is to create them in a separate piece of code and pass them to functions that use them. For example by using a dictionary:</p> <pre class="prettyprint lang-python" data-language="python">variables_dict = {
+    "conv1_weights": tf.Variable(tf.random_normal([5, 5, 32, 32]),
+        name="conv1_weights")
+    "conv1_biases": tf.Variable(tf.zeros([32]), name="conv1_biases")
+    ... etc. ...
+}
+
+def my_image_filter(input_images, variables_dict):
+    conv1 = tf.nn.conv2d(input_images, variables_dict["conv1_weights"],
+        strides=[1, 1, 1, 1], padding='SAME')
+    relu1 = tf.nn.relu(conv1 + variables_dict["conv1_biases"])
+
+    conv2 = tf.nn.conv2d(relu1, variables_dict["conv2_weights"],
+        strides=[1, 1, 1, 1], padding='SAME')
+    return tf.nn.relu(conv2 + variables_dict["conv2_biases"])
+
+# Both calls to my_image_filter() now use the same variables
+result1 = my_image_filter(image1, variables_dict)
+result2 = my_image_filter(image2, variables_dict)
+</pre> <p>While convenient, creating variables like above, outside of the code, breaks encapsulation:</p> <ul> <li>The code that builds the graph must document the names, types, and shapes of variables to create.</li> <li>When the code changes, the callers may have to create more, or less, or different variables.</li> </ul> <p>One way to address the problem is to use classes to create a model, where the classes take care of managing the variables they need. For a lighter solution, not involving classes, TensorFlow provides a <em>Variable Scope</em> mechanism that allows to easily share named variables while constructing a graph.</p> <h2 id="variable_scope_example">Variable Scope Example</h2> <p>Variable Scope mechanism in TensorFlow consists of two main functions:</p> <ul> <li>
+<code>tf.get_variable(&lt;name&gt;, &lt;shape&gt;, &lt;initializer&gt;)</code>: Creates or returns a variable with a given name.</li> <li>
+<code>tf.variable_scope(&lt;scope_name&gt;)</code>: Manages namespaces for names passed to <code>tf.get_variable()</code>.</li> </ul> <p>The function <code>tf.get_variable()</code> is used to get or create a variable instead of a direct call to <code>tf.Variable</code>. It uses an <em>initializer</em> instead of passing the value directly, as in <code>tf.Variable</code>. An initializer is a function that takes the shape and provides a tensor with that shape. Here are some initializers available in TensorFlow:</p> <ul> <li>
+<code>tf.constant_initializer(value)</code> initializes everything to the provided value,</li> <li>
+<code>tf.random_uniform_initializer(a, b)</code> initializes uniformly from [a, b],</li> <li>
+<code>tf.random_normal_initializer(mean, stddev)</code> initializes from the normal distribution with the given mean and standard deviation.</li> </ul> <p>To see how <code>tf.get_variable()</code> solves the problem discussed before, let's refactor the code that created one convolution into a separate function, named <code>conv_relu</code>:</p> <pre class="prettyprint lang-python" data-language="python">def conv_relu(input, kernel_shape, bias_shape):
+    # Create variable named "weights".
+    weights = tf.get_variable("weights", kernel_shape,
+        initializer=tf.random_normal_initializer())
+    # Create variable named "biases".
+    biases = tf.get_variable("biases", bias_shape,
+        initializer=tf.constant_initializer(0.0))
+    conv = tf.nn.conv2d(input, weights,
+        strides=[1, 1, 1, 1], padding='SAME')
+    return tf.nn.relu(conv + biases)
+</pre> <p>This function uses short names <code>"weights"</code> and <code>"biases"</code>. We'd like to use it for both <code>conv1</code> and <code>conv2</code>, but the variables need to have different names. This is where <code>tf.variable_scope()</code> comes into play: it pushes a namespace for variables.</p> <pre class="prettyprint lang-python" data-language="python">def my_image_filter(input_images):
+    with tf.variable_scope("conv1"):
+        # Variables created here will be named "conv1/weights", "conv1/biases".
+        relu1 = conv_relu(input_images, [5, 5, 32, 32], [32])
+    with tf.variable_scope("conv2"):
+        # Variables created here will be named "conv2/weights", "conv2/biases".
+        return conv_relu(relu1, [5, 5, 32, 32], [32])
+</pre> <p>Now, let's see what happens when we call <code>my_image_filter()</code> twice.</p> <pre class="prettyprint" data-language="cpp">result1 = my_image_filter(image1)
+result2 = my_image_filter(image2)
+# Raises ValueError(... conv1/weights already exists ...)
+</pre> <p>As you can see, <code>tf.get_variable()</code> checks that already existing variables are not shared by accident. If you want to share them, you need to specify it by setting <code>reuse_variables()</code> as follows.</p> <pre class="prettyprint" data-language="cpp">with tf.variable_scope("image_filters") as scope:
+    result1 = my_image_filter(image1)
+    scope.reuse_variables()
+    result2 = my_image_filter(image2)
+</pre> <p>This is a good way to share variables, lightweight and safe.</p> <h2 id="how_does_variable_scope_work">How Does Variable Scope Work?</h2> <h3 id="understanding_tfget_variable">Understanding <code>tf.get_variable()</code>
+</h3> <p>To understand variable scope it is necessary to first fully understand how <code>tf.get_variable()</code> works. Here is how <code>tf.get_variable</code> is usually called.</p> <pre class="prettyprint lang-python" data-language="python">v = tf.get_variable(name, shape, dtype, initializer)
+</pre> <p>This call does one of two things depending on the scope it is called in. Here are the two options.</p> <ul> <li>Case 1: the scope is set for creating new variables, as evidenced by <code>tf.get_variable_scope().reuse == False</code>.</li> </ul> <p>In this case, <code>v</code> will be a newly created <code>tf.Variable</code> with the provided shape and data type. The full name of the created variable will be set to the current variable scope name + the provided <code>name</code> and a check will be performed to ensure that no variable with this full name exists yet. If a variable with this full name already exists, the function will raise a <code>ValueError</code>. If a new variable is created, it will be initialized to the value <code>initializer(shape)</code>. For example:</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    v = tf.get_variable("v", [1])
+assert v.name == "foo/v:0"
+</pre> <ul> <li>Case 2: the scope is set for reusing variables, as evidenced by <code>tf.get_variable_scope().reuse == True</code>.</li> </ul> <p>In this case, the call will search for an already existing variable with name equal to the current variable scope name + the provided <code>name</code>. If no such variable exists, a <code>ValueError</code> will be raised. If the variable is found, it will be returned. For example:</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    v = tf.get_variable("v", [1])
+with tf.variable_scope("foo", reuse=True):
+    v1 = tf.get_variable("v", [1])
+assert v1 is v
+</pre> <h3 id="basics_of_tfvariable_scope">Basics of <code>tf.variable_scope()</code>
+</h3> <p>Knowing how <code>tf.get_variable()</code> works makes it easy to understand variable scope. The primary function of variable scope is to carry a name that will be used as prefix for variable names and a reuse-flag to distinguish the two cases described above. Nesting variable scopes appends their names in a way analogous to how directories work:</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    with tf.variable_scope("bar"):
+        v = tf.get_variable("v", [1])
+assert v.name == "foo/bar/v:0"
+</pre> <p>The current variable scope can be retrieved using <code>tf.get_variable_scope()</code> and the <code>reuse</code> flag of the current variable scope can be set to <code>True</code> by calling <code>tf.get_variable_scope().reuse_variables()</code>:</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    v = tf.get_variable("v", [1])
+    tf.get_variable_scope().reuse_variables()
+    v1 = tf.get_variable("v", [1])
+assert v1 is v
+</pre> <p>Note that you <em>cannot</em> set the <code>reuse</code> flag to <code>False</code>. The reason behind this is to allow to compose functions that create models. Imagine you write a function <code>my_image_filter(inputs)</code> as before. Someone calling the function in a variable scope with <code>reuse=True</code> would expect all inner variables to be reused as well. Allowing to force <code>reuse=False</code> inside the function would break this contract and make it hard to share parameters in this way.</p> <p>Even though you cannot set <code>reuse</code> to <code>False</code> explicitly, you can enter a reusing variable scope and then exit it, going back to a non-reusing one. This can be done using a <code>reuse=True</code> parameter when opening a variable scope. Note also that, for the same reason as above, the <code>reuse</code> parameter is inherited. So when you open a reusing variable scope, all sub-scopes will be reusing too.</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("root"):
+    # At start, the scope is not reusing.
+    assert tf.get_variable_scope().reuse == False
+    with tf.variable_scope("foo"):
+        # Opened a sub-scope, still not reusing.
+        assert tf.get_variable_scope().reuse == False
+    with tf.variable_scope("foo", reuse=True):
+        # Explicitly opened a reusing scope.
+        assert tf.get_variable_scope().reuse == True
+        with tf.variable_scope("bar"):
+            # Now sub-scope inherits the reuse flag.
+            assert tf.get_variable_scope().reuse == True
+    # Exited the reusing scope, back to a non-reusing one.
+    assert tf.get_variable_scope().reuse == False
+</pre> <h3 id="capturing_variable_scope">Capturing variable scope</h3> <p>In all examples presented above, we shared parameters only because their names agreed, that is, because we opened a reusing variable scope with exactly the same string. In more complex cases, it might be useful to pass a VariableScope object rather than rely on getting the names right. To this end, variable scopes can be captured and used instead of names when opening a new variable scope.</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo") as foo_scope:
+    v = tf.get_variable("v", [1])
+with tf.variable_scope(foo_scope):
+    w = tf.get_variable("w", [1])
+with tf.variable_scope(foo_scope, reuse=True):
+    v1 = tf.get_variable("v", [1])
+    w1 = tf.get_variable("w", [1])
+assert v1 is v
+assert w1 is w
+</pre> <p>When opening a variable scope using a previously existing scope we jump out of the current variable scope prefix to an entirely different one. This is fully independent of where we do it.</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo") as foo_scope:
+    assert foo_scope.name == "foo"
+with tf.variable_scope("bar"):
+    with tf.variable_scope("baz") as other_scope:
+        assert other_scope.name == "bar/baz"
+        with tf.variable_scope(foo_scope) as foo_scope2:
+            assert foo_scope2.name == "foo"  # Not changed.
+</pre> <h3 id="initializers_in_variable_scope">Initializers in variable scope</h3> <p>Using <code>tf.get_variable()</code> allows to write functions that create or reuse variables and can be transparently called from outside. But what if we wanted to change the initializer of the created variables? Do we need to pass an extra argument to every function that creates variables? What about the most common case, when we want to set the default initializer for all variables in one place, on top of all functions? To help with these cases, variable scope can carry a default initializer. It is inherited by sub-scopes and passed to each <code>tf.get_variable()</code> call. But it will be overridden if another initializer is specified explicitly.</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo", initializer=tf.constant_initializer(0.4)):
+    v = tf.get_variable("v", [1])
+    assert v.eval() == 0.4  # Default initializer as set above.
+    w = tf.get_variable("w", [1], initializer=tf.constant_initializer(0.3)):
+    assert w.eval() == 0.3  # Specific initializer overrides the default.
+    with tf.variable_scope("bar"):
+        v = tf.get_variable("v", [1])
+        assert v.eval() == 0.4  # Inherited default initializer.
+    with tf.variable_scope("baz", initializer=tf.constant_initializer(0.2)):
+        v = tf.get_variable("v", [1])
+        assert v.eval() == 0.2  # Changed default initializer.
+</pre> <h3 id="names_of_ops_in_tfvariable_scope">Names of ops in <code>tf.variable_scope()</code>
+</h3> <p>We discussed how <code>tf.variable_scope</code> governs the names of variables. But how does it influence the names of other ops in the scope? It is natural that ops created inside a variable scope should also share that name. For this reason, when we do <code>with tf.variable_scope("name")</code>, this implicitly opens a <code>tf.name_scope("name")</code>. For example:</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    x = 1.0 + tf.get_variable("v", [1])
+assert x.op.name == "foo/add"
+</pre> <p>Name scopes can be opened in addition to a variable scope, and then they will only affect the names of the ops, but not of variables.</p> <pre class="prettyprint lang-python" data-language="python">with tf.variable_scope("foo"):
+    with tf.name_scope("bar"):
+        v = tf.get_variable("v", [1])
+        x = 1.0 + v
+assert v.name == "foo/v:0"
+assert x.op.name == "foo/bar/add"
+</pre> <p>When opening a variable scope using a captured object instead of a string, we do not alter the current name scope for ops.</p> <h2 id="examples_of_use">Examples of Use</h2> <p>Here are pointers to a few files that make use of variable scope. They can all be found in the <a href="https://github.com/tensorflow/models" target="_blank">TensorFlow models repo</a>. In particular, variable scope is heavily used for recurrent neural networks and sequence-to-sequence models.</p> <table> <thead> <tr> <th>File</th> <th>What's in it?</th> </tr> </thead> <tbody> <tr> <td><code>models/tutorials/image/cifar10/cifar10.py</code></td> <td>Model for detecting objects in images.</td> </tr> <tr> <td><code>models/tutorials/rnn/rnn_cell.py</code></td> <td>Cell functions for recurrent neural networks.</td> </tr> <tr> <td><code>models/tutorials/rnn/seq2seq.py</code></td> <td>Functions for building sequence-to-sequence models.</td> </tr> </tbody> </table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/variable_scope" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/variable_scope</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

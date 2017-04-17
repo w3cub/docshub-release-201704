@@ -1,0 +1,132 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Mandelbrot Set - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="Visualizing the Mandelbrot set doesn&#39;t have anything to do with machine learning, but it makes for a fun example of how one can use TensorFlow &hellip;">
+  <meta name="keywords" content="mandelbrot, set, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/tutorials/mandelbrot/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Mandelbrot Set </h1>     <p>Visualizing the <a href="https://en.wikipedia.org/wiki/Mandelbrot_set" target="_blank">Mandelbrot set</a> doesn't have anything to do with machine learning, but it makes for a fun example of how one can use TensorFlow for general mathematics. This is actually a pretty naive implementation of the visualization, but it makes the point. (We may end up providing a more elaborate implementation down the line to produce more truly beautiful images.)</p> <aside class="note"><strong>Note:</strong><span> This tutorial was originally prepared as an IPython notebook.</span></aside> <h2 id="basic_setup">Basic Setup</h2> <p>We'll need a few imports to get started.</p> <pre class="prettyprint lang-python" data-language="python"># Import libraries for simulation
+import tensorflow as tf
+import numpy as np
+
+# Imports for visualization
+import PIL.Image
+from io import BytesIO
+from IPython.display import Image, display
+</pre> <p>Now we'll define a function to actually display the image once we have iteration counts.</p> <pre class="prettyprint lang-python" data-language="python">def DisplayFractal(a, fmt='jpeg'):
+  """Display an array of iteration counts as a
+     colorful picture of a fractal."""
+  a_cyclic = (6.28*a/20.0).reshape(list(a.shape)+[1])
+  img = np.concatenate([10+20*np.cos(a_cyclic),
+                        30+50*np.sin(a_cyclic),
+                        155-80*np.cos(a_cyclic)], 2)
+  img[a==a.max()] = 0
+  a = img
+  a = np.uint8(np.clip(a, 0, 255))
+  f = BytesIO()
+  PIL.Image.fromarray(a).save(f, fmt)
+  display(Image(data=f.getvalue()))
+</pre> <h2 id="session_and_variable_initialization">Session and Variable Initialization</h2> <p>For playing around like this, we often use an interactive session, but a regular session would work as well.</p> <pre class="prettyprint lang-python" data-language="python">sess = tf.InteractiveSession()
+</pre> <p>It's handy that we can freely mix NumPy and TensorFlow.</p> <pre class="prettyprint lang-python" data-language="python"># Use NumPy to create a 2D array of complex numbers
+
+Y, X = np.mgrid[-1.3:1.3:0.005, -2:1:0.005]
+Z = X+1j*Y
+</pre> <p>Now we define and initialize TensorFlow tensors.</p> <pre class="prettyprint lang-python" data-language="python">xs = tf.constant(Z.astype(np.complex64))
+zs = tf.Variable(xs)
+ns = tf.Variable(tf.zeros_like(xs, tf.float32))
+</pre> <p>TensorFlow requires that you explicitly initialize variables before using them.</p> <pre class="prettyprint lang-python" data-language="python">tf.global_variables_initializer().run()
+</pre> <h2 id="defining_and_running_the_computation">Defining and Running the Computation</h2> <p>Now we specify more of the computation...</p> <pre class="prettyprint lang-python" data-language="python"># Compute the new values of z: z^2 + x
+zs_ = zs*zs + xs
+
+# Have we diverged with this new value?
+not_diverged = tf.abs(zs_) &lt; 4
+
+# Operation to update the zs and the iteration count.
+#
+# Note: We keep computing zs after they diverge! This
+#       is very wasteful! There are better, if a little
+#       less simple, ways to do this.
+#
+step = tf.group(
+  zs.assign(zs_),
+  ns.assign_add(tf.cast(not_diverged, tf.float32))
+  )
+</pre> <p>... and run it for a couple hundred steps</p> <pre class="prettyprint lang-python" data-language="python">for i in range(200): step.run()
+</pre> <p>Let's see what we've got.</p> <pre class="prettyprint lang-python" data-language="python">DisplayFractal(ns.eval())
+</pre> <p><img alt="jpeg" src="https://www.tensorflow.org/images/mandelbrot_output.jpg"></p> <p>Not bad!</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/tutorials/mandelbrot" class="_attribution-link" target="_blank">https://www.tensorflow.org/tutorials/mandelbrot</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

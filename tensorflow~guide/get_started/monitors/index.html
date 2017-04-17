@@ -1,0 +1,202 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Logging and Monitoring Basics With tf.contrib.learn - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="When training a model, it’s often valuable to track and evaluate progress in real time. In this tutorial, you’ll learn how to use TensorFlow’s &hellip;">
+  <meta name="keywords" content="logging, and, monitoring, basics, with, tf, contrib, learn, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/get_started/monitors/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Logging and Monitoring Basics with tf.contrib.learn </h1>     <p>When training a model, it’s often valuable to track and evaluate progress in real time. In this tutorial, you’ll learn how to use TensorFlow’s logging capabilities and the <code>Monitor</code> API to audit the in-progress training of a neural network classifier for categorizing irises. This tutorial builds on the code developed in <a href="../tflearn/">tf.contrib.learn Quickstart</a> so if you haven't yet completed that tutorial, you may want to explore it first, especially if you're looking for an intro/refresher on tf.contrib.learn basics.</p> <h2 id="setup">Setup</h2> <p>For this tutorial, you'll be building upon the following code from <a href="../tflearn/">tf.contrib.learn Quickstart</a>:</p> <pre class="prettyprint lang-python" data-language="python">from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+
+import numpy as np
+import tensorflow as tf
+
+# Data sets
+IRIS_TRAINING = os.path.join(os.path.dirname(__file__), "iris_training.csv")
+IRIS_TEST = os.path.join(os.path.dirname(__file__), "iris_test.csv")
+
+def main(unused_argv):
+    # Load datasets.
+    training_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+        filename=IRIS_TRAINING, target_dtype=np.int, features_dtype=np.float32)
+    test_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+        filename=IRIS_TEST, target_dtype=np.int, features_dtype=np.float32)
+
+    # Specify that all features have real-value data
+    feature_columns = [tf.contrib.layers.real_valued_column("", dimension=4)]
+
+    # Build 3 layer DNN with 10, 20, 10 units respectively.
+    classifier = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns,
+                                                hidden_units=[10, 20, 10],
+                                                n_classes=3,
+                                                model_dir="/tmp/iris_model")
+
+    # Fit model.
+    classifier.fit(x=training_set.data,
+                   y=training_set.target,
+                   steps=2000)
+
+    # Evaluate accuracy.
+    accuracy_score = classifier.evaluate(x=test_set.data,
+                                         y=test_set.target)["accuracy"]
+    print('Accuracy: {0:f}'.format(accuracy_score))
+
+    # Classify two new flower samples.
+    new_samples = np.array(
+        [[6.4, 3.2, 4.5, 1.5], [5.8, 3.1, 5.0, 1.7]], dtype=float)
+    y = list(classifier.predict(new_samples, as_iterable=True))
+    print('Predictions: {}'.format(str(y)))
+
+if __name__ == "__main__":
+  tf.app.run()
+</pre> <p>Copy the above code into a file, and download the corresponding <a href="http://download.tensorflow.org/data/iris_training.csv" target="_blank">training</a> and <a href="https://www.tensorflow.org/api_docs/python/tf/test" target="_blank"><code>tf.test</code></a> data sets to the same directory.</p> <p>In the following sections, you'll progressively make updates to the above code to add logging and monitoring capabilities. Final code incorporating all updates is <a href="https://www.tensorflow.org/code/tensorflow/examples/tutorials/monitors/iris_monitors.py" target="_blank">available for download here</a>.</p> <h2 id="overview">Overview</h2> <p>The <a href="../tflearn/">tf.contrib.learn Quickstart tutorial</a> walked through how to implement a neural net classifier to categorize iris examples into one of three species.</p> <p>But when <a href="#setup">the code</a> from this tutorial is run, the output contains no logging tracking how model training is progressing—only the results of the <code>print</code> statements that were included:</p> <pre class="prettyprint lang-none" data-language="cpp">Accuracy: 0.933333
+Predictions: [1 2]
+</pre> <p>Without any logging, model training feels like a bit of a black box; you can't see what's happening as TensorFlow steps through gradient descent, get a sense of whether the model is converging appropriately, or audit to determine whether <a href="https://en.wikipedia.org/wiki/Early_stopping" target="_blank">early stopping</a> might be appropriate.</p> <p>One way to address this problem would be to split model training into multiple <code>fit</code> calls with smaller numbers of steps in order to evaluate accuracy more progressively. However, this is not recommended practice, as it greatly slows down model training. Fortunately, tf.contrib.learn offers another solution: a <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/monitors" target="_blank">Monitor API</a> designed to help you log metrics and evaluate your model while training is in progress. In the following sections, you'll learn how to enable logging in TensorFlow, set up a ValidationMonitor to do streaming evaluations, and visualize your metrics using TensorBoard.</p> <h2 id="enabling_logging_with_tensorflow">Enabling Logging with TensorFlow</h2> <p>TensorFlow uses five different levels for log messages. In order of ascending severity, they are <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, <code>ERROR</code>, and <code>FATAL</code>. When you configure logging at any of these levels, TensorFlow will output all log messages corresponding to that level and all levels of higher severity. For example, if you set a logging level of <code>ERROR</code>, you'll get log output containing <code>ERROR</code> and <code>FATAL</code> messages, and if you set a level of <code>DEBUG</code>, you'll get log messages from all five levels.</p> <p>By default, TensorFlow is configured at a logging level of <code>WARN</code>, but when tracking model training, you'll want to adjust the level to <code>INFO</code>, which will provide additional feedback as <code>fit</code> operations are in progress.</p> <p>Add the following line to the beginning of your code (right after your <code>import</code>s):</p> <pre class="prettyprint lang-python" data-language="python">tf.logging.set_verbosity(tf.logging.INFO)
+</pre> <p>Now when you run the code, you'll see additional log output like the following:</p> <pre class="prettyprint lang-none" data-language="cpp">INFO:tensorflow:loss = 1.18812, step = 1
+INFO:tensorflow:loss = 0.210323, step = 101
+INFO:tensorflow:loss = 0.109025, step = 201
+</pre> <p>With <code>INFO</code>-level logging, tf.contrib.learn automatically outputs <a href="https://en.wikipedia.org/wiki/Loss_function" target="_blank">training-loss metrics</a> to stderr after every 100 steps.</p> <h2 id="configuring_a_validationmonitor_for_streaming_evaluation">Configuring a ValidationMonitor for Streaming Evaluation</h2> <p>Logging training loss is helpful to get a sense whether your model is converging, but what if you want further insight into what's happening during training? tf.contrib.learn provides several high-level <code>Monitor</code>s you can attach to your <code>fit</code> operations to further track metrics and/or debug lower-level TensorFlow operations during model training, including:</p> <table> <thead> <tr> <th>Monitor</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td><code>CaptureVariable</code></td> <td>Saves a specified variable's values into a collection at every <em>n</em> steps of training</td> </tr> <tr> <td><code>PrintTensor</code></td> <td>Logs a specified tensor's values at every <em>n</em> steps of training</td> </tr> <tr> <td><code>SummarySaver</code></td> <td>Saves <a href="https://www.tensorflow.org/api_docs/python/tf/Summary" target="_blank"><code>tf.Summary</code></a> <a href="https://developers.google.com/protocol-buffers/" target="_blank">protocol buffers</a> for a given tensor using a <a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter" target="_blank"><code>tf.summary.FileWriter</code></a> at every <em>n</em> steps of training</td> </tr> <tr> <td><code>ValidationMonitor</code></td> <td>Logs a specified set of evaluation metrics at every <em>n</em> steps of training, and, if desired, implements early stopping under certain conditions</td> </tr> </tbody> </table> <h3 id="evaluating_every_n_steps">Evaluating Every <em>N</em> Steps</h3> <p>For the iris neural network classifier, while logging training loss, you might also want to simultaneously evaluate against test data to see how well the model is generalizing. You can accomplish this by configuring a <code>ValidationMonitor</code> with the test data (<code>test_set.data</code> and <code>test_set.target</code>), and setting how often to evaluate with <code>every_n_steps</code>. The default value of <code>every_n_steps</code> is <code>100</code>; here, set <code>every_n_steps</code> to <code>50</code> to evaluate after every 50 steps of model training:</p> <pre class="prettyprint lang-python" data-language="python">validation_monitor = tf.contrib.learn.monitors.ValidationMonitor(
+    test_set.data,
+    test_set.target,
+    every_n_steps=50)
+</pre> <p>Place this code right before the line instantiating the <code>classifier</code>.</p> <p><code>ValidationMonitor</code>s rely on saved checkpoints to perform evaluation operations, so you'll want to modify instantiation of the <code>classifier</code> to add a <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/RunConfig" target="_blank"><code>tf.contrib.learn.RunConfig</code></a> that includes <code>save_checkpoints_secs</code>, which specifies how many seconds should elapse between checkpoint saves during training. Because the iris data set is quite small, and thus trains quickly, it makes sense to set <code>save_checkpoints_secs</code> to 1 (saving a checkpoint every second) to ensure a sufficient number of checkpoints:</p> <pre class="prettyprint lang-python" data-language="python">classifier = tf.contrib.learn.DNNClassifier(
+    feature_columns=feature_columns,
+    hidden_units=[10, 20, 10],
+    n_classes=3,
+    model_dir="/tmp/iris_model",
+    config=tf.contrib.learn.RunConfig(save_checkpoints_secs=1))
+</pre> <p>NOTE: The <code>model_dir</code> parameter specifies an explicit directory (<code>/tmp/iris_model</code>) for model data to be stored; this directory path will be easier to reference later on than an autogenerated one. Each time you run the code, any existing data in <code>/tmp/iris_model</code> will be loaded, and model training will continue where it left off in the last run (e.g., running the script twice in succession will execute 4000 steps during training—2000 during each <code>fit</code> operation). To start over model training from scratch, delete <code>/tmp/iris_model</code> before running the code.</p> <p>Finally, to attach your <code>validation_monitor</code>, update the <code>fit</code> call to include a <code>monitors</code> param, which takes a list of all monitors to run during model training:</p> <pre class="prettyprint lang-python" data-language="python">classifier.fit(x=training_set.data,
+               y=training_set.target,
+               steps=2000,
+               monitors=[validation_monitor])
+</pre> <p>Now, when you rerun the code, you should see validation metrics in your log output, e.g.:</p> <pre class="prettyprint lang-none" data-language="cpp">INFO:tensorflow:Validation (step 50): loss = 1.71139, global_step = 0, accuracy = 0.266667
+...
+INFO:tensorflow:Validation (step 300): loss = 0.0714158, global_step = 268, accuracy = 0.966667
+...
+INFO:tensorflow:Validation (step 1750): loss = 0.0574449, global_step = 1729, accuracy = 0.966667
+</pre> <h3 id="customizing_the_evaluation_metrics_with_metricspec">Customizing the Evaluation Metrics with MetricSpec</h3> <p>By default, if no evaluation metrics are specified, <code>ValidationMonitor</code> will log both <a href="https://en.wikipedia.org/wiki/Loss_function" target="_blank">loss</a> and accuracy, but you can customize the list of metrics that will be run every 50 steps. To specify the exact metrics you'd like to run in each evaluation pass, you can add a <code>metrics</code> param to the <code>ValidationMonitor</code> constructor. <code>metrics</code> takes a dict of key/value pairs, where each key is the name you'd like logged for the metric, and the corresponding value is a <a href="https://www.tensorflow.org/code/tensorflow/contrib/learn/python/learn/metric_spec.py" target="_blank"><code>MetricSpec</code></a> object.</p> <p>The <code>MetricSpec</code> constructor accepts four parameters:</p> <ul> <li> <p><code>metric_fn</code>. The function that calculates and returns the value of a metric. This can be a predefined function available in the <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics" target="_blank"><code>tf.contrib.metrics</code></a> module, such as <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics/streaming_precision" target="_blank"><code>tf.contrib.metrics.streaming_precision</code></a> or <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics/streaming_recall" target="_blank"><code>tf.contrib.metrics.streaming_recall</code></a>.</p> <p>Alternatively, you can define your own custom metric function, which must take <code>predictions</code> and <code>labels</code> tensors as arguments (a <code>weights</code> argument can also optionally be supplied). The function must return the value of the metric in one of two formats:</p> <ul> <li>A single tensor</li> <li>A pair of ops <code>(value_op, update_op)</code>, where <code>value_op</code> returns the metric value and <code>update_op</code> performs a corresponding operation to update internal model state.</li> </ul> </li> <li> <p><code>prediction_key</code>. The key of the tensor containing the predictions returned by the model. This argument may be omitted if the model returns either a single tensor or a dict with a single entry. For a <code>DNNClassifier</code> model, class predictions will be returned in a tensor with the key <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/PredictionKey#CLASSES" target="_blank"><code>tf.contrib.learn.PredictionKey.CLASSES</code></a>.</p> </li> <li> <p><code>label_key</code>. The key of the tensor containing the labels returned by the model, as specified by the model's <a href="../input_fn/"><code>input_fn</code></a>. As with <code>prediction_key</code>, this argument may be omitted if the <code>input_fn</code> returns either a single tensor or a dict with a single entry. In the iris example in this tutorial, the <code>DNNClassifier</code> does not have an <code>input_fn</code> (<code>x</code>,<code>y</code> data is passed directly to <code>fit</code>), so it's not necessary to provide a <code>label_key</code>.</p> </li> <li> <p><code>weights_key</code>. <em>Optional</em>. The key of the tensor (returned by the <a href="../input_fn/"><code>input_fn</code></a>) containing weights inputs for the <code>metric_fn</code>.</p> </li> </ul> <p>The following code creates a <code>validation_metrics</code> dict that defines three metrics to log during model evaluation:</p> <ul> <li>
+<code>"accuracy"</code>, using <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics/streaming_accuracy" target="_blank"><code>tf.contrib.metrics.streaming_accuracy</code></a> as the <code>metric_fn</code>
+</li> <li>
+<code>"precision"</code>, using <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics/streaming_precision" target="_blank"><code>tf.contrib.metrics.streaming_precision</code></a> as the <code>metric_fn</code>
+</li> <li>
+<code>"recall"</code>, using <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/metrics/streaming_recall" target="_blank"><code>tf.contrib.metrics.streaming_recall</code></a> as the <code>metric_fn</code>
+</li> </ul> <pre class="prettyprint lang-python" data-language="python">validation_metrics = {
+    "accuracy":
+        tf.contrib.learn.metric_spec.MetricSpec(
+            metric_fn=tf.contrib.metrics.streaming_accuracy,
+            prediction_key=tf.contrib.learn.prediction_key.PredictionKey.
+            CLASSES),
+    "precision":
+        tf.contrib.learn.metric_spec.MetricSpec(
+            metric_fn=tf.contrib.metrics.streaming_precision,
+            prediction_key=tf.contrib.learn.prediction_key.PredictionKey.
+            CLASSES),
+    "recall":
+        tf.contrib.learn.metric_spec.MetricSpec(
+            metric_fn=tf.contrib.metrics.streaming_recall,
+            prediction_key=tf.contrib.learn.prediction_key.PredictionKey.
+            CLASSES)
+}
+</pre> <p>Add the above code before the <code>ValidationMonitor</code> constructor. Then revise the <code>ValidationMonitor</code> constructor as follows to add a <code>metrics</code> parameter to log the accuracy, precision, and recall metrics specified in <code>validation_metrics</code> (loss is always logged, and doesn't need to be explicity specified):</p> <pre class="prettyprint lang-python" data-language="python">validation_monitor = tf.contrib.learn.monitors.ValidationMonitor(
+    test_set.data,
+    test_set.target,
+    every_n_steps=50,
+    metrics=validation_metrics)
+</pre> <p>Rerun the code, and you should see precision and recall included in your log output, e.g.:</p> <pre class="prettyprint lang-none" data-language="cpp">INFO:tensorflow:Validation (step 50): recall = 0.0, loss = 1.20626, global_step = 1, precision = 0.0, accuracy = 0.266667
+...
+INFO:tensorflow:Validation (step 600): recall = 1.0, loss = 0.0530696, global_step = 571, precision = 1.0, accuracy = 0.966667
+...
+INFO:tensorflow:Validation (step 1500): recall = 1.0, loss = 0.0617403, global_step = 1452, precision = 1.0, accuracy = 0.966667
+</pre> <h3 id="early_stopping_with_validationmonitor">Early Stopping with ValidationMonitor</h3> <p>Note that in the above log output, by step 600, the model has already achieved precision and recall rates of 1.0. This raises the question as to whether model training could benefit from <a href="https://en.wikipedia.org/wiki/Early_stopping" target="_blank">early stopping</a>.</p> <p>In addition to logging eval metrics, <code>ValidationMonitor</code>s make it easy to implement early stopping when specified conditions are met, via three params:</p> <table> <thead> <tr> <th>Param</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td><code>early_stopping_metric</code></td> <td>Metric that triggers early stopping (e.g., loss or accuracy) under conditions specified in <code>early_stopping_rounds</code> and <code>early_stopping_metric_minimize</code>. Default is <code>"loss"</code>.</td> </tr> <tr> <td><code>early_stopping_metric_minimize</code></td> <td>
+<code>True</code> if desired model behavior is to minimize the value of <code>early_stopping_metric</code>; <code>False</code> if desired model behavior is to maximize the value of <code>early_stopping_metric</code>. Default is <code>True</code>.</td> </tr> <tr> <td><code>early_stopping_rounds</code></td> <td>Sets a number of steps during which if the <code>early_stopping_metric</code> does not decrease (if <code>early_stopping_metric_minimize</code> is <code>True</code>) or increase (if <code>early_stopping_metric_minimize</code> is <code>False</code>), training will be stopped. Default is <code>None</code>, which means early stopping will never occur.</td> </tr> </tbody> </table> <p>Make the following revision to the <code>ValidationMonitor</code> constructor, which specifies that if loss (<code>early_stopping_metric="loss"</code>) does not decrease (<code>early_stopping_metric_minimize=True</code>) over a period of 200 steps (<code>early_stopping_rounds=200</code>), model training will stop immediately at that point, and not complete the full 2000 steps specified in <code>fit</code>:</p> <pre class="prettyprint lang-python" data-language="python">validation_monitor = tf.contrib.learn.monitors.ValidationMonitor(
+    test_set.data,
+    test_set.target,
+    every_n_steps=50,
+    metrics=validation_metrics,
+    early_stopping_metric="loss",
+    early_stopping_metric_minimize=True,
+    early_stopping_rounds=200)
+</pre> <p>Rerun the code to see if model training stops early:</p> <pre class="prettyprint lang-none" data-language="cpp">...
+INFO:tensorflow:Validation (step 1150): recall = 1.0, loss = 0.056436, global_step = 1119, precision = 1.0, accuracy = 0.966667
+INFO:tensorflow:Stopping. Best step: 800 with loss = 0.048313818872.
+</pre> <p>Indeed, here training stops at step 1150, indicating that for the past 200 steps, loss did not decrease, and that overall, step 800 produced the smallest loss value against the test data set. This suggests that additional calibration of hyperparameters by decreasing the step count might further improve the model.</p> <h2 id="visualizing_log_data_with_tensorboard">Visualizing Log Data with TensorBoard</h2> <p>Reading through the log produced by <code>ValidationMonitor</code> provides plenty of raw data on model performance during training, but it may also be helpful to see visualizations of this data to get further insight into trends—for example, how accuracy is changing over step count. You can use TensorBoard (a separate program packaged with TensorFlow) to plot graphs like this by setting the <code>logdir</code> command-line argument to the directory where you saved your model training data (here, <code>/tmp/iris_model</code>). Run the following on your command line:</p> <pre data-language="cpp">$ tensorboard --logdir=/tmp/iris_model/
+Starting TensorBoard 39 on port 6006</pre> <p>Then navigate to <code>http://0.0.0.0:</code><em><code>&lt;port_number&gt;</code></em> in your browser, where <em><code>&lt;port_number&gt;</code></em> is the port specified in the command-line output (here, <code>6006</code>).</p> <p>If you click on the accuracy field, you'll see an image like the following, which shows accuracy plotted against step count:</p> <p><img alt="Accuracy over step count in TensorBoard" src="https://www.tensorflow.org/images/validation_monitor_tensorboard_accuracy.png" title="Accuracy over step count in TensorBoard"></p> <p>For more on using TensorBoard, see <a href="../summaries_and_tensorboard/">TensorBoard: Visualizing Learning</a> and <a href="../graph_viz/">TensorBoard: Graph Visualization</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/get_started/monitors" class="_attribution-link" target="_blank">https://www.tensorflow.org/get_started/monitors</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

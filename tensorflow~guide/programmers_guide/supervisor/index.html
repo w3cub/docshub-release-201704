@@ -1,0 +1,156 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Supervisor&#58; Training Helper for Days-Long Trainings - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="To train a model with TensorFlow you can simply run a training op a number of times and save a checkpoint of the trained parameters when you&#39;re &hellip;">
+  <meta name="keywords" content="supervisor, training, helper, for, days-long, trainings, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/supervisor/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Supervisor: Training Helper for Days-Long Trainings. </h1>     <p>To train a model with TensorFlow you can simply run a training op a number of times and save a checkpoint of the trained parameters when you're done. This works well for small models that can train in a few hours.</p> <p>Larger models that require days of training, possibly across multiple replicas, need a more robust training process that:</p> <ul> <li>Handles shutdowns and crashes cleanly.</li> <li>Can be resumed after a shutdown or a crash.</li> <li>Can be monitored through TensorBoard.</li> </ul> <p>To be able to resume training after a shutdown or a crash the training process must save checkpoints regularly. On restart, it must look for the most recent checkpoint and load it before resuming training.</p> <p>To be monitored through TensorBoard, the training process must run summary ops regularly and append the returned values to an events file as explained in <a href="../../get_started/summaries_and_tensorboard/">TensorBoard: Visualizing Learning</a>. TensorBoard monitors events files and displays graphs reporting training progress over time.</p> <p>The <a href="https://www.tensorflow.org/api_docs/python/tf/train/Supervisor" target="_blank"><code>tf.train.Supervisor</code></a> provides a set of services that helps implement a robust training process.</p> <p>This how-to shows how to use the supervisor directly. Please also consider using one of several frameworks built on top of the supervisor that provide richer training loops, and numerous customization options: <a href="https://www.tensorflow.org/api_guides/python/contrib.learn" target="_blank"><code>tf.learn</code></a> is a good choice.</p> <p>Note that the supervisor is very helpful for training large models, but can also be used for smaller models without any penalty.</p> <h2 id="very_simple_scenario">Very Simple Scenario</h2> <p>The simplest scenario for using a supervisor is to:</p> <ul> <li> <p>Create a <code>Supervisor</code> object, passing it the path to a directory where to save checkpoints and summaries.</p> </li> <li> <p>Ask the supervisor for a session with <a href="https://www.tensorflow.org/api_docs/python/tf/train/Supervisor#managed_session" target="_blank"><code>tf.train.Supervisor.managed_session</code></a>.</p> </li> <li> <p>Use the session to execute a train op, checking at each step if the supervisor requests that the training stops.</p> </li> </ul> <pre class="prettyprint lang-python" data-language="python">...create graph...
+my_train_op = ...
+
+sv = tf.Supervisor(logdir="/my/training/directory")
+with sv.managed_session() as sess:
+  for step in range(100000):
+    if sv.should_stop():
+      break
+    sess.run(my_train_op)
+</pre> <h3 id="started_services">Started Services</h3> <p>In the very simple scenario, the <code>managed_session()</code> call starts a few services, which run in their own threads, and use the managed session to run ops in your graph.</p> <p>If your graph contains an integer variable named <code>global_step</code>, the services use its value to measure the number of training steps executed. See the <a href="../../get_started/mnist/mechanics/#training">MNIST training tutorial</a> for how to create a <code>global_step</code> variable.</p> <ul> <li> <p><em>Checkpointing</em> service: Saves a copy of the graph variables in the logdir. The checkpoint filename uses the value of the <code>global_step</code> variable if one was added to your graph. Runs every 10 minutes by default.</p> </li> <li> <p><em>Summary</em> service: Runs all the summary ops and appends their output to an <a href="../../get_started/summaries_and_tensorboard/">events file</a> in the logdir. Runs every 2 minutes by default.</p> </li> <li> <p><em>Step counter</em>: Counts how many steps have been executed, by looking at changes in the <code>global_step</code> variable. Appends a summary to the events file reporting the number of global steps per second. The summary tag is "global_step/sec". This also runs every 2 minutes by default.</p> </li> <li> <p><em>Queue Runners</em>: If any <a href="https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner" target="_blank"><code>tf.train.QueueRunner</code></a> were added to the graph, the supervisor launches them in their own threads.</p> </li> </ul> <p>All time intervals can be changed when constructing the supervisor object. See the <a href="#supervisor_reference">supervisor reference</a> for details.</p> <h3 id="checking_for_stop">Checking for Stop</h3> <p>The check for stop in the main training loop is important and necessary.</p> <p>Exceptions raised in the service threads are reported to the supervisor which then sets its <code>should_stop()</code> condition to true. Other service threads notice that condition and terminate properly. The main training loop, within the <code>managed_session()</code> block, must also check for the stop condition and terminate.</p> <p>Note that <code>managed_session()</code> takes care of catching exceptions raised from the training loop to report them to the supervisor. The main loop does not need to do anything special about exceptions. It only needs to check for the stop condition.</p> <h3 id="recovery">Recovery</h3> <p>If the training program shuts down or crashes, its most recent checkpoint and event files are left in the logdir. When you restart the program, <code>managed_session()</code> restores the graph from the most recent checkpoint and resumes training where it stopped.</p> <p>A new events file is created. If you start TensorBoard and point it to the logdir, it will know how to merge the contents of the two events files and will show the training resuming at the last global step from the checkpoint.</p> <h2 id="larger_model_scenario">Larger Model Scenario</h2> <p>The very simple scenario is sufficient for most small to medium sized models. Larger models may run out memory when the summary service runs: The summary ops are run in parallel with the main loop running the train op. This can cause memory usage to peak to up to two times the normal use.</p> <p>For a larger model you can tell the supervisor to not run the summary service and instead run it yourself in your main training loop: pass <code>summary_op=None</code> when constructing the supervisor.</p> <p>For example this code runs the summary op every 100 steps in the training loop:</p> <pre class="prettyprint lang-python" data-language="python">...create graph...
+my_train_op = ...
+my_summary_op = tf.summary.merge_all()
+
+sv = tf.Supervisor(logdir="/my/training/directory",
+                   summary_op=None) # Do not run the summary service
+with sv.managed_session() as sess:
+  for step in range(100000):
+    if sv.should_stop():
+      break
+    if step % 100 == 0:
+      _, summ = session.run([my_train_op, my_summary_op])
+      sv.summary_computed(sess, summ)
+    else:
+      session.run(my_train_op)
+</pre> <h2 id="pre-trained_model_scenario">Pre-trained Model Scenario</h2> <p>The <code>managed_session()</code> call takes care of initializing the model in the session. The model is restored from a checkpoint if one is available, or initialized from scratch otherwise.</p> <p>One common scenario is to initialize the model by loading a "pre-trained" checkpoint that was saved while training a usually slightly different model using a different dataset.</p> <p>You can load a pre-trained checkpoint by passing an "init function" to the supervisor. This function is called only if the model needs to be initialized from scratch, not when the model can be recovered from a checkpoint from the logdir.</p> <p>To load the pre-trained model, the init function needs a <a href="https://www.tensorflow.org/api_docs/python/tf/train/Saver" target="_blank"><code>tf.train.Saver</code></a> object, so you should create a saver for this purpose. This is usually a good idea because the new model may contain variables that are not present in the pre-trained checkpoint: This saver must only restore the pre-trained variables. If you were using the default saver, you could get an error trying to restore all the variables of the new model from the pre-trained checkpoint.</p> <pre class="prettyprint lang-python" data-language="python">...create graph...
+# Create a saver that restores only the pre-trained variables.
+pre_train_saver = tf.Saver([pre_train_var1, pre_train_var2])
+
+# Define an init function that loads the pretrained checkpoint.
+def load_pretrain(sess):
+  pre_train_saver.restore(sess, "&lt;path to pre-trained-checkpoint&gt;")
+
+# Pass the init function to the supervisor.
+#
+# The init function is called _after_ the variables have been initialized
+# by running the init_op.
+sv = tf.Supervisor(logdir="/my/training/directory",
+                   init_fn=load_pretrain)
+with sv.managed_session() as sess:
+  # Here sess was either initialized from the pre-trained-checkpoint or
+  # recovered from a checkpoint saved in a previous run of this code.
+  ...
+</pre> <h2 id="running_your_own_services">Running Your Own Services</h2> <p>Supervisor services, such as the checkpointing service, run in threads parallel to the main training loop. You sometimes want to add your own services, for example to fetch different sets of summaries on a different schedule than the usual summary service.</p> <p>Use the <a href="https://www.tensorflow.org/api_docs/python/tf/train/Supervisor#loop" target="_blank"><code>tf.train.Supervisor.loop</code></a> method of the supervisor for this purpose. It repeatedly calls a function of your choice on a timer until the supervisor stop condition becomes true, so it plays nicely with the other services.</p> <p>Example: Call <code>my_additional_summaries()</code> every 20mn:</p> <pre class="prettyprint lang-python" data-language="python">
+def my_additional_sumaries(sv, sess):
+ ...fetch and write summaries, see below...
+
+...
+  sv = tf.Supervisor(logdir="/my/training/directory")
+  with sv.managed_session() as sess:
+    # Call my_additional_sumaries() every 1200s, or 20mn,
+    # passing (sv, sess) as arguments.
+    sv.loop(1200, my_additional_sumaries, args=(sv, sess))
+    ...main training loop...
+</pre> <h2 id="writing_summaries">Writing Summaries</h2> <p>The supervisor always creates an events file in its logdir, as well as a <a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter" target="_blank"><code>tf.summary.FileWriter</code></a> to append events and summaries to that file. If you want to write your own summaries it is a good idea to append them to that same events file: TensorBoard likes it better when only one events file in a directory is being actively appended to.</p> <p>The supervisor provides a helper function to append summaries: <a href="https://www.tensorflow.org/api_docs/python/tf/train/Supervisor#summary_computed" target="_blank"><code>tf.train.Supervisor.summary_computed</code></a>. Just pass to the function the output returned by a summary op. Here is an example of using that function to implement <code>my_additional_sumaries()</code> from the previous example:</p> <pre class="prettyprint lang-python" data-language="python">def my_additional_sumaries(sv, sess):
+  summaries = sess.run(my_additional_summary_op)
+  sv.summary_computed(sess, summaries)
+</pre> <p>For more advanced usages, the supervisor provides access to its summary writer through its <a href="https://www.tensorflow.org/api_docs/python/tf/train/Supervisor#summary_writer" target="_blank"><code>tf.train.Supervisor.summary_writer</code></a> attribute.</p> <h2 id="supervisor_reference">Supervisor Reference</h2> <p>The <a href="#very_simple_scenario">Very Simple Scenario</a>, and the <a href="#larger_model_scenario">Larger Model Scenario</a> show basic uses of a supervisor. More advanced scenarios can be constructed by using the many options provided by the supervisor</p> <h3 id="checkpointing_where_and_when">Checkpointing: Where and When.</h3> <p>The <code>managed_session()</code> call launches the checkpointing service, which can be configured by the following keyword arguments to the <code>Supervisor()</code> constructor:</p> <ul> <li> <p><code>logdir</code>: path to a directory where the checkpointing service creates checkpoints. The directory is created if needed. Passing <code>None</code> disables the checkpointing and the summary services.</p> </li> <li> <p><code>checkpoint_basename</code>: Name of the checkpoint files to create, defaults to "model.ckpt".</p> </li> </ul> <p>If the model contains a scalar integer variable named <code>global_step</code>, the value of that variable is appended to the checkpoint filename.</p> <p>For example, at global step 1234 the checkpoint filename is "model.ckpt-1234".</p> <ul> <li>
+<code>save_model_secs</code>: Number of seconds between each checkpoint. Defaults to 600, or 10 minutes.</li> </ul> <p>When choosing a value, consider how much work you want to lose in case of a crash: you will never lose more than <code>save_model_secs</code> seconds of work. Setting this to 0 disables the checkpointing service.</p> <ul> <li>
+<code>saver</code>: A <a href="https://www.tensorflow.org/api_docs/python/tf/train/Saver" target="_blank"><code>tf.train.Saver</code></a> object to use for checkpointing.</li> </ul> <p>If you do not pass one, the supervisor creates one for you by calling <code>tf.Saver()</code>, which add ops to save and restore all variables in your model. This is usally what you need.</p> <p>Example: Use a custom Saver and checkpoint every 30 seconds.</p> <pre class="prettyprint lang-python" data-language="python">...create graph...
+my_saver = tf.Saver(&lt;only some variables&gt;)
+sv = tf.Supervisor(logdir="/my/training/directory",
+                   saver=my_saver,
+                   save_model_secs=30)
+with sv.managed_session() as sess:
+  ...training loop...
+</pre> <h3 id="summaries_where_and_when">Summaries: Where and When.</h3> <p>The <code>managed_session()</code> call launches the summary service which fetches summaries and reports the number of steps executed per second. It can be configured by the following keyword arguments to the <code>Supervisor()</code> constructor:</p> <ul> <li> <p><code>logdir</code>: Path to a directory where the summary service creates event files. The directory is created if needed. Passing <code>None</code> disables the summary service as well as the checkpointing services.</p> </li> <li> <p><code>save_summaries_secs</code>: Number of seconds between each run of the summary service. Defaults to 120, or 2 minutes.</p> </li> </ul> <p>When choosing a value, consider how expensive your summaries are, and how much disk they will occupy. Pass 0 to disable the summary service.</p> <ul> <li>
+<code>summary_op</code>: Op to use to fetch the summaries.</li> </ul> <p>If not specified, the supervisor use the first op in the <code>tf.GraphKeys.SUMMARY_OP</code> <a href="https://www.tensorflow.org/api_docs/python/tf/Graph#add_to_collection" target="_blank">graph collection</a>. If the collection is empty the supervisor creates an op that aggregates all summaries in the graph using <code>tf.summary.merge_all()</code>.</p> <p>Passing <code>None</code> disables the summary service.</p> <ul> <li>
+<code>global_step</code>: Tensor to use to count the global step.</li> </ul> <p>If not specified, the supervisor uses the first tensor in the <code>tf.GraphKeys.GLOBAL_STEP</code> <a href="https://www.tensorflow.org/api_docs/python/tf/Graph#add_to_collection" target="_blank">graph collection</a>. If the collection is empty, the supervisor looks for a scalar integer variable named <code>global_step</code> in the graph.</p> <p>If found, the global step tensor is used to measure the number of training steps executed. Note that your training op is responsible for incrementing the global step value.</p> <h3 id="model_initialization_and_recovery">Model Initialization and Recovery</h3> <p>The <code>managed_session()</code> call takes care of initializing or recovering a session. It returns a session with a fully initialized model, ready to run ops. If a checkpoint exists in the logdir when <code>managed_session()</code> is called, the model is initialized by loading that checkpoint, otherwise it is initialized by calling an init op and optionally an init function.</p> <p>When no checkpoint is available, model initialization is controlled by the following keyword arguments to the <code>Supervisor()</code> constructor:</p> <ul> <li>
+<code>init_op</code>: Op to run to initialize the model.</li> </ul> <p>If not specified, the supervisor uses the first op in the <code>tf.GraphKeys.INIT_OP</code> collection. If the collection is empty, the supervisor adds an op to initialize all the variables in the graph by calling <code>tf.global_variables_initializer()</code>.</p> <p>Pass <code>None</code> to not use an init op.</p> <ul> <li>
+<code>init_fn</code>: Python function to call to initialize the model.</li> </ul> <p>If specified, called as <code>init_fn(sess)</code> where <code>sess</code> is the managed session. If an init op is also used, the init function is called <em>after</em> the init op.</p> <ul> <li>
+<code>local_init_op</code>: An additional op to initialize parts of the graph that are not saved in checkpoints such as tables and <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/framework/local_variable" target="_blank">local variables</a>. The local init op is run <em>before</em> the init op and the init function.</li> </ul> <p>If not specified, the supervisor uses the first op in the <code>tf.GraphKeys.LOCAL_INIT_OP</code> collection. If the collection is empty the supervisor adds an op to initialize all the tables and local variables in the graph by calling <code>tf.initialize_all_tables()</code> and <code>tf.initialize_all_local_variables()</code>.</p> <p>Pass <code>None</code> to not use a local init op.</p> <ul> <li>
+<code>ready_op</code>: Op to check if the model is initialized.</li> </ul> <p>After running the local init op, the init op, and the init function, the supervisor verifies that the model is fully initialized by running the ready op. This is an op that returns an empty string if the model is initialized, or a description of what parts of the model are not initialized if not.</p> <p>If not specified, the supervisor uses the first op in the <code>tf.GraphKeys.READY_OP</code> collection. If the collection is empty the supervisor creates a ready op that verifies that all variables are initialized by calling <code>tf.report_uninitialized_variables()</code>.</p> <p>Pass <code>None</code> to disable the ready op. In that case the model is not checked after initialization.</p> <p>Checkpoint recovery is controlled by the following keyword arguments to the <code>Supervisor()</code> constructor:</p> <ul> <li>
+<code>logdir</code>: Path to a directory in which to look for checkpoints. The checkpoint service saves a metadata file, named "checkpoint", in the checkpoint directory that indicates the path to the most recent checkpoint.</li> </ul> <p>This file is in text format. When in a pinch, you can edit it manually to recover from a different checkpoint than the most recent one.</p> <ul> <li> <p><code>ready_op</code>: (see above). The ready op is run before and after loading the checkpoint. The first run checks if the model needs to be initialized and the second run verifies that the model is fully initialized.</p> </li> <li> <p><code>local_init_op</code>: (see above). The local init op is run before running the ready op the first time, to initialize local variables and tables.</p> </li> <li> <p><code>saver</code>: (see above). Saver object used to load the checkpoint.</p> </li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/supervisor" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/supervisor</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

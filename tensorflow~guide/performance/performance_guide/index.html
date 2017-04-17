@@ -1,0 +1,95 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Performance - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="This guide contains a collection of best practices for optimizing your TensorFlow code. The best practices apply to both new and experienced &hellip;">
+  <meta name="keywords" content="performance, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/performance/performance_guide/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Performance </h1>     <p>This guide contains a collection of best practices for optimizing your TensorFlow code. The best practices apply to both new and experienced Tensorflow users.</p> <h2 id="best_practices">Best Practices</h2> <p>While optimizing implementations of different types of models can be different, the topics below cover best practices to get the most performance from TensorFlow. Although these suggestions focus on image-based models, we will regularly add tips for all kinds of models. The following list highlights key best practices:</p> <ul> <li>Build and install from source</li> <li>Utilize queues for reading data</li> <li>Preprocessing on the CPU</li> <li>Use <code>NCHW</code> image data format</li> <li>Place shared parameters on the GPU</li> <li>Use fused batch norm</li> </ul> <p>The following sections detail the preceding suggestions.</p> <h3 id="build_and_install_from_source">Build and install from source</h3> <p>To install the most optimized version of TensorFlow, build and install TensorFlow from source by following <a href="https://www.tensorflow.org/install/install_sources" target="_blank">Installing TensorFlow from Source</a>. Building from source with compiler optimizations for the target hardware and ensuring the latest CUDA platform and cuDNN libraries are installed results in the highest performing installs.</p> <p>For the most stable experience, build from the <a href="https://github.com/tensorflow/tensorflow/releases" target="_blank">latest release</a> branch. To get the latest performance changes and accept some stability risk, build from <a href="https://github.com/tensorflow/tensorflow" target="_blank">master</a>.</p> <p>If there is a need to build TensorFlow on a platform that has different hardware than the target, then cross-compile with the highest optimizations for the target platform. The following command is an example of telling <code>bazel</code> to compile for a specific platform:</p> <pre class="prettyprint lang-python" data-language="python"># This command optimizes for Intel’s Broadwell processor
+bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pip_package:build_pip_package
+
+</pre> <h4 id="environment_build_and_install_tips">Environment, build, and install tips</h4> <ul> <li>Compile with the highest level of compute the <a href="http://developer.nvidia.com/cuda-gpus" target="_blank">GPU supports</a>, e.g. P100: 6.0, Titan X (pascal): 6.2, Titan X (maxwell): 5.2, and K80: 3.7.</li> <li>Install the latest CUDA platform and cuDNN libraries.</li> <li>Make sure to use a version of gcc that supports all of the optimizations of the target CPU. The recommended minimum gcc version is 4.8.3.</li> <li>TensorFlow checks on startup whether it has been compiled with the optimizations available on the CPU. If the optimizations are not included, TensorFlow will emit warnings, e.g. AVX, AVX2, and FMA instructions not included.</li> </ul> <h3 id="utilize_queues_for_reading_data">Utilize queues for reading data</h3> <p>One common cause of poor performance is underutilizing GPUs, or essentially "starving" them of data by not setting up an efficient pipeline. Make sure to set up an input pipeline to utilize queues and stream data effectively. Review <a href="../../programmers_guide/reading_data/#reading_from_files">Reading Data guide</a> for implementation details. One way to identify a "starved" GPU is to generate and review timelines. A detailed tutorial for timelines does not exist, but a quick example of generating a timeline exists as part of the <a href="../xla/jit/">XLA JIT</a> tutorial. A simple way to check if a GPU is underutilized is to run <code>nvidia-smi</code> , and if GPU utilization is not approaching 100% then the GPU is not getting data fast enough.</p> <p>Unless for a special circumstance or for example code, do not feed data into the session from Python variables, e.g. <code>dictionary</code>.</p> <pre class="prettyprint lang-python" data-language="python"># This will result in poor performance.
+sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+</pre> <h3 id="preprocessing_on_the_cpu">Preprocessing on the CPU</h3> <p>Placing preprocessing operations on the CPU can significantly improve performance. When preprocessing occurs on the GPU the flow of data is CPU -&gt; GPU (preprocessing) -&gt; CPU -&gt; GPU (training). The data is bounced back and forth between the CPU and GPU. When preprocessing is placed on the CPU, the data flow is CPU (preprocessing) -&gt; GPU (training). Another benefit is preprocessing on the CPU frees GPU time to focus on training.</p> <p>Placing preprocessing on the CPU can result in a 6X+ increase in samples/sec processed, which could lead to training in 1/6th of the time. To ensure preprocessing is on the CPU, wrap the preprocessing operations as shown below:</p> <pre class="prettyprint lang-python" data-language="python">with tf.device('/cpu:0'):
+  # function to get and process images or data.
+  distorted_inputs = load_and_distort_images()
+</pre> <h3 id="use_nchw_image_data_format">Use NCHW image data format</h3> <p>Image data format refers to the representation of batches of images. TensorFlow supports <code>NHWC</code> (TensorFlow default) and <code>NCHW</code> (cuDNN default). N refers to the number of images in a batch, H refers to the number of pixels in the vertical dimension, W refers to the number of pixels in the horizontal dimension, and C refers to the channels (e.g. 1 for black and white, 3 for RGB, etc.) Although cuDNN can operate on both formats, it is faster to operate in its default format.</p> <p>The best practice is to build models that work with both <code>NCHW</code> and <code>NHWC</code> as it is common to train using <code>NCHW</code> on GPU, and then do inference with NHWC on CPU.</p> <p>The very brief history of these two formats is that TensorFlow started by using <code>NHWC</code> because it was a little faster on CPUs. Then the TensorFlow team discovered that <code>NCHW</code> performs better when using the NVIDIA cuDNN library. The current recommendation is that users support both formats in their models. In the long term, we plan to rewrite graphs to make switching between the formats transparent.</p> <h3 id="use_fused_batch_norm">Use fused batch norm</h3> <p>When using batch norm <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/layers/batch_norm" target="_blank"><code>tf.contrib.layers.batch_norm</code></a> set the attribute <code>fused=True</code>:</p> <pre class="prettyprint lang-python" data-language="python">bn = tf.contrib.layers.batch_norm(
+          input_layer, fused=True, data_format='NCHW'
+          scope=scope, **kwargs)
+</pre> <p>The non-fused batch norm does computations using several individual Ops. Fused batch norm combines the individual operations into a single kernel, which runs faster.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/performance/performance_guide" class="_attribution-link" target="_blank">https://www.tensorflow.org/performance/performance_guide</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,105 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Using JIT Compilation - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="The TensorFlow&#47;XLA JIT compiler compiles and runs parts of TensorFlow graphs via XLA. The benefit of this over the standard TensorFlow &hellip;">
+  <meta name="keywords" content="using, jit, compilation, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/performance/xla/jit/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Using JIT Compilation </h1>     <blockquote> <aside class="note"><strong>Note:</strong><span> TensorFlow must be compiled from source to include XLA.</span></aside> </blockquote> <h2 id="why_use_just-in-time_jit_compilation">Why use just-in-time (JIT) compilation?</h2> <p>The TensorFlow/XLA JIT compiler compiles and runs parts of TensorFlow graphs via XLA. The benefit of this over the standard TensorFlow implementation is that XLA can fuse multiple operators (kernel fusion) into a small number of compiled kernels. Fusing operators can reduce memory bandwidth requirements and improve performance compared to executing operators one-at-a-time, as the TensorFlow executor does.</p> <h2 id="running_tensorflow_graphs_via_xla">Running TensorFlow graphs via XLA</h2> <p>There are two ways to run TensorFlow computations via XLA, either by JIT-compiling operators placed on a CPU or GPU device, or by placing operators on the <code>XLA_CPU</code> or <code>XLA_GPU</code> TensorFlow devices. Placing operators directly on a TensorFlow XLA device forces the operator to run on that device and is mainly used for testing.</p> <blockquote> <aside class="note"><strong>Note:</strong><span> The XLA CPU backend produces fast single-threaded code (in most cases), but does not yet parallelize as well as the TensorFlow CPU backend. The XLA GPU backend is competitive with the standard TensorFlow implementation, sometimes faster, sometimes slower.</span></aside> </blockquote> <h3 id="turning_on_jit_compilation">Turning on JIT compilation</h3> <p>JIT compilation can be turned on at the session level or manually for select operations. Both of these approaches are zero-copy --- data does not need to be copied when passing data between a compiled XLA kernel and a TensorFlow operator placed on the same device.</p> <h4 id="session">Session</h4> <p>Turning on JIT compilation at the session level will result in all possible operators being greedily compiled into XLA computations. Each XLA computation will be compiled into one or more kernels for the underlying device.</p> <p>Subject to a few constraints, if there are two adjacent operators in the graph that both have XLA implementations, then they will be compiled into a single XLA computation.</p> <p>JIT compilation is turned on at the session level by setting the <code>global_jit_level</code> config to <code>tf.OptimizerOptions.ON_1</code> and passing the config during session initialization.</p> <pre class="prettyprint lang-python" data-language="python"># Config to turn on JIT compilation
+config = tf.ConfigProto()
+config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+
+sess = tf.Session(config=config)
+</pre> <blockquote> <aside class="note"><strong>Note:</strong><span> Turning on JIT at the session level will not result in operations being compiled for the CPU. JIT compilation for CPU operations must be done via the manual method documented below. This decision was made due to the CPU backend being single-threaded.</span></aside> </blockquote> <h4 id="manual">Manual</h4> <p>JIT compilation can also be turned on manually for one or more operators. This is done by tagging the operators to compile with the attribute <code>_XlaCompile=true</code>. The simplest way to do this is via the <code>tf.contrib.compiler.jit.experimental_jit_scope()</code> scope defined in <a href="https://www.tensorflow.org/code/tensorflow/contrib/compiler/jit.py" target="_blank"><code>tensorflow/contrib/compiler/jit.py</code></a>. Example usage:</p> <pre class="prettyprint lang-python" data-language="python">jit_scope = tf.contrib.compiler.jit.experimental_jit_scope
+
+x = tf.placeholder(np.float32)
+with jit_scope():
+  y = tf.add(x, x)  # The "add" will be compiled with XLA.
+</pre> <p>The <code>_XlaCompile</code> attribute is currently supported on a best-effort basis. If an operator cannot be compiled, TensorFlow will silently fall back to the normal implementation.</p> <h3 id="placing_operators_on_xla_devices">Placing operators on XLA devices</h3> <p>Another way to run computations via XLA is to place an operator on a specific XLA device. This method is normally only used for testing. Valid targets are <code>XLA_CPU</code> or <code>XLA_GPU</code>.</p> <pre class="prettyprint lang-python" data-language="python">with tf.device("/job:localhost/replica:0/task:0/device:XLA_GPU:0"):
+  output = tf.add(input1, input2)
+</pre> <p>Unlike JIT compilation on the standard CPU and GPU devices, these devices make a copy of data when it is transferred on and off the device. The extra copy makes it expensive to mix XLA and TensorFlow operators in the same graph.</p> <h2 id="tutorial">Tutorial</h2> <p>This tutorial covers training a simple version of MNIST softmax with JIT turned on. Currently JIT at the session level, which is what is used for the tutorial, only supports GPU.</p> <p>Before starting the tutorial verify that the LD_LIBRARY environment variable or ldconfig contains <code>$CUDA_ROOT/extras/CUPTI/lib64</code>, which contains libraries for the CUDA Profiling Tools Interface <a href="http://docs.nvidia.com/cuda/cupti/index.html" target="_blank">(CUPTI)</a>. TensorFlow uses CUPTI to pull tracing information from the GPU.</p> <h3 id="step_1_prepare_sample_script">Step #1: Prepare sample script</h3> <p>Download or move <a href="https://www.tensorflow.org/code/tensorflow/examples/tutorials/mnist/mnist_softmax_xla.py" target="_blank">mnist_softmax_xla.py</a> into a folder outside of the TensorFlow source tree.</p> <h3 id="step_2_run_without_xla">Step #2: Run without XLA</h3> <p>Execute the python script to train the model without XLA.</p> <pre class="prettyprint lang-shell" data-language="cpp">python mnist_softmax_xla.py --xla=''
+</pre> <p>Using the Chrome Trace Event Profiler (browse to chrome://tracing), open the timeline file created when the script finishes: <code>timeline.ctf.json</code>. The rendered timeline should look similar to the picture below with multiple green boxes labeled <code>MatMul</code>, possibly across multiple CPUs. </p>
+<div style="width:95%; margin:auto; margin-bottom:10px; margin-top:20px;"> <img style="width:100%" src="https://www.tensorflow.org/images/jit_timeline_gpu.png"> </div> <h3 id="step_3_run_with_xla">Step #3 Run with XLA</h3> <p>Execute the python script to train the model with XLA and turn on a debugging feature of XLA via an environmental variable that outputs the XLA graph.</p> <pre class="prettyprint lang-shell" data-language="cpp">TF_XLA_FLAGS=--xla_generate_hlo_graph=.* python mnist_softmax_xla.py
+</pre> <p>Open the timeline file created (<code>timeline.ctf.json</code>). The rendered timeline should look similar to the picture below with one long bar labeled <code>_XlaLaunch</code>. </p>
+<div style="width:95%; margin:auto; margin-bottom:10px; margin-top:20px;"> <img style="width:100%" src="https://www.tensorflow.org/images/jit_timeline_gpu_xla.png"> </div> <p>To understand what is happening in <code>_XlaLaunch</code>, look at the console output for statements similar to the following:</p> <pre class="prettyprint lang-shell" data-language="cpp">computation cluster_0[_XlaCompiledKernel=true,_XlaNumConstantArgs=1].v82 [CPU:
+pipeline start, before inline]: /tmp/hlo_graph_0.dot
+
+</pre> <p>The console statements point to the location of <code>hlo_graph_xx.dot</code> files that contain information about the graph created by XLA. The process that XLA takes to fuse Ops is visible by starting at <code>hlo_graph_0.dot</code> and viewing each diagram in succession.</p> <p>To Render the .dot file into a png, install <a href="http://www.graphviz.org/Download..php" target="_blank">GraphViz</a> and run:</p> <pre class="prettyprint lang-shell" data-language="cpp">dot -Tpng hlo_graph_80.dot -o hlo_graph_80.png
+</pre> <p>The result will look like the following: </p>
+<div style="width:95%; margin:auto; margin-bottom:10px; margin-top:20px;"> <img style="width:100%" src="https://www.tensorflow.org/images/jit_gpu_xla_graph.png"> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/performance/xla/jit" class="_attribution-link" target="_blank">https://www.tensorflow.org/performance/xla/jit</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

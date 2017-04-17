@@ -1,0 +1,142 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Threading and Queues - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content=" Queues are a powerful mechanism for asynchronous computation using TensorFlow. ">
+  <meta name="keywords" content="threading, and, queues, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/threading_and_queues/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Threading and Queues </h1>     <p>Queues are a powerful mechanism for asynchronous computation using TensorFlow.</p> <p>Like everything in TensorFlow, a queue is a node in a TensorFlow graph. It's a stateful node, like a variable: other nodes can modify its content. In particular, nodes can enqueue new items in to the queue, or dequeue existing items from the queue.</p> <p>To get a feel for queues, let's consider a simple example. We will create a "first in, first out" queue (<code>FIFOQueue</code>) and fill it with zeros. Then we'll construct a graph that takes an item off the queue, adds one to that item, and puts it back on the end of the queue. Slowly, the numbers on the queue increase.</p> <div style="width:70%; margin:auto; margin-bottom:10px; margin-top:20px;"> <img style="width:100%" src="https://www.tensorflow.org/images/IncremeterFifoQueue.gif"> </div> <p><code>Enqueue</code>, <code>EnqueueMany</code>, and <code>Dequeue</code> are special nodes. They take a pointer to the queue instead of a normal value, allowing them to change it. We recommend you think of these as being like methods of the queue. In fact, in the Python API, they are methods of the queue object (e.g. <code>q.enqueue(...)</code>).</p> <p><strong>N.B.</strong> Queue methods (such as <code>q.enqueue(...)</code>) <em>must</em> run on the same device as the queue. Incompatible device placement directives will be ignored when creating these operations.</p> <p>Now that you have a bit of a feel for queues, let's dive into the details...</p> <h2 id="queue_usage_overview">Queue usage overview</h2> <p>Queues, such as <a href="https://www.tensorflow.org/api_docs/python/tf/FIFOQueue" target="_blank"><code>tf.FIFOQueue</code></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/RandomShuffleQueue" target="_blank"><code>tf.RandomShuffleQueue</code></a>, are important TensorFlow objects for computing tensors asynchronously in a graph.</p> <p>For example, a typical input architecture is to use a <code>RandomShuffleQueue</code> to prepare inputs for training a model:</p> <ul> <li>Multiple threads prepare training examples and push them in the queue.</li> <li>A training thread executes a training op that dequeues mini-batches from the queue</li> </ul> <p>This architecture has many benefits, as highlighted in the <a href="../reading_data/">Reading data how to</a>, which also gives an overview of functions that simplify the construction of input pipelines.</p> <p>The TensorFlow <code>Session</code> object is multithreaded, so multiple threads can easily use the same session and run ops in parallel. However, it is not always easy to implement a Python program that drives threads as described above. All threads must be able to stop together, exceptions must be caught and reported, and queues must be properly closed when stopping.</p> <p>TensorFlow provides two classes to help: <a href="https://www.tensorflow.org/api_docs/python/tf/train/Coordinator" target="_blank"><code>tf.train.Coordinator</code></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/train/QueueRunner" target="_blank"><code>tf.train.QueueRunner</code></a>. These two classes are designed to be used together. The <code>Coordinator</code> class helps multiple threads stop together and report exceptions to a program that waits for them to stop. The <code>QueueRunner</code> class is used to create a number of threads cooperating to enqueue tensors in the same queue.</p> <h2 id="coordinator">Coordinator</h2> <p>The <code>Coordinator</code> class helps multiple threads stop together.</p> <p>Its key methods are:</p> <ul> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/train/Coordinator#should_stop" target="_blank"><code>tf.train.Coordinator.should_stop</code></a>: returns True if the threads should stop.</li> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/train/Coordinator#request_stop" target="_blank"><code>tf.train.Coordinator.request_stop</code></a>: requests that threads should stop.</li> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/train/Coordinator#join" target="_blank"><code>tf.train.Coordinator.join</code></a>: waits until the specified threads have stopped.</li> </ul> <p>You first create a <code>Coordinator</code> object, and then create a number of threads that use the coordinator. The threads typically run loops that stop when <code>should_stop()</code> returns <code>True</code>.</p> <p>Any thread can decide that the computation should stop. It only has to call <code>request_stop()</code> and the other threads will stop as <code>should_stop()</code> will then return <code>True</code>.</p> <pre class="prettyprint lang-python" data-language="python"># Thread body: loop until the coordinator indicates a stop was requested.
+# If some condition becomes true, ask the coordinator to stop.
+def MyLoop(coord):
+  while not coord.should_stop():
+    ...do something...
+    if ...some condition...:
+      coord.request_stop()
+
+# Main thread: create a coordinator.
+coord = tf.train.Coordinator()
+
+# Create 10 threads that run 'MyLoop()'
+threads = [threading.Thread(target=MyLoop, args=(coord,)) for i in xrange(10)]
+
+# Start the threads and wait for all of them to stop.
+for t in threads:
+  t.start()
+coord.join(threads)
+</pre> <p>Obviously, the coordinator can manage threads doing very different things. They don't have to be all the same as in the example above. The coordinator also has support to capture and report exceptions. See the <a href="https://www.tensorflow.org/api_docs/python/tf/train/Coordinator" target="_blank"><code>tf.train.Coordinator</code></a> documentation for more details.</p> <h2 id="queuerunner">QueueRunner</h2> <p>The <code>QueueRunner</code> class creates a number of threads that repeatedly run an enqueue op. These threads can use a coordinator to stop together. In addition, a queue runner runs a <em>closer thread</em> that automatically closes the queue if an exception is reported to the coordinator.</p> <p>You can use a queue runner to implement the architecture described above.</p> <p>First build a graph that uses a TensorFlow queue (e.g. a <code>tf.RandomShuffleQueue</code>) for input examples. Add ops that process examples and enqueue them in the queue. Add training ops that start by dequeueing from the queue.</p> <pre class="prettyprint lang-python" data-language="python">example = ...ops to create one example...
+# Create a queue, and an op that enqueues examples one at a time in the queue.
+queue = tf.RandomShuffleQueue(...)
+enqueue_op = queue.enqueue(example)
+# Create a training graph that starts by dequeuing a batch of examples.
+inputs = queue.dequeue_many(batch_size)
+train_op = ...use 'inputs' to build the training part of the graph...
+</pre> <p>In the Python training program, create a <code>QueueRunner</code> that will run a few threads to process and enqueue examples. Create a <code>Coordinator</code> and ask the queue runner to start its threads with the coordinator. Write a training loop that also uses the coordinator.</p> <pre class="prettyprint" data-language="cpp"># Create a queue runner that will run 4 threads in parallel to enqueue
+# examples.
+qr = tf.train.QueueRunner(queue, [enqueue_op] * 4)
+
+# Launch the graph.
+sess = tf.Session()
+# Create a coordinator, launch the queue runner threads.
+coord = tf.train.Coordinator()
+enqueue_threads = qr.create_threads(sess, coord=coord, start=True)
+# Run the training loop, controlling termination with the coordinator.
+for step in xrange(1000000):
+    if coord.should_stop():
+        break
+    sess.run(train_op)
+# When done, ask the threads to stop.
+coord.request_stop()
+# And wait for them to actually do it.
+coord.join(enqueue_threads)
+</pre> <h2 id="handling_exceptions">Handling exceptions</h2> <p>Threads started by queue runners do more than just run the enqueue ops. They also catch and handle exceptions generated by queues, including the <code>tf.errors.OutOfRangeError</code> exception, which is used to report that a queue was closed.</p> <p>A training program that uses a coordinator must similarly catch and report exceptions in its main loop.</p> <p>Here is an improved version of the training loop above.</p> <pre class="prettyprint lang-python" data-language="python">try:
+    for step in xrange(1000000):
+        if coord.should_stop():
+            break
+        sess.run(train_op)
+except Exception, e:
+    # Report exceptions to the coordinator.
+    coord.request_stop(e)
+finally:
+    # Terminate as usual. It is safe to call `coord.request_stop()` twice.
+    coord.request_stop()
+    coord.join(threads)
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/threading_and_queues" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/threading_and_queues</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Building Input Functions With tf.contrib.learn - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="This tutorial introduces you to creating input functions in tf.contrib.learn. You&#39;ll get an overview of how to construct an input_fn to &hellip;">
+  <meta name="keywords" content="building, input, functions, with, tf, contrib, learn, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/get_started/input_fn/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Building Input Functions with tf.contrib.learn </h1>     <p>This tutorial introduces you to creating input functions in tf.contrib.learn. You'll get an overview of how to construct an <code>input_fn</code> to preprocess and feed data into your models. Then, you'll implement an <code>input_fn</code> that feeds training, evaluation, and prediction data into a neural network regressor for predicting median house values.</p> <h2 id="custom_input_pipelines_with_input_fn">Custom Input Pipelines with input_fn</h2> <p>When training a neural network using tf.contrib.learn, it's possible to pass your feature and target data directly into your <code>fit</code>, <code>evaluate</code>, or <code>predict</code> operations. Here's an example taken from the <a href="../tflearn/">tf.contrib.learn quickstart tutorial</a>:</p> <pre class="prettyprint lang-py" data-language="cpp">training_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+    filename=IRIS_TRAINING, target_dtype=np.int, features_dtype=np.float32)
+test_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+    filename=IRIS_TEST, target_dtype=np.int, features_dtype=np.float32)
+...
+
+classifier.fit(x=training_set.data,
+               y=training_set.target,
+               steps=2000)
+</pre> <p>This approach works well when little to no manipulation of source data is required. But in cases where more feature engineering is needed, <code>tf.contrib.learn</code> supports using a custom input function (<code>input_fn</code>) to encapsulate the logic for preprocessing and piping data into your models.</p> <h3 id="anatomy_of_an_input_fn">Anatomy of an input_fn</h3> <p>The following code illustrates the basic skeleton for an input function:</p> <pre class="prettyprint lang-python" data-language="python">def my_input_fn():
+
+    # Preprocess your data here...
+
+    # ...then return 1) a mapping of feature columns to Tensors with
+    # the corresponding feature data, and 2) a Tensor containing labels
+    return feature_cols, labels
+</pre> <p>The body of the input function contains the specific logic for preprocessing your input data, such as scrubbing out bad examples or <a href="https://en.wikipedia.org/wiki/Feature_scaling" target="_blank">feature scaling</a>.</p> <p>Input functions must return the following two values containing the final feature and label data to be fed into your model (as shown in the above code skeleton):</p> <dl> <dt><code>feature_cols</code></dt> <dd>A dict containing key/value pairs that map feature column names to <code>Tensor</code>s (or <code>SparseTensor</code>s) containing the corresponding feature data.</dd> <dt><code>labels</code></dt> <dd>A <code>Tensor</code> containing your label (target) values: the values your model aims to predict.</dd> </dl> <h3 id="converting_feature_data_to_tensors">Converting Feature Data to Tensors</h3> <p>If your feature/label data is stored in <a href="http://pandas.pydata.org/" target="_blank"><em>pandas</em></a> dataframes or <a href="http://www.numpy.org/" target="_blank">numpy</a> arrays, you'll need to convert it to <code>Tensor</code>s before returning it from your <code>input_fn</code>.</p> <p>For continuous data, you can create and populate a <code>Tensor</code> using <code>tf.constant</code>:</p> <pre class="prettyprint lang-python" data-language="python">feature_column_data = [1, 2.4, 0, 9.9, 3, 120]
+feature_tensor = tf.constant(feature_column_data)
+</pre> <p>For <a href="https://en.wikipedia.org/wiki/Sparse_matrix" target="_blank">sparse, categorical data</a> (data where the majority of values are 0), you'll instead want to populate a <code>SparseTensor</code>, which is instantiated with three arguments:</p> <dl> <dt><code>dense_shape</code></dt> <dd>The shape of the tensor. Takes a list indicating the number of elements in each dimension. For example, <code>dense_shape=[3,6]</code> specifies a two-dimensional 3x6 tensor, <code>dense_shape=[2,3,4]</code> specifies a three-dimensional 2x3x4 tensor, and <code>dense_shape=[9]</code> specifies a one-dimensional tensor with 9 elements.</dd> <dt><code>indices</code></dt> <dd>The indices of the elements in your tensor that contain nonzero values. Takes a list of terms, where each term is itself a list containing the index of a nonzero element. (Elements are zero-indexed—i.e., [0,0] is the index value for the element in the first column of the first row in a two-dimensional tensor.) For example, <code>indices=[[1,3], [2,4]]</code> specifies that the elements with indexes of [1,3] and [2,4] have nonzero values.</dd> <dt><code>values</code></dt> <dd>A one-dimensional tensor of values. Term <code>i</code> in <code>values</code> corresponds to term <code>i</code> in <code>indices</code> and specifies its value. For example, given <code>indices=[[1,3], [2,4]]</code>, the parameter <code>values=[18, 3.6]</code> specifies that element [1,3] of the tensor has a value of 18, and element [2,4] of the tensor has a value of 3.6.</dd> </dl> <p>The following code defines a two-dimensional <code>SparseTensor</code> with 3 rows and 5 columns. The element with index [0,1] has a value of 6, and the element with index [2,4] has a value of 0.5 (all other values are 0):</p> <pre class="prettyprint lang-python" data-language="python">sparse_tensor = tf.SparseTensor(indices=[[0,1], [2,4]],
+                                values=[6, 0.5],
+                                dense_shape=[3, 5])
+</pre> <p>This corresponds to the following dense tensor:</p> <pre class="prettyprint lang-none" data-language="cpp">[[0, 6, 0, 0, 0]
+ [0, 0, 0, 0, 0]
+ [0, 0, 0, 0, 0.5]]
+</pre> <p>For more on <code>SparseTensor</code>, see the <a href="https://www.tensorflow.org/api_docs/python/tf/SparseTensor" target="_blank"><code>tf.SparseTensor</code></a>.</p> <h3 id="passing_input_fn_data_to_your_model">Passing input_fn Data to Your Model</h3> <p>To feed data to your model for training, you simply pass the input function you've created to your <code>fit</code> operation as the value of the <code>input_fn</code> parameter, e.g.:</p> <pre class="prettyprint lang-python" data-language="python">classifier.fit(input_fn=my_input_fn, steps=2000)
+</pre> <p>Note that the <code>input_fn</code> is responsible for supplying both feature and label data to the model, and replaces both the <code>x</code> and <code>y</code> parameters in <code>fit</code>. If you supply an <code>input_fn</code> value to <code>fit</code> that is not <code>None</code> in conjunction with either an <code>x</code> or <code>y</code> parameter that is not <code>None</code>, it will result in a <code>ValueError</code>.</p> <p>Also note that the <code>input_fn</code> parameter must receive a function object (i.e., <code>input_fn=my_input_fn</code>), not the return value of a function call (<code>input_fn=my_input_fn()</code>). This means that if you try to pass parameters to the input function in your <code>fit</code> call, as in the following code, it will result in a <code>TypeError</code>:</p> <pre class="prettyprint lang-python" data-language="python">classifier.fit(input_fn=my_input_fn(training_set), steps=2000)
+</pre> <p>However, if you'd like to be able to parameterize your input function, there are other methods for doing so. You can employ a wrapper function that takes no arguments as your <code>input_fn</code> and use it to invoke your input function with the desired parameters. For example:</p> <pre class="prettyprint lang-python" data-language="python">def my_input_function_training_set():
+  return my_input_function(training_set)
+
+classifier.fit(input_fn=my_input_fn_training_set, steps=2000)
+</pre> <p>Alternatively, you can use Python's <a href="https://docs.python.org/2/library/functools.html#functools.partial" target="_blank"><code>functools.partial</code></a> function to construct a new function object with all parameter values fixed:</p> <pre class="prettyprint lang-python" data-language="python">classifier.fit(input_fn=functools.partial(my_input_function,
+                                          data_set=training_set), steps=2000)
+</pre> <p>A third option is to wrap your input_fn invocation in a <a href="https://docs.python.org/3/tutorial/controlflow.html#lambda-expressions" target="_blank"><code>lambda</code></a> and pass it to the <code>input_fn</code> parameter:</p> <pre class="prettyprint lang-python" data-language="python">classifier.fit(input_fn=lambda: my_input_fn(training_set), steps=2000)
+</pre> <p>One big advantage of architecting your input pipeline as shown above—to accept a parameter for data set—is that you can pass the same <code>input_fn</code> to <code>evaluate</code> and <code>predict</code> operations by just changing the data set argument, e.g.:</p> <pre class="prettyprint lang-python" data-language="python">classifier.evaluate(input_fn=lambda: my_input_fn(test_set), steps=2000)
+</pre> <p>This approach enhances code maintainability: no need to capture <code>x</code> and <code>y</code> values in separate variables (e.g., <code>x_train</code>, <code>x_test</code>, <code>y_train</code>, <code>y_test</code>) for each type of operation.</p> <h3 id="a_neural_network_model_for_boston_house_values">A Neural Network Model for Boston House Values</h3> <p>In the remainder of this tutorial, you'll write an input function for preprocessing a subset of Boston housing data pulled from the <a href="https://archive.ics.uci.edu/ml/datasets/Housing" target="_blank">UCI Housing Data Set</a> and use it to feed data to a neural network regressor for predicting median house values.</p> <p>The <a href="#setup">Boston CSV data sets</a> you'll use to train your neural network contain the following <a href="https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.names" target="_blank">feature data</a> for Boston suburbs:</p> <table> <thead> <tr> <th>Feature</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>CRIM</td> <td>Crime rate per capita</td> </tr> <tr> <td>ZN</td> <td>Fraction of residential land zoned to permit 25,000+ sq ft lots</td> </tr> <tr> <td>INDUS</td> <td>Fraction of land that is non-retail business</td> </tr> <tr> <td>NOX</td> <td>Concentration of nitric oxides in parts per 10 million</td> </tr> <tr> <td>RM</td> <td>Average Rooms per dwelling</td> </tr> <tr> <td>AGE</td> <td>Fraction of owner-occupied residences built before 1940</td> </tr> <tr> <td>DIS</td> <td>Distance to Boston-area employment centers</td> </tr> <tr> <td>TAX</td> <td>Property tax rate per $10,000</td> </tr> <tr> <td>PTRATIO</td> <td>Student-teacher ratio</td> </tr> </tbody> </table> <p>And the label your model will predict is MEDV, the median value of owner-occupied residences in thousands of dollars.</p> <h2 id="setup">Setup</h2> <p>Download the following data sets: <a href="http://download.tensorflow.org/data/boston_train.csv" target="_blank">boston_train.csv</a>, <a href="http://download.tensorflow.org/data/boston_test.csv" target="_blank">boston_test.csv</a>, and <a href="http://download.tensorflow.org/data/boston_predict.csv" target="_blank">boston_predict.csv</a>.</p> <p>The following sections provide a step-by-step walkthrough of how to create an input function, feed these data sets into a neural network regressor, train and evaluate the model, and make house value predictions. The full, final code is <a href="https://www.tensorflow.org/code/tensorflow/examples/tutorials/input_fn/boston.py" target="_blank">available here</a>.</p> <h3 id="importing_the_housing_data">Importing the Housing Data</h3> <p>To start, set up your imports (including <code>pandas</code> and <code>tensorflow</code>) and <a href="../monitors/#enabling_logging_with_tensorflow">set logging verbosity</a> to <code>INFO</code> for more detailed log output:</p> <pre class="prettyprint lang-python" data-language="python">from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import itertools
+
+import pandas as pd
+import tensorflow as tf
+
+tf.logging.set_verbosity(tf.logging.INFO)
+</pre> <p>Define the column names for the data set in <code>COLUMNS</code>. To distinguish features from the label, also define <code>FEATURES</code> and <code>LABEL</code>. Then read the three CSVs (<a href="https://www.tensorflow.org/api_docs/python/tf/train" target="_blank"><code>tf.train</code></a>, <a href="https://www.tensorflow.org/api_docs/python/tf/test" target="_blank"><code>tf.test</code></a>, and <a href="http://download.tensorflow.org/data/boston_predict.csv" target="_blank">predict</a>) into <em>pandas</em> <code>DataFrame</code>s:</p> <pre class="prettyprint lang-python" data-language="python">COLUMNS = ["crim", "zn", "indus", "nox", "rm", "age",
+           "dis", "tax", "ptratio", "medv"]
+FEATURES = ["crim", "zn", "indus", "nox", "rm",
+            "age", "dis", "tax", "ptratio"]
+LABEL = "medv"
+
+training_set = pd.read_csv("boston_train.csv", skipinitialspace=True,
+                           skiprows=1, names=COLUMNS)
+test_set = pd.read_csv("boston_test.csv", skipinitialspace=True,
+                       skiprows=1, names=COLUMNS)
+prediction_set = pd.read_csv("boston_predict.csv", skipinitialspace=True,
+                             skiprows=1, names=COLUMNS)
+</pre> <h3 id="defining_featurecolumns_and_creating_the_regressor">Defining FeatureColumns and Creating the Regressor</h3> <p>Next, create a list of <code>FeatureColumn</code>s for the input data, which formally specify the set of features to use for training. Because all features in the housing data set contain continuous values, you can create their <code>FeatureColumn</code>s using the <code>tf.contrib.layers.real_valued_column()</code> function:</p> <pre class="prettyprint lang-python" data-language="python">feature_cols = [tf.contrib.layers.real_valued_column(k)
+                  for k in FEATURES]
+</pre> <p>NOTE: For a more in-depth overview of feature columns, see <a href="../../tutorials/linear/#feature_columns_and_transformations">this introduction</a>, and for an example that illustrates how to define <code>FeatureColumns</code> for categorical data, see the <a href="../../tutorials/wide/">Linear Model Tutorial</a>.</p> <p>Now, instantiate a <code>DNNRegressor</code> for the neural network regression model. You'll need to provide two arguments here: <code>hidden_units</code>, a hyperparameter specifying the number of nodes in each hidden layer (here, two hidden layers with 10 nodes each), and <code>feature_columns</code>, containing the list of <code>FeatureColumns</code> you just defined:</p> <pre class="prettyprint lang-python" data-language="python">regressor = tf.contrib.learn.DNNRegressor(feature_columns=feature_cols,
+                                          hidden_units=[10, 10],
+                                          model_dir="/tmp/boston_model")
+</pre> <h3 id="building_the_input_fn">Building the input_fn</h3> <p>To pass input data into the <code>regressor</code>, create an input function, which will accept a <em>pandas</em> <code>Dataframe</code> and return feature column and label values as <code>Tensor</code>s:</p> <pre class="prettyprint lang-python" data-language="python">def input_fn(data_set):
+  feature_cols = {k: tf.constant(data_set[k].values)
+                  for k in FEATURES}
+  labels = tf.constant(data_set[LABEL].values)
+  return feature_cols, labels
+</pre> <p>Note that the input data is passed into <code>input_fn</code> in the <code>data_set</code> argument, which means the function can process any of the <code>DataFrame</code>s you've imported: <code>training_set</code>, <code>test_set</code>, and <code>prediction_set</code>.</p> <h3 id="training_the_regressor">Training the Regressor</h3> <p>To train the neural network regressor, run <code>fit</code> with the <code>training_set</code> passed to the <code>input_fn</code> as follows:</p> <pre class="prettyprint lang-python" data-language="python">regressor.fit(input_fn=lambda: input_fn(training_set), steps=5000)
+</pre> <p>You should see log output similar to the following, which reports training loss for every 100 steps:</p> <pre class="prettyprint lang-none" data-language="cpp">INFO:tensorflow:Step 1: loss = 483.179
+INFO:tensorflow:Step 101: loss = 81.2072
+INFO:tensorflow:Step 201: loss = 72.4354
+...
+INFO:tensorflow:Step 1801: loss = 33.4454
+INFO:tensorflow:Step 1901: loss = 32.3397
+INFO:tensorflow:Step 2001: loss = 32.0053
+INFO:tensorflow:Step 4801: loss = 27.2791
+INFO:tensorflow:Step 4901: loss = 27.2251
+INFO:tensorflow:Saving checkpoints for 5000 into /tmp/boston_model/model.ckpt.
+INFO:tensorflow:Loss for final step: 27.1674.
+</pre> <h3 id="evaluating_the_model">Evaluating the Model</h3> <p>Next, see how the trained model performs against the test data set. Run <code>evaluate</code>, and this time pass the <code>test_set</code> to the <code>input_fn</code>:</p> <pre class="prettyprint lang-python" data-language="python">ev = regressor.evaluate(input_fn=lambda: input_fn(test_set), steps=1)
+</pre> <p>Retrieve the loss from the <code>ev</code> results and print it to output:</p> <pre class="prettyprint lang-python" data-language="python">loss_score = ev["loss"]
+print("Loss: {0:f}".format(loss_score))
+</pre> <p>You should see results similar to the following:</p> <pre class="prettyprint lang-none" data-language="cpp">INFO:tensorflow:Eval steps [0,1) for training step 5000.
+INFO:tensorflow:Saving evaluation summary for 5000 step: loss = 11.9221
+Loss: 11.922098
+</pre> <h3 id="making_predictions">Making Predictions</h3> <p>Finally, you can use the model to predict median house values for the <code>prediction_set</code>, which contains feature data but no labels for six examples:</p> <pre class="prettyprint lang-python" data-language="python">y = regressor.predict(input_fn=lambda: input_fn(prediction_set))
+# .predict() returns an iterator; convert to a list and print predictions
+predictions = list(itertools.islice(y, 6))
+print ("Predictions: {}".format(str(predictions)))
+</pre> <p>Your results should contain six house-value predictions in thousands of dollars, e.g:</p> <pre class="prettyprint lang-none" data-language="cpp">Predictions: [ 33.30348587  17.04452896  22.56370163  34.74345398  14.55953979
+  19.58005714]
+</pre> <h2 id="additional_resources">Additional Resources</h2> <p>This tutorial focused on creating an <code>input_fn</code> for a neural network regressor. To learn more about using <code>input_fn</code>s for other types of models, check out the following resources:</p> <ul> <li> <p><a href="../../tutorials/linear/">Large-scale Linear Models with TensorFlow</a>: This introduction to linear models in TensorFlow provides a high-level overview of feature columns and techniques for transforming input data.</p> </li> <li> <p><a href="../../tutorials/wide/">TensorFlow Linear Model Tutorial</a>: This tutorial covers creating <code>FeatureColumn</code>s and an <code>input_fn</code> for a linear classification model that predicts income range based on census data.</p> </li> <li> <p><a href="../../tutorials/wide_and_deep/">TensorFlow Wide &amp; Deep Learning Tutorial</a>: Building on the <a href="../../tutorials/wide/">Linear Model Tutorial</a>, this tutorial covers <code>FeatureColumn</code> and <code>input_fn</code> creation for a "wide and deep" model that combines a linear model and a neural network using <code>DNNLinearCombinedClassifier</code>.</p> </li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/get_started/input_fn" class="_attribution-link" target="_blank">https://www.tensorflow.org/get_started/input_fn</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

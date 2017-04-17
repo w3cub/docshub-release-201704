@@ -1,0 +1,153 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Custom Data Readers - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content=" PREREQUISITES&#58; ">
+  <meta name="keywords" content="custom, data, readers, -, tensorflow, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/extend/new_data_formats/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> Custom Data Readers </h1>     <p>PREREQUISITES:</p> <ul> <li>Some familiarity with C++.</li> <li>Must have <a href="https://www.tensorflow.org/install/install_sources" target="_blank">downloaded TensorFlow source</a>, and be able to build it.</li> </ul> <p>We divide the task of supporting a file format into two pieces:</p> <ul> <li>File formats: We use a <em>Reader</em> Op to read a <em>record</em> (which can be any string) from a file.</li> <li>Record formats: We use decoder or parsing Ops to turn a string record into tensors usable by TensorFlow.</li> </ul> <p>For example, to read a <a href="https://en.wikipedia.org/wiki/Comma-separated_values" target="_blank">CSV file</a>, we use <a href="https://www.tensorflow.org/api_docs/python/tf/TextLineReader" target="_blank">a Reader for text files</a> followed by <a href="https://www.tensorflow.org/api_docs/python/tf/decode_csv" target="_blank">an Op that parses CSV data from a line of text</a>.</p> <h2 id="writing_a_reader_for_a_file_format">Writing a Reader for a file format</h2> <p>A <code>Reader</code> is something that reads records from a file. There are some examples of Reader Ops already built into TensorFlow:</p> <ul> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/TFRecordReader" target="_blank"><code>tf.TFRecordReader</code></a> (<a href="https://www.tensorflow.org/code/tensorflow/core/kernels/tf_record_reader_op.cc" target="_blank">source in <code>kernels/tf_record_reader_op.cc</code></a>)</li> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/FixedLengthRecordReader" target="_blank"><code>tf.FixedLengthRecordReader</code></a> (<a href="https://www.tensorflow.org/code/tensorflow/core/kernels/fixed_length_record_reader_op.cc" target="_blank">source in <code>kernels/fixed_length_record_reader_op.cc</code></a>)</li> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/TextLineReader" target="_blank"><code>tf.TextLineReader</code></a> (<a href="https://www.tensorflow.org/code/tensorflow/core/kernels/text_line_reader_op.cc" target="_blank">source in <code>kernels/text_line_reader_op.cc</code></a>)</li> </ul> <p>You can see these all expose the same interface, the only differences are in their constructors. The most important method is <code>read</code>. It takes a queue argument, which is where it gets filenames to read from whenever it needs one (e.g. when the <code>read</code> op first runs, or the previous <code>read</code> reads the last record from a file). It produces two scalar tensors: a string key and a string value.</p> <p>To create a new reader called <code>SomeReader</code>, you will need to:</p> <ol> <li>In C++, define a subclass of <a href="https://www.tensorflow.org/code/tensorflow/core/kernels/reader_base.h" target="_blank"><code>tensorflow::ReaderBase</code></a> called <code>SomeReader</code>.</li> <li>In C++, register a new reader op and kernel with the name <code>"SomeReader"</code>.</li> <li>In Python, define a subclass of <a href="https://www.tensorflow.org/api_docs/python/tf/ReaderBase" target="_blank"><code>tf.ReaderBase</code></a> called <code>SomeReader</code>.</li> </ol> <p>You can put all the C++ code in a file in <code>tensorflow/core/user_ops/some_reader_op.cc</code>. The code to read a file will live in a descendant of the C++ <code>ReaderBase</code> class, which is defined in <a href="https://www.tensorflow.org/code/tensorflow/core/kernels/reader_base.h" target="_blank"><code>tensorflow/core/kernels/reader_base.h</code></a>. You will need to implement the following methods:</p> <ul> <li>
+<code>OnWorkStartedLocked</code>: open the next file</li> <li>
+<code>ReadLocked</code>: read a record or report EOF/error</li> <li>
+<code>OnWorkFinishedLocked</code>: close the current file, and</li> <li>
+<code>ResetLocked</code>: get a clean slate after, e.g., an error</li> </ul> <p>These methods have names ending in "Locked" since <code>ReaderBase</code> makes sure to acquire a mutex before calling any of these methods, so you generally don't have to worry about thread safety (though that only protects the members of the class, not global state).</p> <p>For <code>OnWorkStartedLocked</code>, the name of the file to open is the value returned by the <code>current_work()</code> method. <code>ReadLocked</code> has this signature:</p> <pre class="prettyprint" data-language="cpp">Status ReadLocked(string* key, string* value, bool* produced, bool* at_end)
+</pre> <p>If <code>ReadLocked</code> successfully reads a record from the file, it should fill in:</p> <ul> <li>
+<code>*key</code>: with an identifier for the record, that a human could use to find this record again. You can include the filename from <code>current_work()</code>, and append a record number or whatever.</li> <li>
+<code>*value</code>: with the contents of the record.</li> <li>
+<code>*produced</code>: set to <code>true</code>.</li> </ul> <p>If you hit the end of a file (EOF), set <code>*at_end</code> to <code>true</code>. In either case, return <code>Status::OK()</code>. If there is an error, simply return it using one of the helper functions from <a href="https://www.tensorflow.org/code/tensorflow/core/lib/core/errors.h" target="_blank"><code>tensorflow/core/lib/core/errors.h</code></a> without modifying any arguments.</p> <p>Next you will create the actual Reader op. It will help if you are familiar with <a href="../adding_an_op/">the adding an op how-to</a>. The main steps are:</p> <ul> <li>Registering the op.</li> <li>Define and register an <code>OpKernel</code>.</li> </ul> <p>To register the op, you will use a <code>REGISTER_OP</code> call defined in <a href="https://www.tensorflow.org/code/tensorflow/core/framework/op.h" target="_blank"><code>tensorflow/core/framework/op.h</code></a>. Reader ops never take any input and always have a single output with type <code>resource</code>. They should have string <code>container</code> and <code>shared_name</code> attrs. You may optionally define additional attrs for configuration or include documentation in a <code>Doc</code>. For examples, see <a href="https://www.tensorflow.org/code/tensorflow/core/ops/io_ops.cc" target="_blank"><code>tensorflow/core/ops/io_ops.cc</code></a>, e.g.:</p> <pre class="prettyprint" data-language="cpp">#include "tensorflow/core/framework/op.h"
+
+REGISTER_OP("TextLineReader")
+    .Output("reader_handle: resource")
+    .Attr("skip_header_lines: int = 0")
+    .Attr("container: string = ''")
+    .Attr("shared_name: string = ''")
+    .SetIsStateful()
+    .SetShapeFn(shape_inference::ScalarShape)
+    .Doc(R"doc(
+A Reader that outputs the lines of a file delimited by '\n'.
+)doc");
+</pre> <p>To define an <code>OpKernel</code>, Readers can use the shortcut of descending from <code>ReaderOpKernel</code>, defined in <a href="https://www.tensorflow.org/code/tensorflow/core/framework/reader_op_kernel.h" target="_blank"><code>tensorflow/core/framework/reader_op_kernel.h</code></a>, and implement a constructor that calls <code>SetReaderFactory</code>. After defining your class, you will need to register it using <code>REGISTER_KERNEL_BUILDER(...)</code>. An example with no attrs:</p> <pre class="prettyprint" data-language="cpp">#include "tensorflow/core/framework/reader_op_kernel.h"
+
+class TFRecordReaderOp : public ReaderOpKernel {
+ public:
+  explicit TFRecordReaderOp(OpKernelConstruction* context)
+      : ReaderOpKernel(context) {
+    Env* env = context-&gt;env();
+    SetReaderFactory([this, env]() { return new TFRecordReader(name(), env); });
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("TFRecordReader").Device(DEVICE_CPU),
+                        TFRecordReaderOp);
+</pre> <p>An example with attrs:</p> <pre class="prettyprint" data-language="cpp">#include "tensorflow/core/framework/reader_op_kernel.h"
+
+class TextLineReaderOp : public ReaderOpKernel {
+ public:
+  explicit TextLineReaderOp(OpKernelConstruction* context)
+      : ReaderOpKernel(context) {
+    int skip_header_lines = -1;
+    OP_REQUIRES_OK(context,
+                   context-&gt;GetAttr("skip_header_lines", &amp;skip_header_lines));
+    OP_REQUIRES(context, skip_header_lines &gt;= 0,
+                errors::InvalidArgument("skip_header_lines must be &gt;= 0 not ",
+                                        skip_header_lines));
+    Env* env = context-&gt;env();
+    SetReaderFactory([this, skip_header_lines, env]() {
+      return new TextLineReader(name(), skip_header_lines, env);
+    });
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("TextLineReader").Device(DEVICE_CPU),
+                        TextLineReaderOp);
+</pre> <p>The last step is to add the Python wrapper. You can either do this by <a href="../adding_an_op/#building_the_op_library">compiling a dynamic library</a> or, if you are building TensorFlow from source, adding to <code>user_ops.py</code>. For the latter, you will import <code>tensorflow.python.ops.io_ops</code> in <a href="https://www.tensorflow.org/code/tensorflow/python/user_ops/user_ops.py" target="_blank"><code>tensorflow/python/user_ops/user_ops.py</code></a> and add a descendant of <a href="https://www.tensorflow.org/code/tensorflow/python/ops/io_ops.py" target="_blank"><code>io_ops.ReaderBase</code></a>.</p> <pre class="prettyprint lang-python" data-language="python">from tensorflow.python.framework import ops
+from tensorflow.python.ops import common_shapes
+from tensorflow.python.ops import io_ops
+
+class SomeReader(io_ops.ReaderBase):
+
+    def __init__(self, name=None):
+        rr = gen_user_ops.some_reader(name=name)
+        super(SomeReader, self).__init__(rr)
+
+ops.NotDifferentiable("SomeReader")
+</pre> <p>You can see some examples in <a href="https://www.tensorflow.org/code/tensorflow/python/ops/io_ops.py" target="_blank"><code>tensorflow/python/ops/io_ops.py</code></a>.</p> <h2 id="writing_an_op_for_a_record_format">Writing an Op for a record format</h2> <p>Generally this is an ordinary op that takes a scalar string record as input, and so follow <a href="../adding_an_op/">the instructions to add an Op</a>. You may optionally take a scalar string key as input, and include that in error messages reporting improperly formatted data. That way users can more easily track down where the bad data came from.</p> <p>Examples of Ops useful for decoding records:</p> <ul> <li>
+<a href="https://www.tensorflow.org/api_docs/python/tf/parse_single_example" target="_blank"><code>tf.parse_single_example</code></a> (and <a href="https://www.tensorflow.org/api_docs/python/tf/parse_example" target="_blank"><code>tf.parse_example</code></a>)</li> <li><a href="https://www.tensorflow.org/api_docs/python/tf/decode_csv" target="_blank"><code>tf.decode_csv</code></a></li> <li><a href="https://www.tensorflow.org/api_docs/python/tf/decode_raw" target="_blank"><code>tf.decode_raw</code></a></li> </ul> <p>Note that it can be useful to use multiple Ops to decode a particular record format. For example, you may have an image saved as a string in <a href="https://www.tensorflow.org/code/tensorflow/core/example/example.proto" target="_blank">a <code>tf.train.Example</code> protocol buffer</a>. Depending on the format of that image, you might take the corresponding output from a <a href="https://www.tensorflow.org/api_docs/python/tf/parse_single_example" target="_blank"><code>tf.parse_single_example</code></a> op and call <a href="https://www.tensorflow.org/api_docs/python/tf/image/decode_jpeg" target="_blank"><code>tf.image.decode_jpeg</code></a>, <a href="https://www.tensorflow.org/api_docs/python/tf/image/decode_png" target="_blank"><code>tf.image.decode_png</code></a>, or <a href="https://www.tensorflow.org/api_docs/python/tf/decode_raw" target="_blank"><code>tf.decode_raw</code></a>. It is common to take the output of <code>tf.decode_raw</code> and use <a href="https://www.tensorflow.org/api_docs/python/tf/slice" target="_blank"><code>tf.slice</code></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/reshape" target="_blank"><code>tf.reshape</code></a> to extract pieces.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/extend/new_data_formats" class="_attribution-link" target="_blank">https://www.tensorflow.org/extend/new_data_formats</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

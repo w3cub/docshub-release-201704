@@ -1,0 +1,91 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TensorFlow Data Versioning&#58; GraphDefs and Checkpoints - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="As described in Compatibility for Graphs and Checkpoints, TensorFlow marks each kind of data with version information in order to maintain backward &hellip;">
+  <meta name="keywords" content="tensorflow, data, versioning, graphdefs, and, checkpoints, -, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/data_versions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> TensorFlow Data Versioning: GraphDefs and Checkpoints </h1>     <p>As described in <a href="../version_semantics/#compatibility_for_graphs_and_checkpoints">Compatibility for Graphs and Checkpoints</a>, TensorFlow marks each kind of data with version information in order to maintain backward compatibility. This document provides additional details about the versioning mechanism, and how to use it to safely change data formats.</p> <h2 id="backward_and_partial_forward_compatibility">Backward and partial forward compatibility</h2> <p>The two core artifacts exported from and imported into TensorFlow are checkpoints (serialized variable states) and <code>GraphDef</code>s (serialized computation graphs). Any approach to versioning these artifacts must take into account the following requirements:</p> <ul> <li>
+<strong>Backward compatibility</strong> to support loading <code>GraphDefs</code> created with older versions of TensorFlow.</li> <li>
+<strong>Forward compatibility</strong> to support scenarios where the producer of a <code>GraphDef</code> is upgraded to a newer version of TensorFlow before the consumer.</li> <li>Enable evolving TensorFlow in incompatible ways. For example, removing Ops, adding attributes, and removing attributes.</li> </ul> <p>For <code>GraphDef</code>s, backward compatibility is enforced within a major version. This means functionality can only be removed between major versions. Forward compatibility is enforced within Patch releases (1.x.1 -&gt; 1.x.2, for example).</p> <p>In order to achieve backward and forward compatibility as well as know when to enforce changes in formats, the serialized representations of graphs and variable state need to have metadata that describes when they were produced. The sections below detail the TensorFlow implementation and guidelines for evolving <code>GraphDef</code> versions.</p> <h3 id="independent_data_version_schemes">Independent data version schemes</h3> <p>There are data versions for <code>GraphDef</code>s and checkpoints. Both data formats evolve at different rates, and also at different speeds than the version of TensorFlow. Both versioning systems are defined in <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/public/version.h" target="_blank"><code>core/public/version.h</code></a>. Whenever a new version is added a note is added to the header detailing what changed and the date.</p> <h3 id="data_producers_and_consumers">Data, producers, and consumers</h3> <p>This section discusses version information for <strong>data</strong>, binaries that produce data (<strong>producers</strong>), and binaries that consume data (<strong>consumers</strong>):</p> <ul> <li>Producer binaries have a version (<code>producer</code>) and a minimum consumer version that they are compatible with (<code>min_consumer</code>).</li> <li>Consumer binaries have a version (<code>consumer</code>) and a minimum producer version that they are compatible with (<code>min_producer</code>).</li> <li>Each piece of versioned data has a <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/versions.proto" target="_blank"><code>VersionDef versions</code></a> field which records the <code>producer</code> that made the data, the <code>min_consumer</code> that it is compatible with, and a list of <code>bad_consumers</code> versions that are disallowed.</li> </ul> <p>By default, when a producer makes some data, the data inherits the producer's <code>producer</code> and <code>min_consumer</code> versions. <code>bad_consumers</code> can be set if specific consumer versions are known to contain bugs and must be avoided. A consumer can accept a piece of data if</p> <ul> <li>
+<code>consumer</code> &gt;= data's <code>min_consumer</code>
+</li> <li>data's <code>producer</code> &gt;= consumer's <code>min_producer</code>
+</li> <li>
+<code>consumer</code> not in data's <code>bad_consumers</code>
+</li> </ul> <p>Since both producers and consumers come from the same TensorFlow code base, <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/public/version.h" target="_blank"><code>core/public/version.h</code></a> contains a main binary version which is treated as either <code>producer</code> or <code>consumer</code> depending on context and both <code>min_consumer</code> and <code>min_producer</code> (needed by producers and consumers, respectively). Specifically,</p> <ul> <li>For <code>GraphDef</code> versions, we have <code>TF_GRAPH_DEF_VERSION</code>, <code>TF_GRAPH_DEF_VERSION_MIN_CONSUMER</code>, and <code>TF_GRAPH_DEF_VERSION_MIN_PRODUCER</code>.</li> <li>For checkpoint versions, we have <code>TF_CHECKPOINT_VERSION</code>, <code>TF_CHECKPOINT_VERSION_MIN_CONSUMER</code>, and <code>TF_CHECKPOINT_VERSION_MIN_PRODUCER</code>.</li> </ul> <h3 id="evolving_graphdef_versions">Evolving GraphDef versions</h3> <p>This section presents examples of using this versioning mechanism to make changes to the <code>GraphDef</code> format.</p> <p><strong>Adding a new Op:</strong></p> <ol> <li>Add the new Op to both consumers and producers at the same time, and do not change any <code>GraphDef</code> versions. This type of change is automatically backward compatible, and does not impact forward compatibility plan since existing producer scripts will not suddenly use the new functionality.</li> </ol> <p><strong>Adding a new Op and switching existing Python wrappers to use it:</strong></p> <ol> <li>Implement new consumer functionality and increment the binary version.</li> <li>If it is possible to make the wrappers use the new functionality only in cases that did not work before, the wrappers can be updated now.</li> <li>Change Python wrappers to use the new functionality. Do not increment <code>min_consumer</code>, since models which do not use this Op should not break.</li> </ol> <p><strong>Removing an Op or restricting the functionality of an Op:</strong></p> <ol> <li>Fix all producer scripts (not TensorFlow itself) to not use the banned Op or functionality.</li> <li>Increment the binary version and implement new consumer functionality that bans the removed Op or functionality for GraphDefs at the new version and above. If possible, make TensorFlow stop producing <code>GraphDefs</code> with the banned functionality. This can be done with <a href="https://github.com/tensorflow/tensorflow/blob/b289bc7a50fc0254970c60aaeba01c33de61a728/tensorflow/core/ops/array_ops.cc#L1009" target="_blank"><code>REGISTER_OP(...).Deprecated(deprecated_at_version, message)</code></a>.</li> <li>Wait for a major release for backward compatibility purposes.</li> <li>Increase <code>min_producer</code> to the GraphDef version from (2) and remove the functionality entirely.</li> </ol> <p><strong>Changing the functionality of an Op:</strong></p> <ol> <li>Add a new similar Op named <code>SomethingV2</code> or similar and go through the process of adding it and switching existing Python wrappers to use it (may take 3 weeks if forward compatibility is desired).</li> <li>Remove the old Op (Can only take place with a major version change due to backward compatibility).</li> <li>Increase <code>min_consumer</code> to rule out consumers with the old Op, add back the old Op as an alias for <code>SomethingV2</code>, and go through the process to switch existing Python wrappers to use it.</li> <li>Go through the process to remove <code>SomethingV2</code>.</li> </ol> <p><strong>Banning a single consumer version that cannot run safely:</strong></p> <ol> <li>Bump the binary version and add the bad version to <code>bad_consumers</code> for all new GraphDefs. If possible, add to <code>bad_consumers</code> only for GraphDefs which contain a certain Op or similar.</li> <li>If existing consumers have the bad version, push them out as soon as possible.</li> </ol>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/data_versions" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/data_versions</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

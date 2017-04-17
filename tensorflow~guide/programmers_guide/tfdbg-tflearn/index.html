@@ -1,0 +1,122 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>How to Use TensorFlow Debugger With tf.contrib.learn - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="In a previous tutorial, we described how to use TensorFlow Debugger (tfdbg) to debug TensorFlow graphs running in tf.Session objects managed by &hellip;">
+  <meta name="keywords" content="how, use, tensorflow, debugger, tfdbg, with, tf, contrib, learn, -, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/tfdbg-tflearn/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> How to Use TensorFlow Debugger (tfdbg) with tf.contrib.learn </h1>     <p>In <a href="../debugger/">a previous tutorial</a>, we described how to use TensorFlow Debugger (<strong>tfdbg</strong>) to debug TensorFlow graphs running in <a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank"><code>tf.Session</code></a> objects managed by yourself. However, many users find <a href="../../get_started/tflearn/"><code>tf.contrib.learn</code></a> <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/Estimator" target="_blank">Estimator</a>s to be a convenient higher-level API for creating and using models in TensorFlow. Part of the convenience is that <code>Estimator</code>s manage <code>Session</code>s internally. Fortunately, you can still use <code>tfdbg</code> with <code>Estimator</code>s by adding special hooks.</p> <h2 id="debugging_tfcontriblearn_estimators">Debugging tf.contrib.learn Estimators</h2> <p>Currently, <strong>tfdbg</strong> can debug the <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/BaseEstimator#fit" target="_blank"><code>fit()</code></a> <a href="https://www.tensorflow.org/api_docs/python/tf/contrib/learn/BaseEstimator#evaluate" target="_blank"><code>evaluate()</code></a> methods of tf-learn <code>Estimator</code>s. To debug <code>Estimator.fit()</code>, create a <code>LocalCLIDebugHook</code> and supply it as the <code>monitors</code> argument. For example:</p> <pre class="prettyprint lang-python" data-language="python"># First, let your BUILD target depend on "//tensorflow/python/debug:debug_py"
+from tensorflow.python import debug as tf_debug
+
+hooks = [tf_debug.LocalCLIDebugHook()]
+
+# Create a local CLI debug hook and use it as a monitor when calling fit().
+classifier.fit(x=training_set.data,
+               y=training_set.target,
+               steps=1000,
+               monitors=hooks)
+</pre> <p>To debug <code>Estimator.evaluate()</code>, you can follow the example below:</p> <pre class="prettyprint lang-python" data-language="python">accuracy_score = classifier.evaluate(x=test_set.data,
+                                     y=test_set.target,
+                                     hooks=hooks)["accuracy"]
+</pre> <p>For a detailed <a href="https://www.tensorflow.org/code/tensorflow/python/debug/examples/debug_tflearn_iris.py" target="_blank">example</a> based on <a href="../../get_started/tflearn/">tf-learn's iris tutorial</a>, run:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.examples.debug_tflearn_iris --debug
+</pre> <h2 id="debugging_tfcontriblearn_experiments">Debugging tf.contrib.learn Experiments</h2> <p><code>Experiment</code> is a construct in <code>tf.contrib.learn</code> at a higher level than <code>Estimator</code>. It provides a single interface for training and evaluating a model. To debug the <code>train()</code> and <code>evaluate()</code> calls to an <code>Experiment</code> object, you can use the keyword arguments <code>train_monitors</code> and <code>eval_hooks</code>, respectively, when calling its constructor. For example:</p> <pre class="prettyprint lang-python" data-language="python"># First, let your BUILD target depend on "//tensorflow/python/debug:debug_py"
+from tensorflow.python import debug as tf_debug
+
+hooks = [tf_debug.LocalCLIDebugHook()]
+
+ex = experiment.Experiment(classifier,
+                           train_input_fn=iris_input_fn,
+                           eval_input_fn=iris_input_fn,
+                           train_steps=FLAGS.train_steps,
+                           eval_delay_secs=0,
+                           eval_steps=1,
+                           train_monitors=hooks,
+                           eval_hooks=hooks)
+
+ex.train()
+accuracy_score = ex.evaluate()["accuracy"]
+</pre> <p>To see the <code>debug_tflearn_iris</code> example run in the <code>Experiment</code> mode, do:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.examples.debug_tflearn_iris \
+    --use_experiment --debug
+</pre> <h2 id="debugging_estimators_and_experiments_without_terminal_access">Debugging Estimators and Experiments without Terminal Access</h2> <p>If your <code>Estimator</code> or <code>Experiment</code> is running in an environment to which you do not have command-line access (e.g., a remote server), you can use the non-interactive <code>DumpingDebugHook</code>. For example:</p> <pre class="prettyprint lang-python" data-language="python"># Let your BUILD target depend on "//tensorflow/python/debug:debug_py
+from tensorflow.python import debug as tf_debug
+
+hooks = [tf_debug.DumpingDebugHook("/cns/is-d/home/somebody/tfdbg_dumps_1")]
+</pre> <p>Then this <code>hook</code> can be used in the same way as the <code>LocalCLIDebugHook</code> examples above. As the training and/or evalution of <code>Estimator</code> or <code>Experiment</code> happens, directories of the naming pattern <code>/cns/is-d/home/somebody/tfdbg_dumps_1/run_&lt;epoch_timestamp_microsec&gt;_&lt;uuid&gt;</code> will appear. Each directory corresponds to a <code>Session.run()</code> call that underlies the <code>fit()</code> or <code>evaluate()</code> call. You can load these directories and inspect them in a command-line interface in an offline manner using the <code>offline_analyzer</code> offered by <strong>tfdbg</strong>. For example:</p> <pre class="prettyprint lang-bash" data-language="cpp">python -m tensorflow.python.debug.cli.offline_analyzer \
+    --dump_dir="/cns/is-d/home/somebody/tfdbg_dumps_1/run_&lt;epoch_timestamp_microsec&gt;_&lt;uuid&gt;"
+</pre> <p>The <code>LocalCLIDebugHook</code> also allows you to configure a <code>watch_fn</code> that can be used to flexibly specify what <code>Tensor</code>s to watch on different <code>Session.run()</code> calls, as a function of the <code>fetches</code> and <code>feed_dict</code> and other states. See <a href="https://www.tensorflow.org/api_docs/python/tfdbg/DumpingDebugWrapperSession#__init__" target="_blank">this API doc</a> for more details.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/tfdbg-tflearn" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/tfdbg-tflearn</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

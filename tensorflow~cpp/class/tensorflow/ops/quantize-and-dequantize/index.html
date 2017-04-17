@@ -1,0 +1,107 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>tensorflow&#58;&#58;ops&#58;&#58;QuantizeAndDequantize - TensorFlow C++ - W3cubDocs</title>
+  
+  <meta name="description" content=" #include &#60;array_ops.h&#62; ">
+  <meta name="keywords" content="tensorflow, ops, quantizeanddequantize, -, c++, tensorflow~cpp">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~cpp/class/tensorflow/ops/quantize-and-dequantize/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~cpp.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~cpp/" class="_nav-link" title="" style="margin-left:0;">TensorFlow C++</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1>tensorflow::ops::QuantizeAndDequantize</h1> <p><code>#include &lt;array_ops.h&gt;</code></p> <p>Quantizes then dequantizes a tensor. </p> <h2>Summary</h2> <p>This op simulates the precision loss from the quantized forward pass by:</p>
+<ol> <li>Quantizing the tensor to fixed point numbers, which should match the target quantization method when it is used in inference.</li> <li>Dequantizing it back to floating point numbers for the following ops, most likely matmul.</li> </ol> <p>There are different ways to quantize. This version does not use the full range of the output type, choosing to elide the lowest possible value for symmetry (e.g., output range is -127 to 127, not -128 to 127 for signed 8 bit quantization), so that 0.0 maps to 0.</p> <p>To perform this op, we first find the range of values in our tensor. The range we use is always centered on 0, so we find m such that</p> 
+<ol> <li>m = max(abs(input_min), abs(input_max)) if range_given is true,</li> <li>m = max(max(abs(min_elem(input)), abs(max_elem(input))) otherwise.</li> </ol> <p>Our input tensor range is then [-m, m].</p> <p>Next, we choose our fixed-point quantization buckets, [min_fixed, max_fixed]. If signed_input is true, this is</p> <p>[min_fixed, max_fixed ] = [-(1 &lt;&lt; (num_bits - 1) - 1), (1 &lt;&lt; (num_bits - 1)) - 1].</p> <p>Otherwise, if signed_input is false, the fixed-point range is</p> <p>[min_fixed, max_fixed] = [0, (1 &lt;&lt; num_bits) - 1].</p> <p>From this we compute our scaling factor, s:</p> <p>s = (max_fixed - min_fixed) / (2 * m).</p> <p>Now we can quantize and dequantize the elements of our tensor. An element e is transformed into e':</p> <p>e' = (e * s).round_to_nearest() / s.</p> <p>Note that we have a different number of buckets in the signed vs. unsigned cases. For example, if num_bits == 8, we get 254 buckets in the signed case vs. 255 in the unsigned case.</p> <p>For example, suppose num_bits = 8 and m = 1. Then</p> <p>[min_fixed, max_fixed] = [-127, 127], and s = (127 + 127) / 2 = 127.</p> <p>Given the vector {-1, -0.5, 0, 0.3}, this is quantized to {-127, -63, 0, 38}, and dequantized to {-1, -63.0/127, 0, 38.0/127}.</p> <p>Arguments:</p>
+<ul> <li>scope: A <a href="../../scope/#classtensorflow_1_1_scope">Scope</a> object</li> <li>input: <a href="../../tensor/#classtensorflow_1_1_tensor">Tensor</a> to quantize and then dequantize.</li> </ul> <p>Optional attributes (see <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code>):</p>
+<ul> <li>signed_input: If the quantization is signed or unsigned.</li> <li>num_bits: The bitwidth of the quantization.</li> <li>range_given: If the range is given or should be computed from the tensor.</li> <li>input_min: If range is given, this is the min of the range.</li> <li>input_max: If range is given, this is the max of the range.</li> </ul> <p>Returns:</p>
+<ul> <li>
+<code><a href="../../output/#classtensorflow_1_1_output">Output</a></code>: The output tensor. </li> </ul> <table class="constructors responsive"> <tr> <th colspan="2"> Constructors and Destructors </th> </tr> <tr> <td colspan="2"> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a1562e66d5970ca464a16cbac761bd2ee">QuantizeAndDequantize</a>(const ::<a href="../../scope/#classtensorflow_1_1_scope">tensorflow::Scope</a> &amp; scope, ::<a href="../../input/#classtensorflow_1_1_input">tensorflow::Input</a> input)</code> <br> </td> </tr> <tr> <td colspan="2"> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1abc29719d403c939974d4717d7d9fe6a9">QuantizeAndDequantize</a>(const ::<a href="../../scope/#classtensorflow_1_1_scope">tensorflow::Scope</a> &amp; scope, ::<a href="../../input/#classtensorflow_1_1_input">tensorflow::Input</a> input, const <a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">QuantizeAndDequantize::Attrs</a> &amp; attrs)</code> <br> </td> </tr> </table> <table class="properties responsive"> <tr> <th colspan="2"> Public attributes </th> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a05a5947b85bc4814c3b356e4d0202375">output</a></code> </td> <td> <div> <code>::<a href="../../output/#classtensorflow_1_1_output">tensorflow::Output</a></code> </div> </td> </tr> </table> <table class="methods responsive"> <tr> <th colspan="2"> Public functions </th> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1af665a8e09d1c1ffda5ef4e753e423b33">node</a>() const </code> </td> <td> <div> <code>::tensorflow::Node *</code> </div> </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a8a82404f8dd73cb0d9a3bd9ddf235ff8">operator::tensorflow::Input</a>() const </code> </td> <td>  </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a97b05496493256f73355e3d7a010c2e2">operator::tensorflow::Output</a>() const </code> </td> <td>  </td> </tr> </table> <table class="methods responsive"> <tr> <th colspan="2"> Public static functions </th> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a821a3272d7a724494a4c8d80ece2532a">InputMax</a>(float x)</code> </td> <td> <div> <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code> </div> </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1ae4864dfb47383748b87998895aa238a1">InputMin</a>(float x)</code> </td> <td> <div> <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code> </div> </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1aa447280029dd6d4ffc8d730adb7d1abe">NumBits</a>(int64 x)</code> </td> <td> <div> <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code> </div> </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1aa4f1a2976a173f27b4d3e2290b27c1e4">RangeGiven</a>(bool x)</code> </td> <td> <div> <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code> </div> </td> </tr> <tr> <td> <code><a href="#classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a8e92887cb60bc0133e2a616a18c8df41">SignedInput</a>(bool x)</code> </td> <td> <div> <code><a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/#structtensorflow_1_1ops_1_1_quantize_and_dequantize_1_1_attrs">Attrs</a></code> </div> </td> </tr> </table> <table class="constants responsive"> <tr> <th colspan="2"> Structs </th> </tr> <tr> <td> <a href="../../../../struct/tensorflow/ops/quantize-and-dequantize/attrs/">tensorflow::ops::QuantizeAndDequantize::Attrs</a> </td> <td> <p>Optional attribute setters for <a href="../quantize-and-dequantize/#classtensorflow_1_1ops_1_1_quantize_and_dequantize">QuantizeAndDequantize</a>. </p> </td> </tr> </table> <h2>Public attributes</h2> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a05a5947b85bc4814c3b356e4d0202375"> <h3>output</h3> <pre class="prettyprint" data-language="cpp">::tensorflow::Output output</pre>  </div> <h2>Public functions</h2> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a1562e66d5970ca464a16cbac761bd2ee"> <h3>QuantizeAndDequantize</h3> <pre class="prettyprint" data-language="cpp"> QuantizeAndDequantize(
+  const ::tensorflow::Scope &amp; scope,
+  ::tensorflow::Input input
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1abc29719d403c939974d4717d7d9fe6a9"> <h3>QuantizeAndDequantize</h3> <pre class="prettyprint" data-language="cpp"> QuantizeAndDequantize(
+  const ::tensorflow::Scope &amp; scope,
+  ::tensorflow::Input input,
+  const QuantizeAndDequantize::Attrs &amp; attrs
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1af665a8e09d1c1ffda5ef4e753e423b33"> <h3>node</h3> <pre class="prettyprint" data-language="cpp">::tensorflow::Node * node() const </pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a8a82404f8dd73cb0d9a3bd9ddf235ff8"> <h3>operator::tensorflow::Input</h3> <pre class="prettyprint" data-language="cpp">operator::tensorflow::Input() const </pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a97b05496493256f73355e3d7a010c2e2"> <h3>operator::tensorflow::Output</h3> <pre class="prettyprint" data-language="cpp">operator::tensorflow::Output() const </pre>  </div> <h2>Public static functions</h2> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a821a3272d7a724494a4c8d80ece2532a"> <h3>InputMax</h3> <pre class="prettyprint" data-language="cpp">Attrs InputMax(
+  float x
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1ae4864dfb47383748b87998895aa238a1"> <h3>InputMin</h3> <pre class="prettyprint" data-language="cpp">Attrs InputMin(
+  float x
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1aa447280029dd6d4ffc8d730adb7d1abe"> <h3>NumBits</h3> <pre class="prettyprint" data-language="cpp">Attrs NumBits(
+  int64 x
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1aa4f1a2976a173f27b4d3e2290b27c1e4"> <h3>RangeGiven</h3> <pre class="prettyprint" data-language="cpp">Attrs RangeGiven(
+  bool x
+)</pre>  </div> <div id="classtensorflow_1_1ops_1_1_quantize_and_dequantize_1a8e92887cb60bc0133e2a616a18c8df41"> <h3>SignedInput</h3> <pre class="prettyprint" data-language="cpp">Attrs SignedInput(
+  bool x
+)</pre>  </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/quantize-and-dequantize.html" class="_attribution-link" target="_blank">https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/quantize-and-dequantize.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

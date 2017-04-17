@@ -1,0 +1,145 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TensorFlow Debugger Command-Line-Interface Tutorial&#58; MNIST - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content=" (Experimental) ">
+  <meta name="keywords" content="tensorflow, debugger, tfdbg, command-line-interface, tutorial, mnist, -, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/programmers_guide/debugger/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> TensorFlow Debugger (tfdbg) Command-Line-Interface Tutorial: MNIST </h1>     <p><strong>(Experimental)</strong></p> <p>TensorFlow debugger (<strong>tfdbg</strong>) is a specialized debugger for TensorFlow. It provides visibility into the internal structure and states of running TensorFlow graphs. The insight gained from this visibility should facilitate debugging of various types of model bugs during training and inference.</p> <p>This tutorial showcases the features of tfdbg command-line interface (CLI), by focusing on how to debug a type of frequently-encountered bug in TensorFlow model development: bad numerical values (<code>nan</code>s and <code>inf</code>s) causing training to fail.</p> <p>To <strong>observe</strong> such an issue, run the following code without the debugger:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.examples.debug_mnist
+</pre> <p>This code trains a simple NN for MNIST digit image recognition. Notice that the accuracy increases slightly after the first training step, but then gets stuck at a low (near-chance) level:</p> <p><img alt="debug_mnist training fails" src="https://www.tensorflow.org/images/tfdbg_screenshot_mnist_symptom.png"></p> <p>Scratching your head, you suspect that certain nodes in the training graph generated bad numeric values such as <code>inf</code>s and <code>nan</code>s. The computation-graph paradigm of TensorFlow makes it non-trivial to debug such model-internal states with general-purpose debuggers such as Python's <code>pdb</code>. <strong>tfdbg</strong> specializes in diagnosing these types of issues and pinpointing the exact node where the problem first surfaced.</p> <h2 id="wrapping_tensorflow_sessions_with_tfdbg">Wrapping TensorFlow Sessions with tfdbg</h2> <p>To add support for <strong>tfdbg</strong> in our example, we just need to add the following three lines of code, which wrap the Session object with a debugger wrapper when the <code>--debug</code> flag is provided:</p> <pre class="prettyprint lang-python" data-language="python"># Let your BUILD target depend on "//tensorflow/python/debug:debug_py"
+from tensorflow.python import debug as tf_debug
+
+sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+</pre> <p>This wrapper has the same interface as Session, so enabling debugging requires no other changes to the code. But the wrapper provides additional features including:</p> <ul> <li>Bringing up a terminal-based user interface (UI) before and after each <code>run()</code> call, to let you control the execution and inspect the graph's internal state.</li> <li>Allowing you to register special "filters" for tensor values, to facilitate the diagnosis of issues.</li> </ul> <p>In this example, we are registering a tensor filter called <a href="https://www.tensorflow.org/api_docs/python/tfdbg/has_inf_or_nan" target="_blank"><code>tfdbg.has_inf_or_nan</code></a>, which simply determines if there are any <code>nan</code> or <code>inf</code> values in any intermediate tensor of the graph. (This filter is a common enough use case that we ship it with the <a href="https://www.tensorflow.org/api_guides/python/tfdbg#Classes_for_debug_dump_data_and_directories" target="_blank"><code>debug_data</code></a> module.)</p> <pre class="prettyprint lang-python" data-language="python">def has_inf_or_nan(datum, tensor):
+  return np.any(np.isnan(tensor)) or np.any(np.isinf(tensor))
+</pre> <p>TIP: You can also write your own custom filters. See the <a href="https://www.tensorflow.org/api_docs/python/tfdbg/DebugDumpDir#find" target="_blank">API documentation</a> of <code>DebugDumpDir.find()</code> for additional information.</p> <h2 id="debugging_model_training_with_tfdbg">Debugging Model Training with tfdbg</h2> <p>Let's try training the model again with debugging enabled. Execute the command from above, this time with the <code>--debug</code> flag added:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.examples.debug_mnist --debug
+</pre> <p>The debug wrapper session will prompt you when it is about to execute the first <code>run()</code> call, with information regarding the fetched tensor and feed dictionaries displayed on the screen.</p> <p><img alt="tfdbg run-start UI" src="https://www.tensorflow.org/images/tfdbg_screenshot_run_start.png"></p> <p>This is what we refer to as the <em>run-start UI</em>. If the screen size is too small to display the content of the message in its entirety, you can resize it or use the <strong>PageUp</strong> / <strong>PageDown</strong> / <strong>Home</strong> / <strong>End</strong> keys to navigate the screen output.</p> <p>As the screen output indicates, the first <code>run()</code> call calculates the accuracy using a test data set—i.e., a forward pass on the graph. You can enter the command <code>run</code> (or its shorthand <code>r</code>) to launch the <code>run()</code> call. On terminals that support mouse events, you can simply click the underlined <code>run</code> on the top left corner of the screen to proceed.</p> <p>This will bring up another screen right after the <code>run()</code> call has ended, which will display all dumped intermedate tensors from the run. (These tensors can also be obtained by running the command <code>lt</code> after you executed <code>run</code>.) This is called the <strong>run-end UI</strong>:</p> <p><img alt="tfdbg run-end UI: accuracy" src="https://www.tensorflow.org/images/tfdbg_screenshot_run_end_accuracy.png"></p> <h3 id="tfdbg_cli_frequently-used_commands">tfdbg CLI Frequently-Used Commands</h3> <p>Try the following commands at the <code>tfdbg&gt;</code> prompt (referencing the code at <code>tensorflow/python/debug/examples/debug_mnist.py</code>):</p> <table> <thead> <tr> <th align="left">Command Example</th> <th align="left">Explanation</th> </tr> </thead> <tbody> <tr> <td align="left"><code>pt hidden/Relu:0</code></td> <td align="left">Print the value of the tensor <code>hidden/Relu:0</code>.</td> </tr> <tr> <td align="left"><code>pt hidden/Relu:0[0:50,:]</code></td> <td align="left">Print a subarray of the tensor <code>hidden/Relu:0</code>, using <a href="http://www.numpy.org/" target="_blank">numpy</a>-style array slicing.</td> </tr> <tr> <td align="left"><code>pt hidden/Relu:0[0:50,:] -a</code></td> <td align="left">For a large tensor like the one here, print its value in its entirety—i.e., without using any ellipsis. May take a long time for large tensors.</td> </tr> <tr> <td align="left"><code>pt hidden/Relu:0[0:10,:] -a -r [1,inf]</code></td> <td align="left">Use the <code>-r</code> flag to highlight elements falling into the specified numerical range. Multiple ranges can be used in conjunction, e.g., <code>-r [[-inf,-1],[1,inf]]</code>.</td> </tr> <tr> <td align="left">
+<code>@[10,0]</code> or <code>@10,0</code>
+</td> <td align="left">Navigate to indices [10, 0] in the tensor being displayed.</td> </tr> <tr> <td align="left"><code>/inf</code></td> <td align="left">Search the screen output with the regex <code>inf</code> and highlight any matches.</td> </tr> <tr> <td align="left"><code>/</code></td> <td align="left">Scroll to the next line with matches to the searched regex (if any).</td> </tr> <tr> <td align="left"><code>ni -a hidden/Relu</code></td> <td align="left">Display information about the node <code>hidden/Relu</code>, including node attributes.</td> </tr> <tr> <td align="left"><code>ni -t hidden/Relu</code></td> <td align="left">Display the stack trace of node <code>hidden/Relu</code>'s construction.</td> </tr> <tr> <td align="left"><code>li -r hidden/Relu:0</code></td> <td align="left">List the inputs to the node <code>hidden/Relu</code>, recursively—i.e., the input tree.</td> </tr> <tr> <td align="left"><code>lo -r hidden/Relu:0</code></td> <td align="left">List the recipients of the output of the node <code>hidden/Relu</code>, recursively—i.e., the output recipient tree.</td> </tr> <tr> <td align="left"><code>lt -n softmax.*</code></td> <td align="left">List all dumped tensors whose names match the regular-expression pattern <code>softmax.*</code>.</td> </tr> <tr> <td align="left"><code>lt -t MatMul</code></td> <td align="left">List all dumped tensors whose node type is <code>MatMul</code>.</td> </tr> <tr> <td align="left">
+<code>run_info</code> or <code>ri</code>
+</td> <td align="left">Display information about the current run, including fetches and feeds.</td> </tr> <tr> <td align="left"><code>help</code></td> <td align="left">Print general help information listing all available <strong>tfdbg</strong> commands and their flags.</td> </tr> <tr> <td align="left"><code>help lt</code></td> <td align="left">Print the help information for the <code>lt</code> command.</td> </tr> </tbody> </table> <p>In this first <code>run()</code> call, there happen to be no problematic numerical values. You can move on to the next run by using the command <code>run</code> or its shorthand <code>r</code>.</p> <blockquote> <p>TIP: If you enter <code>run</code> or <code>r</code> repeatedly, you will be able to move through the <code>run()</code> calls in a sequential manner.</p> <p>You can also use the <code>-t</code> flag to move ahead a number of <code>run()</code> calls at a time, for example:</p> <pre class="prettyprint notranslate" translate="no" data-language="cpp">tfdbg&gt; run -t 10
+</pre> </blockquote> <p>Instead of entering <code>run</code> repeatedly and manually searching for <code>nan</code>s and <code>inf</code>s in the run-end UI after every <code>run()</code> call, you can use the following command to let the debugger repeatedly execute <code>run()</code> calls without stopping at the run-start or run-end prompt, until the first <code>nan</code> or <code>inf</code> value shows up in the graph. This is analogous to <em>conditional breakpoints</em> in some procedural-language debuggers:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; run -f has_inf_or_nan
+</pre> <blockquote> <p>NOTE: This works because we have previously registered a filter for <code>nan</code>s and <code>inf</code>s called <code>has_inf_or_nan</code> (as explained previously). If you have registered any other filters, you can let <strong>tfdbg</strong> run till any tensors pass that filter as well, e.g.,</p> <pre class="prettyprint notranslate" translate="no" data-language="cpp"># In python code:
+sess.add_tensor_filter('my_filter', my_filter_callable)
+
+# Run at tfdbg run-start prompt:
+tfdbg&gt; run -f my_filter
+</pre> </blockquote> <p>After you enter <code>run -f has_inf_or_nan</code>, you will see the following screen with a red-colored title line indicating <strong>tfdbg</strong> stopped immediately after a <code>run()</code> call generated intermediate tensors that passed the specified filter <code>has_inf_or_nan</code>:</p> <p><img alt="tfdbg run-end UI: infs and nans" src="https://www.tensorflow.org/images/tfdbg_screenshot_run_end_inf_nan.png"></p> <p>As the screen display indicates, the <code>has_inf_or_nan</code> filter is first passed during the fourth <code>run()</code> call: an <a href="https://arxiv.org/abs/1412.6980" target="_blank">Adam optimizer</a> forward-backward training pass on the graph. In this run, 36 (out of the total 95) intermediate tensors contain <code>nan</code> or <code>inf</code> values. These tensors are listed in chronological order, with their timestamps displayed on the left. At the top of the list, you can see the first tensor in which the bad numerical values first surfaced: <code>cross_entropy/Log:0</code>.</p> <p>To view the value of the tensor, click the underlined tensor name <code>cross_entropy/Log:0</code> or enter the equivalent command:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; pt cross_entropy/Log:0
+</pre> <p>Scroll down a little and you will notice some scattered <code>inf</code> values. If the instances of <code>inf</code> and <code>nan</code> are difficult to spot by eye, you can use the following command to perform a regex search and highlight the output:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; /inf
+</pre> <p>Or, alternatively:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; /(inf|nan)
+</pre> <p>Why did these infinities appear? To further debug, display more information about the node <code>cross_entropy/Log</code> by clicking the underlined <code>node_info</code> menu item on the top or entering the equivalent command:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; ni cross_entropy/Log
+</pre> <p><img alt="tfdbg run-end UI: infs and nans" src="https://www.tensorflow.org/images/tfdbg_screenshot_run_end_node_info.png"></p> <p>You can see that this node has the op type <code>Log</code> and that its input is the node <code>softmax/Softmax</code>. Run the following command to take a closer look at the input tensor:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; pt softmax/Softmax:0
+</pre> <p>Examine the values in the input tensor, and search to see if there are any zeros:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; /0\.000
+</pre> <p>Indeed, there are zeros. Now it is clear that the origin of the bad numerical values is the node <code>cross_entropy/Log</code> taking logs of zeros. To find out the culprit line in the Python source code, use the <code>-t</code> flag of the <code>ni</code> command to show the traceback of the node's construction:</p> <pre class="prettyprint lang-none" data-language="cpp">tfdbg&gt; ni -t cross_entropy/Log
+</pre> <p>From the traceback, you can see that the op is constructed at line 109 of <a href="https://www.tensorflow.org/code/tensorflow/python/debug/examples/debug_mnist.py" target="_blank"><code>debug_mnist.py</code></a>:</p> <pre class="prettyprint lang-python" data-language="python">diff = y_ * tf.log(y)
+</pre> <p>Apply a value clipping on the input to <a href="https://www.tensorflow.org/api_docs/python/tf/log" target="_blank"><code>tf.log</code></a> to resolve this problem:</p> <pre class="prettyprint lang-python" data-language="python">diff = y_ * tf.log(tf.clip_by_value(y, 1e-8, 1.0))
+</pre> <p>Now, try training again with <code>--debug</code>:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.examples.debug_mnist --debug
+</pre> <p>Enter <code>run -f has_inf_or_nan</code> at the <code>tfdbg&gt;</code> prompt and confirm that no tensors are flagged as containing <code>nan</code> or <code>inf</code> values, and accuracy no longer gets stuck. Success!</p> <h2 id="debugging_tf-learn_estimators">Debugging tf-learn Estimators</h2> <p>For documentation on <strong>tfdbg</strong> to debug <a href="../../get_started/tflearn/">tf.contrib.learn</a> <code>Estimator</code>s and <code>Experiment</code>s, please see <a href="../tfdbg-tflearn/">How to Use TensorFlow Debugger (tfdbg) with tf.contrib.learn</a>.</p> <h2 id="offline_debugging_of_remotely-running_sessions">Offline Debugging of Remotely-Running Sessions</h2> <p>Oftentimes, your model is running in a remote machine or process that you don't have terminal access to. To perform model debugging in such cases, you can use the <code>offline_analyzer</code> of <code>tfdbg</code>. It operates on dumped data directories. If the process you are running is written in Python, you can configure the <code>RunOptions</code> proto that you call your <code>Session.run()</code> method with, by using the method <a href="https://www.tensorflow.org/api_docs/python/tfdbg/watch_graph" target="_blank"><code>tfdbg.watch_graph</code></a>. This will cause the intermediate tensors and runtime graphs to be dumped to a shared storage location of your choice when the <code>Session.run()</code> call occurs. For example:</p> <pre class="prettyprint lang-python" data-language="python">from tensorflow.python.debug import debug_utils
+
+# ... Code where your session and graph are set up...
+
+run_options = tf.RunOptions()
+debug_utils.watch_graph(
+      run_options,
+      session.graph,
+      debug_urls=["file:///shared/storage/location/tfdbg_dumps_1"])
+# Be sure to use different directories for different run() calls.
+
+session.run(fetches, feed_dict=feeds, options=run_options)
+</pre> <p>Later, in an environment that you have terminal access to, you can load and inspect the data in the dump directory on the shared storage by using the <code>offline_analyzer</code> of <code>tfdbg</code>. For example:</p> <pre class="prettyprint lang-none" data-language="cpp">python -m tensorflow.python.debug.cli.offline_analyzer \
+    --dump_dir=/cns/is-d/home/somebody/tfdbg_dumps_1
+</pre> <p>The <code>Session</code> wrapper <code>DumpingDebugWrapperSession</code> offers an easier and more flexible way to generate dumps on filesystem that can be analyzed offline. To use it, simply do:</p> <pre class="prettyprint lang-python" data-language="python"># Let your BUILD target depend on "//tensorflow/python/debug:debug_py
+from tensorflow.python.debug import debug_utils
+
+sess = tf_debug.DumpingDebugWrapperSession(
+    sess, "/cns/is-d/home/somebody/tfdbg_dumps_1/", watch_fn=my_watch_fn)
+</pre> <p><code>watch_fn=my_watch_fn</code> is a <code>Callable</code> that allows you to configure what <code>Tensor</code>s to watch on different <code>Session.run()</code> calls, as a function of the <code>fetches</code> and <code>feed_dict</code> to the <code>run()</code> call and other states. See <a href="https://www.tensorflow.org/api_docs/python/tfdbg/DumpingDebugWrapperSession#__init__" target="_blank">the API doc of DumpingDebugWrapperSession</a> for more details.</p> <p>If you model code is written in C++ or other languages, you can also modify the <code>debug_options</code> field of <code>RunOptions</code> to generate debug dumps that can be inspected offline. See <a href="https://www.tensorflow.org/code/tensorflow/core/protobuf/debug.proto" target="_blank">the proto definition</a> for more details.</p> <h2 id="other_features_of_the_tfdbg_cli">Other Features of the tfdbg CLI</h2> <ul> <li>Navigation through command history using the Up and Down arrow keys. Prefix-based navigation is also supported.</li> <li>Tab completion of commands and some command arguments.</li> <li>Write screen output to file by using bash-style redirection. For example:</li> </ul> <pre class="prettyprint notranslate" translate="no" data-language="cpp">tfdbg&gt; pt cross_entropy/Log:0[:, 0:10] &gt; /tmp/xent_value_slices.txt
+</pre> <h2 id="frequently_asked_questions">Frequently Asked Questions</h2> <p><strong>Q</strong>: <em>Do the timestamps on the left side of the <code>lt</code> output reflect actual performance in a non-debugging session?</em></p> <p><strong>A</strong>: No. The debugger inserts additional special-purpose debug nodes to the graph to record the values of intermediate tensors. These nodes certainly slow down the graph execution. If you are interested in profiling your model, check out <a href="https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/tfprof" target="_blank">tfprof</a> and other profiling tools for TensorFlow.</p> <p><strong>Q</strong>: <em>How do I link tfdbg against my <code>Session</code> in Bazel? Why do I see an error such as "ImportError: cannot import name debug"?</em></p> <p><strong>A</strong>: In your BUILD rule, declare dependencies: <code>"//tensorflow:tensorflow_py"</code> and <code>"//tensorflow/python/debug:debug_py"</code>. The first is the dependency that you include to use TensorFlow even without debugger support; the second enables the debugger. Then, In your Python file, add:</p> <pre class="prettyprint lang-python" data-language="python">from tensorflow.python import debug as tf_debug
+
+# Then wrap your TensorFlow Session with the local-CLI wrapper.
+sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+</pre> <p><strong>Q</strong>: <em>Does tfdbg help debugging runtime errors such as shape mismatches?</em></p> <p><strong>A</strong>: Yes. tfdbg intercepts errors generated by ops during runtime and presents the errors with some debug instructions to the user in the CLI. See examples:</p> <pre class="prettyprint lang-none" data-language="cpp"># Debugging shape mismatch during matrix multiplication.
+python -m tensorflow.python.debug.examples.debug_errors \
+    --error shape_mismatch --debug
+
+# Debugging uninitialized variable.
+python -m tensorflow.python.debug.examples.debug_errors \
+    --error uninitialized_variable --debug
+</pre> <p><strong>Q</strong>: <em>Why can't I select text in the tfdbg CLI?</em></p> <p><strong>A</strong>: This is because the tfdbg CLI enables mouse events in the terminal by default. This <a href="https://linux.die.net/man/3/mousemask" target="_blank">mouse-mask</a> mode overrides default terminal interactions, including text selection. You can re-enable text selection by using the command <code>mouse off</code> or <code>m off</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/programmers_guide/debugger" class="_attribution-link" target="_blank">https://www.tensorflow.org/programmers_guide/debugger</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

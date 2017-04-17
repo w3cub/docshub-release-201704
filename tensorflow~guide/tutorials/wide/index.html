@@ -1,0 +1,164 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>TensorFlow Linear Model Tutorial - TensorFlow Guide - W3cubDocs</title>
+  
+  <meta name="description" content="In this tutorial, we will use the TF.Learn API in TensorFlow to solve a binary classification problem&#58; Given census data about a person such as &hellip;">
+  <meta name="keywords" content="tensorflow, linear, model, tutorial, -, guide, tensorflow~guide">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/tensorflow~guide/tutorials/wide/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/tensorflow~guide.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/tensorflow~guide/" class="_nav-link" title="" style="margin-left:0;">TensorFlow Guide</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _tensorflow">
+				
+<h1 itemprop="name" class="devsite-page-title"> TensorFlow Linear Model Tutorial </h1>     <p>In this tutorial, we will use the TF.Learn API in TensorFlow to solve a binary classification problem: Given census data about a person such as age, gender, education and occupation (the features), we will try to predict whether or not the person earns more than 50,000 dollars a year (the target label). We will train a <strong>logistic regression</strong> model, and given an individual's information our model will output a number between 0 and 1, which can be interpreted as the probability that the individual has an annual income of over 50,000 dollars.</p> <h2 id="setup">Setup</h2> <p>To try the code for this tutorial:</p> <ol> <li> <p><a href="https://www.tensorflow.org/install/index" target="_blank">Install TensorFlow</a> if you haven't already.</p> </li> <li> <p>Download <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/learn/wide_n_deep_tutorial.py" target="_blank">the tutorial code</a>.</p> </li> <li> <p>Install the pandas data analysis library. tf.learn doesn't require pandas, but it does support it, and this tutorial uses pandas. To install pandas:</p> <ol> <li>Get <code>pip</code>:</li> </ol> <p>```shell # Ubuntu/Linux 64-bit $ sudo apt-get install python-pip python-dev</p> <p># Mac OS X $ sudo easy_install pip $ sudo easy_install --upgrade six ```</p> <ol> <li>Use <code>pip</code> to install pandas:</li> </ol> <p><code>shell $ sudo pip install pandas</code></p> <p>If you have trouble installing pandas, consult the <a href="http://pandas.pydata.org/pandas-docs/stable/install.html" target="_blank">instructions</a> on the pandas site.</p> </li> <li> <p>Execute the tutorial code with the following command to train the linear model described in this tutorial:</p> </li> </ol> <p><code>shell $ python wide_n_deep_tutorial.py --model_type=wide</code></p> <p>Read on to find out how this code builds its linear model.</p> <h2 id="reading_the_census_data">Reading The Census Data</h2> <p>The dataset we'll be using is the <a href="https://archive.ics.uci.edu/ml/datasets/Census+Income" target="_blank">Census Income Dataset</a>. You can download the <a href="https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data" target="_blank">training data</a> and <a href="https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test" target="_blank">test data</a> manually or use code like this:</p> <pre class="prettyprint lang-python" data-language="python">import tempfile
+import urllib
+train_file = tempfile.NamedTemporaryFile()
+test_file = tempfile.NamedTemporaryFile()
+urllib.urlretrieve("http://mlr.cs.umass.edu/ml/machine-learning-databases/adult/adult.data", train_file.name)
+urllib.urlretrieve("http://mlr.cs.umass.edu/ml/machine-learning-databases/adult/adult.test", test_file.name)
+</pre> <p>Once the CSV files are downloaded, let's read them into <a href="http://pandas.pydata.org/" target="_blank">Pandas</a> dataframes.</p> <pre class="prettyprint lang-python" data-language="python">import pandas as pd
+COLUMNS = ["age", "workclass", "fnlwgt", "education", "education_num",
+           "marital_status", "occupation", "relationship", "race", "gender",
+           "capital_gain", "capital_loss", "hours_per_week", "native_country",
+           "income_bracket"]
+df_train = pd.read_csv(train_file, names=COLUMNS, skipinitialspace=True)
+df_test = pd.read_csv(test_file, names=COLUMNS, skipinitialspace=True, skiprows=1)
+</pre> <p>Since the task is a binary classification problem, we'll construct a label column named "label" whose value is 1 if the income is over 50K, and 0 otherwise.</p> <pre class="prettyprint lang-python" data-language="python">LABEL_COLUMN = "label"
+df_train[LABEL_COLUMN] = (df_train["income_bracket"].apply(lambda x: "&gt;50K" in x)).astype(int)
+df_test[LABEL_COLUMN] = (df_test["income_bracket"].apply(lambda x: "&gt;50K" in x)).astype(int)
+</pre> <p>Next, let's take a look at the dataframe and see which columns we can use to predict the target label. The columns can be grouped into two types—categorical and continuous columns:</p> <ul> <li>A column is called <strong>categorical</strong> if its value can only be one of the categories in a finite set. For example, the native country of a person (U.S., India, Japan, etc.) or the education level (high school, college, etc.) are categorical columns.</li> <li>A column is called <strong>continuous</strong> if its value can be any numerical value in a continuous range. For example, the capital gain of a person (e.g. $14,084) is a continuous column.</li> </ul> <pre class="prettyprint lang-python" data-language="python">CATEGORICAL_COLUMNS = ["workclass", "education", "marital_status", "occupation",
+                       "relationship", "race", "gender", "native_country"]
+CONTINUOUS_COLUMNS = ["age", "education_num", "capital_gain", "capital_loss", "hours_per_week"]
+</pre> <p>Here's a list of columns available in the Census Income dataset:</p> <table> <thead> <tr> <th>Column Name</th> <th>Type</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>age</td> <td>Continuous</td> <td>The age of the individual</td> </tr> <tr> <td>workclass</td> <td>Categorical</td> <td>The type of employer the individual has (government, military, private, etc.).</td> </tr> <tr> <td>fnlwgt</td> <td>Continuous</td> <td>The number of people the census takers believe that observation represents (sample weight). This variable will not be used.</td> </tr> <tr> <td>education</td> <td>Categorical</td> <td>The highest level of education achieved for that individual.</td> </tr> <tr> <td>education_num</td> <td>Continuous</td> <td>The highest level of education in numerical form.</td> </tr> <tr> <td>marital_status</td> <td>Categorical</td> <td>Marital status of the individual.</td> </tr> <tr> <td>occupation</td> <td>Categorical</td> <td>The occupation of the individual.</td> </tr> <tr> <td>relationship</td> <td>Categorical</td> <td>Wife, Own-child, Husband, Not-in-family, Other-relative, Unmarried.</td> </tr> <tr> <td>race</td> <td>Categorical</td> <td>White, Asian-Pac-Islander, Amer-Indian-Eskimo, Other, Black.</td> </tr> <tr> <td>gender</td> <td>Categorical</td> <td>Female, Male.</td> </tr> <tr> <td>capital_gain</td> <td>Continuous</td> <td>Capital gains recorded.</td> </tr> <tr> <td>capital_loss</td> <td>Continuous</td> <td>Capital Losses recorded.</td> </tr> <tr> <td>hours_per_week</td> <td>Continuous</td> <td>Hours worked per week.</td> </tr> <tr> <td>native_country</td> <td>Categorical</td> <td>Country of origin of the individual.</td> </tr> <tr> <td>income</td> <td>Categorical</td> <td>"&gt;50K" or "&lt;=50K", meaning whether the person makes more than \$50,000 annually.</td> </tr> </tbody> </table> <h2 id="converting_data_into_tensors">Converting Data into Tensors</h2> <p>When building a TF.Learn model, the input data is specified by means of an Input Builder function. This builder function will not be called until it is later passed to TF.Learn methods such as <code>fit</code> and <code>evaluate</code>. The purpose of this function is to construct the input data, which is represented in the form of <a href="https://www.tensorflow.org/api_docs/python/tf/Tensor" target="_blank"><code>tf.Tensor</code></a>s or <a href="https://www.tensorflow.org/api_docs/python/tf/SparseTensor" target="_blank"><code>tf.SparseTensor</code></a>s. In more detail, the Input Builder function returns the following as a pair:</p> <ol> <li>
+<code>feature_cols</code>: A dict from feature column names to <code>Tensors</code> or <code>SparseTensors</code>.</li> <li>
+<code>label</code>: A <code>Tensor</code> containing the label column.</li> </ol> <p>The keys of the <code>feature_cols</code> will be used to construct columns in the next section. Because we want to call the <code>fit</code> and <code>evaluate</code> methods with different data, we define two different input builder functions, <code>train_input_fn</code> and <code>test_input_fn</code> which are identical except that they pass different data to <code>input_fn</code>. Note that <code>input_fn</code> will be called while constructing the TensorFlow graph, not while running the graph. What it is returning is a representation of the input data as the fundamental unit of TensorFlow computations, a <code>Tensor</code> (or <code>SparseTensor</code>).</p> <p>Our model represents the input data as <em>constant</em> tensors, meaning that the tensor represents a constant value, in this case the values of a particular column of <code>df_train</code> or <code>df_test</code>. This is the simplest way to pass data into TensorFlow. Another more advanced way to represent input data would be to construct an <a href="https://www.tensorflow.org/api_guides/python/io_ops#inputs_and_readers" target="_blank">Inputs And Readers</a> that represents a file or other data source, and iterates through the file as TensorFlow runs the graph. Each continuous column in the train or test dataframe will be converted into a <code>Tensor</code>, which in general is a good format to represent dense data. For categorical data, we must represent the data as a <code>SparseTensor</code>. This data format is good for representing sparse data.</p> <pre class="prettyprint lang-python" data-language="python">import tensorflow as tf
+
+def input_fn(df):
+  # Creates a dictionary mapping from each continuous feature column name (k) to
+  # the values of that column stored in a constant Tensor.
+  continuous_cols = {k: tf.constant(df[k].values)
+                     for k in CONTINUOUS_COLUMNS}
+  # Creates a dictionary mapping from each categorical feature column name (k)
+  # to the values of that column stored in a tf.SparseTensor.
+  categorical_cols = {k: tf.SparseTensor(
+      indices=[[i, 0] for i in range(df[k].size)],
+      values=df[k].values,
+      shape=[df[k].size, 1])
+                      for k in CATEGORICAL_COLUMNS}
+  # Merges the two dictionaries into one.
+  feature_cols = dict(continuous_cols.items() + categorical_cols.items())
+  # Converts the label column into a constant Tensor.
+  label = tf.constant(df[LABEL_COLUMN].values)
+  # Returns the feature columns and the label.
+  return feature_cols, label
+
+def train_input_fn():
+  return input_fn(df_train)
+
+def eval_input_fn():
+  return input_fn(df_test)
+</pre> <h2 id="selecting_and_engineering_features_for_the_model">Selecting and Engineering Features for the Model</h2> <p>Selecting and crafting the right set of feature columns is key to learning an effective model. A <strong>feature column</strong> can be either one of the raw columns in the original dataframe (let's call them <strong>base feature columns</strong>), or any new columns created based on some transformations defined over one or multiple base columns (let's call them <strong>derived feature columns</strong>). Basically, "feature column" is an abstract concept of any raw or derived variable that can be used to predict the target label.</p> <h3 id="base_categorical_feature_columns">Base Categorical Feature Columns</h3> <p>To define a feature column for a categorical feature, we can create a <code>SparseColumn</code> using the TF.Learn API. If you know the set of all possible feature values of a column and there are only a few of them, you can use <code>sparse_column_with_keys</code>. Each key in the list will get assigned an auto-incremental ID starting from 0. For example, for the <code>gender</code> column we can assign the feature string "Female" to an integer ID of 0 and "Male" to 1 by doing:</p> <pre class="prettyprint lang-python" data-language="python">gender = tf.contrib.layers.sparse_column_with_keys(
+  column_name="gender", keys=["Female", "Male"])
+</pre> <p>What if we don't know the set of possible values in advance? Not a problem. We can use <code>sparse_column_with_hash_bucket</code> instead:</p> <pre class="prettyprint lang-python" data-language="python">education = tf.contrib.layers.sparse_column_with_hash_bucket("education", hash_bucket_size=1000)
+</pre> <p>What will happen is that each possible value in the feature column <code>education</code> will be hashed to an integer ID as we encounter them in training. See an example illustration below:</p> <table> <thead> <tr> <th>ID</th> <th>Feature</th> </tr> </thead> <tbody> <tr> <td>...</td> <td></td> </tr> <tr> <td>9</td> <td><code>"Bachelors"</code></td> </tr> <tr> <td>...</td> <td></td> </tr> <tr> <td>103</td> <td><code>"Doctorate"</code></td> </tr> <tr> <td>...</td> <td></td> </tr> <tr> <td>375</td> <td><code>"Masters"</code></td> </tr> <tr> <td>...</td> <td></td> </tr> </tbody> </table> <p>No matter which way we choose to define a <code>SparseColumn</code>, each feature string will be mapped into an integer ID by looking up a fixed mapping or by hashing. Note that hashing collisions are possible, but may not significantly impact the model quality. Under the hood, the <code>LinearModel</code> class is responsible for managing the mapping and creating <code>tf.Variable</code> to store the model parameters (also known as model weights) for each feature ID. The model parameters will be learned through the model training process we'll go through later.</p> <p>We'll do the similar trick to define the other categorical features:</p> <pre class="prettyprint lang-python" data-language="python">relationship = tf.contrib.layers.sparse_column_with_hash_bucket("relationship", hash_bucket_size=100)
+workclass = tf.contrib.layers.sparse_column_with_hash_bucket("workclass", hash_bucket_size=100)
+occupation = tf.contrib.layers.sparse_column_with_hash_bucket("occupation", hash_bucket_size=1000)
+native_country = tf.contrib.layers.sparse_column_with_hash_bucket("native_country", hash_bucket_size=1000)
+</pre> <h3 id="base_continuous_feature_columns">Base Continuous Feature Columns</h3> <p>Similarly, we can define a <code>RealValuedColumn</code> for each continuous feature column that we want to use in the model:</p> <pre class="prettyprint lang-python" data-language="python">age = tf.contrib.layers.real_valued_column("age")
+education_num = tf.contrib.layers.real_valued_column("education_num")
+capital_gain = tf.contrib.layers.real_valued_column("capital_gain")
+capital_loss = tf.contrib.layers.real_valued_column("capital_loss")
+hours_per_week = tf.contrib.layers.real_valued_column("hours_per_week")
+</pre> <h3 id="making_continuous_features_categorical_through_bucketization">Making Continuous Features Categorical through Bucketization</h3> <p>Sometimes the relationship between a continuous feature and the label is not linear. As an hypothetical example, a person's income may grow with age in the early stage of one's career, then the growth may slow at some point, and finally the income decreases after retirement. In this scenario, using the raw <code>age</code> as a real-valued feature column might not be a good choice because the model can only learn one of the three cases:</p> <ol> <li>Income always increases at some rate as age grows (positive correlation),</li> <li>Income always decreases at some rate as age grows (negative correlation), or</li> <li>Income stays the same no matter at what age (no correlation)</li> </ol> <p>If we want to learn the fine-grained correlation between income and each age group seperately, we can leverage <strong>bucketization</strong>. Bucketization is a process of dividing the entire range of a continuous feature into a set of consecutive bins/buckets, and then converting the original numerical feature into a bucket ID (as a categorical feature) depending on which bucket that value falls into. So, we can define a <code>bucketized_column</code> over <code>age</code> as:</p> <pre class="prettyprint lang-python" data-language="python">age_buckets = tf.contrib.layers.bucketized_column(age, boundaries=[18, 25, 30, 35, 40, 45, 50, 55, 60, 65])
+</pre> <p>where the <code>boundaries</code> is a list of bucket boundaries. In this case, there are 10 boundaries, resulting in 11 age group buckets (from age 17 and below, 18-24, 25-29, ..., to 65 and over).</p> <h3 id="intersecting_multiple_columns_with_crossedcolumn">Intersecting Multiple Columns with CrossedColumn</h3> <p>Using each base feature column separately may not be enough to explain the data. For example, the correlation between education and the label (earning &gt; 50,000 dollars) may be different for different occupations. Therefore, if we only learn a single model weight for <code>education="Bachelors"</code> and <code>education="Masters"</code>, we won't be able to capture every single education-occupation combination (e.g. distinguishing between <code>education="Bachelors" AND occupation="Exec-managerial"</code> and <code>education="Bachelors" AND occupation="Craft-repair"</code>). To learn the differences between different feature combinations, we can add <strong>crossed feature columns</strong> to the model.</p> <pre class="prettyprint lang-python" data-language="python">education_x_occupation = tf.contrib.layers.crossed_column([education, occupation], hash_bucket_size=int(1e4))
+</pre> <p>We can also create a <code>CrossedColumn</code> over more than two columns. Each constituent column can be either a base feature column that is categorical (<code>SparseColumn</code>), a bucketized real-valued feature column (<code>BucketizedColumn</code>), or even another <code>CrossColumn</code>. Here's an example:</p> <pre class="prettyprint lang-python" data-language="python">age_buckets_x_education_x_occupation = tf.contrib.layers.crossed_column(
+  [age_buckets, education, occupation], hash_bucket_size=int(1e6))
+</pre> <h2 id="defining_the_logistic_regression_model">Defining The Logistic Regression Model</h2> <p>After processing the input data and defining all the feature columns, we're now ready to put them all together and build a Logistic Regression model. In the previous section we've seen several types of base and derived feature columns, including:</p> <ul> <li><code>SparseColumn</code></li> <li><code>RealValuedColumn</code></li> <li><code>BucketizedColumn</code></li> <li><code>CrossedColumn</code></li> </ul> <p>All of these are subclasses of the abstract <code>FeatureColumn</code> class, and can be added to the <code>feature_columns</code> field of a model:</p> <pre class="prettyprint lang-python" data-language="python">model_dir = tempfile.mkdtemp()
+m = tf.contrib.learn.LinearClassifier(feature_columns=[
+  gender, native_country, education, occupation, workclass, marital_status, race,
+  age_buckets, education_x_occupation, age_buckets_x_education_x_occupation],
+  model_dir=model_dir)
+</pre> <p>The model also automatically learns a bias term, which controls the prediction one would make without observing any features (see the section "How Logistic Regression Works" for more explanations). The learned model files will be stored in <code>model_dir</code>.</p> <h2 id="training_and_evaluating_our_model">Training and Evaluating Our Model</h2> <p>After adding all the features to the model, now let's look at how to actually train the model. Training a model is just a one-liner using the TF.Learn API:</p> <pre class="prettyprint lang-python" data-language="python">m.fit(input_fn=train_input_fn, steps=200)
+</pre> <p>After the model is trained, we can evaluate how good our model is at predicting the labels of the holdout data:</p> <pre class="prettyprint lang-python" data-language="python">results = m.evaluate(input_fn=eval_input_fn, steps=1)
+for key in sorted(results):
+    print "%s: %s" % (key, results[key])
+</pre> <p>The first line of the output should be something like <code>accuracy: 0.83557522</code>, which means the accuracy is 83.6%. Feel free to try more features and transformations and see if you can do even better!</p> <p>If you'd like to see a working end-to-end example, you can download our <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/learn/wide_n_deep_tutorial.py" target="_blank">example code</a> and set the <code>model_type</code> flag to <code>wide</code>.</p> <h2 id="adding_regularization_to_prevent_overfitting">Adding Regularization to Prevent Overfitting</h2> <p>Regularization is a technique used to avoid <strong>overfitting</strong>. Overfitting happens when your model does well on the data it is trained on, but worse on test data that the model has not seen before, such as live traffic. Overfitting generally occurs when a model is excessively complex, such as having too many parameters relative to the number of observed training data. Regularization allows for you to control your model's complexity and makes the model more generalizable to unseen data.</p> <p>In the Linear Model library, you can add L1 and L2 regularizations to the model as:</p> <pre class="prettyprint" data-language="cpp">m = tf.contrib.learn.LinearClassifier(feature_columns=[
+  gender, native_country, education, occupation, workclass, marital_status, race,
+  age_buckets, education_x_occupation, age_buckets_x_education_x_occupation],
+  optimizer=tf.train.FtrlOptimizer(
+    learning_rate=0.1,
+    l1_regularization_strength=1.0,
+    l2_regularization_strength=1.0),
+  model_dir=model_dir)
+</pre> <p>One important difference between L1 and L2 regularization is that L1 regularization tends to make model weights stay at zero, creating sparser models, whereas L2 regularization also tries to make the model weights closer to zero but not necessarily zero. Therefore, if you increase the strength of L1 regularization, you will have a smaller model size because many of the model weights will be zero. This is often desirable when the feature space is very large but sparse, and when there are resource constraints that prevent you from serving a model that is too large.</p> <p>In practice, you should try various combinations of L1, L2 regularization strengths and find the best parameters that best control overfitting and give you a desirable model size.</p> <h2 id="how_logistic_regression_works">How Logistic Regression Works</h2> <p>Finally, let's take a minute to talk about what the Logistic Regression model actually looks like in case you're not already familiar with it. We'll denote the label as \(Y\), and the set of observed features as a feature vector \(\mathbf{x}=[x_1, x_2, ..., x_d]\). We define \(Y=1\) if an individual earned &gt; 50,000 dollars and \(Y=0\) otherwise. In Logistic Regression, the probability of the label being positive (\(Y=1\)) given the features \(\mathbf{x}\) is given as:</p> <div> $$ P(Y=1|\mathbf{x}) = \frac{1}{1+\exp(-(\mathbf{w}^T\mathbf{x}+b))}$$ </div> <p>where \(\mathbf{w}=[w_1, w_2, ..., w_d]\) are the model weights for the features \(\mathbf{x}=[x_1, x_2, ..., x_d]\). \(b\) is a constant that is often called the <strong>bias</strong> of the model. The equation consists of two parts—A linear model and a logistic function:</p> <ul> <li> <p><strong>Linear Model</strong>: First, we can see that \(\mathbf{w}^T\mathbf{x}+b = b + w_1x_1 + ... +w_dx_d\) is a linear model where the output is a linear function of the input features \(\mathbf{x}\). The bias \(b\) is the prediction one would make without observing any features. The model weight \(w_i\) reflects how the feature \(x_i\) is correlated with the positive label. If \(x_i\) is positively correlated with the positive label, the weight \(w_i\) increases, and the probability \(P(Y=1|\mathbf{x})\) will be closer to 1. On the other hand, if \(x_i\) is negatively correlated with the positive label, then the weight \(w_i\) decreases and the probability \(P(Y=1|\mathbf{x})\) will be closer to 0.</p> </li> <li> <p><strong>Logistic Function</strong>: Second, we can see that there's a logistic function (also known as the sigmoid function) \(S(t) = 1/(1+\exp(-t))\) being applied to the linear model. The logistic function is used to convert the output of the linear model \(\mathbf{w}^T\mathbf{x}+b\) from any real number into the range of \([0, 1]\), which can be interpreted as a probability.</p> </li> </ul> <p>Model training is an optimization problem: The goal is to find a set of model weights (i.e. model parameters) to minimize a <strong>loss function</strong> defined over the training data, such as logistic loss for Logistic Regression models. The loss function measures the discrepancy between the ground-truth label and the model's prediction. If the prediction is very close to the ground-truth label, the loss value will be low; if the prediction is very far from the label, then the loss value would be high.</p> <h2 id="learn_deeper">Learn Deeper</h2> <p>If you're interested in learning more, check out our <a href="../wide_and_deep/">Wide &amp; Deep Learning Tutorial</a> where we'll show you how to combine the strengths of linear models and deep neural networks by jointly training them using the TF.Learn API.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/tutorials/wide" class="_attribution-link" target="_blank">https://www.tensorflow.org/tutorials/wide</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
