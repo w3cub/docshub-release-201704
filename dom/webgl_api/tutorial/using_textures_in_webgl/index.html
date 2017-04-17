@@ -1,0 +1,178 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>WebGL API&#58; Using Textures in WebGL - DOM - W3cubDocs</title>
+  
+  <meta name="description" content=" « PreviousNext » ">
+  <meta name="keywords" content="webgl, api, using, textures, -, dom">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/dom/webgl_api/tutorial/using_textures_in_webgl/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/dom.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/dom/" class="_nav-link" title="" style="margin-left:0;">DOM</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>WebGL API: Using textures in WebGL</h1> <div style="text-align: right;" class="prevnext"> <p><a style="float: left;" href="../creating_3d_objects_using_webgl/">« Previous</a><a href="../lighting_in_webgl/">Next »</a></p> </div> <p>Now that our sample program has a rotating 3D cube, let's map a texture onto it instead of having its faces be solid colors.</p> <h2 id="Loading_textures">Loading textures</h2> <p>The first thing to do is add code to load the textures. In our case, we'll be using a single texture, mapped onto all six sides of our rotating cube, but the same technique can be used for any number of textures.</p> <div class="note">
+<strong>Note:</strong> It's important to note that the loading of textures follows <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS" target="_blank">cross-domain rules</a>; that is, you can only load textures from sites for which your content has CORS approval. See Cross-domain textures below for details.</div> <p>The code that loads the texture looks like this:</p> <pre data-language="js">function initTextures() {
+  cubeTexture = gl.createTexture();
+  cubeImage = new Image();
+  cubeImage.onload = function() { handleTextureLoaded(cubeImage, cubeTexture); }
+  cubeImage.src = 'cubetexture.png';
+}
+
+function handleTextureLoaded(image, texture) {
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+}
+</pre> <p>The <code>initTextures()</code> routine starts by creating the GL texture object <code>cubeTexture</code> by calling the GL <a title="The WebGLRenderingContext.createTexture() method of the WebGL API creates and initializes a WebGLTexture object." href="../../../webglrenderingcontext/createtexture/"><code>createTexture()</code></a> function. To load the texture from the image file, it then creates an <code>Image</code> object and loads into it the graphic file we wish to use as our texture. The <code>handleTextureLoaded()</code> callback routine is run when the image is done loading.</p> <p>To actually create the texture, we specify that the new texture is the current texture on which we want to operate by binding it to <code>gl.TEXTURE_2D</code>. After that, the loaded image is passed into <a title="The WebGLRenderingContext.texImage2D() method of the WebGL API specifies a two-dimensional texture image." href="../../../webglrenderingcontext/teximage2d/"><code>texImage2D()</code></a> to write the image data into the texture.</p> <div class="note">
+<strong>Note:</strong> Textures' widths and heights must, in <strong>most</strong> circumstances, be a power of two number of pixels (that is, 1, 2, 4, 8, 16, etc) in each dimension. For the exception, see section: "<a href="https://developer.mozilla.org/en-US/docs/Web/WebGL/Using_textures_in_WebGL#Non_power-of-two_textures" target="_blank">Non power-of-two textures</a>", below.</div> <p>The next two lines set up filtering for the texture; this controls how the image is filtered while scaling. In this case we're using linear filtering when scaling the image up, and a mipmap when scaling down. Then the mipmap is generated by calling <a title="The WebGLRenderingContext.generateMipmap() method of the WebGL API generates a set of mipmaps for a WebGLTexture object." href="../../../webglrenderingcontext/generatemipmap/"><code>generateMipMap()</code></a>, and we finish up by telling WebGL we're done manipulating the texture by binding null to <code>gl.TEXTURE_2D</code>.</p> <h3 id="Non_power-of-two_textures">Non power-of-two textures</h3> <p>Generally speaking, using textures whose sides are a power of two is ideal. They are efficiently stored in video memory and are not restricted in how they could be used. Artist-created textures should be scaled up or down to a nearby power of two and, really, should have been authored in power-of-two to begin with. Each side should be: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, or 2048 pixels. Many, but not all, devices can support 4096 pixels; some can support 8192 and above.</p> <p>Occasionally, it is difficult to use power-of-two textures due to your specific circumstance. If the source is some 3rd party, often the best results come from modifying the images using HTML5 canvas into power-of-two sizes before they are passed to WebGL; UV coordinates may also require adjustment if stretching is apparent.</p> <p>But, if you <strong>must</strong> have a non power-of-two (NPOT) texture, WebGL does include limited native support. NPOT textures are mostly useful if your texture dimensions must be the same resolution as something else, such as your monitor resolution, or if the above suggestions are just not worth the hassle. The catch: these textures <strong>cannot</strong> be used with mipmapping and they <strong>must not</strong> "repeat" (tile or wrap).</p> <p>An example of a repeated texture is tiling an image of a few bricks to cover a brick wall.</p> <p>Mipmapping and UV repeating can be disabled with <a title="The WebGLRenderingContext.texParameter[fi]() methods of the WebGL API set texture parameters." href="../../../webglrenderingcontext/texparameter/"><code>texParameteri()</code></a> when you create your texture using <a title="The WebGLRenderingContext.bindTexture() method of the WebGL API binds a given WebGLTexture to a target (binding point)." href="../../../webglrenderingcontext/bindtexture/"><code>bindTexture()</code></a>. This will allow NPOT textures at the expense of mipmapping, UV wrapping, UV tiling, and your control over how the device will handle your texture.</p> <pre data-language="js">// gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+// Prevents s-coordinate wrapping (repeating).
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+// Prevents t-coordinate wrapping (repeating).
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);</pre> <p>Again, with these parameters, compatible WebGL devices will automatically accept any resolution for that texture (up to their maximum dimensions). Without performing the above configuration, WebGL requires all samples of NPOT textures to fail by returning solid black: <code>rgba(0,0,0,1)</code>.</p> <h2 id="Mapping_the_texture_onto_the_faces">Mapping the texture onto the faces</h2> <p>At this point, the texture is loaded and ready to use. But before we can use it, we need to establish the mapping of the texture coordinates to the vertices of the faces of our cube. This replaces all the previously existing code for configuring colors for each of the cube's faces in <code>initBuffers()</code>.</p> <pre data-language="js">cubeVerticesTextureCoordBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesTextureCoordBuffer);
+  
+var textureCoordinates = [
+  // Front
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0,
+  // Back
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0,
+  // Top
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0,
+  // Bottom
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0,
+  // Right
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0,
+  // Left
+  0.0,  0.0,
+  1.0,  0.0,
+  1.0,  1.0,
+  0.0,  1.0
+];
+
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates),
+              gl.STATIC_DRAW);
+</pre> <p>First, this code creates a GL buffer into which we'll store the texture coordinates for each face, then we bind that buffer as the array we'll be writing into.</p> <p>The <code>textureCoordinates</code> array defines the texture coordinates corresponding to each vertex of each face. Note that the texture coordinates range from 0.0 to 1.0; the dimensions of textures are normalized to a range of 0.0 to 1.0 regardless of their actual size, for the purpose of texture mapping.</p> <p>Once we've set up the texture mapping array, we pass the array into the buffer, so that GL has that data ready for its use.</p> <h2 id="Updating_the_shaders">Updating the shaders</h2> <p>The shader program -- and the code that initializes the shaders -- also needs to be updated to use the textures instead of solid colors.</p> <p>First, let's take a look at the very simple change needed in <code>initShaders()</code>:</p> <pre data-language="js">textureCoordAttribute = gl.getAttribLocation(shaderProgram, 'aTextureCoord');
+gl.enableVertexAttribArray(textureCoordAttribute);
+gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+</pre> <p>This replaces the code that set up the vertex color attribute with one that contains the texture coordinate for each vertex.</p> <h3 id="The_vertex_shader">The vertex shader</h3> <p>Next, we need to replace the vertex shader so that instead of fetching color data, it instead fetches the texture coordinate data.</p> <pre data-language="html">&lt;script id="shader-vs" type="x-shader/x-vertex"&gt;
+  attribute vec3 aVertexPosition;
+  attribute vec2 aTextureCoord;
+    
+  uniform mat4 uMVMatrix;
+  uniform mat4 uPMatrix;
+      
+  varying highp vec2 vTextureCoord;
+  
+  void main(void) {
+    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+    vTextureCoord = aTextureCoord;
+  }
+&lt;/script&gt;
+</pre> <p>The key change here is that instead of fetching the vertex color, we're setting the texture coordinates; this will indicate the location within the texture corresponding to the vertex.</p> <h3 id="The_fragment_shader">The fragment shader</h3> <p>The fragment shader likewise needs to be updated:</p> <pre data-language="html">&lt;script id="shader-fs" type="x-shader/x-fragment"&gt;
+  varying highp vec2 vTextureCoord;
+      
+  uniform sampler2D uSampler;
+      
+  void main(void) {
+    gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+  }
+&lt;/script&gt;
+</pre> <p>Instead of assigning a color value to the fragment's color, the fragment's color is computed by fetching the <strong>texel</strong> (that is, the pixel within the texture) that the sampler says best maps to the fragment's position.</p> <h2 id="Drawing_the_textured_cube">Drawing the textured cube</h2> <p>The change to the <code>drawScene()</code> function is simple (except that for the purpose of clarity, I've removed the code that causes the cube to translate through space while animating; instead it just rotates).</p> <p>The code to map colors to the texture is gone, replaced with this:</p> <pre data-language="js">gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, cubeTexture);
+gl.uniform1i(gl.getUniformLocation(shaderProgram, 'uSampler'), 0);
+</pre> <p>GL provides 32 texture registers; the first of these is <code>gl.TEXTURE0</code>. We bind our previously-loaded texture to that register, then set the shader sampler <code>uSampler</code> (specified in the shader program) to use that texture.</p> <p>At this point, the rotating cube should be good to go.</p> <p><iframe height="510" src="https://mdn.github.io/webgl-examples/tutorial/sample6/index.html" width="670" frameborder="0" class="live-sample-frame"></iframe></p> <p><a href="https://github.com/mdn/webgl-examples/tree/gh-pages/tutorial/sample6" target="_blank">View the complete code</a> | <a href="http://mdn.github.io/webgl-examples/tutorial/sample6/" target="_blank">Open this demo on a new page</a></p> <h2 id="Cross-domain_textures">Cross-domain textures</h2> <p>Loading of WebGL textures is subject to cross-domain access controls. In order for your content to load a texture from another domain, CORS approval needs to be be obtained. See <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS" target="_blank">HTTP access control</a> for details on CORS.</p> <p>See this <a href="http://hacks.mozilla.org/2011/11/using-cors-to-load-webgl-textures-from-cross-domain-images/" class="external" target="_blank">hacks.mozilla.org article</a> for an explanation of how to use CORS-approved images as WebGL textures, with <a href="http://people.mozilla.org/~bjacob/webgltexture-cors-js.html" class="external" target="_blank">a self-contained example</a>.</p> <div class="note"> <p><strong>Note:</strong> CORS support for WebGL textures and the <code>crossOrigin</code> attribute for image elements is implemented in <span title="(Firefox 8.0 / Thunderbird 8.0 / SeaMonkey 2.5)">Gecko 8.0</span>.</p> </div> <p>Tainted (write-only) 2D canvases can't be used as WebGL textures. A 2D <a title="Use the HTML &lt;canvas&gt; element with the canvas scripting API to draw graphics and animations." href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas" target="_blank"><code>&lt;canvas&gt;</code></a> becomes tainted, for example, when a cross-domain image is drawn on it.</p> <div class="note"> <p><strong>Note:</strong> CORS support for Canvas 2D <code>drawImage</code> is implemented in <span title="(Firefox 9.0 / Thunderbird 9.0 / SeaMonkey 2.6)">Gecko 9.0</span>. This means that using a cross-domain image with CORS approval does no longer taint the 2D canvas, so the 2D canvas remains usable as the source of a WebGL texture.</p> </div> <div class="note"> <p><strong>Note:</strong> CORS support for cross-domain videos and the <code>crossorigin</code> attribute for <a title="Use the HTML &lt;video&gt; element to embed video content in a document." href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video" target="_blank"><code>&lt;video&gt;</code></a> elements is implemented in <span title="(Firefox 12.0 / Thunderbird 12.0 / SeaMonkey 2.9)">Gecko 12.0</span>.</p> </div> <div style="text-align: right;" class="prevnext"> <p><a style="float: left;" href="../creating_3d_objects_using_webgl/">« Previous</a><a href="../lighting_in_webgl/">Next »</a></p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

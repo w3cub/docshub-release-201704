@@ -1,0 +1,130 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>WebGL API&#58; Using Shaders to Apply Color in WebGL - DOM - W3cubDocs</title>
+  
+  <meta name="description" content=" « PreviousNext » ">
+  <meta name="keywords" content="webgl, api, using, shaders, apply, color, -, dom">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/dom/webgl_api/tutorial/using_shaders_to_apply_color_in_webgl/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/dom.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/dom/" class="_nav-link" title="" style="margin-left:0;">DOM</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>WebGL API: Using shaders to apply color in WebGL</h1> <div style="text-align: right;" class="prevnext"> <p><a style="float: left;" href="../adding_2d_content_to_a_webgl_context/">« Previous</a><a href="../animating_objects_with_webgl/">Next »</a></p> </div> <p>Having created a square in the <a href="../adding_2d_content_to_a_webgl_context/">previous demonstration</a>, the next obvious step is to add a splash of color to it. We can do this by revising the shaders.</p> <h2 id="Applying_color_to_the_vertices">Applying color to the vertices</h2> <p>In GL, objects are built using sets of vertices, each of which has a position and a color; by default, all other pixels' colors (and all its other attributes, including position) are computed using linear interpolation, automatically creating smooth gradients. Previously, our vertex shader didn't apply any specific colors to the vertices; between this and the fragment shader assigning the fixed color of white to each pixel, the entire square was rendered as solid white.</p> <p>Let's say we want to render a gradient in which each corner of the square is a different color: red, blue, green, and white. The first thing to do is to establish these colors for the four vertices. To do this, we first need to create an array of vertex colors, then store it into a WebGL buffer; we'll do that by adding the following code to our <code>initBuffers()</code> function:</p> <pre data-language="js">  var colors = [
+    1.0,  1.0,  1.0,  1.0,    // white
+    1.0,  0.0,  0.0,  1.0,    // red
+    0.0,  1.0,  0.0,  1.0,    // green
+    0.0,  0.0,  1.0,  1.0     // blue
+  ];
+  
+  squareVerticesColorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+}
+</pre> <p>This code starts by creating a JavaScript array containing four 4-value vectors, one for each vertex's color. Then a new WebGL buffer is allocated to store these colors, and the array is converted into WebGL floats and stored into the buffer.</p> <p>To make these colors actually get used, the vertex shader needs to be updated to pull the appropriate color from the color buffer:</p> <pre data-language="html">    &lt;script id="shader-vs" type="x-shader/x-vertex"&gt;
+      attribute vec3 aVertexPosition;
+      attribute vec4 aVertexColor;
+    
+      uniform mat4 uMVMatrix;
+      uniform mat4 uPMatrix;
+      
+      varying lowp vec4 vColor;
+    
+      void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+      }
+    &lt;/script&gt;
+</pre> <p>The key difference here is that for each vertex, we set its color to the corresponding value from the color array.</p> <h2 id="Coloring_the_fragments">Coloring the fragments</h2> <p>As a refresher, here's what our fragment shader looked like previously:</p> <pre data-language="html">    &lt;script id="shader-fs" type="x-shader/x-fragment"&gt;
+      void main(void) {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      }
+    &lt;/script&gt;
+</pre> <p>In order to pick up the interpolated color for each pixel, we simply need to change this to fetch the value from the <code>vColor</code> variable:</p> <pre data-language="html">    &lt;script id="shader-fs" type="x-shader/x-fragment"&gt;
+      varying lowp vec4 vColor;
+
+      void main(void) {
+        gl_FragColor = vColor;
+      }
+    &lt;/script&gt;
+</pre> <p>This is a simple change; each fragment simply receives the interpolated color based on its position relative to the vertices, instead of a fixed value.</p> <h2 id="Drawing_using_the_colors">Drawing using the colors</h2> <p>Next, it's necessary to add the code to the <code>initShaders()</code> routine to initialize the color attribute for the shader program:</p> <pre data-language="js">  vertexColorAttribute = gl.getAttribLocation(shaderProgram, 'aVertexColor');
+  gl.enableVertexAttribArray(vertexColorAttribute);
+</pre> <p>Then, drawScene() can be revised to actually use these colors when drawing the square:</p> <pre data-language="js">  gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+  gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+</pre> <p><iframe height="510" src="https://mdn.github.io/webgl-examples/tutorial/sample3/index.html" width="670" frameborder="0" class="live-sample-frame"></iframe></p> <p><a href="https://github.com/mdn/webgl-examples/tree/gh-pages/tutorial/sample3" target="_blank">View the complete code</a> | <a href="http://mdn.github.io/webgl-examples/tutorial/sample3/" target="_blank">Open this demo on a new page</a></p> <div style="text-align: right;" class="prevnext"> <p><a style="float: left;" href="../adding_2d_content_to_a_webgl_context/">« Previous</a><a href="../animating_objects_with_webgl/">Next »</a></p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_shaders_to_apply_color_in_WebGL%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_shaders_to_apply_color_in_WebGL" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_shaders_to_apply_color_in_WebGL</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

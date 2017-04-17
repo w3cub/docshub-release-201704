@@ -1,0 +1,217 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Canvas API&#58; Advanced Animations - DOM - W3cubDocs</title>
+  
+  <meta name="description" content=" « PreviousNext » ">
+  <meta name="keywords" content="canvas, api, advanced, animations, -, dom">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/dom/canvas_api/tutorial/advanced_animations/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/dom.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/dom/" class="_nav-link" title="" style="margin-left:0;">DOM</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>Canvas API: Advanced animations</h1>
+<div> <div class="prevnext" style="text-align: right;"> <p><a href="../basic_animations/" style="float: left;">« Previous</a><a href="../pixel_manipulation_with_canvas/">Next »</a></p> </div>
+</div> <div class="summary"> <p>In the last chapter we made some <a href="../basic_animations/">basic animations</a> and got to know ways to get things moving. In this part we will have a closer look at the motion itself and are going to add some physics to make our animations more advanced.</p> </div> <h2 id="Drawing_a_ball">Drawing a ball</h2> <p>We are going to use a ball for our animation studies, so let's first draw that ball onto the canvas. The following code will set us up.</p> <pre data-language="html">&lt;canvas id="canvas" width="600" height="300"&gt;&lt;/canvas&gt;
+</pre> <p>As usual, we need a drawing context first. To draw the ball, we will create a <code>ball</code> object which contains properties and a <code>draw()</code> method to paint it on the canvas.</p> <pre data-language="js">var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+var ball = {
+  x: 100,
+  y: 100,
+  radius: 25,
+  color: 'blue',
+  draw: function() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+};
+
+ball.draw();</pre> <p>Nothing special here, the ball is actually a simple circle and gets drawn with the help of the <a href="../../../canvasrenderingcontext2d/arc/" title="The CanvasRenderingContext2D.arc() method of the Canvas 2D API adds an arc to the path which is centered at (x, y) position with radius r starting at startAngle and ending at endAngle going in the given direction by anticlockwise (defaulting to clockwise)."><code>arc()</code></a> method.</p> <h2 id="Adding_velocity">Adding velocity</h2> <p>Now that we have a ball, we are ready to add a basic animation like we have learned in the <a href="../basic_animations/">last chapter</a> of this tutorial. Again, <a href="../../../window/requestanimationframe/" title="You should call this method whenever you're ready to update your animation onscreen. This will request that your animation function be called before the browser performs the next repaint. The number of callbacks is usually 60 times per second, but will generally match the display refresh rate in most web browsers as per W3C recommendation. The callback rate may be reduced to a lower rate when running in background tabs or in hidden &lt;iframe&gt;s in order to improve performance and battery life."><code>window.requestAnimationFrame()</code></a> helps us to control the animation. The ball gets moving by adding a velocity vector to the position. For each frame, we also <a href="../../../canvasrenderingcontext2d/clearrect/" title="The CanvasRenderingContext2D.clearRect() method of the Canvas 2D API sets all pixels in the rectangle defined by starting point (x, y) and size (width, height) to transparent black, erasing any previously drawn content.">clear</a> the canvas to remove old circles from prior frames.</p> <pre data-language="js">var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var raf;
+
+var ball = {
+  x: 100,
+  y: 100,
+  vx: 5,
+  vy: 2,
+  radius: 25,
+  color: 'blue',
+  draw: function() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+};
+
+function draw() {
+  ctx.clearRect(0,0, canvas.width, canvas.height);
+  ball.draw();
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  raf = window.requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('mouseover', function(e) {
+  raf = window.requestAnimationFrame(draw);
+});
+
+canvas.addEventListener('mouseout', function(e) {
+  window.cancelAnimationFrame(raf);
+});
+
+ball.draw();
+</pre> <h2 id="Boundaries">Boundaries</h2> <p>Without any boundary collision testing our ball runs out of the canvas quickly. We need to check if the <code>x</code> and <code>y</code> position of the ball is out of the canvas dimensions and invert the direction of the velocity vectors. To do so, we add the following checks to the <code>draw</code> method:</p> <pre data-language="js">if (ball.y + ball.vy &gt; canvas.height || ball.y + ball.vy &lt; 0) {
+  ball.vy = -ball.vy;
+}
+if (ball.x + ball.vx &gt; canvas.width || ball.x + ball.vx &lt; 0) {
+  ball.vx = -ball.vx;
+}</pre> <h3 id="First_demo">First demo</h3> <p>Let's see how it looks in action so far. Move your mouse into the canvas to start the animation.</p>  <p><iframe class="live-sample-frame sample-code-frame" height="310" src="https://mdn.mozillademos.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations%24samples/First_demo?revision=1175767" frameborder="0" width="610" id="frame_First_demo"></iframe></p> <h2 id="Acceleration">Acceleration</h2> <p>To make the motion more real, you can play with the velocity like this, for example:</p> <pre data-language="js">ball.vy *= .99;
+ball.vy += .25;</pre> <p>This slows down the vertical velocity each frame, so that the ball will just bounce on the floor in the end.</p>  <p><iframe class="live-sample-frame sample-code-frame" height="310" src="https://mdn.mozillademos.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations%24samples/Second_demo?revision=1175767" frameborder="0" width="610" id="frame_Second_demo"></iframe></p> <h2 id="Trailing_effect">Trailing effect</h2> <p>Until now we have made use of the <a href="../../../canvasrenderingcontext2d/clearrect/" title="The CanvasRenderingContext2D.clearRect() method of the Canvas 2D API sets all pixels in the rectangle defined by starting point (x, y) and size (width, height) to transparent black, erasing any previously drawn content."><code>clearRect</code></a> method when clearing prior frames. If you replace this method with a semi-transparent <a href="../../../canvasrenderingcontext2d/fillrect/" title="The CanvasRenderingContext2D.fillRect() method of the Canvas 2D API draws a filled rectangle at (x, y) position whose size is determined by width and height and whose style is determined by the fillStyle attribute."><code>fillRect</code></a>, you can easily create a trailing effect.</p> <pre data-language="js">ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);</pre>  <p><iframe class="live-sample-frame sample-code-frame" height="310" src="https://mdn.mozillademos.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations%24samples/Third_demo?revision=1175767" frameborder="0" width="610" id="frame_Third_demo"></iframe></p> <h2 id="Adding_mouse_control">Adding mouse control</h2> <p>To get some control over the ball, we can make it follow our mouse using the <code><a href="https://developer.mozilla.org/en-US/docs/Web/Reference/Events/mousemove" target="_blank">mousemove</a></code> event, for example. The <code><a href="https://developer.mozilla.org/en-US/docs/Web/Events/click" target="_blank">click</a></code> event releases the ball and lets it bounce again.</p>  <pre data-language="js">var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var raf;
+var running = false;
+
+var ball = {
+  x: 100,
+  y: 100,
+  vx: 5,
+  vy: 1,
+  radius: 25,
+  color: 'blue',
+  draw: function() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+};
+
+function clear() {
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function draw() {
+  clear();
+  ball.draw();
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  if (ball.y + ball.vy &gt; canvas.height || ball.y + ball.vy &lt; 0) {
+    ball.vy = -ball.vy;
+  }
+  if (ball.x + ball.vx &gt; canvas.width || ball.x + ball.vx &lt; 0) {
+    ball.vx = -ball.vx;
+  }
+
+  raf = window.requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!running) {
+    clear();
+    ball.x = e.clientX;
+    ball.y = e.clientY;
+    ball.draw();
+  }
+});
+
+canvas.addEventListener('click', function(e) {
+  if (!running) {
+    raf = window.requestAnimationFrame(draw);
+    running = true;
+  }
+});
+
+canvas.addEventListener('mouseout', function(e) {
+  window.cancelAnimationFrame(raf);
+  running = false;
+});
+
+ball.draw();
+</pre> <p>Move the ball using your mouse and release it with a click.</p> <p><iframe class="live-sample-frame sample-code-frame" height="310" src="https://mdn.mozillademos.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations%24samples/Adding_mouse_control?revision=1175767" frameborder="0" width="610" id="frame_Adding_mouse_control"></iframe></p> <h2 id="Breakout">Breakout</h2> <p>This short chapter only explains some techniques to create more advanced animations. There are many more! How about adding a paddle, some bricks, and turn this demo into a <a href="http://en.wikipedia.org/wiki/Breakout_%28video_game%29" target="_blank">Breakout</a> game? Check out our <a href="https://developer.mozilla.org/en-US/docs/Games" target="_blank">Game development</a> area for more gaming related articles.</p> <h2 id="See_also">See also</h2> <ul> <li><a href="../../../window/requestanimationframe/" title="You should call this method whenever you're ready to update your animation onscreen. This will request that your animation function be called before the browser performs the next repaint. The number of callbacks is usually 60 times per second, but will generally match the display refresh rate in most web browsers as per W3C recommendation. The callback rate may be reduced to a lower rate when running in background tabs or in hidden &lt;iframe&gt;s in order to improve performance and battery life."><code>window.requestAnimationFrame()</code></a></li> <li><a href="https://developer.mozilla.org/en-US/docs/Games/Techniques/Efficient_animation_for_web_games" target="_blank">Efficient animation for web games</a></li> </ul> <div class="prevnext" style="text-align: right;"> <p><a href="../basic_animations/" style="float: left;">« Previous</a><a href="../pixel_manipulation_with_canvas/">Next »</a></p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Advanced_animations</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

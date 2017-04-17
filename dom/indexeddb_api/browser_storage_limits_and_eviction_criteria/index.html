@@ -1,0 +1,100 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Browser Storage Limits and Eviction Criteria - DOM - W3cubDocs</title>
+  
+  <meta name="description" content="There are a number of web technologies that store data of one kind or another on the client-side (i.e. on your local disk.) The process by which the &hellip;">
+  <meta name="keywords" content="browser, storage, limits, and, eviction, criteria, -, dom">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/dom/indexeddb_api/browser_storage_limits_and_eviction_criteria/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/dom.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/dom/" class="_nav-link" title="" style="margin-left:0;">DOM</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>Browser storage limits and eviction criteria</h1> <p class="summary">There are a number of web technologies that store data of one kind or another on the client-side (i.e. on your local disk.) The process by which the browser works out how much space to allocate to web data storage and what to delete when that limit is reached is not simple, and differs between browsers. This article attempts to explain how this all works.</p> <div class="note"> <p><strong>Note</strong>: The information below should be fairly accurate for most modern browsers, but browser specifics are called out where known. Opera and Chrome should behave the same in all cases. <a href="http://www.opera.com/mobile/mini" target="_blank">Opera Mini</a> (still presto-based, server-side rendering) doesn't store any data on the client.</p> </div> <h2 id="Different_types_of_data_storage">Different types of data storage</h2> <p>Even in the same browser, using the same storage method, there are different classes of data storage to understand. This section discusses the different ones you might find in different browsers.</p> <p>Generally, the main two types of storage are as follows:</p> <ul> <li>Persistent: This is data that is intended to be kept around for a long time. This will only be evicted if the user chooses to (for example in Firefox there is a "clear storage" button on the page info dialog for each page.)</li> <li>Temporary: This is data that doesn't need to persist for such long time . This will be evicted under a least recently used (<a href="#LRU_policy">LRU policy</a>) when storage limits are reached.</li> </ul> <p>By default, temporary storage will be used for most usage contexts (e.g. standard web apps), and persistent will be used for installed apps (e.g. Firefox apps installed on Firefox OS/Firefox desktop, Chrome apps.)</p> <h3 id="Firefox_specifics">Firefox specifics</h3> <p>In Firefox you can choose which type of storage you want to use by including a proprietary option — <code>storage</code> — when you create an IndexedDB database using <a title="If an error occurs while the database connection is being opened, then an error event is fired on the request object returned from this method." href="../../idbfactory/open/"><code>open()</code></a>:</p> <ul> <li> <pre data-language="js">var request = indexedDB.open("myDatabase", { version: 1, storage: "persistent" });</pre> </li> <li> <pre data-language="js">var request = indexedDB.open("myDatabase", { version: 1, storage: "temporary" });</pre> </li> </ul> <p>In Firefox, when persistent storage is used the user is given a UI popup to alert them that this data will persist, and ask if they are happy with that.</p> <p>Temporary data storage does not elicit any user prompts, but there are <a href="#Storage_limits">Storage limits</a>.</p> <h3 id="Default_storage_in_Firefox">Default storage in Firefox</h3> <p>There is a third type of storage to consider in Firefox — Default storage. This is a default option, used when you don't specify the <code>storage</code> parameter shown above. Default storage data behaves differently in different circumstances — it behaves as persistent storage for installed Firefox OS apps, and temporary storage for any other type of use.</p> <h2 id="Where_is_the_data_stored">Where is the data stored?</h2> <p>Each storage type represents a separate repository, here's the actual mapping to directories under a user's Firefox profile (other browsers may differ slightly):</p> <ul> <li>
+<code>&lt;profile&gt;/storage</code> — the main top level directory for storages maintained by the quota manager (see below.)</li> <li>
+<code>&lt;profile&gt;/storage/permanent</code> — persistent data storage repository</li> <li>
+<code>&lt;profile&gt;/storage/temporary</code> — temporary data storage repository</li> <li>
+<code>&lt;profile&gt;/storage/default</code> — default data storage repository</li> </ul> <div class="note"> <p><strong>Note</strong>: In Firefox, you can find your profile folder by going entering <code>about:support</code> in the URL bar, and pressing the <em>Show in...</em> button (e.g. <em>Show in Finder</em> on Mac OS X) next to the <em>Profile Folder</em> title.</p> </div> <div class="note"> <p><strong>Note</strong>: If you are looking around in your Profile at the data stored, you might see a fourth folder: <code>persistent</code>. Basically, the <code>persistent</code> folder was renamed to <code>permanent</code> a while ago to keep upgrades/migration simpler.</p> </div> <div class="note"> <p><strong>Note</strong>: Users shouldn’t add their own directories or files under <code>&lt;profile&gt;/storage</code>. This will cause storage initialization to fail; for example <a title="If an error occurs while the database connection is being opened, then an error event is fired on the request object returned from this method." href="../../idbfactory/open/"><code>open()</code></a> will fire an error event.</p> </div> <h2 id="Storage_limits">Storage limits</h2> <p>The maximum browser storage space is dynamic — it is based on your hard drive size. The <strong>global limit</strong> is calculated as 50% of free disk space. In Firefox, an internal browser tool called the Quota Manager keeps track of how much disk space each origin is using up, and deletes data if necessary.</p> <p>So if your hard drive is 500GB, then the total storage for a browser is 250GB. If this is exceeded, a process called <strong>origin eviction</strong> comes into play, deleting entire origin's worth of data until the storage amount goes under the limit again. There is no trimming effect put in place, to delete parts of origins — deleting one database of an origin could cause problems with inconsistency.</p> <p>There's also another limit called <strong>group limit</strong> — this is defined as 20% of the global limit. Each origin is part of a group (group of origins). There's one group for each eTLD+1 domain.</p> <p>For example:</p> <ul> <li>
+<code>mozilla.org</code> — group1, origin1</li> <li>
+<code>www.mozilla.org</code> — group1, origin2</li> <li>
+<code>joe.blogs.mozilla.org</code> — group1, origin3</li> <li>
+<code>firefox.com</code> — group2, origin4</li> </ul> <p>In this group, <code>mozilla.org</code>, <code>www.mozilla.org</code>, and <code>joe.blogs.mozilla.org</code> can aggregately use a maximum of 20% of the global limit. <code>firefox.com</code> has a separate maximum of 20%.</p> <p>The two limits react differently to limits being reached:</p> <ul> <li>The group limit is also called the "hard limit": it doesn't trigger origin eviction.</li> <li>The global limit is a "soft limit" since there's a chance that some space will be freed and the operation can continue.</li> </ul> <div class="note"> <p><strong>Note</strong>: If the group limit is exceeded, or if origin eviction couldn't free enough space, the browser will throw a <code>QuotaExceededError</code>.</p> </div> <h2 id="LRU_policy">LRU policy</h2> <p>When the available disk space is filled up, the quota manager will start clearing out data based on a LRU policy — the least recently used origin will be deleted first, then the next one, until the browser is no longer over the limit.</p> <p>We track the "last access time" for each origin using temporary storage. Once the global limit for temporary storage is reached (more on the limit later), we try to find all currently unused origins (i.e. ones with no tabs/apps open that are keeping open datastores). These are then sorted according to "last access time". The least recently used origins are then deleted until there's enough space to fulfill the request that triggered this origin eviction.</p> <h2 id="What_technologies_use_browser_data_storage">What technologies use browser data storage?</h2> <p>In Firefox, the following technologies make use of browser data storage to store data when required. We term them "quota clients" in this context:</p> <ul> <li><a href="../../indexeddb_api/">IndexedDB</a></li> <li>
+<a href="http://asmjs.org/" target="_blank">asm.js</a> caching</li> <li><a href="../../cache/">Cache API</a></li> </ul> <p>The "last access time" of origins is updated when any of these are activated/deactivated origin eviction will delete data for all these quota clients.</p> <p>In Chrome/Opera, the Quota Management API handles quota management for <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Using_the_application_cache" target="_blank">AppCache</a>, <a href="../../indexeddb_api/">IndexedDB</a>, WebSQL and <a href="https://developer.mozilla.org/en-US/docs/Web/API/File_and_Directory_Entries_API" target="_blank">File System API</a>.</p> <h2 id="See_also">See also</h2> <ul> <li>
+<a href="http://www.html5rocks.com/en/tutorials/offline/quota-research/" target="_blank">Working with quota on mobile browsers</a>, by<a title="Eiji Kitamura" href="http://blog.agektmr.com" target="_blank"> Eiji Kitamura.</a> A detailed analysis of client-side storage on mobile browsers.</li> <li>
+<a href="https://developers.google.com/web/updates/2011/11/Quota-Management-API-Fast-Facts" target="_blank">Quota Management API : Fast Facts</a>, by<a title="Eiji Kitamura" href="http://blog.agektmr.com" target="_blank"> Eiji Kitamura.</a> A look at the Quota Management API in Chrome/Blink (which should include Opera too.)</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Browser_storage_limits_and_eviction_criteria%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Browser_storage_limits_and_eviction_criteria" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Browser_storage_limits_and_eviction_criteria</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

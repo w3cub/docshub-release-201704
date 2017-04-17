@@ -1,0 +1,245 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Web Audio Spatialization Basics - DOM - W3cubDocs</title>
+  
+  <meta name="description" content="As if its extensive variety of sound processing (and other) options wasn&#39;t enough, the Web Audio API also includes facilities to allow you to &hellip;">
+  <meta name="keywords" content="web, audio, spatialization, basics, -, dom">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/dom/web_audio_api/web_audio_spatialization_basics/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/dom.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/dom/" class="_nav-link" title="" style="margin-left:0;">DOM</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>Web audio spatialization basics</h1>
+<div class="summary"> <p><span class="seoSummary">As if its extensive variety of sound processing (and other) options wasn't enough, the Web Audio API also includes facilities to allow you to emulate the difference in sound as a listener moves around a sound source, for example panning as you move from the left hand side of your TV across to the right. The official term for this is <strong>spatialization</strong>, and this article will cover the basics of how to implement such a system.</span></p> </div> <p>The easiest use case to imagine for this capability is realistic alterations in how an audio source will sound as you move around it in a 3D environment like a first-person game.</p> <h2 id="Basic_concepts">Basic concepts</h2> <p>Creating an audio spatialization involves two main objects:</p> <ol> <li>The <a title="It is important to note that there is only one listener per context and that it isn't an AudioNode." href="../../audiolistener/"><code>AudioListener</code></a> object represents the position in 3D space of a person listening to an audio source, and is accessed using the <a title="An AudioListener object." href="../../audiocontext/listener/"><code>AudioContext.listener</code></a> property. You can set the position and orientation of this listener, among other things.</li> <li>The <a title="A PannerNode always has exactly one input and one output: the input can be mono or stereo but the output is always stereo (2 channels) — you need stereo sound for panning effects!." href="../../pannernode/"><code>PannerNode</code></a> object represents the position in 3D space of an audio source, and is created using the <a title="The panner node is spatialized in relation to the AudioContext's AudioListener (defined by the AudioContext.listener attribute), which represents the position and orientation of the person listening to the audio." href="../../audiocontext/createpanner/"><code>AudioContext.createPanner()</code></a> method. You can set a number of different options for this method, including the position, orientation, velocity, and angle of a cone indicating what direction the sound can be heard in (if you don't want the sound to be omnidirectional.)</li> </ol> <p>You have to set the position and other options for these two objects, and the browser does the rest, working out what the audio should sound like as a result. The below diagram shows the different things that can be controlled in the case of a <a title="A PannerNode always has exactly one input and one output: the input can be mono or stereo but the output is always stereo (2 channels) — you need stereo sound for panning effects!." href="../../pannernode/"><code>PannerNode</code></a>.</p> <p><img src="https://mdn.mozillademos.org/files/5087/WebAudioPannerNode.png" style="width: 568px; height: 228px; margin: 0px auto; display: block;" alt="The PannerNode brings a spatial position and velocity and a directionality for a given signal."></p> <p>We'll keep things very simple in this basic article, and only really concentrate on the position of the listener and panner, which are set using the <code>setPosition()</code> method in both cases. This takes three unitless values that specify X, Y, and Z values in a cartesian coordinate system.</p> <div class="note"> <p><strong>Note</strong>: Working out what values to use so that your use case works effectively and sounds realistic can be fiddly and time consuming, and you generally just have to work the values out as you go. We'll discuss this more as we walk through the code below.</p> </div> <p>Other available options that we won't cover here are:</p> <ul> <li>
+<code>setOrientation()</code>: Available for both the listener and panner, this sets the orientation. This takes six values: the first three represent a front direction vector in 3D space (imagine a person and the direction their nose is pointing forward in) and the second set of three represents an up direction vector in 3D space (imagine the same person and the direction their head is pointing up in)</li> <li>
+<code>setVelocity()</code>: Available for the panner only, this allows you to set the velocity the audio source is moving in, as a velocity vector in 3D space (X, Y, and Z values.) When set, the browser will apply a doppler shift effect.</li> <li>
+<code>coneInnerAngle</code>, <code>coneOuterAngle</code>, and <code>coneOuterGain</code>: Available for the panner only, these allow you to set an angle inside/outside of which the volume will be reduced by the specified gain value. This is done to specify directional audio sources, but the default is 360/360/0, respectively, meaning that by default you get an omnidirectional sound source.</li> </ul> <h2 id="A_simple_demo_Room_of_metal">A simple demo: Room of metal</h2> <p>In our demo, you can move left and right past a 2.5D stereo that can be made to play a groovy tune, and you can also move towards the stereo. As you move left and right, the tune will pan to emulate how the tune will sound as you change your position proportional to the sound source. When you zoom in and out, the sound will get louder and quieter to suit.<br> <br> <img src="https://mdn.mozillademos.org/files/8141/room-of-metal.png" style="width: 640px; height: 298px; margin: 0px auto; display: block;" alt="a minimal UI with a portable stereo in the center of it, and buttons marked play, stop, left arrow, right arrow, zoom in and zoom out. It says Room of Metal at the top."></p> <div class="note"> <p><strong>Note</strong>: You can see this example <a href="http://mdn.github.io/panner-node/" target="_blank">running live</a>, and <a href="https://github.com/mdn/panner-node" target="_blank">view the source code</a>.</p> </div> <p>Let's walk through the code and see how this was actually done.</p> <h3 id="Defining_basic_variables">Defining basic variables</h3> <p>First we define a new audio context, panner, listener, and source:</p> <pre data-language="js">var AudioContext = window.AudioContext || window.webkitAudioContext;
+var audioCtx = new AudioContext();
+
+var panner = audioCtx.createPanner();
+var listener = audioCtx.listener;
+var source;</pre> <p>Next we grab the objects on the page we are using for our demo. First the <code>play</code> and <code>stop</code> buttons to control the audio, then the <code>boomBox</code>, which is just the graphic of the stereo that we are moving around. After that, we grab a reference to two paragraphs that are used to output the position of the <code>listener</code> and <code>panner</code>, for debugging purposes.</p> <pre data-language="js">var play = document.querySelector('.play');
+var stop = document.querySelector('.stop');
+
+var boomBox = document.querySelector('.boom-box');
+
+var listenerData = document.querySelector('.listener-data');
+var pannerData = document.querySelector('.panner-data');</pre> <h3 id="Working_out_listener_and_panner_positions">Working out listener and panner positions</h3> <p>Next comes a little bit of slightly fiddly maths. We want to make the <code>boomBox</code>, <code>listener</code>, and <code>panner</code> appear in the center of the screen initially, so we work out the width and height of the viewport, and divide both by two to get our X and Y values for those things. The <code>zPos</code> is only used on the panner, and is updated as the zoom controls are used (see later on); the initial value of 295 was decided on fairly arbitrarily — it sounded good. As long as you set the position of the panner appropriately in relation to the listener position, you will be ok.</p> <p>Next for this section, we set a <code>leftBound</code> and <code>rightBound</code>, which is the furthest we want our stereo graph to travel left and right. For the layout, we are using <a href="https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Flexible_boxes" target="_blank">Flexbox</a> to initially place the <code>boomBox</code> right in the center of the viewport, after which we then use iterative transforms and <a title="You should call this method whenever you're ready to update your animation onscreen. This will request that your animation function be called before the browser performs the next repaint. The number of callbacks is usually 60 times per second, but will generally match the display refresh rate in most web browsers as per W3C recommendation. The callback rate may be reduced to a lower rate when running in background tabs." href="../../window/requestanimationframe/"><code>window.requestAnimationFrame()</code></a> to apply the <code>boomBox</code> movement. Therefore the "0" position is in the center of the viewport so the rightmost position is that position plus half the viewport, but minus 50 (pixels) so the <code>boomBox</code> can't shoot all the way off the right of the screen, and the leftmost position is that position minus half the viewport, but plus 50 (pixels), so the <code>boomBox</code> can't shoot all the way off the left of the screen.</p> <p>The last part of this code is the <code>xIterator</code> — we set this to a 150th of the screen width, and then move the <code>boomBox</code> left and right by this amount when the left and right controls are pressed. We use this rather than a constant so that the app is a little more responsive.</p> <pre data-language="js">var WIDTH = window.innerWidth;
+var HEIGHT = window.innerHeight;
+
+var xPos = WIDTH/2;
+var yPos = HEIGHT/2;
+var zPos = 295;
+
+leftBound = (-xPos) + 50;
+rightBound = xPos - 50;
+
+xIterator = WIDTH/150;</pre> <p>Next we set the position of the <code>listener</code> and output the coordinates to the <code>listenerData</code> paragraph. It is always going to be in the same place, in a good position relative to the panner.</p> <pre data-language="js">listener.setPosition(xPos,yPos,300);
+listenerData.innerHTML = 'Listener data: X ' + xPos + ' Y ' + yPos + ' Z ' + 300;</pre> <p>In the <code>positionPanner()</code> function, we set the position of the panner, and output the coordinates to the <code>pannerData</code> paragraph. This function is called with each animation frame as the <code>boomBox</code> is moved, so the panner position updates accordingly:</p> <pre data-language="js">function positionPanner() {
+  panner.setPosition(xPos,yPos,zPos);
+  pannerData.innerHTML = 'Panner data: X ' + xPos + ' Y ' + yPos + ' Z ' + zPos;
+}</pre> <h3 id="Loading_and_playing_our_music">Loading and playing our music</h3> <p>Next we use XHR to load an audio track, and <code>decodeAudioData()</code> to decode it and stick it in a buffer. Then we put the buffer into an <a title="The AudioBufferSourceNode interface represents an audio source consisting of in-memory audio data, stored in an AudioBuffer. It is an AudioNode that acts as an audio source." href="../../audiobuffersourcenode/"><code>AudioBufferSourceNode</code></a>:</p> <pre data-language="js">function getData() {
+  source = audioCtx.createBufferSource();
+  request = new XMLHttpRequest();
+
+  request.open('GET', 'viper.ogg', true);
+
+  request.responseType = 'arraybuffer';
+
+
+  request.onload = function() {
+    var audioData = request.response;
+
+    audioCtx.decodeAudioData(audioData, function(buffer) {
+        myBuffer = buffer;
+        source.buffer = myBuffer;
+
+        source.connect(panner);
+        panner.connect(audioCtx.destination);
+        positionPanner();
+        source.loop = true;
+      },
+
+      function(e){"Error with decoding audio data" + e.err});
+
+  }
+
+  request.send();
+}</pre> <p>The next stage is to wire up the buttons to stop and play the audio. The pulse wrapper is an extra wrapper <a title="The HTML &lt;div&gt; element (or HTML Document Division Element) is the generic container for flow content, which does not inherently represent anything. It can be used to group elements for styling purposes (using the class or id attributes), or because they share attribute values, such as lang. It should be used only when no other semantic element (such as &lt;article&gt; or &lt;nav&gt;) is appropriate." href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/div" target="_blank"><code>&lt;div&gt;</code></a> wrapped around the <code>boomBox</code>. We apply the pulsating (<code>scaleY</code>) animation to this element when the play button is clicked, not the <code>boomBox</code> itself, because the <code>boomBox</code> already has animations applied to it throughout the course of the app's running.</p> <pre data-language="js">var pulseWrapper = document.querySelector('.pulse-wrapper');
+
+play.onclick = function() {
+  getData();
+  source.start(0);
+  play.setAttribute('disabled', 'disabled');
+  pulseWrapper.classList.add('pulsate');
+}
+
+stop.onclick = function() {
+  source.stop(0);
+  play.removeAttribute('disabled');
+  pulseWrapper.classList.remove('pulsate');
+}</pre> <h3 id="Moving_the_boom_box_and_the_panner">Moving the boom box and the panner</h3> <p>The next section of code grabs references to the left, right, zoom in, and zoom out buttons, and defines initial X, Y, and scale amounts for the <code>boomBox</code> to be positioned by when the transforms first start to be applied.</p> <pre data-language="js">var leftButton = document.querySelector('.left');
+var rightButton = document.querySelector('.right');
+var zoomInButton = document.querySelector('.zoom-in');
+var zoomOutButton = document.querySelector('.zoom-out');
+
+var boomX = 0;
+var boomY = 0;
+var boomZoom = 0.25;</pre> <p>Now we get to the four functions that control the left, right, zoom in, and zoom out functionality: <code>moveRight()</code>, <code>moveLeft()</code>, <code>zoomIn()</code>, and <code>zoomOut()</code>. Each is a little different, but works in a similar way:</p> <ol> <li>The <code>boomX</code> or <code>boomZoom</code> variables are updated in order to change the <code>boomBox</code>'s position on the screen.</li> <li>The <code>xPos</code> or <code>zPos</code> variables are updated in order to change the <a title="A PannerNode always has exactly one input and one output: the input can be mono or stereo but the output is always stereo (2 channels) — you need stereo sound for panning effects!." href="../../pannernode/"><code>PannerNode</code></a>'s position in 3D space. The changes are quite small, but these are the values we found to work.</li> <li>A check is done to see if the upper bounds of movement have been reached (a <code>boomX</code> equal or less than <code>leftBound</code> or greater than <code>rightBound</code>, or a <code>boomZoom</code> greater than 4 or equal or less than 0.25.) If so, the values are updated to force the <code>boomBox</code> to stay in certain constraints, and to force the <code>xPos</code> and <code>zPos</code> variables to also stay within certain constrants. These are, respectively, 5 greater or less than <code>WIDTH/2</code>, and a <code>zPos</code> between 295 and 299.9. These are the values we found produced a relatively realistic sounding panning and volume adjustment as the <code>boomBox</code> was moved around.</li> <li>
+<code>boomBox</code> is transformed (translated and scaled) by the new values of <code>boomX</code>, <code>boomY</code>, and <code>boomZoom</code> to move it around the screen.</li> <li>The <code>positionPanner()</code> function is run to update the position of the panner.</li> <li>A <a title="You should call this method whenever you're ready to update your animation onscreen. This will request that your animation function be called before the browser performs the next repaint. The number of callbacks is usually 60 times per second, but will generally match the display refresh rate in most web browsers as per W3C recommendation. The callback rate may be reduced to a lower rate when running in background tabs." href="../../window/requestanimationframe/"><code>window.requestAnimationFrame</code></a> instance is called to keep running the function for as long as the mouse button is pressed down.</li> <li>The <code>requestAnimationFrame</code> ID is returned out of the function so that it can be cancelled when the mouse button is released.</li> </ol> <pre data-language="js">function moveRight() {
+  boomX += -xIterator;
+  xPos += -0.066;
+
+  if(boomX &lt;= leftBound) {
+    boomX = leftBound;
+    xPos = (WIDTH/2) - 5;
+  }
+ 
+  boomBox.style.webkitTransform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  boomBox.style.transform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  positionPanner();
+  rightLoop = requestAnimationFrame(moveRight);
+  return rightLoop;
+}
+
+function moveLeft() {
+  boomX += xIterator;
+  xPos += 0.066;
+
+  if(boomX &gt; rightBound) {
+    boomX = rightBound;
+    xPos = (WIDTH/2) + 5;
+  }
+
+  positionPanner();
+  boomBox.style.webkitTransform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  boomBox.style.transform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  leftLoop = requestAnimationFrame(moveLeft);
+  return leftLoop;
+}
+
+function zoomIn() {
+  boomZoom += 0.05;
+  zPos += 0.066;
+
+  if(boomZoom &gt; 4) {
+    boomZoom = 4;
+    zPos = 299.9;
+  }
+ 
+  positionPanner();
+  boomBox.style.webkitTransform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  boomBox.style.transform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  zoomInLoop = requestAnimationFrame(zoomIn);
+  return zoomInLoop;
+}
+
+function zoomOut() {
+  boomZoom += -0.05;
+  zPos += -0.066;
+ 
+  if(boomZoom &lt;= 0.25) {
+    boomZoom = 0.25;
+    zPos = 295;
+  }
+ 
+  positionPanner();
+  boomBox.style.webkitTransform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  boomBox.style.transform = "translate(" + boomX + "px , " + boomY + "px) scale(" + boomZoom + ")";
+  zoomOutLoop = requestAnimationFrame(zoomOut);
+  return zoomOutLoop;
+}</pre> <p>In the final block of code, we simply wire up event handlers to control the movement when the buttons are pressed. For each button, the relevant function is invoked <code>onmousedown</code>; then <code>onmouseup</code>, <a title="Cancels an animation frame request previously scheduled through a call to window.requestAnimationFrame()." href="../../window/cancelanimationframe/"><code>window.cancelAnimationFrame</code></a> is called along with the returned <code>requestAnimationFrame()</code> ID to stop the animation happening.</p> <pre data-language="js">leftButton.onmousedown = moveLeft;
+leftButton.onmouseup = function () {
+  window.cancelAnimationFrame(leftLoop);
+}
+
+rightButton.onmousedown = moveRight;
+rightButton.onmouseup = function () {
+  window.cancelAnimationFrame(rightLoop);
+}
+
+zoomInButton.onmousedown = zoomIn;
+zoomInButton.onmouseup = function () {
+  window.cancelAnimationFrame(zoomInLoop);
+}
+
+zoomOutButton.onmousedown = zoomOut;
+zoomOutButton.onmouseup = function () {
+  window.cancelAnimationFrame(zoomOutLoop);
+}</pre>  <p>As you can see, the actual panner code is pretty simple — specify the positions, and the browser takes care of the rest. It is working out the surrounding code, and the values to use for positioning, which takes a bit more time.</p> <div class="note"> <p><strong>Note</strong>: You are probably thinking "why didn't you move the listener and keep the panner still instead: surely that is a bit more obvious?" Well, perhaps, but we felt that since the panner has more methods and properties available to it, moving it would allow more control in the long term.</p> </div> <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
