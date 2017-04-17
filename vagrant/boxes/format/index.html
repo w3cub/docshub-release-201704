@@ -1,0 +1,89 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Box File Format - Vagrant - W3cubDocs</title>
+  
+  <meta name="description" content="In the past, boxes were just tar files of VirtualBox exports. With Vagrant supporting multiple providers and versioning now, box files are slightly &hellip;">
+  <meta name="keywords" content="box, file, format, -, vagrant">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vagrant/boxes/format/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vagrant.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vagrant/" class="_nav-link" title="" style="margin-left:0;">Vagrant</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vagrant">
+				
+<h1 id="box-file-format">Box File Format</h1> <p>In the past, boxes were just <a href="https://en.wikipedia.org/wiki/Tar_(computing)" target="_blank">tar files</a> of VirtualBox exports. With Vagrant supporting multiple <a href="../../providers/">providers</a> and <a href="../versioning/">versioning</a> now, box files are slightly more complicated.</p> <p>Box files made for Vagrant 1.0.x (the VirtualBox export <code>tar</code> files) continue to work with Vagrant today. When Vagrant encounters one of these old boxes, it automatically updates it internally to the new format.</p> <p>Today, there are two different components:</p> <ul> <li>
+<p>Box File - This is a compressed (<code>tar</code>, <code>tar.gz</code>, <code>zip</code>) file that is specific to a single provider and can contain anything. Vagrant core does not ever use the contents of this file. Instead, they are passed to the provider. Therefore, a VirtualBox box file has different contents from a VMware box file and so on.</p> </li> <li>
+<p>Box Catalog Metadata - This is a JSON document (typically exchanged during interactions with <a href="../../other/atlas/">HashiCorp's Atlas</a>) that specifies the name of the box, a description, available versions, available providers, and URLs to the actual box files (next component) for each provider and version. If this catalog metadata does not exist, a box file can still be added directly, but it will not support versioning and updating.</p> </li> </ul> <p>Each component is covered in more detail below.</p> <h2 id="box-file">Box File</h2> <p>The actual box file is the required portion for Vagrant. It is recommended you always use a metadata file alongside a box file, but direct box files are supported for legacy reasons in Vagrant.</p> <p>Box files are compressed using <code>tar</code>, <code>tar.gz</code>, or <code>zip</code>. The contents of the archive can be anything, and is specific to each <a href="../../providers/">provider</a>. Vagrant core itself only unpacks the boxes for use later.</p> <p>Within the archive, Vagrant does expect a single file: <code>metadata.json</code>. This is a JSON file that is completely unrelated to the above box catalog metadata component; there is only one <code>metadata.json</code> per box file (inside the box file), whereas one catalog metadata JSON document can describe multiple versions of the same box, potentially spanning multiple providers.</p> <p><code>metadata.json</code> must contain at least the "provider" key with the provider the box is for. Vagrant uses this to verify the provider of the box. For example, if your box was for VirtualBox, the <code>metadata.json</code> would look like this:</p> <pre class="highlight json" data-language="ruby"><span class="p">{</span><span class="s2">"provider"</span><span class="p">:</span><span class="s2">"virtualbox"</span><span class="p">}</span></pre>
+<p>If there is no <code>metadata.json</code> file or the file does not contain valid JSON with at least a "provider" key, then Vagrant will error when adding the box, because it cannot verify the provider.</p> <p>Other keys/values may be added to the metadata without issue. The value of the metadata file is passed opaquely into Vagrant and plugins can make use of it. At this point, Vagrant core does not use any other keys in this file.</p> <h2 id="box-metadata">Box Metadata</h2> <p>The metadata is an optional component for a box (but highly recommended) that enables <a href="../versioning/">versioning</a>, updating, multiple providers from a single file, and more.</p> <div class="alert alert-block alert-info"> <p><strong>You do not need to manually make the metadata.</strong> If you have an account with <a href="../../other/atlas/">HashiCorp's Atlas</a>, you can create boxes there, and HashiCorp's Atlas automatically creates the metadata for you. The format is still documented here.</p> </div>
+<p>It is a JSON document, structured in the following way:</p> <pre class="highlight json" data-language="ruby"><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"hashicorp/precise64"</span><span class="p">,</span><span class="s2">"description"</span><span class="p">:</span><span class="s2">"This box contains Ubuntu 12.04 LTS 64-bit."</span><span class="p">,</span><span class="s2">"versions"</span><span class="p">:</span><span class="p">[</span><span class="p">{</span><span class="s2">"version"</span><span class="p">:</span><span class="s2">"0.1.0"</span><span class="p">,</span><span class="s2">"providers"</span><span class="p">:</span><span class="p">[</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"virtualbox"</span><span class="p">,</span><span class="s2">"url"</span><span class="p">:</span><span class="s2">"http://somewhere.com/precise64_010_virtualbox.box"</span><span class="p">,</span><span class="s2">"checksum_type"</span><span class="p">:</span><span class="s2">"sha1"</span><span class="p">,</span><span class="s2">"checksum"</span><span class="p">:</span><span class="s2">"foo"</span><span class="p">}</span><span class="p">]</span><span class="p">}</span><span class="p">]</span><span class="p">}</span></pre>
+<p>As you can see, the JSON document can describe multiple versions of a box, multiple providers, and can add/remove providers in different versions.</p> <p>This JSON file can be passed directly to <code>vagrant box add</code> from the local filesystem using a file path or via a URL, and Vagrant will install the proper version of the box. In this case, the value for the <code>url</code> key in the JSON can also be a file path. If multiple providers are available, Vagrant will ask what provider you want to use.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 Mitchell Hashimoto<br>Licensed under the MPL 2.0 License.<br>
+    <a href="https://www.vagrantup.com/docs/boxes/format.html" class="_attribution-link" target="_blank">https://www.vagrantup.com/docs/boxes/format.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Plugin Development&#58; Commands - Vagrant - W3cubDocs</title>
+  
+  <meta name="description" content="This page documents how to add new commands to Vagrant, invokable via vagrant YOUR-COMMAND. Prior to reading this, you should be familiar with the &hellip;">
+  <meta name="keywords" content="plugin, development, commands, -, vagrant">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/vagrant/plugins/commands/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/vagrant.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/vagrant/" class="_nav-link" title="" style="margin-left:0;">Vagrant</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _vagrant">
+				
+<h1 id="plugin-development-commands">Plugin Development: Commands</h1> <p>This page documents how to add new commands to Vagrant, invokable via <code>vagrant YOUR-COMMAND</code>. Prior to reading this, you should be familiar with the <a href="../development-basics/">plugin development basics</a>.</p> <div class="alert alert-warning"> <p><strong>Warning: Advanced Topic!</strong> Developing plugins is an advanced topic that only experienced Vagrant users who are reasonably comfortable with Ruby should approach.</p> </div> <h2 id="definition-component">Definition Component</h2> <p>Within the context of a plugin definition, new commands can be defined like so:</p> <pre class="highlight ruby" data-language="ruby"><span class="n">command</span> <span class="s2">"foo"</span> <span class="k">do</span>
+  <span class="nb">require_relative</span> <span class="s2">"command"</span>
+  <span class="no">Command</span>
+<span class="k">end</span>
+</pre>
+<p>Commands are defined with the <code>command</code> method, which takes as an argument the name of the command, in this case "foo." This means the command will be invokable via <code>vagrant foo</code>. Then the block argument returns a class that implements the <code>Vagrant.plugin(2, "command")</code> interface.</p> <p>You can also define <em>non-primary commands</em>. These commands do not show up in the <code>vagrant -h</code> output. They only show up if the user explicitly does a <code>vagrant list-commands</code> which shows the full listing of available commands. This is useful for highly specific commands or plugins that a beginner to Vagrant would not be using anyways. Vagrant itself uses non-primary commands to expose some internal functions, as well.</p> <p>To define a non-primary command:</p> <pre class="highlight ruby" data-language="ruby"><span class="n">command</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">,</span> <span class="ss">primary: </span><span class="kp">false</span><span class="p">)</span> <span class="k">do</span>
+  <span class="nb">require_relative</span> <span class="s2">"command"</span>
+  <span class="no">Command</span>
+<span class="k">end</span>
+</pre> <h2 id="implementation">Implementation</h2> <p>Implementations of commands should subclass <code>Vagrant.plugin(2, :command)</code>, which is a Vagrant method that will return the proper superclass for a version 2 command. The implementation itself is quite simple, since the class needs to only implement a single method: <code>execute</code>. Example:</p> <pre class="highlight ruby" data-language="ruby"><span class="k">class</span> <span class="nc">Command</span> <span class="o">&lt;</span> <span class="no">Vagrant</span><span class="p">.</span><span class="nf">plugin</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="ss">:command</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">execute</span>
+    <span class="nb">puts</span> <span class="s2">"Hello!"</span>
+    <span class="mi">0</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</pre>
+<p>The <code>execute</code> method is called when the command is invoked, and it should return the exit status (0 for success, anything else for error).</p> <p>This is a command at its simplest form. Of course, the command superclass gives you access to the Vagrant environment and provides some helpers to do common tasks such as command line parsing.</p> <h2 id="parsing-command-line-options">Parsing Command-Line Options</h2> <p>The <code>parse_options</code> method is available which will parse the command line for you. It takes an <a href="http://ruby-doc.org/stdlib-1.9.3/libdoc/optparse/rdoc/OptionParser.html" target="_blank">OptionParser</a> as an argument, and adds some common elements to it such as the <code>--help</code> flag, automatically showing help if requested. View the API docs directly for more information.</p> <p>This is recommended over raw parsing/manipulation of command line flags. The following is an example of parsing command line flags pulled directly from the built-in Vagrant <code>destroy</code> command:</p> <pre class="highlight ruby" data-language="ruby"><span class="n">options</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">options</span><span class="p">[</span><span class="ss">:force</span><span class="p">]</span> <span class="o">=</span> <span class="kp">false</span>
+
+<span class="n">opts</span> <span class="o">=</span> <span class="no">OptionParser</span><span class="p">.</span><span class="nf">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">o</span><span class="o">|</span>
+  <span class="n">o</span><span class="p">.</span><span class="nf">banner</span> <span class="o">=</span> <span class="s2">"Usage: vagrant destroy [vm-name]"</span>
+  <span class="n">o</span><span class="p">.</span><span class="nf">separator</span> <span class="s2">""</span>
+
+  <span class="n">o</span><span class="p">.</span><span class="nf">on</span><span class="p">(</span><span class="s2">"-f"</span><span class="p">,</span> <span class="s2">"--force"</span><span class="p">,</span> <span class="s2">"Destroy without confirmation."</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span>
+    <span class="n">options</span><span class="p">[</span><span class="ss">:force</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="c1"># Parse the options</span>
+<span class="n">argv</span> <span class="o">=</span> <span class="n">parse_options</span><span class="p">(</span><span class="n">opts</span><span class="p">)</span>
+</pre> <h2 id="using-vagrant-machines">Using Vagrant Machines</h2> <p>The <code>with_target_vms</code> method is a helper that helps you interact with the machines that Vagrant manages in a standard Vagrant way. This method automatically does the right thing in the case of multi-machine environments, handling target machines on the command line (<code>vagrant foo my-vm</code>), etc. If you need to do any manipulation of a Vagrant machine, including SSH access, this helper should be used.</p> <p>An example of using the helper, again pulled directly from the built-in <code>destroy</code> command:</p> <pre class="highlight ruby" data-language="ruby"><span class="n">with_target_vms</span><span class="p">(</span><span class="n">argv</span><span class="p">,</span> <span class="ss">reverse: </span><span class="kp">true</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">machine</span><span class="o">|</span>
+  <span class="n">machine</span><span class="p">.</span><span class="nf">action</span><span class="p">(</span><span class="ss">:destroy</span><span class="p">)</span>
+<span class="k">end</span>
+</pre>
+<p>In this case, it asks for the machines in reverse order and calls the destroy action on each of them. If a user says <code>vagrant destroy foo</code>, then the helper automatically only yields the <code>foo</code> machine. If no parameter is given and it is a multi-machine environment, every machine in the environment is yielded, and so on. It just does the right thing.</p> <h2 id="using-the-raw-vagrant-environment">Using the Raw Vagrant Environment</h2> <p>The raw loaded <code>Vagrant::Environment</code> object is available with the '@env' instance variable.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 Mitchell Hashimoto<br>Licensed under the MPL 2.0 License.<br>
+    <a href="https://www.vagrantup.com/docs/plugins/commands.html" class="_attribution-link" target="_blank">https://www.vagrantup.com/docs/plugins/commands.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
