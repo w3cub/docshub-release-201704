@@ -1,0 +1,138 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Port - Elixir 1.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" Functions for interacting with the external world through ports. ">
+  <meta name="keywords" content="port, summary, types, functions, -, elixir, elixir~1.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/elixir~1.4/port/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/elixir~1.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/elixir~1.4/" class="_nav-link" title="" style="margin-left:0;">Elixir 1.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Port  </h1>  <p>Functions for interacting with the external world through ports.</p> <p>Ports provide a mechanism to start operating system processes external to the Erlang VM and communicate with them via message passing.</p> <h2 id="module-example" class="section-heading">  Example </h2> <pre data-language="elixir"><code class="iex elixir">iex&gt; port = Port.open({:spawn, "cat"}, [:binary])
+iex&gt; send port, {self(), {:command, "hello"}}
+iex&gt; send port, {self(), {:command, "world"}}
+iex&gt; flush()
+{#Port&lt;0.1444&gt;, {:data, "hello"}}
+{#Port&lt;0.1444&gt;, {:data, "world"}}
+iex&gt; send port, {self(), :close}
+:ok
+iex&gt; flush()
+{#Port&lt;0.1464&gt;, :closed}
+:ok</code></pre> <p>In the example above, we have created a new port that executes the program <code class="inline">cat</code>. <code class="inline">cat</code> is a program available on UNIX systems that receives data from multiple inputs and concatenates them in the output.</p> <p>After the port was created, we sent it two commands in the form of messages using <a href="../kernel/#send/2"><code class="inline">Kernel.send/2</code></a>. The first command has the binary payload of “hello” and the second has “world”.</p> <p>After sending those two messages, we invoked the IEx helper <code class="inline">flush()</code>, which printed all messages received from the port, in this case we got “hello” and “world” back. Notice the messages are in binary because we passed the <code class="inline">:binary</code> option when opening the port in <a href="../port/#open/2"><code class="inline">Port.open/2</code></a>. Without such option, it would have yielded a list of bytes.</p> <p>Once everything was done, we closed the port.</p> <p>Elixir provides many conveniences for working with ports and some drawbacks. We will explore those below.</p> <h2 id="module-message-and-function-apis" class="section-heading">  Message and function APIs </h2> <p>There are two APIs for working with ports. It can be either asynchronous via message passing, as in the example above, or by calling the functions on this module.</p> <p>The messages supported by ports and their counterpart function APIs are listed below:</p> <ul> <li>
+<p><code class="inline">{pid, {:command, binary}}</code> - sends the given data to the port. See <a href="#command/3"><code class="inline">command/3</code></a>.</p> </li> <li>
+<p><code class="inline">{pid, :close}</code> - closes the port. Unless the port is already closed, the port will reply with <code class="inline">{port, :closed}</code> message once it has flushed its buffers and effectively closed. See <a href="#close/1"><code class="inline">close/1</code></a>.</p> </li> <li>
+<code class="inline">{pid, {:connect, new_pid}}</code> - sets the <code class="inline">new_pid</code> as the new owner of the port. Once a port is opened, the port is linked and connected to the caller process and communication to the port only happens through the connected process. This message makes <code class="inline">new_pid</code> the new connected processes. Unless the port is dead, the port will reply to the old owner with <code class="inline">{port, :connected}</code>. See <a href="#connect/2"><code class="inline">connect/2</code></a>. </li> </ul> <p>On its turn, the port will send the connected process the following messages:</p> <ul> <li>
+<code class="inline">{port, {:port, data}}</code> - data sent by the port </li> <li>
+<code class="inline">{port, :closed}</code> - reply to the <code class="inline">{pid, :close}</code> message </li> <li>
+<code class="inline">{port, :connected}</code> - reply to the <code class="inline">{pid, {:connect, new_pid}}</code> message </li> <li>
+<code class="inline">{:EXIT, port, reason}</code> - exit signals in case the port crashes and the owner process is trapping exits </li> </ul> <h2 id="module-open-mechanisms" class="section-heading">  Open mechanisms </h2> <p>The port can be opened through four main mechanisms.</p> <p>As a short summary, prefer to using the <code class="inline">:spawn</code> and <code class="inline">:spawn_executable</code> options mentioned below. The other two options, <code class="inline">:spawn_driver</code> and <code class="inline">:fd</code> are for advanced usage within the VM. Also consider using <a href="../system/#cmd/3"><code class="inline">System.cmd/3</code></a> if all you want is to execute a program and retrieve its return value.</p> <h3>spawn</h3> <p>The <code class="inline">:spawn</code> tuple receives a binary that is going to be executed as a full invocation. For example, we can use it to invoke “echo hello” directly:</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; port = Port.open({:spawn, "echo oops"}, [:binary])
+iex&gt; flush()
+{#Port&lt;0.1444&gt;, {:data, "oops\n"}}</code></pre> <p><code class="inline">:spawn</code> will retrieve the program name from the argument and traverse your OS <code class="inline">$PATH</code> environment variable looking for a matching program.</p> <p>Although the above is handy, it means it is impossible to invoke an executable that has whitespaces on its name or in any of its arguments. For those reasons, most times it is preferrable to execute <code class="inline">:spawn_executable</code>.</p> <h3>spawn_executable</h3> <p>Spawn executable is a more restricted and explicit version of spawn. It expects full file paths to the executable you want to execute. If they are in your <code class="inline">$PATH</code>, they can be retrieved by calling <a href="../system/#find_executable/1"><code class="inline">System.find_executable/1</code></a>:</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; path = System.find_executable("echo")
+iex&gt; port = Port.open({:spawn_executable, path}, [:binary, args: ["hello world"]])
+iex&gt; flush()
+{#Port&lt;0.1380&gt;, {:data, "hello world\n"}}</code></pre> <p>When using <code class="inline">:spawn_executable</code>, the list of arguments can be passed via the <code class="inline">:args</code> option as done above. For the full list of options, see the documentation for the Erlang function <code class="inline">:erlang.open_port/2</code>.</p> <h3>spawn_driver</h3> <p>Spawn driver is used to start Port Drivers, which are programs written in C that implements a specific communication protocols and are dynamically linked to the Erlang VM. Port drivers are an advanced topic and one of the mechanisms for integrating C code, alongside NIFs. For more information, <a href="http://erlang.org/doc/reference_manual/ports.html" target="_blank">please check the Erlang docs</a>.</p> <h3>fd</h3> <p>The <code class="inline">:fd</code> name option allows developers to access <code class="inline">in</code> and <code class="inline">out</code> file descriptors used by the Erlang VM. You would use those only if you are reimplementing core part of the Runtime System, such as the <code class="inline">:user</code> and <code class="inline">:shell</code> processes.</p> <h2 id="module-zombie-processes" class="section-heading">  Zombie processes </h2> <p>A port can be closed via the <a href="#close/1"><code class="inline">close/1</code></a> function or by sending a <code class="inline">{pid, :close}</code> message. However, if the VM crashes, a long-running program started by the port will have its stdin and stdout channels closed but <strong>it won’t be automatically terminated</strong>.</p> <p>While most UNIX command line tools will exit once its communication channels are closed, not all command line applications will do so. While we encourage graceful termination by detecting if stdin/stdout has been closed, we do not always have control over how 3rd party software terminates. In those cases, you can wrap the application in a script that checks for stdin. Here is such script in bash:</p> <pre data-language="elixir"><code class="elixir">#!/bin/sh
+"$@"
+pid=$!
+while read line ; do
+  :
+done
+kill -KILL $pid</code></pre> <p>Now instead of:</p> <pre data-language="elixir"><code class="elixir">Port.open({:spawn_executable, "/path/to/program"},
+          [args: ["a", "b", "c"]])</code></pre> <p>You may invoke:</p> <pre data-language="elixir"><code class="elixir">Port.open({:spawn_executable, "/path/to/wrapper"},
+          [args: ["/path/to/program", "a", "b", "c"]])</code></pre>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:name/0">name()</a> </dt>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#close/1">close(port)</a> </dt> <dd class="summary-synopsis">
+<p>Closes the <code class="inline">port</code></p> </dd>   <dt class="summary-signature"> <a href="#command/3">command(port, data, options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Sends <code class="inline">data</code> to the port driver <code class="inline">port</code></p> </dd>   <dt class="summary-signature"> <a href="#connect/2">connect(port, pid)</a> </dt> <dd class="summary-synopsis">
+<p>Associates the <code class="inline">port</code> identifier with a <code class="inline">pid</code></p> </dd>   <dt class="summary-signature"> <a href="#info/1">info(port)</a> </dt> <dd class="summary-synopsis">
+<p>Returns information about the <code class="inline">port</code> or <code class="inline">nil</code> if the port is closed</p> </dd>   <dt class="summary-signature"> <a href="#info/2">info(port, spec)</a> </dt> <dd class="summary-synopsis">
+<p>Returns information about the <code class="inline">port</code> or <code class="inline">nil</code> if the port is closed</p> </dd>   <dt class="summary-signature"> <a href="#list/0">list()</a> </dt> <dd class="summary-synopsis">
+<p>Returns a list of all ports in the current node</p> </dd>   <dt class="summary-signature"> <a href="#open/2">open(name, settings)</a> </dt> <dd class="summary-synopsis">
+<p>Opens a port given a tuple <code class="inline">name</code> and a list of <code class="inline">options</code></p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>   <h3 class="detail-header type" id="t:name/0">  <span class="signature">name()</span>     </h3>
+<pre data-language="elixir"><a href="#t:name/0">name</a> ::
+  {:spawn, charlist | binary} |
+  {:spawn_driver, charlist | binary} |
+  {:spawn_executable, charlist | atom} |
+  {:fd, non_neg_integer, non_neg_integer}</pre>       <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="close/1">  <span class="signature">close(port)</span>     </h3>
+<pre data-language="elixir">close(port) :: true</pre>  <p>Closes the <code class="inline">port</code>.</p> <p>For more information, see <a href="http://www.erlang.org/doc/man/erlang.html#port_close-1" target="_blank"><code class="inline">:erlang.port_close/1</code></a>.</p> <p>Inlined by the compiler.</p>     <h3 class="detail-header function" id="command/3">  <span class="signature">command(port, data, options \\ [])</span>     </h3>
+<pre data-language="elixir">command(port, iodata, [:force | :nosuspend]) :: boolean</pre>  <p>Sends <code class="inline">data</code> to the port driver <code class="inline">port</code>.</p> <p>For more information, see <a href="http://www.erlang.org/doc/man/erlang.html#port_command-2" target="_blank"><code class="inline">:erlang.port_command/2</code></a>.</p> <p>Inlined by the compiler.</p>    <h3 class="detail-header function" id="connect/2">  <span class="signature">connect(port, pid)</span>     </h3>
+<pre data-language="elixir">connect(port, pid) :: true</pre>  <p>Associates the <code class="inline">port</code> identifier with a <code class="inline">pid</code>.</p> <p>For more information, see <a href="http://www.erlang.org/doc/man/erlang.html#port_connect-2" target="_blank"><code class="inline">:erlang.port_connect/2</code></a>.</p> <p>Inlined by the compiler.</p>    <h3 class="detail-header function" id="info/1">  <span class="signature">info(port)</span>  </h3>  <p>Returns information about the <code class="inline">port</code> or <code class="inline">nil</code> if the port is closed.</p> <p>For more information, see <a href="http://www.erlang.org/doc/man/erlang.html#port_info-1" target="_blank"><code class="inline">:erlang.port_info/1</code></a>.</p>    <h3 class="detail-header function" id="info/2">  <span class="signature">info(port, spec)</span>     </h3>
+<pre data-language="elixir">info(port, atom) :: {atom, term} | nil</pre>  <p>Returns information about the <code class="inline">port</code> or <code class="inline">nil</code> if the port is closed.</p> <p>For more information, see <a href="http://www.erlang.org/doc/man/erlang.html#port_info-2" target="_blank"><code class="inline">:erlang.port_info/2</code></a>.</p>    <h3 class="detail-header function" id="list/0">  <span class="signature">list()</span>     </h3>
+<pre data-language="elixir">list() :: [port]</pre>  <p>Returns a list of all ports in the current node.</p> <p>Inlined by the compiler.</p>    <h3 class="detail-header function" id="open/2">  <span class="signature">open(name, settings)</span>     </h3>
+<pre data-language="elixir">open(<a href="#t:name/0">name</a>, list) :: port</pre>  <p>Opens a port given a tuple <code class="inline">name</code> and a list of <code class="inline">options</code>.</p> <p>The module documentation above contains documentation and examples for the supported <code class="inline">name</code> values, summarized below:</p> <ul> <li>
+<code class="inline">{:spawn, command}</code> - runs an external program. <code class="inline">command</code> must contain the program name and optionally a list of arguments separated by space. If passing programs or arguments with space in their name, use the next option. </li> <li>
+<code class="inline">{:spawn_executable, filename}</code> - runs the executable given by the absolute file name <code class="inline">filename</code>. Arguments can be passed via the <code class="inline">:args</code> option. </li> <li>
+<code class="inline">{:spawn_driver, command}</code> - spawns so-called port drivers. </li> <li>
+<code class="inline">{:fd, fd_in, fd_out}</code> - accesses file descriptors, <code class="inline">fd_in</code> and <code class="inline">fd_out</code> opened by the VM. </li> </ul> <p>For more information and the list of options, see <a href="http://www.erlang.org/doc/man/erlang.html#open_port-2" target="_blank"><code class="inline">:erlang.open_port/2</code></a>.</p> <p>Inlined by the compiler.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/elixir/1.4.1/Port.html" class="_attribution-link" target="_blank">https://hexdocs.pm/elixir/1.4.1/Port.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

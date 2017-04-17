@@ -1,0 +1,306 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>GenServer - Elixir 1.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" A behaviour module for implementing the server of a client-server relation. ">
+  <meta name="keywords" content="genserver, summary, types, functions, callbacks, -, elixir, elixir~1.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/elixir~1.4/genserver/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/elixir~1.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/elixir~1.4/" class="_nav-link" title="" style="margin-left:0;">Elixir 1.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  GenServer <small>behaviour</small>  </h1>  <p>A behaviour module for implementing the server of a client-server relation.</p> <p>A GenServer is a process like any other Elixir process and it can be used to keep state, execute code asynchronously and so on. The advantage of using a generic server process (GenServer) implemented using this module is that it will have a standard set of interface functions and include functionality for tracing and error reporting. It will also fit into a supervision tree.</p> <h2 id="module-example" class="section-heading">  Example </h2> <p>The GenServer behaviour abstracts the common client-server interaction. Developers are only required to implement the callbacks and functionality they are interested in.</p> <p>Let’s start with a code example and then explore the available callbacks. Imagine we want a GenServer that works like a stack, allowing us to push and pop items:</p> <pre data-language="elixir"><code class="elixir">defmodule Stack do
+  use GenServer
+
+  # Callbacks
+
+  def handle_call(:pop, _from, [h | t]) do
+    {:reply, h, t}
+  end
+
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item | state]}
+  end
+end
+
+# Start the server
+{:ok, pid} = GenServer.start_link(Stack, [:hello])
+
+# This is the client
+GenServer.call(pid, :pop)
+#=&gt; :hello
+
+GenServer.cast(pid, {:push, :world})
+#=&gt; :ok
+
+GenServer.call(pid, :pop)
+#=&gt; :world</code></pre> <p>We start our <code class="inline">Stack</code> by calling <a href="#start_link/3"><code class="inline">start_link/3</code></a>, passing the module with the server implementation and its initial argument (a list representing the stack containing the item <code class="inline">:hello</code>). We can primarily interact with the server by sending two types of messages. <strong>call</strong> messages expect a reply from the server (and are therefore synchronous) while <strong>cast</strong> messages do not.</p> <p>Every time you do a <a href="../genserver/#call/3"><code class="inline">GenServer.call/3</code></a>, the client will send a message that must be handled by the <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a> callback in the GenServer. A <a href="#cast/2"><code class="inline">cast/2</code></a> message must be handled by <a href="#c:handle_cast/2"><code class="inline">handle_cast/2</code></a>.</p> <h2 id="module-callbacks" class="section-heading">  Callbacks </h2> <p>There are 6 callbacks required to be implemented in a <a href="../genserver/#content"><code class="inline">GenServer</code></a>. By adding <code class="inline">use GenServer</code> to your module, Elixir will automatically define all 6 callbacks for you, leaving it up to you to implement the ones you want to customize.</p> <h2 id="module-name-registration" class="section-heading">  Name Registration </h2> <p>Both <a href="#start_link/3"><code class="inline">start_link/3</code></a> and <a href="#start/3"><code class="inline">start/3</code></a> support the <a href="../genserver/#content"><code class="inline">GenServer</code></a> to register a name on start via the <code class="inline">:name</code> option. Registered names are also automatically cleaned up on termination. The supported values are:</p> <ul> <li>
+<p>an atom - the GenServer is registered locally with the given name using <a href="../process/#register/2"><code class="inline">Process.register/2</code></a>.</p> </li> <li>
+<p><code class="inline">{:global, term}</code>- the GenServer is registered globally with the given term using the functions in the <code class="inline">:global</code> module.</p> </li> <li>
+<code class="inline">{:via, module, term}</code> - the GenServer is registered with the given mechanism and name. The <code class="inline">:via</code> option expects a module that exports <code class="inline">register_name/2</code>, <code class="inline">unregister_name/1</code>, <code class="inline">whereis_name/1</code> and <code class="inline">send/2</code>. One such example is the <code class="inline">:global</code> module which uses these functions for keeping the list of names of processes and their associated PIDs that are available globally for a network of Elixir nodes. Elixir also ships with a local, decentralized and scalable registry called <a href="../registry/"><code class="inline">Registry</code></a> for locally storing names that are generated dynamically. </li> </ul> <p>For example, we could start and register our <code class="inline">Stack</code> server locally as follows:</p> <pre data-language="elixir"><code class="elixir"># Start the server and register it locally with name MyStack
+{:ok, _} = GenServer.start_link(Stack, [:hello], name: MyStack)
+
+# Now messages can be sent directly to MyStack
+GenServer.call(MyStack, :pop) #=&gt; :hello</code></pre> <p>Once the server is started, the remaining functions in this module (<a href="#call/3"><code class="inline">call/3</code></a>, <a href="#cast/2"><code class="inline">cast/2</code></a>, and friends) will also accept an atom, or any <code class="inline">:global</code> or <code class="inline">:via</code> tuples. In general, the following formats are supported:</p> <ul> <li>a <code class="inline">pid</code> </li> <li>an <code class="inline">atom</code> if the server is locally registered </li> <li>
+<code class="inline">{atom, node}</code> if the server is locally registered at another node </li> <li>
+<code class="inline">{:global, term}</code> if the server is globally registered </li> <li>
+<code class="inline">{:via, module, name}</code> if the server is registered through an alternative registry </li> </ul> <p>If there is an interest to register dynamic names locally, do not use atoms, as atoms are never garbage collected and therefore dynamically generated atoms won’t be garbage collected. For such cases, you can set up your own local registry by using the <a href="../registry/"><code class="inline">Registry</code></a> module.</p> <h2 id="module-client-server-apis" class="section-heading">  Client / Server APIs </h2> <p>Although in the example above we have used <a href="../genserver/#start_link/3"><code class="inline">GenServer.start_link/3</code></a> and friends to directly start and communicate with the server, most of the time we don’t call the <a href="../genserver/#content"><code class="inline">GenServer</code></a> functions directly. Instead, we wrap the calls in new functions representing the public API of the server.</p> <p>Here is a better implementation of our Stack module:</p> <pre data-language="elixir"><code class="elixir">defmodule Stack do
+  use GenServer
+
+  # Client
+
+  def start_link(default) do
+    GenServer.start_link(__MODULE__, default)
+  end
+
+  def push(pid, item) do
+    GenServer.cast(pid, {:push, item})
+  end
+
+  def pop(pid) do
+    GenServer.call(pid, :pop)
+  end
+
+  # Server (callbacks)
+
+  def handle_call(:pop, _from, [h | t]) do
+    {:reply, h, t}
+  end
+
+  def handle_call(request, from, state) do
+    # Call the default implementation from GenServer
+    super(request, from, state)
+  end
+
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item | state]}
+  end
+
+  def handle_cast(request, state) do
+    super(request, state)
+  end
+end</code></pre> <p>In practice, it is common to have both server and client functions in the same module. If the server and/or client implementations are growing complex, you may want to have them in different modules.</p> <h2 id="module-receiving-regular-messages" class="section-heading">  Receiving “regular” messages </h2> <p>The goal of a <a href="../genserver/#content"><code class="inline">GenServer</code></a> is to abstract the “receive” loop for developers, automatically handling system messages, support code change, synchronous calls and more. Therefore, you should never call your own “receive” inside the GenServer callbacks as doing so will cause the GenServer to misbehave.</p> <p>Besides the synchronous and asynchronous communication provided by <a href="#call/3"><code class="inline">call/3</code></a> and <a href="#cast/2"><code class="inline">cast/2</code></a>, “regular” messages sent by functions such <a href="../kernel/#send/2"><code class="inline">Kernel.send/2</code></a>, <a href="../process/#send_after/4"><code class="inline">Process.send_after/4</code></a> and similar, can be handled inside the <a href="#c:handle_info/2"><code class="inline">handle_info/2</code></a> callback.</p> <p><a href="#c:handle_info/2"><code class="inline">handle_info/2</code></a> can be used in many situations, such as handling monitor DOWN messages sent by <a href="../process/#monitor/1"><code class="inline">Process.monitor/1</code></a>. Another use case for <a href="#c:handle_info/2"><code class="inline">handle_info/2</code></a> is to perform periodic work, with the help of <a href="../process/#send_after/4"><code class="inline">Process.send_after/4</code></a>:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.Periodically do
+  use GenServer
+
+  def start_link do
+    GenServer.start_link(__MODULE__, %{})
+  end
+
+  def init(state) do
+    schedule_work() # Schedule work to be performed on start
+    {:ok, state}
+  end
+
+  def handle_info(:work, state) do
+    # Do the desired work here
+    schedule_work() # Reschedule once more
+    {:noreply, state}
+  end
+
+  defp schedule_work() do
+    Process.send_after(self(), :work, 2 * 60 * 60 * 1000) # In 2 hours
+  end
+end</code></pre> <h2 id="module-debugging-with-the-sys-module" class="section-heading">  Debugging with the :sys module </h2> <p>GenServers, as <a href="http://erlang.org/doc/design_principles/spec_proc.html" target="_blank">special processes</a>, can be debugged using the <code class="inline">:sys</code> module. Through various hooks, this module allows developers to introspect the state of the process and trace system events that happen during its execution, such as received messages, sent replies and state changes.</p> <p>Let’s explore the basic functions from the <code class="inline">:sys</code> module used for debugging:</p> <ul> <li>
+<a href="http://erlang.org/doc/man/sys.html#get_state-2" target="_blank"><code class="inline">:sys.get_state/2</code></a> - allows retrieval of the state of the process. In the case of a GenServer process, it will be the callback module state, as passed into the callback functions as last argument. </li> <li>
+<a href="http://erlang.org/doc/man/sys.html#get_status-2" target="_blank"><code class="inline">:sys.get_status/2</code></a> - allows retrieval of the status of the process. This status includes the process dictionary, if the process is running or is suspended, the parent PID, the debugger state, and the state of the behaviour module, which includes the callback module state (as returned by <code class="inline">:sys.get_state/2</code>). It’s possible to change how this status is represented by defining the optional <a href="../genserver/#c:format_status/2"><code class="inline">GenServer.format_status/2</code></a> callback. </li> <li>
+<a href="http://erlang.org/doc/man/sys.html#trace-3" target="_blank"><code class="inline">:sys.trace/3</code></a> - prints all the system events to <code class="inline">:stdio</code>. </li> <li>
+<a href="http://erlang.org/doc/man/sys.html#statistics-3" target="_blank"><code class="inline">:sys.statistics/3</code></a> - manages collection of process statistics. </li> <li>
+<a href="http://erlang.org/doc/man/sys.html#no_debug-2" target="_blank"><code class="inline">:sys.no_debug/2</code></a> - turns off all debug handlers for the given process. It is very important to switch off debugging once we’re done. Excessive debug handlers or those that should be turned off, but weren’t, can seriously damage the performance of the system. </li> </ul> <p>Let’s see how we could use those functions for debugging the stack server we defined earlier.</p> <pre data-language="elixir"><code class="iex elixir">iex&gt; {:ok, pid} = Stack.start_link([])
+iex&gt; :sys.statistics(pid, true) # turn on collecting process statistics
+iex&gt; :sys.trace(pid, true) # turn on event printing
+iex&gt; Stack.push(pid, 1)
+*DBG* &lt;0.122.0&gt; got cast {push,1}
+*DBG* &lt;0.122.0&gt; new state [1]
+:ok
+iex&gt; :sys.get_state(pid)
+[1]
+iex&gt; Stack.pop(pid)
+*DBG* &lt;0.122.0&gt; got call pop from &lt;0.80.0&gt;
+*DBG* &lt;0.122.0&gt; sent 1 to &lt;0.80.0&gt;, new state []
+1
+iex&gt; :sys.statistics(pid, :get)
+{:ok,
+ [start_time: {{2016, 7, 16}, {12, 29, 41}},
+  current_time: {{2016, 7, 16}, {12, 29, 50}},
+  reductions: 117, messages_in: 2, messages_out: 0]}
+iex&gt; :sys.no_debug(pid) # turn off all debug handlers
+:ok
+iex&gt; :sys.get_status(pid)
+{:status, #PID&lt;0.122.0&gt;, {:module, :gen_server},
+ [["$initial_call": {Stack, :init, 1},            # pdict
+   "$ancestors": [#PID&lt;0.80.0&gt;, #PID&lt;0.51.0&gt;]],
+  :running,                                       # :running | :suspended
+  #PID&lt;0.80.0&gt;,                                   # parent
+  [],                                             # debugger state
+  [header: 'Status for generic server &lt;0.122.0&gt;', # module status
+   data: [{'Status', :running}, {'Parent', #PID&lt;0.80.0&gt;},
+     {'Logged events', []}], data: [{'State', [1]}]]]}</code></pre> <h2 id="module-learn-more" class="section-heading">  Learn more </h2> <p>If you wish to find out more about gen servers, the Elixir Getting Started guide provides a tutorial-like introduction. The documentation and links in Erlang can also provide extra insight.</p> <ul> <li>
+<a href="http://elixir-lang.org/getting-started/mix-otp/genserver.html" target="_blank">GenServer – Elixir’s Getting Started Guide</a> </li> <li>
+<a href="http://www.erlang.org/doc/man/gen_server.html" target="_blank"><code class="inline">:gen_server</code> module documentation</a> </li> <li>
+<a href="http://www.erlang.org/doc/design_principles/gen_server_concepts.html" target="_blank">gen_server Behaviour – OTP Design Principles</a> </li> <li>
+<a href="http://learnyousomeerlang.com/clients-and-servers" target="_blank">Clients and Servers – Learn You Some Erlang for Great Good!</a> </li> </ul>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:debug/0">debug()</a> </dt> <dd class="summary-synopsis">
+<p>Debug options supported by the <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:from/0">from()</a> </dt> <dd class="summary-synopsis">
+<p>Tuple describing the client of a call request</p> </dd>   <dt class="summary-signature"> <a href="#t:name/0">name()</a> </dt> <dd class="summary-synopsis">
+<p>The GenServer name</p> </dd>   <dt class="summary-signature"> <a href="#t:on_start/0">on_start()</a> </dt> <dd class="summary-synopsis">
+<p>Return values of <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:option/0">option()</a> </dt> <dd class="summary-synopsis">
+<p>Option values used by the <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:options/0">options()</a> </dt> <dd class="summary-synopsis">
+<p>Options used by the <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:server/0">server()</a> </dt> <dd class="summary-synopsis">
+<p>The server reference</p> </dd>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#abcast/3">abcast(nodes \\ [node() | Node.list()], name, request)</a> </dt> <dd class="summary-synopsis">
+<p>Casts all servers locally registered as <code class="inline">name</code> at the specified nodes</p> </dd>   <dt class="summary-signature"> <a href="#call/3">call(server, request, timeout \\ 5000)</a> </dt> <dd class="summary-synopsis">
+<p>Makes a synchronous call to the <code class="inline">server</code> and waits for its reply</p> </dd>   <dt class="summary-signature"> <a href="#cast/2">cast(server, request)</a> </dt> <dd class="summary-synopsis">
+<p>Sends an asynchronous request to the <code class="inline">server</code></p> </dd>   <dt class="summary-signature"> <a href="#multi_call/4">multi_call(nodes \\ [node() | Node.list()], name, request, timeout \\ :infinity)</a> </dt> <dd class="summary-synopsis">
+<p>Calls all servers locally registered as <code class="inline">name</code> at the specified <code class="inline">nodes</code></p> </dd>   <dt class="summary-signature"> <a href="#reply/2">reply(client, reply)</a> </dt> <dd class="summary-synopsis">
+<p>Replies to a client</p> </dd>   <dt class="summary-signature"> <a href="#start/3">start(module, args, options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Starts a <a href="../genserver/#content"><code class="inline">GenServer</code></a> process without links (outside of a supervision tree)</p> </dd>   <dt class="summary-signature"> <a href="#start_link/3">start_link(module, args, options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Starts a <a href="../genserver/#content"><code class="inline">GenServer</code></a> process linked to the current process</p> </dd>   <dt class="summary-signature"> <a href="#stop/3">stop(server, reason \\ :normal, timeout \\ :infinity)</a> </dt> <dd class="summary-synopsis">
+<p>Stops the server with the given <code class="inline">reason</code></p> </dd>   <dt class="summary-signature"> <a href="#whereis/1">whereis(pid)</a> </dt> <dd class="summary-synopsis">
+<p>Returns the <code class="inline">pid</code> or <code class="inline">{name, node}</code> of a GenServer process, or <code class="inline">nil</code> if no process is associated with the given name</p> </dd>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:code_change/3">code_change(old_vsn, state, extra)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to change the state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> when a different version of a module is loaded (hot code swapping) and the state’s term structure should be changed</p> </dd>   <dt class="summary-signature"> <a href="#c:format_status/2">format_status(reason, pdict_and_state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked in some cases to retrieve a formatted version of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> status</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_call/3">handle_call(request, from, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle synchronous <a href="#call/3"><code class="inline">call/3</code></a> messages. <a href="#call/3"><code class="inline">call/3</code></a> will block until a reply is received (unless the call times out or nodes are disconnected)</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_cast/2">handle_cast(request, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle asynchronous <a href="#cast/2"><code class="inline">cast/2</code></a> messages</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_info/2">handle_info(msg, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle all other messages</p> </dd>   <dt class="summary-signature"> <a href="#c:init/1">init(args)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked when the server is started. <a href="#start_link/3"><code class="inline">start_link/3</code></a> or <a href="#start/3"><code class="inline">start/3</code></a> will block until it returns</p> </dd>   <dt class="summary-signature"> <a href="#c:terminate/2">terminate(reason, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked when the server is about to exit. It should do any cleanup required</p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>   <h3 class="detail-header type" id="t:debug/0">  <span class="signature">debug()</span>     </h3>
+<pre data-language="elixir">debug() :: [:trace | :log | :statistics | {:log_to_file, <a href="../path/#t:t/0">Path.t</a>}]</pre>  <p>Debug options supported by the <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:from/0">  <span class="signature">from()</span>     </h3>
+<pre data-language="elixir">from() :: {pid, tag :: term}</pre>  <p>Tuple describing the client of a call request.</p> <p><code class="inline">pid</code> is the PID of the caller and <code class="inline">tag</code> is a unique term used to identify the call.</p>    <h3 class="detail-header type" id="t:name/0">  <span class="signature">name()</span>     </h3>
+<pre data-language="elixir">name() :: atom | {:global, term} | {:via, module, term}</pre>  <p>The GenServer name</p>    <h3 class="detail-header type" id="t:on_start/0">  <span class="signature">on_start()</span>     </h3>
+<pre data-language="elixir"><a href="#t:on_start/0">on_start</a> ::
+  {:ok, pid} |
+  :ignore |
+  {:error, {:already_started, pid} | term}</pre>  <p>Return values of <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:option/0">  <span class="signature">option()</span>     </h3>
+<pre data-language="elixir"><a href="#t:option/0">option</a> ::
+  {:debug, <a href="#t:debug/0">debug</a>} |
+  {:name, <a href="#t:name/0">name</a>} |
+  {:timeout, timeout} |
+  {:spawn_opt, <a href="../process/#t:spawn_opt/0">Process.spawn_opt</a>}</pre>  <p>Option values used by the <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:options/0">  <span class="signature">options()</span>     </h3>
+<pre data-language="elixir">options() :: [<a href="#t:option/0">option</a>]</pre>  <p>Options used by the <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:server/0">  <span class="signature">server()</span>     </h3>
+<pre data-language="elixir">server() :: pid | <a href="#t:name/0">name</a> | {atom, node}</pre>  <p>The server reference</p>      <h1 class="section-heading" id="functions">  Functions </h1>   <h3 class="detail-header function" id="abcast/3">  <span class="signature">abcast(nodes \\ [node() | Node.list()], name, request)</span>     </h3>
+<pre data-language="elixir">abcast([node], name :: atom, term) :: :abcast</pre>  <p>Casts all servers locally registered as <code class="inline">name</code> at the specified nodes.</p> <p>This function returns immediately and ignores nodes that do not exist, or where the server name does not exist.</p> <p>See <a href="#multi_call/4"><code class="inline">multi_call/4</code></a> for more information.</p>     <h3 class="detail-header function" id="call/3">  <span class="signature">call(server, request, timeout \\ 5000)</span>     </h3>
+<pre data-language="elixir">call(<a href="#t:server/0">server</a>, term, timeout) :: term</pre>  <p>Makes a synchronous call to the <code class="inline">server</code> and waits for its reply.</p> <p>The client sends the given <code class="inline">request</code> to the server and waits until a reply arrives or a timeout occurs. <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a> will be called on the server to handle the request.</p> <p><code class="inline">server</code> can be any of the values described in the “Name registration” section of the documentation for this module.</p> <h4 id="call/3-timeouts" class="section-heading">  Timeouts </h4> <p><code class="inline">timeout</code> is an integer greater than zero which specifies how many milliseconds to wait for a reply, or the atom <code class="inline">:infinity</code> to wait indefinitely. The default value is <code class="inline">5000</code>. If no reply is received within the specified time, the function call fails and the caller exits. If the caller catches the failure and continues running, and the server is just late with the reply, it may arrive at any time later into the caller’s message queue. The caller must in this case be prepared for this and discard any such garbage messages that are two-element tuples with a reference as the first element.</p>    <h3 class="detail-header function" id="cast/2">  <span class="signature">cast(server, request)</span>     </h3>
+<pre data-language="elixir">cast(<a href="#t:server/0">server</a>, term) :: :ok</pre>  <p>Sends an asynchronous request to the <code class="inline">server</code>.</p> <p>This function always returns <code class="inline">:ok</code> regardless of whether the destination <code class="inline">server</code> (or node) exists. Therefore it is unknown whether the destination <code class="inline">server</code> successfully handled the message.</p> <p><a href="#c:handle_cast/2"><code class="inline">handle_cast/2</code></a> will be called on the server to handle the request. In case the <code class="inline">server</code> is on a node which is not yet connected to the caller one, the call is going to block until a connection happens. This is different than the behaviour in OTP’s <code class="inline">:gen_server</code> where the message is sent by another process in this case, which could cause messages to other nodes to arrive out of order.</p>      <h3 class="detail-header function" id="multi_call/4">  <span class="signature">multi_call(nodes \\ [node() | Node.list()], name, request, timeout \\ :infinity)</span>     </h3>
+<pre data-language="elixir">multi_call([node], name :: atom, term, timeout) :: {replies :: [{node, term}], bad_nodes :: [node]}</pre>  <p>Calls all servers locally registered as <code class="inline">name</code> at the specified <code class="inline">nodes</code>.</p> <p>First, the <code class="inline">request</code> is sent to every node in <code class="inline">nodes</code>; then, the caller waits for the replies. This function returns a two-element tuple <code class="inline">{replies,
+bad_nodes}</code> where:</p> <ul> <li>
+<code class="inline">replies</code> - is a list of <code class="inline">{node, reply}</code> tuples where <code class="inline">node</code> is the node that replied and <code class="inline">reply</code> is its reply </li> <li>
+<code class="inline">bad_nodes</code> - is a list of nodes that either did not exist or where a server with the given <code class="inline">name</code> did not exist or did not reply </li> </ul> <p><code class="inline">nodes</code> is a list of node names to which the request is sent. The default value is the list of all known nodes (including this node).</p> <p>To avoid that late answers (after the timeout) pollute the caller’s message queue, a middleman process is used to do the actual calls. Late answers will then be discarded when they arrive to a terminated process.</p> <h4 id="multi_call/4-examples" class="section-heading">  Examples </h4> <p>Assuming the <code class="inline">Stack</code> GenServer mentioned in the docs for the <a href="../genserver/#content"><code class="inline">GenServer</code></a> module is registered as <code class="inline">Stack</code> in the <code class="inline">:"foo@my-machine"</code> and <code class="inline">:"bar@my-machine"</code> nodes:</p> <pre data-language="elixir"><code class="elixir">GenServer.multi_call(Stack, :pop)
+#=&gt; {[{:"foo@my-machine", :hello}, {:"bar@my-machine", :world}], []}</code></pre>    <h3 class="detail-header function" id="reply/2">  <span class="signature">reply(client, reply)</span>     </h3>
+<pre data-language="elixir">reply(<a href="#t:from/0">from</a>, term) :: :ok</pre>  <p>Replies to a client.</p> <p>This function can be used to explicitly send a reply to a client that called <a href="#call/3"><code class="inline">call/3</code></a> or <a href="#multi_call/4"><code class="inline">multi_call/4</code></a> when the reply cannot be specified in the return value of <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a>.</p> <p><code class="inline">client</code> must be the <code class="inline">from</code> argument (the second argument) accepted by <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a> callbacks. <code class="inline">reply</code> is an arbitrary term which will be given back to the client as the return value of the call.</p> <p>Note that <a href="#reply/2"><code class="inline">reply/2</code></a> can be called from any process, not just the GenServer that originally received the call (as long as that GenServer communicated the <code class="inline">from</code> argument somehow).</p> <p>This function always returns <code class="inline">:ok</code>.</p> <h4 id="reply/2-examples" class="section-heading">  Examples </h4> <pre data-language="elixir"><code class="elixir">def handle_call(:reply_in_one_second, from, state) do
+  Process.send_after(self(), {:reply, from}, 1_000)
+  {:noreply, state}
+end
+
+def handle_info({:reply, from}, state) do
+  GenServer.reply(from, :one_second_has_passed)
+  {:noreply, state}
+end</code></pre>     <h3 class="detail-header function" id="start/3">  <span class="signature">start(module, args, options \\ [])</span>     </h3>
+<pre data-language="elixir">start(module, any, <a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts a <a href="../genserver/#content"><code class="inline">GenServer</code></a> process without links (outside of a supervision tree).</p> <p>See <a href="#start_link/3"><code class="inline">start_link/3</code></a> for more information.</p>     <h3 class="detail-header function" id="start_link/3">  <span class="signature">start_link(module, args, options \\ [])</span>     </h3>
+<pre data-language="elixir">start_link(module, any, <a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts a <a href="../genserver/#content"><code class="inline">GenServer</code></a> process linked to the current process.</p> <p>This is often used to start the <a href="../genserver/#content"><code class="inline">GenServer</code></a> as part of a supervision tree.</p> <p>Once the server is started, the <a href="#c:init/1"><code class="inline">init/1</code></a> function of the given <code class="inline">module</code> is called with <code class="inline">args</code> as its arguments to initialize the server. To ensure a synchronized start-up procedure, this function does not return until <a href="#c:init/1"><code class="inline">init/1</code></a> has returned.</p> <p>Note that a <a href="../genserver/#content"><code class="inline">GenServer</code></a> started with <a href="#start_link/3"><code class="inline">start_link/3</code></a> is linked to the parent process and will exit in case of crashes from the parent. The GenServer will also exit due to the <code class="inline">:normal</code> reasons in case it is configured to trap exits in the <a href="#c:init/1"><code class="inline">init/1</code></a> callback.</p> <h4 id="start_link/3-options" class="section-heading">  Options </h4> <ul> <li>
+<p><code class="inline">:name</code> - used for name registration as described in the “Name registration” section of the module documentation</p> </li> <li>
+<p><code class="inline">:timeout</code> - if present, the server is allowed to spend the given amount of milliseconds initializing or it will be terminated and the start function will return <code class="inline">{:error, :timeout}</code></p> </li> <li>
+<p><code class="inline">:debug</code> - if present, the corresponding function in the <a href="http://www.erlang.org/doc/man/sys.html" target="_blank"><code class="inline">:sys</code> module</a> is invoked</p> </li> <li>
+<code class="inline">:spawn_opt</code> - if present, its value is passed as options to the underlying process as in <a href="../process/#spawn/4"><code class="inline">Process.spawn/4</code></a> </li> </ul> <h4 id="start_link/3-return-values" class="section-heading">  Return values </h4> <p>If the server is successfully created and initialized, this function returns <code class="inline">{:ok, pid}</code>, where <code class="inline">pid</code> is the PID of the server. If a process with the specified server name already exists, this function returns <code class="inline">{:error, {:already_started, pid}}</code> with the PID of that process.</p> <p>If the <a href="#c:init/1"><code class="inline">init/1</code></a> callback fails with <code class="inline">reason</code>, this function returns <code class="inline">{:error, reason}</code>. Otherwise, if it returns <code class="inline">{:stop, reason}</code> or <code class="inline">:ignore</code>, the process is terminated and this function returns <code class="inline">{:error, reason}</code> or <code class="inline">:ignore</code>, respectively.</p>      <h3 class="detail-header function" id="stop/3">  <span class="signature">stop(server, reason \\ :normal, timeout \\ :infinity)</span>     </h3>
+<pre data-language="elixir">stop(<a href="#t:server/0">server</a>, reason :: term, timeout) :: :ok</pre>  <p>Stops the server with the given <code class="inline">reason</code>.</p> <p>The <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> callback of the given <code class="inline">server</code> will be invoked before exiting. This function returns <code class="inline">:ok</code> if the server terminates with the given reason; if it terminates with another reason, the call exits.</p> <p>This function keeps OTP semantics regarding error reporting. If the reason is any other than <code class="inline">:normal</code>, <code class="inline">:shutdown</code> or <code class="inline">{:shutdown, _}</code>, an error report is logged.</p>    <h3 class="detail-header function" id="whereis/1">  <span class="signature">whereis(pid)</span>     </h3>
+<pre data-language="elixir">whereis(<a href="#t:server/0">server</a>) :: pid | {atom, node} | nil</pre>  <p>Returns the <code class="inline">pid</code> or <code class="inline">{name, node}</code> of a GenServer process, or <code class="inline">nil</code> if no process is associated with the given name.</p> <h4 id="whereis/1-examples" class="section-heading">  Examples </h4> <p>For example, to lookup a server process, monitor it and send a cast to it:</p> <pre data-language="elixir"><code class="elixir">process = GenServer.whereis(server)
+monitor = Process.monitor(process)
+GenServer.cast(process, :hello)</code></pre>     <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:code_change/3">  <span class="signature">code_change(old_vsn, state, extra)</span>     </h3>
+<pre data-language="elixir">code_change(old_vsn, state :: term, extra :: term) ::
+  {:ok, new_state :: term} |
+  {:error, reason :: term} when old_vsn: term | {:down, term}</pre>  <p>Invoked to change the state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> when a different version of a module is loaded (hot code swapping) and the state’s term structure should be changed.</p> <p><code class="inline">old_vsn</code> is the previous version of the module (defined by the <code class="inline">@vsn</code> attribute) when upgrading. When downgrading the previous version is wrapped in a 2-tuple with first element <code class="inline">:down</code>. <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> and <code class="inline">extra</code> is any extra data required to change the state.</p> <p>Returning <code class="inline">{:ok, new_state}</code> changes the state to <code class="inline">new_state</code> and the code change is successful.</p> <p>Returning <code class="inline">{:error, reason}</code> fails the code change with reason <code class="inline">reason</code> and the state remains as the previous state.</p> <p>If <a href="#c:code_change/3"><code class="inline">code_change/3</code></a> raises the code change fails and the loop will continue with its previous state. Therefore this callback does not usually contain side effects.</p>    <h3 class="detail-header callback" id="c:format_status/2">  <span class="signature">format_status(reason, pdict_and_state)</span>  <span class="note">(optional)</span>    </h3>
+<pre data-language="elixir">format_status(reason, pdict_and_state :: list) :: term when reason: :normal | :terminate</pre>  <p>Invoked in some cases to retrieve a formatted version of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> status.</p> <p>This callback can be useful to control the <em>appearance</em> of the status of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>. For example, it can be used to return a compact representation of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>’s state to avoid having large state terms printed.</p> <ul> <li>
+<p>one of <code class="inline">:sys.get_status/1</code> or <code class="inline">:sys.get_status/2</code> is invoked to get the status of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>; in such cases, <code class="inline">reason</code> is <code class="inline">:normal</code></p> </li> <li>the <a href="../genserver/#content"><code class="inline">GenServer</code></a> terminates abnormally and logs an error; in such cases, <code class="inline">reason</code> is <code class="inline">:terminate</code> </li> </ul> <p><code class="inline">pdict_and_state</code> is a two-elements list <code class="inline">[pdict, state]</code> where <code class="inline">pdict</code> is a list of <code class="inline">{key, value}</code> tuples representing the current process dictionary of the <a href="../genserver/#content"><code class="inline">GenServer</code></a> and <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>.</p>    <h3 class="detail-header callback" id="c:handle_call/3">  <span class="signature">handle_call(request, from, state)</span>     </h3>
+<pre data-language="elixir">handle_call(request :: term, <a href="#t:from/0">from</a>, state :: term) ::
+  {:reply, reply, new_state} |
+  {:reply, reply, new_state, timeout | :hibernate} |
+  {:noreply, new_state} |
+  {:noreply, new_state, timeout | :hibernate} |
+  {:stop, reason, reply, new_state} |
+  {:stop, reason, new_state} when reply: term, new_state: term, reason: term</pre>  <p>Invoked to handle synchronous <a href="#call/3"><code class="inline">call/3</code></a> messages. <a href="#call/3"><code class="inline">call/3</code></a> will block until a reply is received (unless the call times out or nodes are disconnected).</p> <p><code class="inline">request</code> is the request message sent by a <a href="#call/3"><code class="inline">call/3</code></a>, <code class="inline">from</code> is a 2-tuple containing the caller’s PID and a term that uniquely identifies the call, and <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>.</p> <p>Returning <code class="inline">{:reply, reply, new_state}</code> sends the response <code class="inline">reply</code> to the caller and continues the loop with new state <code class="inline">new_state</code>.</p> <p>Returning <code class="inline">{:reply, reply, new_state, timeout}</code> is similar to <code class="inline">{:reply, reply, new_state}</code> except <code class="inline">handle_info(:timeout, new_state)</code> will be called after <code class="inline">timeout</code> milliseconds if no messages are received.</p> <p>Returning <code class="inline">{:reply, reply, new_state, :hibernate}</code> is similar to <code class="inline">{:reply, reply, new_state}</code> except the process is hibernated and will continue the loop once a message is in its message queue. If a message is already in the message queue this will be immediately. Hibernating a <a href="../genserver/#content"><code class="inline">GenServer</code></a> causes garbage collection and leaves a continuous heap that minimises the memory used by the process.</p> <p>Hibernating should not be used aggressively as too much time could be spent garbage collecting. Normally it should only be used when a message is not expected soon and minimising the memory of the process is shown to be beneficial.</p> <p>Returning <code class="inline">{:noreply, new_state}</code> does not send a response to the caller and continues the loop with new state <code class="inline">new_state</code>. The response must be sent with <a href="#reply/2"><code class="inline">reply/2</code></a>.</p> <p>There are three main use cases for not replying using the return value:</p> <ul> <li>To reply before returning from the callback because the response is known before calling a slow function. </li> <li>To reply after returning from the callback because the response is not yet available. </li> <li>To reply from another process, such as a task. </li> </ul> <p>When replying from another process the <a href="../genserver/#content"><code class="inline">GenServer</code></a> should exit if the other process exits without replying as the caller will be blocking awaiting a reply.</p> <p>Returning <code class="inline">{:noreply, new_state, timeout | :hibernate}</code> is similar to <code class="inline">{:noreply, new_state}</code> except a timeout or hibernation occurs as with a <code class="inline">:reply</code> tuple.</p> <p>Returning <code class="inline">{:stop, reason, reply, new_state}</code> stops the loop and <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is called with reason <code class="inline">reason</code> and state <code class="inline">new_state</code>. Then the <code class="inline">reply</code> is sent as the response to call and the process exits with reason <code class="inline">reason</code>.</p> <p>Returning <code class="inline">{:stop, reason, new_state}</code> is similar to <code class="inline">{:stop, reason, reply, new_state}</code> except a reply is not sent.</p> <p>If this callback is not implemented, the default implementation by <code class="inline">use GenServer</code> will return <code class="inline">{:stop, {:bad_call, request}, state}</code>.</p>    <h3 class="detail-header callback" id="c:handle_cast/2">  <span class="signature">handle_cast(request, state)</span>     </h3>
+<pre data-language="elixir">handle_cast(request :: term, state :: term) ::
+  {:noreply, new_state} |
+  {:noreply, new_state, timeout | :hibernate} |
+  {:stop, reason :: term, new_state} when new_state: term</pre>  <p>Invoked to handle asynchronous <a href="#cast/2"><code class="inline">cast/2</code></a> messages.</p> <p><code class="inline">request</code> is the request message sent by a <a href="#cast/2"><code class="inline">cast/2</code></a> and <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>.</p> <p>Returning <code class="inline">{:noreply, new_state}</code> continues the loop with new state <code class="inline">new_state</code>.</p> <p>Returning <code class="inline">{:noreply, new_state, timeout}</code> is similar to <code class="inline">{:noreply, new_state}</code> except <code class="inline">handle_info(:timeout, new_state)</code> will be called after <code class="inline">timeout</code> milliseconds if no messages are received.</p> <p>Returning <code class="inline">{:noreply, new_state, :hibernate}</code> is similar to <code class="inline">{:noreply, new_state}</code> except the process is hibernated before continuing the loop. See <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a> for more information.</p> <p>Returning <code class="inline">{:stop, reason, new_state}</code> stops the loop and <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is called with the reason <code class="inline">reason</code> and state <code class="inline">new_state</code>. The process exits with reason <code class="inline">reason</code>.</p> <p>If this callback is not implemented, the default implementation by <code class="inline">use GenServer</code> will return <code class="inline">{:stop, {:bad_cast, request}, state}</code>.</p>    <h3 class="detail-header callback" id="c:handle_info/2">  <span class="signature">handle_info(msg, state)</span>     </h3>
+<pre data-language="elixir">handle_info(msg :: :timeout | term, state :: term) ::
+  {:noreply, new_state} |
+  {:noreply, new_state, timeout | :hibernate} |
+  {:stop, reason :: term, new_state} when new_state: term</pre>  <p>Invoked to handle all other messages.</p> <p><code class="inline">msg</code> is the message and <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>. When a timeout occurs the message is <code class="inline">:timeout</code>.</p> <p>Return values are the same as <a href="#c:handle_cast/2"><code class="inline">handle_cast/2</code></a>.</p> <p>If this callback is not implemented, the default implementation by <code class="inline">use GenServer</code> will return <code class="inline">{:noreply, state}</code>.</p>    <h3 class="detail-header callback" id="c:init/1">  <span class="signature">init(args)</span>     </h3>
+<pre data-language="elixir">init(args :: term) ::
+  {:ok, state} |
+  {:ok, state, timeout | :hibernate} |
+  :ignore |
+  {:stop, reason :: any} when state: any</pre>  <p>Invoked when the server is started. <a href="#start_link/3"><code class="inline">start_link/3</code></a> or <a href="#start/3"><code class="inline">start/3</code></a> will block until it returns.</p> <p><code class="inline">args</code> is the argument term (second argument) passed to <a href="#start_link/3"><code class="inline">start_link/3</code></a>.</p> <p>Returning <code class="inline">{:ok, state}</code> will cause <a href="#start_link/3"><code class="inline">start_link/3</code></a> to return <code class="inline">{:ok, pid}</code> and the process to enter its loop.</p> <p>Returning <code class="inline">{:ok, state, timeout}</code> is similar to <code class="inline">{:ok, state}</code> except <code class="inline">handle_info(:timeout, state)</code> will be called after <code class="inline">timeout</code> milliseconds if no messages are received within the timeout.</p> <p>Returning <code class="inline">{:ok, state, :hibernate}</code> is similar to <code class="inline">{:ok, state}</code> except the process is hibernated before entering the loop. See <a href="#c:handle_call/3"><code class="inline">handle_call/3</code></a> for more information on hibernation.</p> <p>Returning <code class="inline">:ignore</code> will cause <a href="#start_link/3"><code class="inline">start_link/3</code></a> to return <code class="inline">:ignore</code> and the process will exit normally without entering the loop or calling <a href="#c:terminate/2"><code class="inline">terminate/2</code></a>. If used when part of a supervision tree the parent supervisor will not fail to start nor immediately try to restart the <a href="../genserver/#content"><code class="inline">GenServer</code></a>. The remainder of the supervision tree will be (re)started and so the <a href="../genserver/#content"><code class="inline">GenServer</code></a> should not be required by other processes. It can be started later with <a href="../supervisor/#restart_child/2"><code class="inline">Supervisor.restart_child/2</code></a> as the child specification is saved in the parent supervisor. The main use cases for this are:</p> <ul> <li>The <a href="../genserver/#content"><code class="inline">GenServer</code></a> is disabled by configuration but might be enabled later. </li> <li>An error occurred and it will be handled by a different mechanism than the <a href="../supervisor/"><code class="inline">Supervisor</code></a>. Likely this approach involves calling <a href="../supervisor/#restart_child/2"><code class="inline">Supervisor.restart_child/2</code></a> after a delay to attempt a restart. </li> </ul> <p>Returning <code class="inline">{:stop, reason}</code> will cause <a href="#start_link/3"><code class="inline">start_link/3</code></a> to return <code class="inline">{:error, reason}</code> and the process to exit with reason <code class="inline">reason</code> without entering the loop or calling <a href="#c:terminate/2"><code class="inline">terminate/2</code></a>.</p>    <h3 class="detail-header callback" id="c:terminate/2">  <span class="signature">terminate(reason, state)</span>     </h3>
+<pre data-language="elixir">terminate(reason, state :: term) :: term when reason: :normal | :shutdown | {:shutdown, term} | term</pre>  <p>Invoked when the server is about to exit. It should do any cleanup required.</p> <p><code class="inline">reason</code> is exit reason and <code class="inline">state</code> is the current state of the <a href="../genserver/#content"><code class="inline">GenServer</code></a>. The return value is ignored.</p> <p><a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is called if a callback (except <a href="#c:init/1)"><code class="inline">init/1</code></a> returns a <code class="inline">:stop</code> tuple, raises, calls <a href="../kernel/#exit/1"><code class="inline">Kernel.exit/1</code></a> or returns an invalid value. It may also be called if the <a href="../genserver/#content"><code class="inline">GenServer</code></a> traps exits using <a href="../process/#flag/2"><code class="inline">Process.flag/2</code></a> <em>and</em> the parent process sends an exit signal.</p> <p>If part of a supervision tree a <a href="../genserver/#content"><code class="inline">GenServer</code></a>’s <a href="../supervisor/"><code class="inline">Supervisor</code></a> will send an exit signal when shutting it down. The exit signal is based on the shutdown strategy in the child’s specification. If it is <code class="inline">:brutal_kill</code> the <a href="../genserver/#content"><code class="inline">GenServer</code></a> is killed and so <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is not called. However if it is a timeout the <a href="../supervisor/"><code class="inline">Supervisor</code></a> will send the exit signal <code class="inline">:shutdown</code> and the <a href="../genserver/#content"><code class="inline">GenServer</code></a> will have the duration of the timeout to call <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> - if the process is still alive after the timeout it is killed.</p> <p>If the <a href="../genserver/#content"><code class="inline">GenServer</code></a> receives an exit signal (that is not <code class="inline">:normal</code>) from any process when it is not trapping exits it will exit abruptly with the same reason and so not call <a href="#c:terminate/2"><code class="inline">terminate/2</code></a>. Note that a process does <em>NOT</em> trap exits by default and an exit signal is sent when a linked process exits or its node is disconnected.</p> <p>Therefore it is not guaranteed that <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is called when a <a href="../genserver/#content"><code class="inline">GenServer</code></a> exits. For such reasons, we usually recommend important clean-up rules to happen in separated processes either by use of monitoring or by links themselves. For example if the <a href="../genserver/#content"><code class="inline">GenServer</code></a> controls a <code class="inline">port</code> (e.g. <code class="inline">:gen_tcp.socket</code>) or <a href="../file/#t:io_device/0"><code class="inline">File.io_device/0</code></a>, they will be closed on receiving a <a href="../genserver/#content"><code class="inline">GenServer</code></a>’s exit signal and do not need to be closed in <a href="#c:terminate/2"><code class="inline">terminate/2</code></a>.</p> <p>If <code class="inline">reason</code> is not <code class="inline">:normal</code>, <code class="inline">:shutdown</code> nor <code class="inline">{:shutdown, term}</code> an error is logged.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/elixir/1.4.1/GenServer.html" class="_attribution-link" target="_blank">https://hexdocs.pm/elixir/1.4.1/GenServer.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

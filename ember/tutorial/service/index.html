@@ -1,0 +1,291 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Services and Utilities - Ember.js - W3cubDocs</title>
+  
+  <meta name="description" content="For Super Rentals, we want to be able to display a map showing where each rental is. To implement this feature, we will take advantage of several &hellip;">
+  <meta name="keywords" content="services, and, utilities, -, ember, js">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ember/tutorial/service/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ember.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ember/" class="_nav-link" title="" style="margin-left:0;">Ember.js</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _ember">
+				
+<h1> Services and Utilities  </h1>  <p>For Super Rentals, we want to be able to display a map showing where each rental is. To implement this feature, we will take advantage of several Ember concepts:</p> <ol> <li>A utility function to create a map from the Google Maps API.</li> <li>A service to keep a cache of rendered maps to use in different places in the application.</li> <li>A component to display a map on each rental listing.</li> </ol> <h2 class="anchorable-toc" id="toc_making-google-maps-available">Making Google Maps Available</h2> <p>Before implementing a map, we need to make a 3rd party map API available to our Ember app. There are several ways to include 3rd party libraries in Ember. See the guides section on <a href="https://guides.emberjs.com/addons-and-dependencies/managing-dependencies/" target="_blank">managing dependencies</a> as a starting point when you need to add one.</p> <p>Since Google provides its map API as a remote script, we'll use curl to download it into our project's vendor directory.</p> <p>From your project's root directory, run the following command to put the Google maps script in your projects vendor folder as <code>gmaps.js</code>. <code>Curl</code> is a UNIX command, so if you are on windows you should take advantage of <a href="https://msdn.microsoft.com/en-us/commandline/wsl/about" target="_blank">Windows bash support</a>, or use an alternate method to download the script into the vendor directory.</p> <pre class="highlight shell " data-language="">curl -o vendor/gmaps.js "https://maps.googleapis.com/maps/api/js?v=3.22"
+</pre> <p>Once in the vendor directory, the script can be built into the app. We just need to tell Ember CLI to import it using our build file:</p> <div class="pre-title"><code>ember-cli-build.js</code></div>
+<pre class="highlight javascript " data-language="javascript">/*jshint node:true*/
+/* global require, module */
+let EmberApp = require('ember-cli/lib/broccoli/ember-app');
+
+module.exports = function(defaults) {
+  let app = new EmberApp(defaults, {
+    // Add options here
+  });
+
+  // Use `app.import` to add additional libraries to the generated
+  // output files.
+  //
+  // If you need to use different assets in different
+  // environments, specify an object as the first parameter. That
+  // object's keys should be the environment name and the values
+  // should be the asset to use in that environment.
+  //
+  // If the library that you are including contains AMD or ES6
+  // modules that you would like to import into your application
+  // please specify an object with the list of modules as keys
+  // along with the exports of each module as its value.
+  app.import('vendor/gmaps.js');
+
+  return app.toTree();
+};</pre>
+<h2 class="anchorable-toc" id="toc_accessing-the-google-maps-api-with-a-utility">Accessing the Google Maps API with a Utility</h2> <p>Ember utilities are reusable code that can be accessed from various parts of the application. For Super Rentals, we'll use a utility to access the Google Maps API. The utility will abstract the Google API away from our Maps service, which will allow for future reuse of the maps API within the application, easier refactoring to alternate maps implementations, and easier testing of code that depends on it.</p> <p>Now that we have the maps API available to the application, we can create our map utility. Utility files can be generated using Ember CLI.</p> <pre class="highlight shell " data-language="">ember g util google-maps
+</pre> <p>The CLI <code>generate util</code> command will create a utility file and a unit test. We'll delete the unit test since we don't want to test Google code.</p> <p>Our app needs a single function, <code>createMap</code>, which makes use of <code>google.maps.Map</code> to create our map element, <code>google.maps.Geocoder</code> to lookup the coordinates of our location, and <code>google.maps.Marker</code> to pin our map based on the resolved location.</p> <div class="pre-title"><code>app/utils/google-maps.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import Ember from 'ember';
+
+const google = window.google;
+
+export default Ember.Object.extend({
+
+  init() {
+    this.set('geocoder', new google.maps.Geocoder());
+  },
+
+  createMap(element, location) {
+    let map = new google.maps.Map(element, { scrollwheel: false, zoom: 10 });
+    this.pinLocation(location, map);
+    return map;
+  },
+
+  pinLocation(location, map) {
+    this.get('geocoder').geocode({address: location}, (result, status) =&gt; {
+      if (status === google.maps.GeocoderStatus.OK) {
+        let geometry = result[0].geometry.location;
+        let position = { lat: geometry.lat(), lng: geometry.lng() };
+        map.setCenter(position);
+        new google.maps.Marker({ position, map, title: location });
+      }
+    });
+  }
+
+});
+</pre>
+<h2 class="anchorable-toc" id="toc_fetching-maps-with-a-service">Fetching Maps With a Service</h2> <p>Now that we are able to generate a map element, we will implement a maps service that will keep a reference to the Map object we create, and attach the map to an element in our application</p> <p>Accessing our maps API through a <a href="https://guides.emberjs.com/applications/services" target="_blank">service</a> will give us several benefits</p> <ul> <li>It is injected with a <a href="https://en.wikipedia.org/wiki/Service_locator_pattern" target="_blank">service locator</a>, meaning it will abstract the maps API from the code that uses it, allowing for easier refactoring and maintenance.</li> <li>It is lazy-loaded, meaning it won't be initialized until it is called the first time. In some cases this can reduce your app's processor load and memory consumption.</li> <li>It is a singleton, which means there is only one instance of the service object in browser. This will allow us to keep map data while the user navigates around the app, so that returning to a page doesn't require it to reload its maps.</li> </ul> <p>Let's get started creating our service by generating it through Ember CLI, which will create the service file, as well as a unit test for it.</p> <pre class="highlight shell " data-language="">ember g service maps
+</pre> <p>Now implement the service as follows. Note that we check if a map already exists for the given location and use that one, otherwise we call a Google Maps utility to create one.</p> <div class="pre-title"><code>app/services/maps.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import Ember from 'ember';
+import MapUtil from '../utils/google-maps';
+
+export default Ember.Service.extend({
+
+  init() {
+    if (!this.get('cachedMaps')) {
+      this.set('cachedMaps', Ember.Object.create());
+    }
+    if (!this.get('mapUtil')) {
+      this.set('mapUtil', MapUtil.create());
+    }
+  },
+
+  getMapElement(location) {
+    let camelizedLocation = location.camelize();
+    let element = this.get(`cachedMaps.${camelizedLocation}`);
+    if (!element) {
+      element = this.createMapElement();
+      this.get('mapUtil').createMap(element, location);
+      this.set(`cachedMaps.${camelizedLocation}`, element);
+    }
+    return element;
+  },
+
+  createMapElement() {
+    let element = document.createElement('div');
+    element.className = 'map';
+    return element;
+  }
+
+});
+</pre>
+<h2 class="anchorable-toc" id="toc_display-maps-with-a-component">Display Maps With a Component</h2> <p>With a service and utility that render a map to a web page element, we'll connect it to our application using a component.</p> <p>Generate the map component using Ember CLI.</p> <pre class="highlight shell " data-language="">ember g component location-map
+</pre> <p>Running this command generates three files: a component JavaScript file, a template, and a test file.</p> <p>Let's start by adding a <code>div</code> element to the component template. This <code>div</code> will act as a place for the 3rd party map API to render the map to.</p> <div class="pre-title"><code>app/templates/components/location-map.hbs</code></div>
+<pre class="highlight handlebars " data-language="html">&lt;div class="map-container"&gt;&lt;/div&gt;
+</pre> <p>Next, update the component to append the map output to the <code>div</code> element we created.</p> <p>We provide the maps service into our component by initializing a property of our component, called <code>maps</code>. Services are commonly made available in components and other Ember objects by <a href="https://guides.emberjs.com/applications/services/#toc_accessing-services" target="_blank">"service injection"</a>. When you initialize a property with <code>Ember.inject.service()</code>, Ember tries to set that property with a service matching its name.</p> <p>With our <code>maps</code> service, our component will call the <code>getMapElement</code> function with the provided location. We append the map element we get back from the service by implementing <code>didInsertElement</code>, which is a <a href="https://guides.emberjs.com/components/the-component-lifecycle/#toc_integrating-with-third-party-libraries-with-code-didinsertelement-code" target="_blank">component lifecycle hook</a>. This function runs during the component render, after the component's markup gets inserted into the page.</p> <div class="pre-title"><code>app/components/location-map.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import Ember from 'ember';
+
+export default Ember.Component.extend({
+  maps: Ember.inject.service(),
+
+  didInsertElement() {
+    this._super(...arguments);
+    let location = this.get('location');
+    let mapElement = this.get('maps').getMapElement(location);
+    this.$('.map-container').append(mapElement);
+  }
+});
+</pre> <p>You may have noticed that this.get('location') refers to a property location we haven't defined. This property will be passed in to the component by its parent template below.</p> <p>Finally open the template file for our <code>rental-listing</code> component and add the new <code>location-map</code> component.</p> <div class="pre-title"><code>app/templates/components/rental-listing.hbs</code></div>
+<pre class="highlight handlebars " data-language="html">&lt;article class="listing"&gt;
+  &lt;a {{action 'toggleImageSize'}} class="image {{if isWide "wide"}}"&gt;
+    &lt;img src="{{rental.image}}" alt=""&gt;
+    &lt;small&gt;View Larger&lt;/small&gt;
+  &lt;/a&gt;
+  &lt;h3&gt;{{rental.title}}&lt;/h3&gt;
+  &lt;div class="detail owner"&gt;
+    &lt;span&gt;Owner:&lt;/span&gt; {{rental.owner}}
+  &lt;/div&gt;
+  &lt;div class="detail type"&gt;
+    &lt;span&gt;Type:&lt;/span&gt; {{rental-property-type rental.type}} - {{rental.type}}
+  &lt;/div&gt;
+  &lt;div class="detail location"&gt;
+    &lt;span&gt;Location:&lt;/span&gt; {{rental.city}}
+  &lt;/div&gt;
+  &lt;div class="detail bedrooms"&gt;
+    &lt;span&gt;Number of bedrooms:&lt;/span&gt; {{rental.bedrooms}}
+  &lt;/div&gt;
+  {{location-map location=rental.city}}
+&lt;/article&gt;</pre> <p>After starting the server we should now see some end to end maps functionality show up on our front page!</p> <p><img src="https://guides.emberjs.com/v2.12.0/images/service/style-super-rentals-maps.png" alt="super rentals homepage with maps"></p> <p>You may now either move onto the <a href="../../subroutes/">next feature</a>, or continue here to test the maps feature we just added.</p> <h2 class="anchorable-toc" id="toc_unit-testing-a-service">Unit testing a Service</h2> <p>We'll use a unit test to validate the service. Unit tests are more isolated than integration tests and acceptance test, and are intended for testing specific logic within a class.</p> <p>For our service unit test, we'll want to verify that locations that have been previously loaded are fetched from cache, while new locations are created using the utility. We will isolate our tests from actually calling Google Maps by stubbing our map utility. On line 6 of <code>maps-test.js</code> below we create an Ember object to simulate the behavior of the utility, but instead of creating a google map, we return an empty JavaScript object.</p> <p>Unit tests use the function called <code>this.subject</code> to instantiate the object to test, and lets the test pass in initial values as arguments. In our case we are passing in our fake map utility object in the first test, and passing a cache object for the second test.</p> <div class="pre-title"><code>tests/unit/services/maps-test.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import { moduleFor, test } from 'ember-qunit';
+import Ember from 'ember';
+
+const DUMMY_ELEMENT = {};
+
+let MapUtilStub = Ember.Object.extend({
+  createMap(element, location) {
+    this.assert.ok(element, 'createMap called with element');
+    this.assert.ok(location, 'createMap called with location');
+    return DUMMY_ELEMENT;
+  }
+});
+
+moduleFor('service:maps', 'Unit | Service | maps');
+
+test('should create a new map if one isnt cached for location', function (assert) {
+  assert.expect(4);
+  let stubMapUtil = MapUtilStub.create({ assert });
+  let mapService = this.subject({ mapUtil: stubMapUtil });
+  let element = mapService.getMapElement('San Francisco');
+  assert.ok(element, 'element exists');
+  assert.equal(element.className, 'map', 'element has class name of map');
+});
+
+test('should use existing map if one is cached for location', function (assert) {
+  assert.expect(1);
+  let stubCachedMaps = Ember.Object.create({
+    sanFrancisco: DUMMY_ELEMENT
+  });
+  let mapService = this.subject({ cachedMaps: stubCachedMaps });
+  let element = mapService.getMapElement('San Francisco');
+  assert.equal(element, DUMMY_ELEMENT, 'element fetched from cache');
+});
+</pre> <p>When the service calls <code>createMap</code> on our fake utility, we will run asserts to validate that it is called. In our first test notice that we expect four asserts to be run in line 17. Two of the asserts run in the test function, while the other two are run when <code>createMap</code> is called.</p> <p>In the second test, only one assert is expected (line 26), since the map element is fetched from cache and does not use the utility.</p> <p>Also, note that the second test uses a dummy object as the returned map element (defined on line 4). Our map element can be substituted with any object because we are only asserting that the cache has been accessed (see line 34).</p> <p>The location in the cache has been <a href="http://emberjs.com/api/classes/Ember.String.html#method_camelize" target="_blank"><code>camelized</code></a> (line 30), so that it may be used as a key to look up our element. This matches the behavior in <code>getMapElement</code> when city has not yet been cached.</p> <h2 class="anchorable-toc" id="toc_integration-testing-the-map-component">Integration Testing the Map Component</h2> <p>Now lets test that the map component is relying on our service to provide map elements.</p> <p>To limit the test to validating only its own behavior and not the service, we'll take advantage of the registration API to register a stub maps service. That way when Ember injects the map service into the component, it uses our fake service instead of the real one.</p> <p>A stub stands in place of the real object in your application and simulates its behavior. In the stub service, define a method that will fetch the map based on location, called <code>getMapElement</code>.</p> <div class="pre-title"><code>tests/integration/components/location-map-test.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import { moduleForComponent, test } from 'ember-qunit';
+import hbs from 'htmlbars-inline-precompile';
+import Ember from 'ember';
+
+let StubMapsService = Ember.Service.extend({
+  getMapElement(location) {
+    this.set('calledWithLocation', location);
+    // We create a div here to simulate our maps service,
+    // which will create and then cache the map element
+    return document.createElement('div');
+  }
+});
+
+moduleForComponent('location-map', 'Integration | Component | location map', {
+  integration: true,
+  beforeEach() {
+    this.register('service:maps', StubMapsService);
+    this.inject.service('maps', { as: 'mapsService' });
+  }
+});
+
+test('should append map element to container element', function(assert) {
+  this.set('myLocation', 'New York');
+  this.render(hbs`{{location-map location=myLocation}}`);
+  assert.equal(this.$('.map-container').children().length, 1, 'the map element should be put onscreen');
+  assert.equal(this.get('mapsService.calledWithLocation'), 'New York', 'a map of New York should be requested');
+});
+</pre> <p>In the <code>beforeEach</code> function that runs before each test, we use the implicit function <code>this.register</code> to register our stub service in place of the maps service. Registration makes an object available to your Ember application for things like loading components from templates and injecting services in this case.</p> <p>The call to the function <code>this.inject.service</code> injects the service we just registered into the context of the tests, so each test may access it through <code>this.get('mapsService')</code>. In the example we assert that <code>calledWithLocation</code> in our stub is set to the location we passed to the component.</p> <h2 class="anchorable-toc" id="toc_stubbing-services-in-acceptance-tests">Stubbing Services in Acceptance Tests</h2> <p>Finally, we want to update our acceptance tests to account for our new service. While it would be great to verify that a map is displaying, we don't want to hammer the Google Maps API every time we run our acceptance test. For this tutorial we'll rely on our component integration tests to ensure that the map DOM is being attached to our screen. To avoid hitting our Maps request limit, we'll stub out our Maps service in our acceptance tests.</p> <p>Often, services connect to third party APIs that are not desirable to include in automated tests. To stub these services we simply have to register a stub service that implements the same API, but does not have the dependencies that are problematic for the test suite.</p> <p>Add the following code after the imports to our acceptance test:</p> <div class="pre-title"><code>/tests/acceptance/list-rentals-test.js</code></div>
+<pre class="highlight javascript " data-language="javascript">import { test } from 'qunit';
+import moduleForAcceptance from 'super-rentals/tests/helpers/module-for-acceptance';
+import Ember from 'ember';
+
+let StubMapsService = Ember.Service.extend({
+  getMapElement() {
+    return document.createElement('div');
+  }
+});
+
+moduleForAcceptance('Acceptance | list-rentals');
+moduleForAcceptance('Acceptance | list rentals', {
+  beforeEach() {
+    this.application.register('service:stubMaps', StubMapsService);
+    this.application.inject('component:location-map', 'maps', 'service:stubMaps');
+  }
+});</pre> <p>What's happening here is we are adding our own stub maps service that simply creates an empty div. Then we are putting it in Ember's <a href="https://guides.emberjs.com/applications/dependency-injection#toc_factory-registrations" target="_blank">registry</a>, and injecting it into the <code>location-map</code> component that uses it. That way every time that component is created, our stub map service gets injected over the Google maps service. Now when we run our acceptance tests, you'll notice that maps do not get rendered as the test runs.</p> <p><img src="https://guides.emberjs.com/v2.12.0/images/service/acceptance-without-maps.png" alt="acceptance tests without maps"></p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2017 Yehuda Katz, Tom Dale and Ember.js contributors<br>Licensed under the MIT License.<br>
+    <a href="https://guides.emberjs.com/v2.12.0/tutorial/service" class="_attribution-link" target="_blank">https://guides.emberjs.com/v2.12.0/tutorial/service</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

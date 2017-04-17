@@ -1,0 +1,215 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>GenEvent - Elixir 1.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" A behaviour module for implementing event handling functionality. ">
+  <meta name="keywords" content="genevent, summary, types, functions, callbacks, -, elixir, elixir~1.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/elixir~1.4/genevent/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/elixir~1.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/elixir~1.4/" class="_nav-link" title="" style="margin-left:0;">Elixir 1.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  GenEvent <small>behaviour</small>  </h1>  <p>A behaviour module for implementing event handling functionality.</p> <p>The event handling model consists of a generic event manager process with an arbitrary number of event handlers which are added and deleted dynamically.</p> <p>An event manager implemented using this module will have a standard set of interface functions and include functionality for tracing and error reporting. It will also fit into a supervision tree.</p> <h2 id="module-example" class="section-heading">  Example </h2> <p>There are many use cases for event handlers. For example, a logging system can be built using event handlers where each log message is an event and different event handlers can be attached to handle the log messages. One handler may print error messages on the terminal, another can write it to a file, while a third one can keep the messages in memory (like a buffer) until they are read.</p> <p>As an example, let’s have a GenEvent that accumulates messages until they are collected by an explicit call.</p> <pre data-language="elixir"><code class="elixir"># Define an Event Handler
+defmodule LoggerHandler do
+  use GenEvent
+
+  # Callbacks
+
+  def handle_event({:log, x}, messages) do
+    {:ok, [x | messages]}
+  end
+
+  def handle_call(:messages, messages) do
+    {:ok, Enum.reverse(messages), []}
+  end
+end
+
+# Start a new event manager.
+{:ok, pid} = GenEvent.start_link([])
+
+# Attach an event handler to the event manager.
+GenEvent.add_handler(pid, LoggerHandler, [])
+#=&gt; :ok
+
+# Send some events to the event manager.
+GenEvent.notify(pid, {:log, 1})
+#=&gt; :ok
+
+GenEvent.notify(pid, {:log, 2})
+#=&gt; :ok
+
+# Call functions on specific handlers in the manager.
+GenEvent.call(pid, LoggerHandler, :messages)
+#=&gt; [1, 2]
+
+GenEvent.call(pid, LoggerHandler, :messages)
+#=&gt; []</code></pre> <p>We start a new event manager by calling <a href="../genevent/#start_link/1"><code class="inline">GenEvent.start_link/1</code></a>. Notifications can be sent to the event manager which will then invoke <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a> for each registered handler.</p> <p>We can add new handlers with <a href="#add_handler/3"><code class="inline">add_handler/3</code></a> and <a href="#add_mon_handler/3"><code class="inline">add_mon_handler/3</code></a>. Calls can also be made to specific handlers by using <a href="#call/3"><code class="inline">call/3</code></a>.</p> <h2 id="module-callbacks" class="section-heading">  Callbacks </h2> <p>There are 6 callbacks required to be implemented in a <a href="../genevent/#content"><code class="inline">GenEvent</code></a>. By adding <code class="inline">use GenEvent</code> to your module, Elixir will automatically define all 6 callbacks for you, leaving it up to you to implement the ones you want to customize.</p> <h2 id="module-name-registration" class="section-heading">  Name Registration </h2> <p>A GenEvent is bound to the same name registration rules as a <a href="../genserver/"><code class="inline">GenServer</code></a>. Read more about it in the <a href="../genserver/"><code class="inline">GenServer</code></a> docs.</p> <h2 id="module-modes" class="section-heading">  Modes </h2> <p>GenEvent supports three different notifications.</p> <p>On <a href="../genevent/#ack_notify/2"><code class="inline">GenEvent.ack_notify/2</code></a>, the manager acknowledges each event, providing backpressure, but processing of the message happens asynchronously.</p> <p>On <a href="../genevent/#sync_notify/2"><code class="inline">GenEvent.sync_notify/2</code></a>, the manager acknowledges an event just after it is processed by all event handlers.</p> <p>On <a href="../genevent/#notify/2"><code class="inline">GenEvent.notify/2</code></a>, all events are processed asynchronously and there is no ack (which means there is no backpressure).</p> <h2 id="module-streaming" class="section-heading">  Streaming </h2> <p><a href="../genevent/#content"><code class="inline">GenEvent</code></a> messages can be streamed with the help of <a href="#stream/2"><code class="inline">stream/2</code></a>. You will need to start another process to consume the stream:</p> <pre data-language="elixir"><code class="elixir">Task.start_link fn -&gt;
+  stream = GenEvent.stream(pid)
+
+  # Discard the next 3 events
+  _ = Enum.take(stream, 3)
+
+  # Print all remaining events
+  for event &lt;- stream do
+    IO.inspect event
+  end
+end</code></pre> <p>Now call <a href="../genevent/#notify/2"><code class="inline">GenEvent.notify/2</code></a> multiple times. You will see the first three events will be skipped while the rest will be continuously printed.</p> <h2 id="module-learn-more-and-compatibility" class="section-heading">  Learn more and compatibility </h2> <p>If you wish to find out more about GenEvent, the documentation and links in Erlang can provide extra insight.</p> <ul> <li>
+<a href="http://www.erlang.org/doc/man/gen_event.html" target="_blank"><code class="inline">:gen_event</code> module documentation</a> </li> <li>
+<a href="http://learnyousomeerlang.com/event-handlers" target="_blank">Event Handlers – Learn You Some Erlang for Great Good!</a> </li> </ul> <p>Keep in mind though Elixir and Erlang gen events are not 100% compatible. The <code class="inline">:gen_event.add_sup_handler/3</code> is not supported by Elixir’s GenEvent, which in turn supports <a href="../genevent/#add_mon_handler/3"><code class="inline">GenEvent.add_mon_handler/3</code></a>.</p> <p>The benefits of the monitoring approach are described in the “Don’t drink too much kool aid” section of the “Learn you some Erlang” link above. Due to those changes, Elixir’s GenEvent does not trap exits by default.</p> <p>Furthermore, Elixir also normalizes the <code class="inline">{:error, _}</code> tuples returned by many functions, in order to be more consistent with themselves and the <a href="../genserver/"><code class="inline">GenServer</code></a> module.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:handler/0">handler()</a> </dt> <dd class="summary-synopsis">
+<p>Supported values for new handlers</p> </dd>   <dt class="summary-signature"> <a href="#t:manager/0">manager()</a> </dt> <dd class="summary-synopsis">
+<p>The event manager reference</p> </dd>   <dt class="summary-signature"> <a href="#t:name/0">name()</a> </dt> <dd class="summary-synopsis">
+<p>The GenEvent manager name</p> </dd>   <dt class="summary-signature"> <a href="#t:on_start/0">on_start()</a> </dt> <dd class="summary-synopsis">
+<p>Return values of <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:options/0">options()</a> </dt> <dd class="summary-synopsis">
+<p>Options used by the <code class="inline">start*</code> functions</p> </dd>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#ack_notify/2">ack_notify(manager, event)</a> </dt> <dd class="summary-synopsis">
+<p>Sends an ack event notification to the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#add_handler/3">add_handler(manager, handler, args)</a> </dt> <dd class="summary-synopsis">
+<p>Adds a new event handler to the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#add_mon_handler/3">add_mon_handler(manager, handler, args)</a> </dt> <dd class="summary-synopsis">
+<p>Adds a monitored event handler to the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#call/4">call(manager, handler, request, timeout \\ 5000)</a> </dt> <dd class="summary-synopsis">
+<p>Makes a synchronous call to the event <code class="inline">handler</code> installed in <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#notify/2">notify(manager, event)</a> </dt> <dd class="summary-synopsis">
+<p>Sends an event notification to the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#remove_handler/3">remove_handler(manager, handler, args)</a> </dt> <dd class="summary-synopsis">
+<p>Removes an event handler from the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#start/1">start(options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Starts an event manager process without links (outside of a supervision tree)</p> </dd>   <dt class="summary-signature"> <a href="#start_link/1">start_link(options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Starts an event manager linked to the current process</p> </dd>   <dt class="summary-signature"> <a href="#stop/3">stop(manager, reason \\ :normal, timeout \\ :infinity)</a> </dt> <dd class="summary-synopsis">
+<p>Stops the manager with the given <code class="inline">reason</code></p> </dd>   <dt class="summary-signature"> <a href="#stream/2">stream(manager, options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Returns a stream that consumes events from the <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#swap_handler/5">swap_handler(manager, handler1, args1, handler2, args2)</a> </dt> <dd class="summary-synopsis">
+<p>Replaces an old event handler with a new one in the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#swap_mon_handler/5">swap_mon_handler(manager, handler1, args1, handler2, args2)</a> </dt> <dd class="summary-synopsis">
+<p>Replaces an old event handler with a new monitored one in the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#sync_notify/2">sync_notify(manager, event)</a> </dt> <dd class="summary-synopsis">
+<p>Sends a sync event notification to the event <code class="inline">manager</code></p> </dd>   <dt class="summary-signature"> <a href="#which_handlers/1">which_handlers(manager)</a> </dt> <dd class="summary-synopsis">
+<p>Returns a list of all event handlers installed in the <code class="inline">manager</code></p> </dd>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:code_change/3">code_change(old_vsn, state, extra)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to change the state of the handler when a different version of the handler’s module is loaded (hot code swapping) and the state’s term structure should be changed</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_call/2">handle_call(request, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle synchronous <a href="#call/4"><code class="inline">call/4</code></a> messages to a specific handler</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_event/2">handle_event(event, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle <a href="#notify/2"><code class="inline">notify/2</code></a>, <a href="#ack_notify/2"><code class="inline">ack_notify/2</code></a> or <a href="#sync_notify/2"><code class="inline">sync_notify/2</code></a> messages</p> </dd>   <dt class="summary-signature"> <a href="#c:handle_info/2">handle_info(msg, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked to handle all other messages. All handlers are run in the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process so messages intended for other handlers should be ignored with a catch all clause</p> </dd>   <dt class="summary-signature"> <a href="#c:init/1">init(args)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked when the handler is added to the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process. <a href="#add_handler/3"><code class="inline">add_handler/3</code></a> (and <a href="#add_mon_handler/3)"><code class="inline">add_mon_handler/3</code></a> will block until it returns</p> </dd>   <dt class="summary-signature"> <a href="#c:terminate/2">terminate(reason, state)</a> </dt> <dd class="summary-synopsis">
+<p>Invoked when the server is about to exit. It should do any cleanup required</p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>   <h3 class="detail-header type" id="t:handler/0">  <span class="signature">handler()</span>     </h3>
+<pre data-language="elixir">handler() :: atom | {atom, term}</pre>  <p>Supported values for new handlers</p>    <h3 class="detail-header type" id="t:manager/0">  <span class="signature">manager()</span>     </h3>
+<pre data-language="elixir">manager() :: pid | <a href="#t:name/0">name</a> | {atom, node}</pre>  <p>The event manager reference</p>    <h3 class="detail-header type" id="t:name/0">  <span class="signature">name()</span>     </h3>
+<pre data-language="elixir">name() :: atom | {:global, term} | {:via, module, term}</pre>  <p>The GenEvent manager name</p>    <h3 class="detail-header type" id="t:on_start/0">  <span class="signature">on_start()</span>     </h3>
+<pre data-language="elixir">on_start() :: {:ok, pid} | {:error, {:already_started, pid}}</pre>  <p>Return values of <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:options/0">  <span class="signature">options()</span>     </h3>
+<pre data-language="elixir">options() :: [{:name, <a href="#t:name/0">name</a>}]</pre>  <p>Options used by the <code class="inline">start*</code> functions</p>      <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="ack_notify/2">  <span class="signature">ack_notify(manager, event)</span>     </h3>
+<pre data-language="elixir">ack_notify(<a href="#t:manager/0">manager</a>, term) :: :ok</pre>  <p>Sends an ack event notification to the event <code class="inline">manager</code>.</p> <p>In other words, this function only returns <code class="inline">:ok</code> as soon as the event manager starts processing this event, but it does not wait for event handlers to process the sent event.</p> <p>See <a href="#notify/2"><code class="inline">notify/2</code></a> for more info. Note this function is specific to Elixir’s GenEvent and does not work with Erlang ones.</p>    <h3 class="detail-header function" id="add_handler/3">  <span class="signature">add_handler(manager, handler, args)</span>     </h3>
+<pre data-language="elixir">add_handler(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term) :: :ok | {:error, term}</pre>  <p>Adds a new event handler to the event <code class="inline">manager</code>.</p> <p>The event manager will call the <a href="#c:init/1"><code class="inline">init/1</code></a> callback with <code class="inline">args</code> to initiate the event handler and its internal state.</p> <p>If <a href="#c:init/1"><code class="inline">init/1</code></a> returns a correct value indicating successful completion, the event manager adds the event handler and this function returns <code class="inline">:ok</code>. If the callback fails with <code class="inline">reason</code> or returns <code class="inline">{:error, reason}</code>, the event handler is ignored and this function returns <code class="inline">{:error, reason}</code>.</p> <p>If the given handler was previously installed at the manager, this function returns <code class="inline">{:error, :already_present}</code>.</p> <p>For installing multiple instances of the same handler, <code class="inline">{Module, id}</code> instead of <a href="../module/"><code class="inline">Module</code></a> must be used. The handler could be then referenced with <code class="inline">{Module, id}</code> instead of just <a href="../module/"><code class="inline">Module</code></a>.</p>    <h3 class="detail-header function" id="add_mon_handler/3">  <span class="signature">add_mon_handler(manager, handler, args)</span>     </h3>
+<pre data-language="elixir">add_mon_handler(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term) ::
+  :ok |
+  {:error, term}</pre>  <p>Adds a monitored event handler to the event <code class="inline">manager</code>.</p> <p>Expects the same input and returns the same values as <a href="#add_handler/3"><code class="inline">add_handler/3</code></a>.</p> <h4 id="add_mon_handler/3-monitored-handlers" class="section-heading">  Monitored handlers </h4> <p>A monitored handler implies the calling process will now be monitored by the GenEvent manager.</p> <p>If the calling process later terminates with <code class="inline">reason</code>, the event manager will delete the event handler by calling the <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> callback with <code class="inline">{:stop, reason}</code> as argument. If the event handler later is deleted, the event manager sends a message <code class="inline">{:gen_event_EXIT, handler, reason}</code> to the calling process. Reason is one of the following:</p> <ul> <li>
+<p><code class="inline">:normal</code> - if the event handler has been removed due to a call to <a href="#remove_handler/3"><code class="inline">remove_handler/3</code></a>, or <code class="inline">:remove_handler</code> has been returned by a callback function</p> </li> <li>
+<p><code class="inline">:shutdown</code> - if the event handler has been removed because the event manager is terminating</p> </li> <li>
+<p><code class="inline">{:swapped, new_handler, pid}</code> - if the process PID has replaced the event handler by another</p> </li> <li>
+<code class="inline">term</code> - if the event handler is removed due to an error. Which term depends on the error </li> </ul> <p>Keep in mind that the <code class="inline">{:gen_event_EXIT, handler, reason}</code> message is not guaranteed to be delivered in case the manager crashes. If you want to guarantee the message is delivered, you have two options:</p> <ul> <li>monitor the event manager </li> <li>link to the event manager and then set <code class="inline">Process.flag(:trap_exit, true)</code> in your handler callback </li> </ul> <p>Finally, this functionality only works with GenEvent started via this module (it is not backwards compatible with Erlang’s <code class="inline">:gen_event</code>).</p>     <h3 class="detail-header function" id="call/4">  <span class="signature">call(manager, handler, request, timeout \\ 5000)</span>     </h3>
+<pre data-language="elixir">call(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term, timeout) ::
+  term |
+  {:error, term}</pre>  <p>Makes a synchronous call to the event <code class="inline">handler</code> installed in <code class="inline">manager</code>.</p> <p>The given <code class="inline">request</code> is sent and the caller waits until a reply arrives or a timeout occurs. The event manager will call <a href="#c:handle_call/2"><code class="inline">handle_call/2</code></a> to handle the request.</p> <p>The return value <code class="inline">reply</code> is defined in the return value of <a href="#c:handle_call/2"><code class="inline">handle_call/2</code></a>. If the specified event handler is not installed, the function returns <code class="inline">{:error, :not_found}</code>.</p>    <h3 class="detail-header function" id="notify/2">  <span class="signature">notify(manager, event)</span>     </h3>
+<pre data-language="elixir">notify(<a href="#t:manager/0">manager</a>, term) :: :ok</pre>  <p>Sends an event notification to the event <code class="inline">manager</code>.</p> <p>The event manager will call <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a> for each installed event handler.</p> <p><code class="inline">notify</code> is asynchronous and will return immediately after the notification is sent. <code class="inline">notify</code> will not fail even if the specified event manager does not exist, unless it is specified as an atom.</p>    <h3 class="detail-header function" id="remove_handler/3">  <span class="signature">remove_handler(manager, handler, args)</span>     </h3>
+<pre data-language="elixir">remove_handler(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term) ::
+  term |
+  {:error, term}</pre>  <p>Removes an event handler from the event <code class="inline">manager</code>.</p> <p>The event manager will call <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> to terminate the event handler and return the callback value. If the specified event handler is not installed, the function returns <code class="inline">{:error, :not_found}</code>.</p>     <h3 class="detail-header function" id="start/1">  <span class="signature">start(options \\ [])</span>     </h3>
+<pre data-language="elixir">start(<a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts an event manager process without links (outside of a supervision tree).</p> <p>See <a href="#start_link/1"><code class="inline">start_link/1</code></a> for more information.</p>     <h3 class="detail-header function" id="start_link/1">  <span class="signature">start_link(options \\ [])</span>     </h3>
+<pre data-language="elixir">start_link(<a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts an event manager linked to the current process.</p> <p>This is often used to start the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> as part of a supervision tree.</p> <p>It accepts the <code class="inline">:name</code> option which is described under the <code class="inline">Name Registration</code> section in the <a href="../genserver/"><code class="inline">GenServer</code></a> module docs.</p> <p>If the event manager is successfully created and initialized, the function returns <code class="inline">{:ok, pid}</code>, where <code class="inline">pid</code> is the PID of the server. If a process with the specified server name already exists, the function returns <code class="inline">{:error, {:already_started, pid}}</code> with the PID of that process.</p> <p>Note that a <a href="../genevent/#content"><code class="inline">GenEvent</code></a> started with <a href="#start_link/1"><code class="inline">start_link/1</code></a> is linked to the parent process and will exit not only on crashes but also if the parent process exits with <code class="inline">:normal</code> reason.</p>      <h3 class="detail-header function" id="stop/3">  <span class="signature">stop(manager, reason \\ :normal, timeout \\ :infinity)</span>     </h3>
+<pre data-language="elixir">stop(<a href="#t:manager/0">manager</a>, reason :: term, timeout) :: :ok</pre>  <p>Stops the manager with the given <code class="inline">reason</code>.</p> <p>Before terminating, the event manager will call <code class="inline">terminate(:stop, ...)</code> for each installed event handler. It returns <code class="inline">:ok</code> if the manager terminates with the given reason, if it terminates with another reason, the call will exit.</p> <p>This function keeps OTP semantics regarding error reporting. If the reason is any other than <code class="inline">:normal</code>, <code class="inline">:shutdown</code> or <code class="inline">{:shutdown, _}</code>, an error report will be logged.</p>     <h3 class="detail-header function" id="stream/2">  <span class="signature">stream(manager, options \\ [])</span>     </h3>
+<pre data-language="elixir">stream(<a href="#t:manager/0">manager</a>, <a href="../keyword/#t:t/0">Keyword.t</a>) :: <a href="https://hexdocs.pm/elixir/GenEvent.Stream.html#t:t/0" target="_blank">GenEvent.Stream.t</a></pre>  <p>Returns a stream that consumes events from the <code class="inline">manager</code>.</p> <p>The stream is a <a href="../genevent/#content"><code class="inline">GenEvent</code></a> struct that implements the <a href="../enumerable/"><code class="inline">Enumerable</code></a> protocol. Consumption of events only begins when enumeration starts.</p> <p>Note streaming is specific to Elixir’s GenEvent and does not work with Erlang ones.</p> <h4 id="stream/2-options" class="section-heading">  Options </h4> <ul> <li>
+<code class="inline">:timeout</code> - raises if no event arrives in X milliseconds (defaults to <code class="inline">:infinity</code>) </li> </ul>    <h3 class="detail-header function" id="swap_handler/5">  <span class="signature">swap_handler(manager, handler1, args1, handler2, args2)</span>     </h3>
+<pre data-language="elixir">swap_handler(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term, <a href="#t:handler/0">handler</a>, term) ::
+  :ok |
+  {:error, term}</pre>  <p>Replaces an old event handler with a new one in the event <code class="inline">manager</code>.</p> <p>First, the old event handler is deleted by calling <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> with the given <code class="inline">args1</code> and collects the return value. Then the new event handler is added and initiated by calling <code class="inline">init({args2, term})</code>, where <code class="inline">term</code> is the return value of calling <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> in the old handler. This makes it possible to transfer information from one handler to another.</p> <p>The new handler will be added even if the specified old event handler is not installed or if the handler fails to terminate with a given reason in which case <code class="inline">state = {:error, term}</code>.</p> <p>If <a href="#c:init/1"><code class="inline">init/1</code></a> in the second handler returns a correct value, this function returns <code class="inline">:ok</code>.</p>    <h3 class="detail-header function" id="swap_mon_handler/5">  <span class="signature">swap_mon_handler(manager, handler1, args1, handler2, args2)</span>     </h3>
+<pre data-language="elixir">swap_mon_handler(<a href="#t:manager/0">manager</a>, <a href="#t:handler/0">handler</a>, term, <a href="#t:handler/0">handler</a>, term) ::
+  :ok |
+  {:error, term}</pre>  <p>Replaces an old event handler with a new monitored one in the event <code class="inline">manager</code>.</p> <p>Read the docs for <a href="#add_mon_handler/3"><code class="inline">add_mon_handler/3</code></a> and <a href="#swap_handler/5"><code class="inline">swap_handler/5</code></a> for more information.</p>    <h3 class="detail-header function" id="sync_notify/2">  <span class="signature">sync_notify(manager, event)</span>     </h3>
+<pre data-language="elixir">sync_notify(<a href="#t:manager/0">manager</a>, term) :: :ok</pre>  <p>Sends a sync event notification to the event <code class="inline">manager</code>.</p> <p>In other words, this function only returns <code class="inline">:ok</code> after the event manager invokes the <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a> callback on each installed event handler.</p> <p>See <a href="#notify/2"><code class="inline">notify/2</code></a> for more info.</p>    <h3 class="detail-header function" id="which_handlers/1">  <span class="signature">which_handlers(manager)</span>     </h3>
+<pre data-language="elixir">which_handlers(<a href="#t:manager/0">manager</a>) :: [<a href="#t:handler/0">handler</a>]</pre>  <p>Returns a list of all event handlers installed in the <code class="inline">manager</code>.</p>     <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:code_change/3">  <span class="signature">code_change(old_vsn, state, extra)</span>     </h3>
+<pre data-language="elixir">code_change(old_vsn, state :: term, extra :: term) :: {:ok, new_state :: term} when old_vsn: term | {:down, term}</pre>  <p>Invoked to change the state of the handler when a different version of the handler’s module is loaded (hot code swapping) and the state’s term structure should be changed.</p> <p><code class="inline">old_vsn</code> is the previous version of the module (defined by the <code class="inline">@vsn</code> attribute) when upgrading. When downgrading the previous version is wrapped in a 2-tuple with first element <code class="inline">:down</code>. <code class="inline">state</code> is the current state of the handler and <code class="inline">extra</code> is any extra data required to change the state.</p> <p>Returning <code class="inline">{:ok, new_state}</code> changes the state to <code class="inline">new_state</code> and the code change is successful.</p> <p>If <a href="#c:code_change/3"><code class="inline">code_change/3</code></a> raises, the code change fails and the handler will continue with its previous state. Therefore this callback does not usually contain side effects.</p>    <h3 class="detail-header callback" id="c:handle_call/2">  <span class="signature">handle_call(request, state)</span>     </h3>
+<pre data-language="elixir">handle_call(request :: term, state :: term) ::
+  {:ok, reply, new_state} |
+  {:ok, reply, new_state, :hibernate} |
+  {:remove_handler, reply} when reply: term, new_state: term</pre>  <p>Invoked to handle synchronous <a href="#call/4"><code class="inline">call/4</code></a> messages to a specific handler.</p> <p><code class="inline">request</code> is the request message sent by a <a href="#call/4"><code class="inline">call/4</code></a> and <code class="inline">state</code> is the current state of the handler.</p> <p>Returning <code class="inline">{:ok, reply, new_state}</code> sends <code class="inline">reply</code> as a response to the call and sets the handler’s state to <code class="inline">new_state</code>.</p> <p>Returning <code class="inline">{:ok, reply, new_state, :hibernate}</code> is similar to <code class="inline">{:ok, reply, new_state}</code> except the process is hibernated. See <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a> for more information on hibernation.</p> <p>Returning <code class="inline">{:remove_handler, reply}</code> sends <code class="inline">reply</code> as a response to the call, removes the handler from the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> loop and calls <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> with reason <code class="inline">:remove_handler</code> and state <code class="inline">state</code>.</p>    <h3 class="detail-header callback" id="c:handle_event/2">  <span class="signature">handle_event(event, state)</span>     </h3>
+<pre data-language="elixir">handle_event(event :: term, state :: term) ::
+  {:ok, new_state} |
+  {:ok, new_state, :hibernate} |
+  :remove_handler when new_state: term</pre>  <p>Invoked to handle <a href="#notify/2"><code class="inline">notify/2</code></a>, <a href="#ack_notify/2"><code class="inline">ack_notify/2</code></a> or <a href="#sync_notify/2"><code class="inline">sync_notify/2</code></a> messages.</p> <p><code class="inline">event</code> is the event message and <code class="inline">state</code> is the current state of the handler.</p> <p>Returning <code class="inline">{:ok, new_state}</code> sets the handler’s state to <code class="inline">new_state</code> and the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> loop continues.</p> <p>Returning <code class="inline">{:ok, new_state, :hibernate}</code> is similar to <code class="inline">{:ok, new_state}</code> except the process is hibernated once all handlers have handled the events. The <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process will continue the loop once a message is its message queue. If a message is already in the message queue this will be immediately. Hibernating a <a href="../genevent/#content"><code class="inline">GenEvent</code></a> causes garbage collection and leaves a continuous heap that minimises the memory used by the process.</p> <p>Hibernating should not be used aggressively as too much time could be spent garbage collecting. Normally it should only be used when a message is not expected soon and minimising the memory of the process is shown to be beneficial.</p> <p>Returning <code class="inline">:remove_handler</code> removes the handler from the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> loop and calls <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> with reason <code class="inline">:remove_handler</code> and state <code class="inline">state</code>.</p>    <h3 class="detail-header callback" id="c:handle_info/2">  <span class="signature">handle_info(msg, state)</span>     </h3>
+<pre data-language="elixir">handle_info(msg :: term, state :: term) ::
+  {:ok, new_state} |
+  {:ok, new_state, :hibernate} |
+  :remove_handler when new_state: term</pre>  <p>Invoked to handle all other messages. All handlers are run in the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process so messages intended for other handlers should be ignored with a catch all clause.</p> <p><code class="inline">msg</code> is the message and <code class="inline">state</code> is the current state of the handler.</p> <p>Return values are the same as <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a>.</p>    <h3 class="detail-header callback" id="c:init/1">  <span class="signature">init(args)</span>     </h3>
+<pre data-language="elixir">init(args :: term) ::
+  {:ok, state} |
+  {:ok, state, :hibernate} |
+  {:error, reason :: any} when state: any</pre>  <p>Invoked when the handler is added to the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process. <a href="#add_handler/3"><code class="inline">add_handler/3</code></a> (and <a href="#add_mon_handler/3)"><code class="inline">add_mon_handler/3</code></a> will block until it returns.</p> <p><code class="inline">args</code> is the argument term (third argument) passed to <a href="#add_handler/3"><code class="inline">add_handler/3</code></a>.</p> <p>Returning <code class="inline">{:ok, state}</code> will cause <a href="#add_handler/3"><code class="inline">add_handler/3</code></a> to return <code class="inline">:ok</code> and the handler to become part of the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> loop with state <code class="inline">state</code>.</p> <p>Returning <code class="inline">{:ok, state, :hibernate}</code> is similar to <code class="inline">{:ok, state}</code> except the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> process is hibernated before continuing its loop. See <a href="#c:handle_event/2"><code class="inline">handle_event/2</code></a> for more information on hibernation.</p> <p>Returning <code class="inline">{:error, reason}</code> will cause <a href="#add_handler/3"><code class="inline">add_handler/3</code></a> to return <code class="inline">{:error, reason}</code> and the handler is not added to <a href="../genevent/#content"><code class="inline">GenEvent</code></a> loop.</p>    <h3 class="detail-header callback" id="c:terminate/2">  <span class="signature">terminate(reason, state)</span>     </h3>
+<pre data-language="elixir">terminate(reason, state :: term) :: term when reason: :stop | {:stop, term} | :remove_handler | {:error, term} | term</pre>  <p>Invoked when the server is about to exit. It should do any cleanup required.</p> <p><code class="inline">reason</code> is removal reason and <code class="inline">state</code> is the current state of the handler. The return value is returned to <a href="../genevent/#remove_handler/3"><code class="inline">GenEvent.remove_handler/3</code></a> or ignored if removing for another reason.</p> <p><code class="inline">reason</code> is one of:</p> <ul> <li>
+<code class="inline">:stop</code> - manager is terminating </li> <li>
+<code class="inline">{:stop, term}</code> - monitored process terminated (for monitored handlers) </li> <li>
+<code class="inline">:remove_handler</code> - handler is being removed </li> <li>
+<code class="inline">{:error, term}</code> - handler crashed or returned a bad value and an error is logged </li> <li>
+<code class="inline">term</code> - any term passed to functions like <a href="../genevent/#remove_handler/3"><code class="inline">GenEvent.remove_handler/3</code></a> </li> </ul> <p>If part of a supervision tree, a <a href="../genevent/#content"><code class="inline">GenEvent</code></a>’s <a href="../supervisor/"><code class="inline">Supervisor</code></a> will send an exit signal when shutting it down. The exit signal is based on the shutdown strategy in the child’s specification. If it is <code class="inline">:brutal_kill</code> the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> is killed and so <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is not called for its handlers. However if it is a timeout the <a href="../supervisor/"><code class="inline">Supervisor</code></a> will send the exit signal <code class="inline">:shutdown</code> and the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> will have the duration of the timeout to call <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> on all of its handlers - if the process is still alive after the timeout it is killed.</p> <p>If the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> receives an exit signal (that is not <code class="inline">:normal</code>) from any process when it is not trapping exits it will exit abruptly with the same reason and so not call the handlers’ <a href="#c:terminate/2"><code class="inline">terminate/2</code></a>. Note that a process does <em>NOT</em> trap exits by default and an exit signal is sent when a linked process exits or its node is disconnected. Therefore it is not guaranteed that <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> is called when a <a href="../genevent/#content"><code class="inline">GenEvent</code></a> exits.</p> <p>Care should be taken to cleanup because the <a href="../genevent/#content"><code class="inline">GenEvent</code></a> can continue to loop after removing the handler. This is different to most other OTP behaviours. For example if the handler controls a <code class="inline">port</code> (e.g. <code class="inline">:gen_tcp.socket</code>) or <a href="../file/#t:io_device/0"><code class="inline">File.io_device/0</code></a>, it will be need to be closed in <a href="#c:terminate/2"><code class="inline">terminate/2</code></a> as the process is not exiting so will not be automatically cleaned up.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/elixir/1.4.1/GenEvent.html" class="_attribution-link" target="_blank">https://hexdocs.pm/elixir/1.4.1/GenEvent.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
