@@ -1,0 +1,143 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>2. Writing Middleware for Use in Express Apps - Express - W3cubDocs</title>
+  
+  <meta name="description" content="Middleware functions are functions that have access to the request object (req), the response object (res), and the next function in the application &hellip;">
+  <meta name="keywords" content="writing, middleware, for, use, express, apps, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/express/guide/writing-middleware/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/express.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/express/" class="_nav-link" title="" style="margin-left:0;">Express</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _express">
+				
+<h1 id="writing-middleware-for-use-in-express-apps" data-level="2">Writing middleware for use in Express apps</h1> <h2>Overview</h2> <p><em>Middleware</em> functions are functions that have access to the <a href="../../4x/api/#req">request object</a> (<code>req</code>), the <a href="../../4x/api/#res">response object</a> (<code>res</code>), and the <code>next</code> function in the application’s request-response cycle. The <code>next</code> function is a function in the Express router which, when invoked, executes the middleware succeeding the current middleware.</p> <p>Middleware functions can perform the following tasks:</p> <ul> <li>Execute any code.</li> <li>Make changes to the request and the response objects.</li> <li>End the request-response cycle.</li> <li>Call the next middleware in the stack.</li> </ul> <p>If the current middleware function does not end the request-response cycle, it must call <code>next()</code> to pass control to the next middleware function. Otherwise, the request will be left hanging.</p> <p>The following figure shows the elements of a middleware function call:</p> <table id="mw-fig"> <tr>
+<td id="mw-fig-imgcell"> <img src="http://expressjs.com/images/express-mw.png" id="mw-fig-img"> </td> <td class="mw-fig-callouts"> <div class="callout" id="callout1">HTTP method for which the middleware function applies.</div> <div class="callout" id="callout2">Path (route) for which the middleware function applies.</div> <div class="callout" id="callout3">The middleware function.</div> <div class="callout" id="callout4">Callback argument to the middleware function, called "next" by convention.</div> <div class="callout" id="callout5">HTTP <a href="../../4x/api/#res">response</a> argument to the middleware function, called "res" by convention.</div> <div class="callout" id="callout6">HTTP <a href="../../4x/api/#req">request</a> argument to the middleware function, called "req" by convention.</div> </td>
+</tr> </table> <h2>Example</h2> <p>Here is an example of a simple “Hello World” Express application. The remainder of this article will define and add two middleware functions to the application: one called <code>myLogger</code> that prints a simple log message and another called <code>requestTime</code> that displays the timestamp of the HTTP request.</p> <pre data-language="js">var express = require('express')
+var app = express()
+
+app.get('/', function (req, res) {
+  res.send('Hello World!')
+})
+
+app.listen(3000)
+</pre> <h3>Middleware function myLogger</h3> <p>Here is a simple example of a middleware function called “myLogger”. This function just prints “LOGGED” when a request to the app passes through it. The middleware function is assigned to a variable named <code>myLogger</code>.</p> <pre data-language="js">var myLogger = function (req, res, next) {
+  console.log('LOGGED')
+  next()
+}
+</pre> <div class="doc-box doc-notice"> <p>Notice the call above to <code>next()</code>. Calling this function invokes the next middleware function in the app. The <code>next()</code> function is not a part of the Node.js or Express API, but is the third argument that is passed to the middleware function. The <code>next()</code> function could be named anything, but by convention it is always named “next”. To avoid confusion, always use this convention.</p> </div> <p>To load the middleware function, call <code>app.use()</code>, specifying the middleware function. For example, the following code loads the <code>myLogger</code> middleware function before the route to the root path (/).</p> <pre data-language="js">var express = require('express')
+var app = express()
+
+var myLogger = function (req, res, next) {
+  console.log('LOGGED')
+  next()
+}
+
+app.use(myLogger)
+
+app.get('/', function (req, res) {
+  res.send('Hello World!')
+})
+
+app.listen(3000)
+</pre> <p>Every time the app receives a request, it prints the message “LOGGED” to the terminal.</p> <p>The order of middleware loading is important: middleware functions that are loaded first are also executed first.</p> <p>If <code>myLogger</code> is loaded after the route to the root path, the request never reaches it and the app doesn’t print “LOGGED”, because the route handler of the root path terminates the request-response cycle.</p> <p>The middleware function <code>myLogger</code> simply prints a message, then passes on the request to the next middleware function in the stack by calling the <code>next()</code> function.</p> <h3>Middleware function requestTime</h3> <p>Next, we’ll create a middleware function called “requestTime” and add it as a property called <code>requestTime</code> to the request object.</p> <pre data-language="js">var requestTime = function (req, res, next) {
+  req.requestTime = Date.now()
+  next()
+}
+</pre> <p>The app now uses the <code>requestTime</code> middleware function. Also, the callback function of the root path route uses the property that the middleware function adds to <code>req</code> (the request object).</p> <pre data-language="js">var express = require('express')
+var app = express()
+
+var requestTime = function (req, res, next) {
+  req.requestTime = Date.now()
+  next()
+}
+
+app.use(requestTime)
+
+app.get('/', function (req, res) {
+  var responseText = 'Hello World!&lt;br&gt;'
+  responseText += '&lt;small&gt;Requested at: ' + req.requestTime + '&lt;/small&gt;'
+  res.send(responseText)
+})
+
+app.listen(3000)
+</pre> <p>When you make a request to the root of the app, the app now displays the timestamp of your request in the browser.</p> <p>Because you have access to the request object, the response object, the next middleware function in the stack, and the whole Node.js API, the possibilities with middleware functions are endless.</p> <p>For more information about Express middleware, see: <a href="../using-middleware/">Using Express middleware</a>.</p> <h2>Configurable middleware</h2> <p>If you need your middleware to be configurable, export a function which accepts an options object or other parameters, which, then returns the middleware implementation based on the input parameters.</p> <p>File: <code>my-middleware.js</code></p> <pre data-language="js">module.exports = function(options) {
+  return function(req, res, next) {
+    // Implement the middleware function based on the options object
+    next()
+  }
+}
+</pre> <p>The middleware can now be used as shown below.</p> <pre data-language="js">var mw = require('./my-middleware.js')
+
+app.use(mw({ option1: '1', option2: '2' }))
+</pre> <p>Refer to <a href="https://github.com/expressjs/cookie-session" target="_blank">cookie-session</a> and <a href="https://github.com/expressjs/compression" target="_blank">compression</a> for examples of configurable middleware.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2016 StrongLoop, IBM, and other expressjs.com contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v3.0.<br>
+    <a href="http://expressjs.com/en/guide/writing-middleware.html" class="_attribution-link" target="_blank">http://expressjs.com/en/guide/writing-middleware.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
