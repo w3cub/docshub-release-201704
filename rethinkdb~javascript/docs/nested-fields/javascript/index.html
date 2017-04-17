@@ -1,0 +1,216 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Accessing Nested Fields - RethinkDB JavaScript - W3cubDocs</title>
+  
+  <meta name="description" content=" ">
+  <meta name="keywords" content="accessing, nested, fields, -, rethinkdb, javascript, rethinkdb~javascript">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rethinkdb~javascript/docs/nested-fields/javascript/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rethinkdb~javascript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rethinkdb~javascript/" class="_nav-link" title="" style="margin-left:0;">RethinkDB JavaScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rethinkdb">
+				
+<h1 class="title">Accessing nested fields</h1>    <p><img alt="Nested Fields Illustration" class="api_command_illustration" src="https://rethinkdb.com/assets/images/docs/api_illustrations/nested_fields.png"></p> <p>A ReQL document is a JSON object: a set of key-value pairs, in which each value might be a single value, a list of values, or <em>another</em> set of key-value pairs. When the value of a field contains more fields, we describe these as <em>nested fields.</em></p> <p>Consider a user table with contact information and a list of notes for each user in this format:</p> <pre data-language="">{
+	id: 10001,
+	name: "Bob Smith",
+	contact: {
+		phone: {
+			work: "408-555-1212",
+			home: "408-555-1213",
+			cell: "408-555-1214"
+		},
+		email: {
+			work: "bob@smith.com",
+			home: "bobsmith@gmail.com",
+			other: "bobbys@moosecall.net"
+		},
+		im: {
+			skype: "Bob Smith",
+			aim: "bobmoose",
+			icq: "nobodyremembersicqnumbers"
+		}
+	},
+	notes: [
+		{
+			date: r.time(2014,1,1,'Z'),
+			from: "John Doe",
+			subject: "My name is even more boring than Bob's"
+		},
+		{
+			date: r.time(2014,2,2,'Z'),
+			from: "Bob Smith Sr",
+			subject: "Happy Second of February"
+		}
+	]
+}
+</pre>  <p>The contact information is <em>nested,</em> like paths in a file system.</p> <blockquote> <p>contact → phone → work → 408-555-1212</p> </blockquote> <p>You can get the value of a specific field by using the <code class="highlighter-rouge">()</code> operator successively to “drill down” in the document nesting:</p> <pre data-language="">&gt; r.table('users').get(10001)('contact')('phone')('work').run(conn, callback)
+// result passed to callback
+"408-555-1212"
+</pre>  <p>With most commands that take a field name string or the <code class="highlighter-rouge">() </code> syntax above, you can also use a JSON-style nested syntax:</p> <pre data-language="">&gt; r.table('users').get(10001).pluck(
+	{contact: {phone: "work"}}
+).run(conn, callback)
+// result passed to callback
+{
+	"contact": {
+		"phone": {
+			"work": "408-555-1212"
+		}
+	}
+}
+</pre>  <p>In that example, when you’re trying to get at just one value, the JSON style doesn’t offer much advantage. But you can use it to retrieve <em>multiple</em> values at the same nesting level. For instance, you can get just Bob’s work and cell numbers, but not home:</p> <pre data-language="">&gt; r.table('users').get(10001).pluck(
+	{contact: {phone: ["work", "cell"]}}
+).run(conn, callback)
+// result passed to callback
+{
+	"contact": {
+		"phone": {
+			"cell": "408-555-1214",
+			"work": "408-555-1212"
+		}
+	}
+}
+</pre>  <p>Or, Bob’s work phone and Skype handle:</p> <pre data-language="">&gt; r.table('users').get(10001).pluck(
+	{contact: [{phone: 'work', im: 'skype'}]}
+).run(conn, callback)
+// result passed to callback
+{
+	"contact": {
+		"im": {
+			"skype": "Bob Smith"
+		},
+		"phone": {
+			"work": "408-555-1212"
+		}
+	}
+}
+</pre>  <p>And there’s more! You can filter on fields of objects inside a list. Suppose you wanted just the dates and senders of notes to Bob:</p> <pre data-language="">&gt; r.table('users').get(10001).pluck(
+	{notes: ['date', 'from']}
+).run(conn, callback)
+// result passed to callback
+{
+	"notes": [
+		{
+			"date": Wed Jan 01 2014 00:00:00 GMT+00:00 ,
+			"from":  "John Doe"
+		},
+		{
+			"date": Sun Feb 02 2014 00:00:00 GMT+00:00 ,
+			"from":  "Bob Smith Sr."
+		}
+	]
+}
+</pre>  <p>If you ask for a nested field that doesn’t exist, you will get an empty object or array (this is <em>not</em> the same as a <code class="highlighter-rouge">null</code> value):</p> <pre data-language="">&gt; r.table('users').get(10001).pluck(
+	{contact: [{phone: 'work', im: 'msn'}]}
+).run(conn, callback)
+// result passed to callback
+{
+	"contact": {
+		"im": { },
+		"phone": {
+			"work": "408-555-1212"
+		}
+	}
+}
+</pre>  <p>Be aware this behavior holds true when retrieving data from lists, too. If you extracted <code class="highlighter-rouge">subject</code> from <code class="highlighter-rouge">notes</code> above and Bob had 10 notes, 7 of which contained no <code class="highlighter-rouge">subject</code> field, you would still get a list of 10 objects: 7 of them would be <code class="highlighter-rouge"><span class="p">{</span><span class="err">subject</span><span class="p">:</span><span class="err">&lt;text&gt;</span><span class="p">}</span></code> and 3 of them would be empty, i.e., <code class="highlighter-rouge"><span class="p">{</span><span class="p">}</span></code>.</p> <p>Also, another caveat: the nested field syntax doesn’t guarantee identical schemas between documents that it returns. It’s possible to describe a path that matches objects that have different schema, as seen in this simple example.</p> <pre data-language="">&gt; r([
+    {
+        a: {
+            b: 1,
+            c: 2
+        }
+    },
+    {
+        a: [
+            {
+                b: 1,
+                c: 2
+            }
+        ]
+    }
+]).pluck({a: {b: true}}).run(conn, callback)
+// result passed to callback
+[
+    {
+        "a": {
+            "b": 1
+        }
+    },
+    {
+        "a": [
+            {
+                "b": 1
+            }
+        ]
+    }
+]
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © RethinkDB contributors<br>Licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License.<br>
+    <a href="https://rethinkdb.com/docs/nested-fields/javascript/" class="_attribution-link" target="_blank">https://rethinkdb.com/docs/nested-fields/javascript/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
