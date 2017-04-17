@@ -1,0 +1,407 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>React - Flow - W3cubDocs</title>
+  
+  <meta name="description" content="React applications are composed of nested components. As React-based applications grow, these component trees and the dependencies between them &hellip;">
+  <meta name="keywords" content="react, -, flow">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/flow/react/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/flow.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/flow/" class="_nav-link" title="" style="margin-left:0;">Flow</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>React</h1>   <pre class="highlight" data-language="js">const React = require("react");
+const ReactDOM = require("react-dom");</pre>  <p>React applications are composed of nested components. As React-based applications grow, these component trees and the dependencies between them become increasingly complex.</p> <p>Flow’s static analysis makes building large Web apps with React safe by tracking the types of props and state. Flow understands which props are required and also supports default props.</p> <p>React provides a few different ways to define components:</p> <ul> <li>
+<a href="#the-reactcreateclass-factory">the <code class="highlighter-rouge">React.createClass</code> factory</a>,</li> <li>
+<a href="#defining-components-as-reactcomponent-subclasses"><code class="highlighter-rouge">React.Component</code> subclasses</a>,</li> <li>and <a href="#stateless-functional-components">stateless functional components</a>
+</li> </ul> <p>This document explains how to make strongly-typed components using all of the above styles and includes an example of a <a href="#higher-order-components">higher order component</a>.</p> <h2 id="the-reactcreateclass-factory">The <code class="highlighter-rouge">React.createClass</code> factory
+</h2> <p>React ships with PropTypes, which verify the props provided to a component. Unlike the static analysis performed by Flow, PropTypes are only checked at runtime. If your testing doesn’t trigger every code path that provides props to a component, you might not notice a type error in your program.</p> <p>Flow has built-in support for PropTypes. When Flow sees a <code class="highlighter-rouge">createClass</code> factory that specifies PropTypes, it is able to statically verify that all elements are constructed using valid props.</p>   <pre class="highlight" data-language="js">const Greeter = React.createClass({
+  propTypes: {
+    name: React.PropTypes.string.isRequired,
+  },
+  render() {
+    return &lt;p&gt;Hello, {this.props.name}!&lt;/p&gt;;
+  },
+});
+
+&lt;Greeter /&gt;; // Missing `name`
+&lt;Greeter name={null} /&gt;; // `name` should be a string
+&lt;Greeter name="World" /&gt;; // "Hello, World!"</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">10: &lt;Greeter /&gt;; // Missing `name`
+    ^^^^^^^^^^^ React element `Greeter`
+2:   propTypes: {
+                ^ property `name`. Property not found in
+10: &lt;Greeter /&gt;; // Missing `name`
+    ^^^^^^^^^^^ props of React element `Greeter`
+
+11: &lt;Greeter name={null} /&gt;; // `name` should be a string
+    ^^^^^^^^^^^^^^^^^^^^^^^ props of React element `Greeter`. This type is incompatible with
+2:   propTypes: {
+                ^ propTypes of React component</pre>   <p>Flow understands when a default value is specified via <code class="highlighter-rouge">getDefaultProps</code> and will not error when the prop is not provided.</p> <p>Note that it’s still a good idea to specify <code class="highlighter-rouge">isRequired</code>, even when a default value is provided, to protect against <code class="highlighter-rouge">null</code> prop values. React will only use a default value if the prop value is <code class="highlighter-rouge">undefined</code>.</p>   <pre class="highlight" data-language="js">const DefaultGreeter = React.createClass({
+  propTypes: {
+    name: React.PropTypes.string.isRequired,
+  },
+  getDefaultProps() {
+    return {name: "World"};
+  },
+  render() {
+    return &lt;p&gt;Hello, {this.props.name}!&lt;/p&gt;;
+  },
+});
+
+&lt;DefaultGreeter /&gt;; // "Hello, World!"
+&lt;DefaultGreeter name={null} /&gt;; // `name` should still be a string
+&lt;DefaultGreeter name="Flow" /&gt;; // "Hello, Flow!"</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">14: &lt;DefaultGreeter name={null} /&gt;; // `name` should still be a string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `DefaultGreeter`
+14: &lt;DefaultGreeter name={null} /&gt;; // `name` should still be a string
+                          ^^^^ null. This type is incompatible with
+6:     return {name: "World"};
+                     ^^^^^^^ string</pre>   <p>Flow ensures that state reads and writes are consistent with the object returned from <code class="highlighter-rouge">getInitialState</code>.</p>   <pre class="highlight" data-language="js">const Counter = React.createClass({
+  getInitialState() {
+    return {
+      value: 0,
+    };
+  },
+  increment() {
+    this.setState({
+      value: this.state.value + "oops!",
+    });
+  },
+  decrement() {
+    // Note: Typo below is intentional
+    this.setState({
+      valu: this.state.value - 1,
+    });
+  },
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;button onClick={this.increment}&gt;+&lt;/button&gt;
+        &lt;input type="text" size="2" value={this.state.value} /&gt;
+        &lt;button onClick={this.decrement}&gt;-&lt;/button&gt;
+      &lt;/div&gt;
+    );
+  },
+});</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">9:       value: this.state.value + "oops!",
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^ string. This type is incompatible with
+4:       value: 0,
+                ^ number</pre>   <h2 id="defining-components-as-reactcomponent-subclasses">Defining components as <code class="highlighter-rouge">React.Component</code> subclasses
+</h2> <p>While PropTypes are great, they are quite limited. For example, it’s possible to specify that a prop is some kind of function, but not what parameters that function accepts or what kind of value it might return.</p> <p>Flow has a much richer type system which is able to express those constraints and more. With class-based components, you can specify the components’ props, default props, and state using Flow’s annotation syntax.</p>  <pre class="highlight" data-language="js">type Props = {
+  title: string,
+  visited: boolean,
+  onClick: () =&gt; void,
+};
+
+class Button extends React.Component {
+  props: Props;
+
+  state: {
+    display: 'static' | 'hover' | 'active',
+  };
+
+  static defaultProps: { visited: boolean };
+
+  onMouseEnter: () =&gt; void;
+  onMouseLeave: () =&gt; void;
+  onMouseDown: () =&gt; void;
+
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      display: 'static',
+    };
+
+    const setDisplay = display =&gt; this.setState({display});
+
+    this.onMouseEnter = () =&gt; setDisplay('hover');
+    this.onMouseLeave = () =&gt; setDisplay('static');
+    this.onMouseDown = () =&gt; setDisplay('active');
+  }
+
+  render() {
+    let className = 'button ' + this.state.display;
+    if (this.props.visited) {
+      className += ' visited';
+    }
+
+    return (
+      &lt;div className={className}
+        onMouseEnter={this.onMouseEnter}
+        onMouseLeave={this.onMouseLeave}
+        onMouseDown={this.onMouseDown}
+        onClick={this.props.onClick}&gt;
+        {this.props.title}
+      &lt;/div&gt;
+    );
+  }
+}
+Button.defaultProps = { visited: false };
+
+function renderButton(container: HTMLElement, visited?: boolean) {
+  const element = (
+    &lt;Button
+      title="Click me!"
+      visited={visited}
+      onClick={() =&gt; {
+        renderButton(container, true);
+      }}
+    /&gt;
+  );
+  ReactDOM.render(element, container);
+}</pre>  <h2 id="stateless-functional-components">Stateless functional components
+</h2> <p>Any function that returns a React element can be used as a component class in a JSX expression.</p>  <pre class="highlight" data-language="js">function SayAgain(props: { message: string }) {
+  return (
+    &lt;div&gt;
+      &lt;p&gt;{props.message}&lt;/p&gt;
+      &lt;p&gt;{props.message}&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+
+&lt;SayAgain message="Echo!" /&gt;;
+&lt;SayAgain message="Save the whales!" /&gt;;</pre>  <p>Stateless functional components can specify default props as destructuring with default values.</p>  <pre class="highlight" data-language="js">function Echo({ message, times = 2 }: { message: string, times?: number }) {
+  var messages = new Array(times).fill(&lt;p&gt;{message}&lt;/p&gt;);
+
+  return (
+    &lt;div&gt;
+      {messages}
+    &lt;/div&gt;
+  );
+}
+
+&lt;Echo message="Helloooo!" /&gt;;
+&lt;Echo message="Flow rocks!" times={42} /&gt;;</pre>  <h2 id="higher-order-components">Higher-order components
+</h2> <p>Occasionally, repeated patterns in React components can be abstracted into functions that transform one component class into another.</p> <p>In the example below, the HOC <code class="highlighter-rouge">loadAsync</code> takes a component that requires some arbitrary config and a promise that will eventually provide that config and returns a component that takes care of loading the data and displaying the component asynchronously.</p>   <pre class="highlight" data-language="js">function loadAsync&lt;Config&gt;(
+  ComposedComponent: ReactClass&lt;Config&gt;,
+  configPromise: Promise&lt;Config&gt;,
+): ReactClass&lt;{}&gt; {
+  return class extends React.Component {
+    state: {
+      config: ?Config,
+      loading: boolean,
+    };
+
+    load: () =&gt; void;
+
+    constructor(props) {
+      super(props);
+
+      this.state = {
+        config: null,
+        loading: false,
+      }
+
+      this.load = () =&gt; {
+        this.setState({loading: true});
+        configPromise.then(config =&gt; this.setState({
+          loading: false,
+          config,
+        }));
+      }
+    }
+
+    render() {
+      if (this.state.config == null) {
+        let label = this.state.loading ? "Loading..." : "Load";
+        return (
+          &lt;button disabled={this.state.loading} onClick={this.load}&gt;
+            {label}
+          &lt;/button&gt;
+        );
+      } else {
+        return &lt;ComposedComponent {...this.state.config} /&gt;
+      }
+    }
+  }
+}
+
+const AsyncGreeter = loadAsync(Greeter, new Promise((resolve, reject) =&gt; {
+  setTimeout(() =&gt; {
+    resolve({ name: "Async World" });
+  }, 1000);
+}));
+
+&lt;AsyncGreeter /&gt;;</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">39:         return &lt;ComposedComponent {...this.state.config} /&gt;
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `ComposedComponent`. Expected object instead of
+39:         return &lt;ComposedComponent {...this.state.config} /&gt;
+                                          ^^^^^^^^^^^^^^^^^ Config</pre>   <p>Another common use for HOCs is to wrap a React component in a HOC that takes fewer or different properties. In this example, we will demonstrate how to write a HOC that wraps a component to create a component that expects a subset of the required properties</p> <p>First, here is a simple React component that has 3 required properties</p>  <pre class="highlight" data-language="js">type TimelyProps = {
+  date: Date,
+  name: string,
+  excited: boolean
+};
+class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+  render() {
+    const hours = this.props.date.getHours();
+    const timeOfDay =
+      hours &gt; 17 ? 'Evening' : hours &gt; 12 ? 'Afternoon' : 'Morning';
+
+    return (
+      &lt;div&gt;
+        Good {timeOfDay} {this.props.name} {this.props.excited ? '!' : ''}
+      &lt;/div&gt;
+    );
+  }
+}</pre>  <p>Using <code class="highlighter-rouge">Timely</code> will error if you omit any of the 3 properties or if they have the wrong type</p>   <pre class="highlight" data-language="js">&lt;Timely /&gt;; // Missing all the required props
+&lt;Timely name='John' /&gt;; // Missing date and excited
+&lt;Timely name='John' excited={true} /&gt;; // Missing date
+&lt;Timely date={new Date()} name='John' excited={true} /&gt; // Ok!</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `date`. Property not found in
+1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ props of React element `Timely`
+
+1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `excited`. Property not found in
+1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ props of React element `Timely`
+
+1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `name`. Property not found in
+1: &lt;Timely /&gt;; // Missing all the required props
+   ^^^^^^^^^^ props of React element `Timely`
+
+2: &lt;Timely name='John' /&gt;; // Missing date and excited
+   ^^^^^^^^^^^^^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `date`. Property not found in
+2: &lt;Timely name='John' /&gt;; // Missing date and excited
+   ^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timely`
+
+2: &lt;Timely name='John' /&gt;; // Missing date and excited
+   ^^^^^^^^^^^^^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `excited`. Property not found in
+2: &lt;Timely name='John' /&gt;; // Missing date and excited
+   ^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timely`
+
+3: &lt;Timely name='John' excited={true} /&gt;; // Missing date
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ React element `Timely`
+-18: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `date`. Property not found in
+3: &lt;Timely name='John' excited={true} /&gt;; // Missing date
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timely`</pre>   <p>Now let’s say we wanted to wrap Timely in a component that automatically provides the date</p>  <pre class="highlight" data-language="js">declare function injectDate&lt;Props, C: React.Component&lt;*, Props, *&gt;&gt;(
+  Komponent: Class&lt;C&gt;
+): Class&lt;React.Component&lt;void, $Diff&lt;Props, {date: Date}&gt;, void&gt;&gt;;
+
+const Timeless = injectDate(Timely);</pre>  <p>The name and excited properties are still required, but now you can omit date, since it’s automatically provided!</p>   <pre class="highlight" data-language="js">&lt;Timeless /&gt;; // props not satisfied.
+&lt;Timeless excited={true} /&gt;; // props not satisfied.
+&lt;Timeless name='Sally' /&gt;; // props not satisfied.
+&lt;Timeless name={1234} excited={true} /&gt;; // name must be a string
+&lt;Timeless name='Sally' excited={true} /&gt;; // This works!
+
+&lt;Timeless
+  name='Sally'
+  excited={true}
+  date={1234} /&gt; // date must still be a Date object</pre>     <pre class="highlight" data-language="js">$&gt; flow</pre>   <pre class="highlight" data-language="js">1: &lt;Timeless /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^ React element `Timeless`
+-38: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `excited`. Property not found in
+1: &lt;Timeless /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^ props of React element `Timeless`
+
+1: &lt;Timeless /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^ React element `Timeless`
+-38: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `name`. Property not found in
+1: &lt;Timeless /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^ props of React element `Timeless`
+
+2: &lt;Timeless excited={true} /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ React element `Timeless`
+-38: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `name`. Property not found in
+2: &lt;Timeless excited={true} /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timeless`
+
+3: &lt;Timeless name='Sally' /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^^^^^^^^^^^^^^ React element `Timeless`
+-38: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ property `excited`. Property not found in
+3: &lt;Timeless name='Sally' /&gt;; // props not satisfied.
+   ^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timeless`
+
+4: &lt;Timeless name={1234} excited={true} /&gt;; // name must be a string
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ props of React element `Timeless`. This type is incompatible with
+-38: class Timely extends React.Component&lt;void, TimelyProps, void&gt; {
+                                                ^^^^^^^^^^^ object type
+
+7: &lt;Timeless
+   ^ props of React element `Timeless`
+10:   date={1234} /&gt; // date must still be a Date object
+            ^^^^ number. This type is incompatible with
+-8: ): Class&lt;React.Component&lt;void, $Diff&lt;Props, {date: Date}&gt;, void&gt;&gt;;
+                                                       ^^^^ Date</pre>      <div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–present Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://flowtype.org/docs/react.html" class="_attribution-link" target="_blank">https://flowtype.org/docs/react.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

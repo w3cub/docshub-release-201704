@@ -1,0 +1,106 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Disjoint Unions - Flow - W3cubDocs</title>
+  
+  <meta name="description" content="Sometimes programs need to deal with different kinds of data all at once, where the shape of the data can be different based on what kind of data &hellip;">
+  <meta name="keywords" content="disjoint, unions, -, flow">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/flow/disjoint-unions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/flow.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/flow/" class="_nav-link" title="" style="margin-left:0;">Flow</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>Disjoint Unions</h1>  <p>Sometimes programs need to deal with different kinds of data all at once, where the shape of the data can be different based on what kind of data the code is looking at. This kind of programming is so common in functional programming languages that almost all such languages come with a way of:</p> <ul> <li> <p>Specifying such data by a set of disjoint cases, distinguished by “tags,” where each tag is associated with a different “record” of properties. (These descriptions are called “disjoint union” or “variant” types.)</p> </li> <li> <p>Doing case analysis on such data, by checking tags and then directly accessing the associated record of properties. (The common way to do such case analysis is by pattern matching.)</p> </li> </ul> <p>Examples of programs that analyze or transform such data range from compilers working with abstract syntax trees, to operations that may return exceptional values, with much more in between!</p> <p>With Flow, it is possible to program in this style in JavaScript in a type-safe manner. You can define a disjoint union of object types and do case analysis on objects of that type by switching on the value of some common property (called a “sentinel”) in those object types.</p> <h2 id="example">Example
+</h2> <p>Consider a computation that takes an argument and a callback that is invoked when the computation is complete, with a success or failure result. As a concrete example, suppose that we are interested in computing the inverse of a matrix (which may or may not exist).</p> <p>The result type can be modeled as a disjoint union type. In terms of syntax, a disjoint union type is just a specific form of <a href="../union-intersection-types/">union type</a>. In addition, a disjoint union type makes heavy use of <a href="../builtins/#literal-types">literal types</a>: this is important, because we will see below how Flow can relate these types back to dynamic equality checks with literals that appear commonly in JavaScript code.</p>  <pre class="highlight" data-language="js">type Matrix = number[][]; // type of input and output for our function
+
+type Result = Done | Error; // a disjoint union type with two cases
+type Done = { status: 'done', answer: Matrix };
+type Error = { status: 'error', message: string };</pre>  <p>Here, the property <code class="highlighter-rouge">status</code> serves as the sentinel property in <code class="highlighter-rouge">Result</code>: this is the property that actually makes the union type “disjoint.”</p> <p>Case analysis can be performed on results of type <code class="highlighter-rouge">Result</code> by matching the value of the <code class="highlighter-rouge">status</code> property with the literals <code class="highlighter-rouge">done</code> or <code class="highlighter-rouge">error</code>. Note that matching must be performed with the <code class="highlighter-rouge">===</code> operator. Conveniently, <code class="highlighter-rouge">switch</code> statements already use this operator, but using <code class="highlighter-rouge">if</code> with this operator also works.</p> <p>Flow will correctly narrow down the <code class="highlighter-rouge">Result</code> type to the corresponding cases, <code class="highlighter-rouge">Done</code> and <code class="highlighter-rouge">Error</code>, so that the properties <code class="highlighter-rouge">answer</code> and <code class="highlighter-rouge">message</code> can be accessed safely based on context.</p>  <pre class="highlight" data-language="js">function invert(matrix: Matrix, callback: (result: Result) =&gt; void) {
+  // Try to compute the inverse of `matrix`.
+  // On success, invoke callback with `{ status: 'done', answer: ... }`.
+  // On failure, involve callback with `{ status: 'error', message: ... }`.
+
+  // ...
+}
+
+function showInverseOf(matrix: Matrix) {
+  invert(matrix, result =&gt; {
+    switch (result.status) {
+    case 'error':
+      console.log ("Uh oh!", result.message);
+      break;  // see what happens if you forget to break! :)
+    default:
+      console.log ("Inverse:", result.answer);
+    }
+  });
+}</pre>     <div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–present Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://flowtype.org/docs/disjoint-unions.html" class="_attribution-link" target="_blank">https://flowtype.org/docs/disjoint-unions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

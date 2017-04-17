@@ -1,0 +1,105 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Troubleshooting - Flow - W3cubDocs</title>
+  
+  <meta name="description" content="These errors are due to global references in your code, and possibly also due to typos. If the former, you can declare them in an interface file if &hellip;">
+  <meta name="keywords" content="troubleshooting, -, flow">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/flow/troubleshooting/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/flow.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/flow/" class="_nav-link" title="" style="margin-left:0;">Flow</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>Troubleshooting</h1>  <h2 id="common-errors-and-how-to-fix-them">Common errors and how to fix them
+</h2> <h3 id="global-not-found">Global not found
+</h3> <p>These errors are due to global references in your code, and possibly also due to typos. If the former, you can <a href="../third-party/#interface-files">declare them in an interface file</a> if you know that they are going to be available when you run the code.</p> <pre class="highlight" data-language="js">declare var foo: &lt;type&gt;;</pre>  <h3 id="required-module-not-found">Required module not found
+</h3> <p>These errors are due to <code class="highlighter-rouge">require(...)</code> or <code class="highlighter-rouge">import</code> statements in your code that don’t resolve to the set of modules exported by files under <code class="highlighter-rouge">&lt;root&gt;</code>. To specify additional code directories to Flow, you can add the following lines to your project’s <code class="highlighter-rouge">.flowconfig</code> under <code class="highlighter-rouge">&lt;root&gt;</code>.</p> <pre class="highlight" data-language="js">[include]
+../node_modules/
+../lib/</pre>  <p>Alternatively, you may not have the code available for those modules, or otherwise want to specify declarations for them. In that case, as in the ‘global not found’ case above you need to add an interface file and point to it from within your <code class="highlighter-rouge">.flowconfig</code>.</p> <pre class="highlight" data-language="js">declare module Bar {
+  ...
+}</pre>  <p>For more information about writing interface files, see <a href="../third-party/">this guide</a> Note that if both an implementation and a declaration is found for a module, Flow will choose the implementation only if it has been opted-in. Otherwise it will use the declaration.</p> <h3 id="operation-not-allowed-on-null--undefined">Operation not allowed on <code class="highlighter-rouge">null</code> / <code class="highlighter-rouge">undefined</code>
+</h3> <p>Flow considers types to be incompatible with <code class="highlighter-rouge">null</code> / <code class="highlighter-rouge">undefined</code> in general (the only compatible types are “nullable” types, denoted <code class="highlighter-rouge">?&lt;type&gt;</code>). Thus, it will complain if it finds that an operation may happen on <code class="highlighter-rouge">null</code> / <code class="highlighter-rouge">undefined</code> that couldn’t normally happen on the type as well as null.</p> <p>The general way to deal with this is to store the value in a local variable, and guard the operation with a dynamic check on the local variable.</p> <pre class="highlight" data-language="js">// var result = foo().bar
+var x = foo();
+var result = x != null ? x.bar : ...</pre>  <p>You can also try other variations of this basic pattern:</p> <pre class="highlight" data-language="js">// foo.bar()
+foo &amp;&amp; foo.bar()</pre>  <h3 id="function-call-with-too-few-arguments">Function call with too few arguments
+</h3> <p>In JavaScript, function calls can pass too many or too few arguments: Additional arguments get dropped, and missing arguments get initialized with <code class="highlighter-rouge">undefined</code>. Flow admits the former pattern because it is mostly harmless; but it complains about the latter.</p> <p>The most common way to fix these errors is to mark optional parameters with a trailing-<code class="highlighter-rouge">?</code> in the definition for the function being called:</p> <pre class="highlight" data-language="js">function foo(x?) { ... }
+foo();</pre>  <p>Doing this might shift the problem to the function definition, where <code class="highlighter-rouge">x</code> now has a “optional” type. So operations on <code class="highlighter-rouge">x</code> may then need to be guarded by dynamic checks.</p> <pre class="highlight" data-language="js">function foo(x?) {
+  if (x != undefined) {
+    // operation on x
+  }
+}
+foo();</pre>  <p>Alternatively, you might want to just provide a default value to <code class="highlighter-rouge">x</code>, in which case the dynamic check is not required.</p> <pre class="highlight" data-language="js">function foo(x = 0) {
+  // operation on x
+}
+foo();</pre>  <h3 id="other-type-confusions">Other type confusions
+</h3> <p>Some operations only make sense when they’re performed on a particular set of values. (They may still work on other values, but may have unintended consequences).</p> <p>For example, multiplication (<code class="highlighter-rouge">*</code>) should be performed only on numbers even though it may happen to work when you pass strings (though usually they’re converted to <code class="highlighter-rouge">NaN</code>).</p> <p>Iteration using <code class="highlighter-rouge">for-in</code> should be performed only on objects even though it may still work on arrays (the keys are converted to strings and other, often unexpected, properties are also included).</p> <p>Non-strict equality <code class="highlighter-rouge">==</code> should be performed only on values that have the same type (otherwise, some sequence of type conversions are tried).</p> <p>Flow will error on many of these operations because they tend to be hazardous. Usually there is a safer way to express the intent of the code in these cases: e.g., use <code class="highlighter-rouge">Array.forEach</code> and <code class="highlighter-rouge">===</code> in the latter two cases or use <code class="highlighter-rouge">Number(...)</code> in the former case).</p>   <div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–present Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://flowtype.org/docs/troubleshooting.html" class="_attribution-link" target="_blank">https://flowtype.org/docs/troubleshooting.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
