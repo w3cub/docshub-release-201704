@@ -1,0 +1,204 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>11 Orber Interceptors - Erlang 18 - W3cubDocs</title>
+  
+  <meta name="description" content="For Inter-ORB communication, e.g., via IIOP, it is possible to intercept requests and replies. To be able to use Interceptors Orber the &hellip;">
+  <meta name="keywords" content="orber, interceptors, -, erlang, erlang~18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~18/lib/orber-3.8.1/doc/html/ch_interceptors/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~18/" class="_nav-link" title="" style="margin-left:0;">Erlang 18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>11 Orber Interceptors</h1> <h2 id="id83894">11.1 Using Interceptors</h2> <p>For Inter-ORB communication, e.g., via <code class="code">IIOP</code>, it is possible to intercept requests and replies. To be able to use <code class="code">Interceptors</code> Orber the configuration parameter <code class="code">interceptors</code> must be defined.</p> <h4>Configure Orber to Use Interceptors</h4> <p>The configuration parameter <code class="code">interceptors</code> must be defined, e.g., as command line option:</p> <div class="example"><pre>
+erl -orber interceptors "{native, ['myInterceptor']}"
+      </pre></div> <p>It is possible to use more than one interceptor; simply add them to the list and they will be invoked in the same order as they appear in the list.</p> <p>One can also active and deactivate an interceptor during run-time, but this will only affect currently existing connections. For more information, consult Orber's Reference Manual regarding the operations <code class="code">orber:activate_audit_trail/0/1</code> and <code class="code">orber:activate_audit_trail/0/1.</code></p> <h4>Creating Interceptors</h4> <p>Each supplied interceptor <strong>must</strong> export the following functions:</p> <ul> <li> <strong>new_out_connection/3/5</strong> - one of these operations is called when a client application calls an object residing on remote ORB. If an interceptor exports both versions, arity 3 and 5, which operation that will be invoked is Orber internal.</li> <li> <strong>new_in_connection/3/5</strong> - one of these operations is invoked when a client side ORB tries to set up a connection to the target ORB. If an interceptor exports both versions, arity 3 and 5, which operation that will be invoked is Orber internal.</li> <li> <strong>out_request/6</strong> - supplies all request data on the client side ORB.</li> <li> <strong>out_request_encoded/6</strong> - similar to <code class="code">out_request</code> but the request body is encode.</li> <li> <strong>in_request_encoded/6</strong> - after a new request arrives at the target ORB the request data is passed to the interceptor in encoded format.</li> <li> <strong>in_request/6</strong> - prior to invoking the operation on the target object, the interceptor <code class="code">in_request</code> is called.</li> <li> <strong>out_reply/6</strong> - after the target object replied the <code class="code">out_reply</code> operation is called with the result of the object invocation.</li> <li> <strong>out_reply_encoded/6</strong> - before sending a reply back to the client side ORB this operation is called with the result in encoded format.</li> <li> <strong>in_reply_encoded/6</strong> - after the client side ORB receives a reply this function is called with the reply in encoded format.</li> <li> <strong>in_reply/6</strong> - before delivering the reply to the client this operation is invoked.</li> <li> <strong>closed_in_connection/1</strong> - when a connection is terminated on the client side this function is called.</li> <li> <strong>closed_out_connection/1</strong> - if an outgoing connection is terminated this operation will be invoked.</li> </ul> <p>The operations <code class="code">new_out_connection</code>, <code class="code">new_in_connection</code>, <code class="code">closed_in_connection</code> and <code class="code">closed_out_connection</code> operations are only invoked <strong>once</strong> per connection. The remaining operations are called, as shown below, for every Request/Reply to/from remote CORBA Objects.</p>   <em>Figure 11.1: The Invocation Order of Interceptor Functions.</em> <h2 id="id84111">11.2 Interceptor Example</h2> <p>Assume we want to create a simple access service which purpose is to:</p> <ul> <li>Only allow incoming request from ORB's residing on a certain set of nodes.</li> <li>Restrict the objects any client may invoke operations on.</li> <li>Only allow outgoing requests to call a limited set of external ORB's.</li> <li>Add a checksum to each binary request/reply body.</li> </ul> <p>To restricts the access we use a <code class="code">protected</code> and <code class="code">named</code> ets-table holding all information. How the ets-table is initiated and maintained is implementation specific, but it contain <code class="code">{Node, ObjectTable, ChecksumModule}</code> where <code class="code">Node</code> is used as ets-key, <code class="code">ObjectTable</code> is a reference to another ets-table in which we store which objects the clients are allowed to invoke operations on and <code class="code">ChecksumModule</code> determines which module we should use to handle the checksums. </p> <div class="example"><pre>
+new_in_connection(Arg, Host, Port) -&gt;
+    %% Since we only use one interceptor we do not care about the
+    %% input Arg since it is set do undefined by Orber.
+    case ets:lookup(in_access_table, Host) of
+         [] -&gt;
+            %% We may want to log the Host/Port to see if someone tried
+            %% to hack in to our system.
+            exit("Access not granted");
+         [{Host, ObjTable, ChecksumModule}] -&gt;
+            {ObjTable, ChecksumModule}
+    end.
+    </pre></div> <p>The returned tuple, i.e., {ObjTable, ChecksumModule}, will be passed as the first argument whenever invoking one of the interceptor functions. Unless the connection attempt did not fail we are now ready for receiving requests from the client side ORB.</p> <p>When a new request comes in the first interceptor function to be invoked is <code class="code">in_request_encoded</code>. We will remove the checksum from the coded request body in the following way:</p> <div class="example"><pre>
+in_request_encoded({ObjTable, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:remove_checksum(Bin),
+    {NewBin, Extra}.
+    </pre></div> <p>If the checksum check fails the <code class="code">ChecksumModule</code> should invoke exit/1. But if the check succeeded we are now ready to check if the client-ORB objects are allowed to invoke operations on the target object. Please note, it is possible to run both checks in <code class="code">in_request_encoded</code>. Please note, the checksum calculation must be relatively fast to ensure a good throughput.</p> <p>If we want to we can restrict any clients to only use a subset of operations exported by a server:</p> <div class="example"><pre>
+in_request({ObjTable, ChecksumModule}, ObjKey, Ctx, Op, Params, Extra) -&gt;
+    case ets:lookup(ObjTable, {ObjKey, Op}) of
+         [] -&gt;
+            exit("Client tried to invoke illegal operation");
+         [SomeData] -&gt;
+            {Params, Extra}
+    end.
+    </pre></div> <p>At this point Orber are now ready to invoke the operation on the target object. Since we do not care about what the reply is the <code class="code">out_reply</code> function do nothing, i.e.:</p> <div class="example"><pre>
+out_reply(_, _, _, _, Reply, Extra) -&gt;
+    {Reply, Extra}.
+    </pre></div> <p>If the client side ORB expects a checksum to be added to the reply we add it by using:</p> <div class="example"><pre>
+out_reply_encoded({ObjTable, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:add_checksum(Bin),
+    {NewBin, Extra}.
+    </pre></div> <div class="warning"> <div class="label">Warning</div> <div class="content">
+
+<p>If we manipulate the binary as above the behavior <strong>must</strong> be <code class="code">Bin == remove_checksum(add_checksum(Bin))</code>.</p> </div> </div> <p>For outgoing requests the principle is the same. Hence, it is not further described here. The complete interceptor module would look like:</p> <div class="example"><pre>
+
+-module(myInterceptor).
+
+%% Interceptor functions.
+-export([new_out_connection/3,
+     new_in_connection/3,
+     closed_in_connection/1,
+     closed_out_connection/1,
+     in_request_encoded/6,
+     in_reply_encoded/6,
+     out_reply_encoded/6,
+     out_request_encoded/6,
+     in_request/6,
+     in_reply/6,
+     out_reply/6,
+     out_request/6]).
+
+new_in_connection(Arg, Host, Port) -&gt;
+    %% Since we only use one interceptor we do not care about the
+    %% input Arg since it is set do undefined by Orber.
+    case ets:lookup(in_access_table, Host) of
+         [] -&gt;
+            %% We may want to log the Host/Port to see if someone tried
+            %% to hack in to our system.
+            exit("Access not granted");
+         [{Host, ObjTable, ChecksumModule}] -&gt;
+            {ObjTable, ChecksumModule}
+    end.
+
+new_out_connection(Arg, Host, Port) -&gt;
+    case ets:lookup(out_access_table, Host) of
+         [] -&gt;
+            exit("Access not granted");
+         [{Host, ObjTable, ChecksumModule}] -&gt;
+            {ObjTable, ChecksumModule}
+    end.
+
+in_request_encoded({_, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:remove_checksum(Bin),
+    {NewBin, Extra}.
+
+in_request({ObjTable, _}, ObjKey, Ctx, Op, Params, Extra) -&gt;
+    case ets:lookup(ObjTable, {ObjKey, Op}) of
+         [] -&gt;
+            exit("Client tried to invoke illegal operation");
+         [SomeData] -&gt;
+            {Params, Extra}
+    end.
+
+out_reply(_, _, _, _, Reply, Extra) -&gt;
+    {Reply, Extra}.
+
+out_reply_encoded({_, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:add_checksum(Bin),
+    {NewBin, Extra}.
+
+out_request({ObjTable, _}, ObjKey, Ctx, Op, Params, Extra) -&gt;
+    case ets:lookup(ObjTable, {ObjKey, Op}) of
+         [] -&gt;
+            exit("Client tried to invoke illegal operation");
+         [SomeData] -&gt;
+            {Params, Extra}
+    end.
+
+out_request_encoded({_, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:add_checksum(Bin),
+    {NewBin, Extra}.
+
+in_reply_encoded({_, ChecksumModule}, ObjKey, Ctx, Op, Bin, Extra) -&gt;
+    NewBin = ChecksumModule:remove_checksum(Bin),
+    {NewBin, Extra}.
+
+in_reply(_, _, _, _, Reply, Extra) -&gt;
+    {Reply, Extra}.
+
+closed_in_connection(Arg) -&gt;
+    %% Nothing to clean up.
+    Arg.
+
+closed_out_connection(Arg) -&gt;
+    %% Nothing to clean up.
+    Arg.
+    </pre></div> <div class="note"> <div class="label">Note</div> <div class="content">
+
+<p>One can also use interceptors for debugging purposes, e.g., print which objects and operations are invoked with which arguments and the outcome of the operation. In conjunction with the configuration parameter <code class="code">orber_debug_level</code> it is rather easy to find out what went wrong or just to log the traffic. </p> </div> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

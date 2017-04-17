@@ -1,0 +1,658 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4. Gen_statem Behavior - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content="This section is to be read with the gen_statem(3) manual page in STDLIB, where all interface functions and callback functions are described in &hellip;">
+  <meta name="keywords" content="gen, statem, behavior, -, erlang, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/doc/design_principles/statem/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>4 gen_statem Behavior</h1>  <p> This section is to be read with the <code class="bold_code"><span class="code">gen_statem(3)</span></code> manual page in STDLIB, where all interface functions and callback functions are described in detail. </p> <div class="note"> <div class="label">Note</div> <div class="content">
+
+<p> This is a new behavior in Erlang/OTP 19.0. It has been thoroughly reviewed, is stable enough to be used by at least two heavy OTP applications, and is here to stay. Depending on user feedback, we do not expect but can find it necessary to make minor not backward compatible changes into Erlang/OTP 20.0. </p> </div> </div> <h2 id="id72928"> 4.1 Event-Driven State Machines </h2> <p> Established Automata Theory does not deal much with how a state transition is triggered, but assumes that the output is a function of the input (and the state) and that they are some kind of values. </p> <p> For an Event-Driven State Machine, the input is an event that triggers a state transition and the output is actions executed during the state transition. It can analogously to the mathematical model of a Finite-State Machine be described as a set of relations of the following form: </p> <div class="example"><pre>
+State(S) x Event(E) -&gt; Actions(A), State(S')</pre></div> <p>These relations are interpreted as follows: if we are in state <code class="code">S</code> and event <code class="code">E</code> occurs, we are to perform actions <code class="code">A</code> and make a transition to state <code class="code">S'</code>. Notice that <code class="code">S'</code> can be equal to <code class="code">S</code>. </p> <p> As <code class="code">A</code> and <code class="code">S'</code> depend only on <code class="code">S</code> and <code class="code">E</code>, the kind of state machine described here is a Mealy Machine (see, for example, the corresponding Wikipedia article). </p> <p> Like most <code class="code">gen_</code> behaviors, <code class="code">gen_statem</code> keeps a server <code class="code">Data</code> besides the state. Because of this, and as there is no restriction on the number of states (assuming that there is enough virtual machine memory) or on the number of distinct input events, a state machine implemented with this behavior is in fact Turing complete. But it feels mostly like an Event-Driven Mealy Machine. </p> <h2 id="id73024"> 4.2 Callback Modes </h2> <p> The <code class="code">gen_statem</code> behavior supports two callback modes: </p> <ul> <li> <p> In mode <code class="bold_code"><span class="code">state_functions</span></code>, the state transition rules are written as some Erlang functions, which conform to the following convention: </p> <div class="example"><pre>
+StateName(EventType, EventContent, Data) -&gt;
+    ... code for actions here ...
+    {next_state, NewStateName, NewData}.
+	</pre></div> <p> This form is used in most examples here for example in section <code class="bold_code"><a href="#Example">Example</a></code>. </p> </li> <li> <p> In mode <code class="bold_code"><span class="code">handle_event_function</span></code>, only one Erlang function provides all state transition rules: </p> <div class="example"><pre>
+handle_event(EventType, EventContent, State, Data) -&gt;
+    ... code for actions here ...
+    {next_state, NewState, NewData}
+	</pre></div> <p> See section <code class="bold_code"><a href="#One%20Event%20Handler">One Event Handler</a></code> for an example. </p> </li> </ul> <p> Both these modes allow other return tuples; see <code class="bold_code"><span class="code">Module:StateName/3</span></code> in the <code class="code">gen_statem</code> manual page. These other return tuples can, for example, stop the machine, execute state transition actions on the machine engine itself, and send replies. </p> <h4 id="Choosing%20the%20Callback%20Mode"> Choosing the Callback Mode</h4> <p> The two <code class="bold_code"><a href="#Callback%20Modes">callback modes</a></code> give different possibilities and restrictions, but one goal remains: you want to handle all possible combinations of events and states. </p> <p> This can be done, for example, by focusing on one state at the time and for every state ensure that all events are handled. Alternatively, you can focus on one event at the time and ensure that it is handled in every state. You can also use a mix of these strategies. </p> <p> With <code class="code">state_functions</code>, you are restricted to use atom-only states, and the <code class="code">gen_statem</code> engine branches depending on state name for you. This encourages the callback module to gather the implementation of all event actions particular to one state in the same place in the code, hence to focus on one state at the time. </p> <p> This mode fits well when you have a regular state diagram, like the ones in this chapter, which describes all events and actions belonging to a state visually around that state, and each state has its unique name. </p> <p> With <code class="code">handle_event_function</code>, you are free to mix strategies, as all events and states are handled in the same callback function. </p> <p> This mode works equally well when you want to focus on one event at the time or on one state at the time, but function <code class="bold_code"><span class="code">Module:handle_event/4</span></code> quickly grows too large to handle without branching to helper functions. </p> <p> The mode enables the use of non-atom states, for example, complex states or even hierarchical states. If, for example, a state diagram is largely alike for the client side and the server side of a protocol, you can have a state <code class="code">{StateName,server}</code> or <code class="code">{StateName,client}</code>, and make <code class="code">StateName</code> determine where in the code to handle most events in the state. The second element of the tuple is then used to select whether to handle special client-side or server-side events. </p> <h2 id="id73216"> 4.3 State Enter Calls </h2> <p> The <code class="code">gen_statem</code> behavior can regardless of callback mode automatically <code class="bold_code">call the state callback</code> with special arguments whenever the state changes so you can write state entry actions near the rest of the state transition rules. It typically looks like this: </p> <div class="example"><pre>
+StateName(enter, _OldState, Data) -&gt;
+    ... code for state entry actions here ...
+    {keep_state, NewData};
+StateName(EventType, EventContent, Data) -&gt;
+    ... code for actions here ...
+    {next_state, NewStateName, NewData}.</pre></div> <p> Depending on how your state machine is specified, this can be a very useful feature, but it forces you to handle the state enter calls in all states. See also the <code class="bold_code"><a href="#State%20Entry%20Actions">State Entry Actions</a></code> chapter. </p> <h2 id="id73264"> 4.4 Actions </h2> <p> In the first section <code class="bold_code"><a href="#Event-Driven%20State%20Machines">Event-Driven State Machines</a></code> actions were mentioned as a part of the general state machine model. These general actions are implemented with the code that callback module <code class="code">gen_statem</code> executes in an event-handling callback function before returning to the <code class="code">gen_statem</code> engine. </p> <p> There are more specific state-transition actions that a callback function can order the <code class="code">gen_statem</code> engine to do after the callback function return. These are ordered by returning a list of <code class="bold_code">actions</code> in the <code class="bold_code">return tuple</code> from the <code class="bold_code">callback function</code>. These state transition actions affect the <code class="code">gen_statem</code> engine itself and can do the following: </p> <ul> <li> <code class="bold_code">Postpone</code> the current event, see section <code class="bold_code"><a href="#Postponing%20Events">Postponing Events</a></code> </li> <li> <code class="bold_code">Hibernate</code> the <code class="code">gen_statem</code>, treated in <code class="bold_code"><a href="#Hibernation">Hibernation</a></code> </li> <li> Start a <code class="bold_code">state time-out</code>, read more in section <code class="bold_code"><a href="#State%20Time-Outs">State Time-Outs</a></code> </li> <li> Start an <code class="bold_code">event time-out</code>, see more in section <code class="bold_code"><a href="#Event%20Time-Outs">Event Time-Outs</a></code> </li> <li> <code class="bold_code">Reply</code> to a caller, mentioned at the end of section <code class="bold_code"><a href="#All%20State%20Events">All State Events</a></code> </li> <li> Generate the <code class="bold_code">next event</code> to handle, see section <code class="bold_code"><a href="#Self-Generated%20Events">Self-Generated Events</a></code> </li> </ul> <p> For details, see the <code class="bold_code"><span class="code">gen_statem(3)</span></code> manual page. You can, for example, reply to many callers and generate multiple next events to handle. </p> <h2 id="id73450"> 4.5 Event Types </h2> <p> Events are categorized in different <code class="bold_code">event types</code>. Events of all types are handled in the same callback function, for a given state, and the function gets <code class="code">EventType</code> and <code class="code">EventContent</code> as arguments. </p> <p> The following is a complete list of event types and where they come from: </p> <dl> <dt><strong><code class="code">cast</code></strong></dt> <dd> Generated by <code class="bold_code"><span class="code">gen_statem:cast</span></code>. </dd> <dt><strong><code class="code">{call,From}</code></strong></dt> <dd> Generated by <code class="bold_code"><span class="code">gen_statem:call</span></code>, where <code class="code">From</code> is the reply address to use when replying either through the state transition action <code class="code">{reply,From,Msg}</code> or by calling <code class="bold_code"><span class="code">gen_statem:reply</span></code>. </dd> <dt><strong><code class="code">info</code></strong></dt> <dd> Generated by any regular process message sent to the <code class="code">gen_statem</code> process. </dd> <dt><strong><code class="code">state_timeout</code></strong></dt> <dd> Generated by state transition action <code class="bold_code"><span class="code">{state_timeout,Time,EventContent}</span></code> state timer timing out. </dd> <dt><strong><code class="code">timeout</code></strong></dt> <dd> Generated by state transition action <code class="bold_code"><span class="code">{timeout,Time,EventContent}</span></code> (or its short form <code class="code">Time</code>) event timer timing out. </dd> <dt><strong><code class="code">internal</code></strong></dt> <dd> Generated by state transition <code class="bold_code">action</code> <code class="code">{next_event,internal,EventContent}</code>. All event types above can also be generated using <code class="code">{next_event,EventType,EventContent}</code>. </dd> </dl> <h2 id="id76984"> 4.6 Example </h2> <p> This example starts off as equivalent to the example in section <code class="bold_code"><a href="../fsm/"><span class="code">gen_fsm</span> Behavior</a></code>. In later sections, additions and tweaks are made using features in <code class="code">gen_statem</code> that <code class="code">gen_fsm</code> does not have. The end of this chapter provides the example again with all the added features. </p> <p> A door with a code lock can be seen as a state machine. Initially, the door is locked. When someone presses a button, an event is generated. Depending on what buttons have been pressed before, the sequence so far can be correct, incomplete, or wrong. If correct, the door is unlocked for 10 seconds (10,000 milliseconds). If incomplete, we wait for another button to be pressed. If wrong, we start all over, waiting for a new button sequence. </p>  <p><em>Figure 4.1: Code Lock State Diagram</em></p> <p> This code lock state machine can be implemented using <code class="code">gen_statem</code> with the following callback module: </p> <div class="example"><pre>
+-module(code_lock).
+-behaviour(gen_statem).
+-define(NAME, code_lock).
+
+-export([start_link/1]).
+-export([button/1]).
+-export([init/1,callback_mode/0,terminate/3,code_change/4]).
+-export([locked/3,open/3]).
+
+start_link(Code) -&gt;
+    gen_statem:start_link({local,?NAME}, ?MODULE, Code, []).
+
+button(Digit) -&gt;
+    gen_statem:cast(?NAME, {button,Digit}).
+
+init(Code) -&gt;
+    do_lock(),
+    Data = #{code =&gt; Code, remaining =&gt; Code},
+    {ok, locked, Data}.
+
+callback_mode() -&gt;
+    state_functions.
+
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt;
+	    do_unlock(),
+            {next_state, open, Data#{remaining := Code},
+             [{state_timeout,10000,lock}];
+        [Digit|Rest] -&gt; % Incomplete
+            {next_state, locked, Data#{remaining := Rest}};
+        _Wrong -&gt;
+            {next_state, locked, Data#{remaining := Code}}
+    end.
+
+open(state_timeout, lock,  Data) -&gt;
+    do_lock(),
+    {next_state, locked, Data};
+open(cast, {button,_}, Data) -&gt;
+    {next_state, open, Data}.
+
+do_lock() -&gt;
+    io:format("Lock~n", []).
+do_unlock() -&gt;
+    io:format("Unlock~n", []).
+
+terminate(_Reason, State, _Data) -&gt;
+    State =/= locked andalso do_lock(),
+    ok.
+code_change(_Vsn, State, Data, _Extra) -&gt;
+    {ok, State, Data}.
+    </pre></div> <p>The code is explained in the next sections.</p> <h2 id="id77067"> 4.7 Starting gen_statem </h2> <p> In the example in the previous section, <code class="code">gen_statem</code> is started by calling <code class="code">code_lock:start_link(Code)</code>: </p> <div class="example"><pre>
+start_link(Code) -&gt;
+    gen_statem:start_link({local,?NAME}, ?MODULE, Code, []).
+    </pre></div> <p> <code class="code">start_link</code> calls function <code class="bold_code"><span class="code">gen_statem:start_link/4</span></code>, which spawns and links to a new process, a <code class="code">gen_statem</code>. </p> <ul> <li> <p> The first argument, <code class="code">{local,?NAME}</code>, specifies the name. In this case, the <code class="code">gen_statem</code> is locally registered as <code class="code">code_lock</code> through the macro <code class="code">?NAME</code>. </p> <p> If the name is omitted, the <code class="code">gen_statem</code> is not registered. Instead its pid must be used. The name can also be specified as <code class="code">{global,Name}</code>, then the <code class="code">gen_statem</code> is registered using <code class="bold_code"><span class="code">global:register_name/2</span></code> in Kernel. </p> </li> <li> <p> The second argument, <code class="code">?MODULE</code>, is the name of the callback module, that is, the module where the callback functions are located, which is this module. </p> <p> The interface functions (<code class="code">start_link/1</code> and <code class="code">button/1</code>) are located in the same module as the callback functions (<code class="code">init/1</code>, <code class="code">locked/3</code>, and <code class="code">open/3</code>). It is normally good programming practice to have the client-side code and the server-side code contained in one module. </p> </li> <li> <p> The third argument, <code class="code">Code</code>, is a list of digits, which is the correct unlock code that is passed to callback function <code class="code">init/1</code>. </p> </li> <li> <p> The fourth argument, <code class="code">[]</code>, is a list of options. For the available options, see <code class="bold_code"><span class="code">gen_statem:start_link/3</span></code>. </p> </li> </ul> <p> If name registration succeeds, the new <code class="code">gen_statem</code> process calls callback function <code class="code">code_lock:init(Code)</code>. This function is expected to return <code class="code">{ok, State, Data}</code>, where <code class="code">State</code> is the initial state of the <code class="code">gen_statem</code>, in this case <code class="code">locked</code>; assuming that the door is locked to begin with. <code class="code">Data</code> is the internal server data of the <code class="code">gen_statem</code>. Here the server data is a <code class="bold_code">map</code> with key <code class="code">code</code> that stores the correct button sequence, and key <code class="code">remaining</code> that stores the remaining correct button sequence (the same as the <code class="code">code</code> to begin with). </p> <div class="example"><pre>
+init(Code) -&gt;
+    do_lock(),
+    Data = #{code =&gt; Code, remaining =&gt; Code},
+    {ok,locked,Data}.
+    </pre></div> <p>Function <code class="bold_code"><span class="code">gen_statem:start_link</span></code> is synchronous. It does not return until the <code class="code">gen_statem</code> is initialized and is ready to receive events. </p> <p> Function <code class="bold_code"><span class="code">gen_statem:start_link</span></code> must be used if the <code class="code">gen_statem</code> is part of a supervision tree, that is, started by a supervisor. Another function, <code class="bold_code"><span class="code">gen_statem:start</span></code> can be used to start a standalone <code class="code">gen_statem</code>, that is, a <code class="code">gen_statem</code> that is not part of a supervision tree. </p> <div class="example"><pre>
+callback_mode() -&gt;
+    state_functions.
+    </pre></div> <p> Function <code class="bold_code"><span class="code">Module:callback_mode/0</span></code> selects the <code class="bold_code"><a href="#Callback%20Modes"><span class="code">CallbackMode</span></a></code> for the callback module, in this case <code class="bold_code"><span class="code">state_functions</span></code>. That is, each state has got its own handler function. </p> <h2 id="id77382"> 4.8 Handling Events </h2> <p>The function notifying the code lock about a button event is implemented using <code class="bold_code"><span class="code">gen_statem:cast/2</span></code>: </p> <div class="example"><pre>
+button(Digit) -&gt;
+    gen_statem:cast(?NAME, {button,Digit}).
+    </pre></div> <p> The first argument is the name of the <code class="code">gen_statem</code> and must agree with the name used to start it. So, we use the same macro <code class="code">?NAME</code> as when starting. <code class="code">{button,Digit}</code> is the event content. </p> <p> The event is made into a message and sent to the <code class="code">gen_statem</code>. When the event is received, the <code class="code">gen_statem</code> calls <code class="code">StateName(cast, Event, Data)</code>, which is expected to return a tuple <code class="code">{next_state, NewStateName, NewData}</code>, or <code class="code">{next_state, NewStateName, NewData, Actions}</code>. <code class="code">StateName</code> is the name of the current state and <code class="code">NewStateName</code> is the name of the next state to go to. <code class="code">NewData</code> is a new value for the server data of the <code class="code">gen_statem</code>, and <code class="code">Actions</code> is a list of actions on the <code class="code">gen_statem</code> engine. </p> <div class="example"><pre>
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt; % Complete
+	    do_unlock(),
+            {next_state, open, Data#{remaining := Code},
+             [{state_timeout,10000,lock}]};
+        [Digit|Rest] -&gt; % Incomplete
+            {next_state, locked, Data#{remaining := Rest}};
+        [_|_] -&gt; % Wrong
+            {next_state, locked, Data#{remaining := Code}}
+    end.
+
+open(state_timeout, lock, Data) -&gt;
+    do_lock(),
+    {next_state, locked, Data};
+open(cast, {button,_}, Data) -&gt;
+    {next_state, open, Data}.
+    </pre></div> <p> If the door is locked and a button is pressed, the pressed button is compared with the next correct button. Depending on the result, the door is either unlocked and the <code class="code">gen_statem</code> goes to state <code class="code">open</code>, or the door remains in state <code class="code">locked</code>. </p> <p> If the pressed button is incorrect, the server data restarts from the start of the code sequence. </p> <p> If the whole code is correct, the server changes states to <code class="code">open</code>. </p> <p> In state <code class="code">open</code>, a button event is ignored by staying in the same state. This can also be done by returning <code class="code">{keep_state, Data}</code> or in this case since <code class="code">Data</code> unchanged even by returning <code class="code">keep_state_and_data</code>. </p> <h2 id="id77535"> 4.9 State Time-Outs </h2> <p> When a correct code has been given, the door is unlocked and the following tuple is returned from <code class="code">locked/2</code>: </p> <div class="example"><pre>
+{next_state, open, Data#{remaining := Code},
+ [{state_timeout,10000,lock}]};
+    </pre></div> <p> 10,000 is a time-out value in milliseconds. After this time (10 seconds), a time-out occurs. Then, <code class="code">StateName(state_timeout, lock, Data)</code> is called. The time-out occurs when the door has been in state <code class="code">open</code> for 10 seconds. After that the door is locked again: </p> <div class="example"><pre>
+open(state_timeout, lock,  Data) -&gt;
+    do_lock(),
+    {next_state, locked, Data};
+    </pre></div> <p> The timer for a state time-out is automatically cancelled when the state machine changes states. You can restart a state time-out by setting it to a new time, which cancels the running timer and starts a new. This implies that you can cancel a state time-out by restarting it with time <code class="code">infinity</code>. </p> <h2 id="id77594"> 4.10 All State Events </h2> <p> Sometimes events can arrive in any state of the <code class="code">gen_statem</code>. It is convenient to handle these in a common state handler function that all state functions call for events not specific to the state. </p> <p> Consider a <code class="code">code_length/0</code> function that returns the length of the correct code (that should not be sensitive to reveal). We dispatch all events that are not state-specific to the common function <code class="code">handle_event/3</code>: </p> <div class="example"><pre>
+...
+-export([button/1,code_length/0]).
+...
+
+code_length() -&gt;
+    gen_statem:call(?NAME, code_length).
+
+...
+locked(...) -&gt; ... ;
+locked(EventType, EventContent, Data) -&gt;
+    handle_event(EventType, EventContent, Data).
+
+...
+open(...) -&gt; ... ;
+open(EventType, EventContent, Data) -&gt;
+    handle_event(EventType, EventContent, Data).
+
+handle_event({call,From}, code_length, #{code := Code} = Data) -&gt;
+    {keep_state, Data, [{reply,From,length(Code)}]}.
+    </pre></div> <p> This example uses <code class="bold_code"><span class="code">gen_statem:call/2</span></code>, which waits for a reply from the server. The reply is sent with a <code class="code">{reply,From,Reply}</code> tuple in an action list in the <code class="code">{keep_state, ...}</code> tuple that retains the current state. This return form is convenient when you want to stay in the current state but do not know or care about what it is. </p> <h2 id="id77661"> 4.11 One Event Handler </h2> <p> If mode <code class="code">handle_event_function</code> is used, all events are handled in <code class="bold_code"><span class="code">Module:handle_event/4</span></code> and we can (but do not have to) use an event-centered approach where we first branch depending on event and then depending on state: </p> <div class="example"><pre>
+...
+-export([handle_event/4]).
+
+...
+callback_mode() -&gt;
+    handle_event_function.
+
+handle_event(cast, {button,Digit}, State, #{code := Code} = Data) -&gt;
+    case State of
+	locked -&gt;
+	    case maps:get(remaining, Data) of
+		[Digit] -&gt; % Complete
+		    do_unlock(),
+		    {next_state, open, Data#{remaining := Code},
+                     [{state_timeout,10000,lock}};
+		[Digit|Rest] -&gt; % Incomplete
+		    {keep_state, Data#{remaining := Rest}};
+		[_|_] -&gt; % Wrong
+		    {keep_state, Data#{remaining := Code}}
+	    end;
+	open -&gt;
+            keep_state_and_data
+    end;
+handle_event(state_timeout, lock, open, Data) -&gt;
+    do_lock(),
+    {next_state, locked, Data}.
+
+...
+    </pre></div> <h2 id="id77704"> 4.12 Stopping </h2> <h4 id="In%20a%20Supervision%20Tree"> In a Supervision Tree</h4> <p> If the <code class="code">gen_statem</code> is part of a supervision tree, no stop function is needed. The <code class="code">gen_statem</code> is automatically terminated by its supervisor. Exactly how this is done is defined by a <code class="bold_code"><a href="../sup_princ/#shutdown">shutdown strategy</a></code> set in the supervisor. </p> <p> If it is necessary to clean up before termination, the shutdown strategy must be a time-out value and the <code class="code">gen_statem</code> must in function <code class="code">init/1</code> set itself to trap exit signals by calling <code class="bold_code"><span class="code">process_flag(trap_exit, true)</span></code>: </p> <div class="example"><pre>
+init(Args) -&gt;
+    process_flag(trap_exit, true),
+    do_lock(),
+    ...
+      </pre></div> <p> When ordered to shut down, the <code class="code">gen_statem</code> then calls callback function <code class="code">terminate(shutdown, State, Data)</code>. </p> <p> In this example, function <code class="code">terminate/3</code> locks the door if it is open, so we do not accidentally leave the door open when the supervision tree terminates: </p> <div class="example"><pre>
+terminate(_Reason, State, _Data) -&gt;
+    State =/= locked andalso do_lock(),
+    ok.
+      </pre></div> <h4 id="Standalone%20gen_statem"> Standalone gen_statem</h4> <p> If the <code class="code">gen_statem</code> is not part of a supervision tree, it can be stopped using <code class="bold_code"><span class="code">gen_statem:stop</span></code>, preferably through an API function: </p> <div class="example"><pre>
+...
+-export([start_link/1,stop/0]).
+
+...
+stop() -&gt;
+    gen_statem:stop(?NAME).
+      </pre></div> <p> This makes the <code class="code">gen_statem</code> call callback function <code class="code">terminate/3</code> just like for a supervised server and waits for the process to terminate. </p> <h2 id="id77848"> 4.13 Event Time-Outs </h2> <p> A timeout feature inherited from <code class="code">gen_statem</code>'s predecessor <code class="bold_code"><span class="code">gen_fsm</span></code>, is an event time-out, that is, if an event arrives the timer is cancelled. You get either an event or a time-out, but not both. </p> <p> It is ordered by the state transition action <code class="code">{timeout,Time,EventContent}</code>, or just <code class="code">Time</code>, or even just <code class="code">Time</code> instead of an action list (the latter is a form inherited from <code class="code">gen_fsm</code>. </p> <p> This type of time-out is useful to for example act on inactivity. Let us restart the code sequence if no button is pressed for say 30 seconds: </p> <div class="example"><pre>
+...
+
+locked(
+  timeout, _, 
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    {next_state, locked, Data#{remaining := Code}};
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+...
+        [Digit|Rest] -&gt; % Incomplete
+            {next_state, locked, Data#{remaining := Rest}, 30000};
+...
+     </pre></div> <p> Whenever we receive a button event we start an event timeout of 30 seconds, and if we get an event type <code class="code">timeout</code> we reset the remaining code sequence. </p> <p> An event timeout is cancelled by any other event so you either get some other event or the timeout event. It is therefore not possible nor needed to cancel or restart an event timeout. Whatever event you act on has already cancelled the event timeout... </p> <h2 id="id77927"> 4.14 Erlang Timers </h2> <p> The previous example of state time-outs only work if the state machine stays in the same state during the time-out time. And event time-outs only work if no disturbing unrelated events occur. </p> <p> You may want to start a timer in one state and respond to the time-out in another, maybe cancel the time-out without changing states, or perhaps run multiple time-outs in parallel. All this can be accomplished with Erlang Timers: <code class="bold_code"><span class="code">erlang:start_timer3,4</span></code>. </p> <p> Here is how to accomplish the state time-out in the previous example by insted using an Erlang Timer: </p> <div class="example"><pre>
+...
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt;
+	    do_unlock(),
+	    Tref = erlang:start_timer(10000, self(), lock),
+            {next_state, open, Data#{remaining := Code, timer =&gt; Tref}};
+...
+
+open(info, {timeout,Tref,lock}, #{timer := Tref} = Data) -&gt;
+    do_lock(),
+    {next_state,locked,maps:remove(timer, Data)};
+open(cast, {button,_}, Data) -&gt;
+    {keep_state,Data};
+...
+    </pre></div> <p> Removing the <code class="code">timer</code> key from the map when we change to state <code class="code">locked</code> is not strictly necessary since we can only get into state <code class="code">open</code> with an updated <code class="code">timer</code> map value. But it can be nice to not have outdated values in the state <code class="code">Data</code>! </p> <p> If you need to cancel a timer because of some other event, you can use <code class="bold_code"><span class="code">erlang:cancel_timer(Tref)</span></code>. Note that a time-out message cannot arrive after this, unless you have postponed it before (see the next section), so ensure that you do not accidentally postpone such messages. Also note that a time-out message may have arrived just before you cancelling it, so you may have to read out such a message from the process mailbox depending on the return value from <code class="bold_code"><span class="code">erlang:cancel_timer(Tref)</span></code>. </p> <p> Another way to handle a late time-out can be to not cancel it, but to ignore it if it arrives in a state where it is known to be late. </p> <h2 id="id78026"> 4.15 Postponing Events </h2> <p> If you want to ignore a particular event in the current state and handle it in a future state, you can postpone the event. A postponed event is retried after the state has changed, that is, <code class="code">OldState =/= NewState</code>. </p> <p> Postponing is ordered by the state transition <code class="bold_code">action</code> <code class="code">postpone</code>. </p> <p> In this example, instead of ignoring button events while in the <code class="code">open</code> state, we can postpone them and they are queued and later handled in the <code class="code">locked</code> state: </p> <div class="example"><pre>
+...
+open(cast, {button,_}, Data) -&gt;
+    {keep_state,Data,[postpone]};
+...
+    </pre></div> <p> Since a postponed event is only retried after a state change, you have to think about where to keep a state data item. You can keep it in the server <code class="code">Data</code> or in the <code class="code">State</code> itself, for example by having two more or less identical states to keep a boolean value, or by using a complex state with <code class="bold_code"><a href="#Callback%20Modes">callback mode</a></code> <code class="bold_code"><span class="code">handle_event_function</span></code>. If a change in the value changes the set of events that is handled, then the value should be kept in the State. Otherwise no postponed events will be retried since only the server Data changes. </p> <p> This is not important if you do not postpone events. But if you later decide to start postponing some events, then the design flaw of not having separate states when they should be, might become a hard to find bug. </p> <h4 id="Fuzzy%20State%20Diagrams"> Fuzzy State Diagrams</h4> <p> It is not uncommon that a state diagram does not specify how to handle events that are not illustrated in a particular state in the diagram. Hopefully this is described in an associated text or from the context. </p> <p> Possible actions: ignore as in drop the event (maybe log it) or deal with the event in some other state as in postpone it. </p> <h4 id="Selective%20Receive"> Selective Receive</h4> <p> Erlang's selective receive statement is often used to describe simple state machine examples in straightforward Erlang code. The following is a possible implementation of the first example: </p> <div class="example"><pre>
+-module(code_lock).
+-define(NAME, code_lock_1).
+-export([start_link/1,button/1]).
+
+start_link(Code) -&gt;
+    spawn(
+      fun () -&gt;
+	      true = register(?NAME, self()),
+	      do_lock(),
+	      locked(Code, Code)
+      end).
+
+button(Digit) -&gt;
+    ?NAME ! {button,Digit}.
+
+locked(Code, [Digit|Remaining]) -&gt;
+    receive
+	{button,Digit} when Remaining =:= [] -&gt;
+	    do_unlock(),
+	    open(Code);
+	{button,Digit} -&gt;
+	    locked(Code, Remaining);
+	{button,_} -&gt;
+	    locked(Code, Code)
+    end.
+
+open(Code) -&gt;
+    receive
+    after 10000 -&gt;
+	    do_lock(),
+	    locked(Code, Code)
+    end.
+
+do_lock() -&gt;
+    io:format("Locked~n", []).
+do_unlock() -&gt;
+    io:format("Open~n", []).
+    </pre></div> <p> The selective receive in this case causes implicitly <code class="code">open</code> to postpone any events to the <code class="code">locked</code> state. </p> <p> A selective receive cannot be used from a <code class="code">gen_statem</code> behavior as for any <code class="code">gen_*</code> behavior, as the receive statement is within the <code class="code">gen_*</code> engine itself. It must be there because all <code class="bold_code"><span class="code">sys</span></code> compatible behaviors must respond to system messages and therefore do that in their engine receive loop, passing non-system messages to the callback module. </p> <p> The state transition <code class="bold_code">action</code> <code class="code">postpone</code> is designed to model selective receives. A selective receive implicitly postpones any not received events, but the <code class="code">postpone</code> state transition action explicitly postpones one received event. </p> <p> Both mechanisms have the same theoretical time and memory complexity, while the selective receive language construct has smaller constant factors. </p> <h2 id="id78229"> 4.16 State Entry Actions </h2> <p> Say you have a state machine specification that uses state entry actions. Allthough you can code this using self-generated events (described in the next section), especially if just one or a few states has got state entry actions, this is a perfect use case for the built in <code class="bold_code"><a href="#State%20Enter%20Calls">state enter calls</a></code>. </p> <p> You return a list containing <code class="code">state_enter</code> from your <code class="bold_code"><span class="code">callback_mode/0</span></code> function and the <code class="code">gen_statem</code> engine will call your state callback once with the arguments <code class="code">(enter, OldState, ...)</code> whenever the state changes. Then you just need to handle these event-like calls in all states. </p> <div class="example"><pre>
+...
+init(Code) -&gt;
+    process_flag(trap_exit, true),
+    Data = #{code =&gt; Code},
+    {ok, locked, Data}.
+
+callback_mode() -&gt;
+    [state_functions,state_enter].
+
+locked(enter, _OldState, Data) -&gt;
+    do_lock(),
+    {keep_state,Data#{remaining =&gt; Code}};
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt;
+	    {next_state, open, Data};
+...
+
+open(enter, _OldState, _Data) -&gt;
+    do_unlock(),
+    {keep_state_and_data, [{state_timeout,10000,lock}]};
+open(state_timeout, lock, Data) -&gt;
+    {next_state, locked, Data};
+...
+    </pre></div> <p> You can repeat the state entry code by returning one of <code class="code">{repeat_state, ...}</code>, <code class="code">{repeat_state_and_data,_}</code> or <code class="code">repeat_state_and_data</code> that otherwise behaves exactly like their <code class="code">keep_state</code> siblings. See the type <code class="bold_code"><span class="code">state_callback_result()</span></code> in the reference manual. </p> <h2 id="id78321"> 4.17 Self-Generated Events </h2> <p> It can sometimes be beneficial to be able to generate events to your own state machine. This can be done with the state transition <code class="bold_code">action</code> <code class="code">{next_event,EventType,EventContent}</code>. </p> <p> You can generate events of any existing <code class="bold_code">type</code>, but the <code class="code">internal</code> type can only be generated through action <code class="code">next_event</code>. Hence, it cannot come from an external source, so you can be certain that an <code class="code">internal</code> event is an event from your state machine to itself. </p> <p> One example for this is to pre-process incoming data, for example decrypting chunks or collecting characters up to a line break. Purists may argue that this should be modelled with a separate state machine that sends pre-processed events to the main state machine. But to decrease overhead the small pre-processing state machine can be implemented in the common state event handling of the main state machine using a few state data variables that then sends the pre-processed events as internal events to the main state machine. </p> <p> The following example uses an input model where you give the lock characters with <code class="code">put_chars(Chars)</code> and then call <code class="code">enter()</code> to finish the input. </p> <div class="example"><pre>
+...
+-export(put_chars/1, enter/0).
+...
+put_chars(Chars) when is_binary(Chars) -&gt;
+    gen_statem:call(?NAME, {chars,Chars}).
+
+enter() -&gt;
+    gen_statem:call(?NAME, enter).
+
+...
+
+locked(enter, _OldState, Data) -&gt;
+    do_lock(),
+    {keep_state,Data#{remaining =&gt; Code, buf =&gt; []}};
+...
+
+handle_event({call,From}, {chars,Chars}, #{buf := Buf} = Data) -&gt;
+    {keep_state, Data#{buf := [Chars|Buf],
+     [{reply,From,ok}]};
+handle_event({call,From}, enter, #{buf := Buf} = Data) -&gt;
+    Chars = unicode:characters_to_binary(lists:reverse(Buf)),
+    try binary_to_integer(Chars) of
+        Digit -&gt;
+            {keep_state, Data#{buf := []},
+             [{reply,From,ok},
+              {next_event,internal,{button,Chars}}]}
+    catch
+        error:badarg -&gt;
+            {keep_state, Data#{buf := []},
+             [{reply,From,{error,not_an_integer}}]}
+    end;
+...
+    </pre></div> <p> If you start this program with <code class="code">code_lock:start([17])</code> you can unlock with <code class="code">code_lock:put_chars(&lt;&lt;"001"&gt;&gt;), code_lock:put_chars(&lt;&lt;"7"&gt;&gt;), code_lock:enter()</code>. </p> <h2 id="id78419"> 4.18 Example Revisited </h2> <p> This section includes the example after most of the mentioned modifications and some more using state enter calls, which deserves a new state diagram: </p>  <p><em>Figure 4.2: Code Lock State Diagram Revisited</em></p> <p> Notice that this state diagram does not specify how to handle a button event in the state <code class="code">open</code>. So, you need to read somewhere else that unspecified events must be ignored as in not consumed but handled in some other state. Also, the state diagram does not show that the <code class="code">code_length/0</code> call must be handled in every state. </p> <h4 id="Callback%20Mode:%20state_functions"> Callback Mode: state_functions</h4> <p> Using state functions: </p> <div class="example"><pre>
+-module(code_lock).
+-behaviour(gen_statem).
+-define(NAME, code_lock_2).
+
+-export([start_link/1,stop/0]).
+-export([button/1,code_length/0]).
+-export([init/1,callback_mode/0,terminate/3,code_change/4]).
+-export([locked/3,open/3]).
+
+start_link(Code) -&gt;
+    gen_statem:start_link({local,?NAME}, ?MODULE, Code, []).
+stop() -&gt;
+    gen_statem:stop(?NAME).
+
+button(Digit) -&gt;
+    gen_statem:cast(?NAME, {button,Digit}).
+code_length() -&gt;
+    gen_statem:call(?NAME, code_length).
+
+init(Code) -&gt;
+    process_flag(trap_exit, true),
+    Data = #{code =&gt; Code},
+    {ok, locked, Data}.
+
+callback_mode() -&gt;
+    [state_functions,state_enter].
+
+locked(enter, _OldState, #{code := Code} = Data) -&gt;
+    do_lock(),
+    {keep_state, Data#{remaining =&gt; Code}};
+locked(
+  timeout, _, 
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    {keep_state, Data#{remaining := Code}};
+locked(
+  cast, {button,Digit},
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt; % Complete
+            {next_state, open, Data};
+        [Digit|Rest] -&gt; % Incomplete
+            {keep_state, Data#{remaining := Rest}, 30000};
+        [_|_] -&gt; % Wrong
+            {keep_state, Data#{remaining := Code}}
+    end;
+locked(EventType, EventContent, Data) -&gt;
+    handle_event(EventType, EventContent, Data).
+
+open(enter, _OldState, _Data) -&gt;
+    do_unlock(),
+    {keep_state_and_data, [{state_timeout,10000,lock}]};
+open(state_timeout, lock, Data) -&gt;
+    {next_state, locked, Data};
+open(cast, {button,_}, _) -&gt;
+    {keep_state_and_data, [postpone]};
+open(EventType, EventContent, Data) -&gt;
+    handle_event(EventType, EventContent, Data).
+
+handle_event({call,From}, code_length, #{code := Code}) -&gt;
+    {keep_state_and_data, [{reply,From,length(Code)}]}.
+
+do_lock() -&gt;
+    io:format("Locked~n", []).
+do_unlock() -&gt;
+    io:format("Open~n", []).
+
+terminate(_Reason, State, _Data) -&gt;
+    State =/= locked andalso do_lock(),
+    ok.
+code_change(_Vsn, State, Data, _Extra) -&gt;
+    {ok,State,Data}.
+      </pre></div> <h4 id="Callback%20Mode:%20handle_event_function"> Callback Mode: handle_event_function</h4> <p> This section describes what to change in the example to use one <code class="code">handle_event/4</code> function. The previously used approach to first branch depending on event does not work that well here because of the state enter calls, so this example first branches depending on state: </p> <div class="example"><pre>
+...
+-export([handle_event/4]).
+
+...
+callback_mode() -&gt;
+    [handle_event_function,state_enter].
+
+%% State: locked
+handle_event(
+  enter, _OldState, locked,
+  #{code := Code} = Data) -&gt;
+    do_lock(),
+    {keep_state, Data#{remaining =&gt; Code}};
+handle_event(
+  timeout, _, locked,
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    {keep_state, Data#{remaining := Code}};
+handle_event(
+  cast, {button,Digit}, locked,
+  #{code := Code, remaining := Remaining} = Data) -&gt;
+    case Remaining of
+        [Digit] -&gt; % Complete
+            {next_state, open, Data};
+        [Digit|Rest] -&gt; % Incomplete
+            {keep_state, Data#{remaining := Rest}, 30000};
+        [_|_] -&gt; % Wrong
+            {keep_state, Data#{remaining := Code}}
+    end;
+%%
+%% State: open
+handle_event(enter, _OldState, open, _Data) -&gt;
+    do_unlock(),
+    {keep_state_and_data, [{state_timeout,10000,lock}]};
+handle_event(state_timeout, lock, open, Data) -&gt;
+    {next_state, locked, Data};
+handle_event(cast, {button,_}, open, _) -&gt;
+    {keep_state_and_data,[postpone]};
+%%
+%% Any state
+handle_event({call,From}, code_length, _State, #{code := Code}) -&gt;
+    {keep_state_and_data, [{reply,From,length(Code)}]}.
+
+...
+      </pre></div> <p> Notice that postponing buttons from the <code class="code">locked</code> state to the <code class="code">open</code> state feels like a strange thing to do for a code lock, but it at least illustrates event postponing. </p> <h2 id="id78552"> 4.19 Filter the State </h2> <p> The example servers so far in this chapter print the full internal state in the error log, for example, when killed by an exit signal or because of an internal error. This state contains both the code lock code and which digits that remain to unlock. </p> <p> This state data can be regarded as sensitive, and maybe not what you want in the error log because of some unpredictable event. </p> <p> Another reason to filter the state can be that the state is too large to print, as it fills the error log with uninteresting details. </p> <p> To avoid this, you can format the internal state that gets in the error log and gets returned from <code class="bold_code"><span class="code">sys:get_status/1,2</span></code> by implementing function <code class="bold_code"><span class="code">Module:format_status/2</span></code>, for example like this: </p> <div class="example"><pre>
+...
+-export([init/1,terminate/3,code_change/4,format_status/2]).
+...
+
+format_status(Opt, [_PDict,State,Data]) -&gt;
+    StateData =
+	{State,
+	 maps:filter(
+	   fun (code, _) -&gt; false;
+	       (remaining, _) -&gt; false;
+	       (_, _) -&gt; true
+	   end,
+	   Data)},
+    case Opt of
+	terminate -&gt;
+	    StateData;
+	normal -&gt;
+	    [{data,[{"State",StateData}]}]
+    end.
+    </pre></div> <p> It is not mandatory to implement a <code class="bold_code"><span class="code">Module:format_status/2</span></code> function. If you do not, a default implementation is used that does the same as this example function without filtering the <code class="code">Data</code> term, that is, <code class="code">StateData = {State,Data}</code>, in this example containing sensitive information. </p> <h2 id="id78632"> 4.20 Complex State </h2> <p> The callback mode <code class="bold_code"><span class="code">handle_event_function</span></code> enables using a non-atom state as described in section <code class="bold_code"><a href="#Callback%20Modes">Callback Modes</a></code>, for example, a complex state term like a tuple. </p> <p> One reason to use this is when you have a state item that affects the event handling, in particular in combination with postponing events. We complicate the previous example by introducing a configurable lock button (this is the state item in question), which in the <code class="code">open</code> state immediately locks the door, and an API function <code class="code">set_lock_button/1</code> to set the lock button. </p> <p> Suppose now that we call <code class="code">set_lock_button</code> while the door is open, and have already postponed a button event that until now was not the lock button. The sensible thing can be to say that the button was pressed too early so it is not to be recognized as the lock button. However, then it can be surprising that a button event that now is the lock button event arrives (as retried postponed) immediately after the state transits to <code class="code">locked</code>. </p> <p> So we make the <code class="code">button/1</code> function synchronous by using <code class="bold_code"><span class="code">gen_statem:call</span></code> and still postpone its events in the <code class="code">open</code> state. Then a call to <code class="code">button/1</code> during the <code class="code">open</code> state does not return until the state transits to <code class="code">locked</code>, as it is there the event is handled and the reply is sent. </p> <p> If a process now calls <code class="code">set_lock_button/1</code> to change the lock button while another process hangs in <code class="code">button/1</code> with the new lock button, it can be expected that the hanging lock button call immediately takes effect and locks the lock. Therefore, we make the current lock button a part of the state, so that when we change the lock button, the state changes and all postponed events are retried. </p> <p> We define the state as <code class="code">{StateName,LockButton}</code>, where <code class="code">StateName</code> is as before and <code class="code">LockButton</code> is the current lock button: </p> <div class="example"><pre>
+-module(code_lock).
+-behaviour(gen_statem).
+-define(NAME, code_lock_3).
+
+-export([start_link/2,stop/0]).
+-export([button/1,code_length/0,set_lock_button/1]).
+-export([init/1,callback_mode/0,terminate/3,code_change/4,format_status/2]).
+-export([handle_event/4]).
+
+start_link(Code, LockButton) -&gt;
+    gen_statem:start_link(
+        {local,?NAME}, ?MODULE, {Code,LockButton}, []).
+stop() -&gt;
+    gen_statem:stop(?NAME).
+
+button(Digit) -&gt;
+    gen_statem:call(?NAME, {button,Digit}).
+code_length() -&gt;
+    gen_statem:call(?NAME, code_length).
+set_lock_button(LockButton) -&gt;
+    gen_statem:call(?NAME, {set_lock_button,LockButton}).
+
+init({Code,LockButton}) -&gt;
+    process_flag(trap_exit, true),
+    Data = #{code =&gt; Code, remaining =&gt; undefined},
+    {ok, {locked,LockButton}, Data}.
+
+callback_mode() -&gt;
+    [handle_event_function,state_enter].
+
+handle_event(
+  {call,From}, {set_lock_button,NewLockButton},
+  {StateName,OldLockButton}, Data) -&gt;
+    {next_state, {StateName,NewLockButton}, Data,
+     [{reply,From,OldLockButton}]};
+handle_event(
+  {call,From}, code_length,
+  {_StateName,_LockButton}, #{code := Code}) -&gt;
+    {keep_state_and_data,
+    [{reply,From,length(Code)}]};
+%%
+%% State: locked
+handle_event(
+  EventType, EventContent,
+  {locked,LockButton}, #{code := Code, remaining := Remaining} = Data) -&gt;
+    case {EventType, EventContent} of
+	{enter, _OldState} -&gt;
+	    do_lock(),
+	    {keep_state, Data#{remaining := Code}};
+        {timeout, _} -&gt;
+            {keep_state, Data#{remaining := Code}};
+	{{call,From}, {button,Digit}} -&gt;
+	    case Remaining of
+		[Digit] -&gt; % Complete
+		    {next_state, {open,LockButton}, Data,
+		     [{reply,From,ok}]};
+		[Digit|Rest] -&gt; % Incomplete
+		    {keep_state, Data#{remaining := Rest, 30000},
+		     [{reply,From,ok}]};
+		[_|_] -&gt; % Wrong
+		    {keep_state, Data#{remaining := Code},
+		     [{reply,From,ok}]}
+	    end
+    end;
+%%
+%% State: open
+handle_event(
+  EventType, EventContent,
+  {open,LockButton}, Data) -&gt;
+    case {EventType, EventContent} of
+	{enter, _OldState} -&gt;
+	    do_unlock(),
+	    {keep_state_and_data, [{state_timeout,10000,lock}]};
+	{state_timeout, lock} -&gt;
+	    {next_state, {locked,LockButton}, Data};
+	{{call,From}, {button,Digit}} -&gt;
+	    if
+		Digit =:= LockButton -&gt;
+		    {next_state, {locked,LockButton}, Data,
+		     [{reply,From,locked}]);
+		true -&gt;
+		    {keep_state_and_data,
+		     [postpone]}
+	    end
+    end.
+
+do_lock() -&gt;
+    io:format("Locked~n", []).
+do_unlock() -&gt;
+    io:format("Open~n", []).
+
+terminate(_Reason, State, _Data) -&gt;
+    State =/= locked andalso do_lock(),
+    ok.
+code_change(_Vsn, State, Data, _Extra) -&gt;
+    {ok,State,Data}.
+format_status(Opt, [_PDict,State,Data]) -&gt;
+    StateData =
+	{State,
+	 maps:filter(
+	   fun (code, _) -&gt; false;
+	       (remaining, _) -&gt; false;
+	       (_, _) -&gt; true
+	   end,
+	   Data)},
+    case Opt of
+	terminate -&gt;
+	    StateData;
+	normal -&gt;
+	    [{data,[{"State",StateData}]}]
+    end.
+    </pre></div> <p> It can be an ill-fitting model for a physical code lock that the <code class="code">button/1</code> call can hang until the lock is locked. But for an API in general it is not that strange. </p> <h2 id="id78793"> 4.21 Hibernation </h2> <p> If you have many servers in one node and they have some state(s) in their lifetime in which the servers can be expected to idle for a while, and the amount of heap memory all these servers need is a problem, then the memory footprint of a server can be mimimized by hibernating it through <code class="bold_code"><span class="code">proc_lib:hibernate/3</span></code>. </p> <div class="note"> <div class="label">Note</div> <div class="content">
+
+<p> It is rather costly to hibernate a process; see <code class="bold_code"><span class="code">erlang:hibernate/3</span></code>. It is not something you want to do after every event. </p> </div> </div> <p> We can in this example hibernate in the <code class="code">{open,_}</code> state, because what normally occurs in that state is that the state time-out after a while triggers a transition to <code class="code">{locked,_}</code>: </p> <div class="example"><pre>
+...
+%% State: open
+handle_event(
+  EventType, EventContent,
+  {open,LockButton}, Data) -&gt;
+    case {EventType, EventContent} of
+	{enter, _OldState} -&gt;
+	    do_unlock(),
+	    {keep_state_and_data,
+	    [{state_timeout,10000,lock},hibernate]};
+...
+    </pre></div> <p> The atom <code class="bold_code"><span class="code">hibernate</span></code> in the action list on the last line when entering the <code class="code">{open,_}</code> state is the only change. If any event arrives in the <code class="code">{open,_},</code> state, we do not bother to rehibernate, so the server stays awake after any event. </p> <p> To change that we would need to insert action <code class="code">hibernate</code> in more places. For example, for the state-independent <code class="code">set_lock_button</code> and <code class="code">code_length</code> operations that then would have to be aware of using <code class="code">hibernate</code> while in the <code class="code">{open,_}</code> state, which would clutter the code. </p> <p> Another not uncommon scenario is to use the event time-out to triger hibernation after a certain time of inactivity. </p> <p> This server probably does not use heap memory worth hibernating for. To gain anything from hibernation, your server would have to produce some garbage during callback execution, for which this example server can serve as a bad example. </p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

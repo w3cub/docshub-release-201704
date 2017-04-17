@@ -1,0 +1,99 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>2. The Eight Myths of Erlang Performance - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content="Some truths seem to live on well beyond their best-before date, perhaps because &#34;information&#34; spreads faster from person-to-person than a &hellip;">
+  <meta name="keywords" content="eight, myths, erlang, performance, -, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/doc/efficiency_guide/myths/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>2 The Eight Myths of Erlang Performance</h1>  <p>Some truths seem to live on well beyond their best-before date, perhaps because "information" spreads faster from person-to-person than a single release note that says, for example, that funs have become faster.</p> <p>This section tries to kill the old truths (or semi-truths) that have become myths.</p> <h2 id="id63567">2.1 Myth: Funs are Slow</h2> <p>Funs used to be very slow, slower than <code class="code">apply/3</code>. Originally, funs were implemented using nothing more than compiler trickery, ordinary tuples, <code class="code">apply/3</code>, and a great deal of ingenuity.</p> <p>But that is history. Funs was given its own data type in R6B and was further optimized in R7B. Now the cost for a fun call falls roughly between the cost for a call to a local function and <code class="code">apply/3</code>.</p> <h2 id="id63557">2.2 Myth: List Comprehensions are Slow</h2> <p>List comprehensions used to be implemented using funs, and in the old days funs were indeed slow.</p> <p>Nowadays, the compiler rewrites list comprehensions into an ordinary recursive function. Using a tail-recursive function with a reverse at the end would be still faster. Or would it? That leads us to the next myth.</p> <h2 id="id61999">2.3 Myth: Tail-Recursive Functions are Much Faster Than Recursive Functions</h2> <p id="tail_recursive">According to the myth, recursive functions leave references to dead terms on the stack and the garbage collector has to copy all those dead terms, while tail-recursive functions immediately discard those terms.</p> <p>That used to be true before R7B. In R7B, the compiler started to generate code that overwrites references to terms that will never be used with an empty list, so that the garbage collector would not keep dead values any longer than necessary.</p> <p>Even after that optimization, a tail-recursive function is still most of the times faster than a body-recursive function. Why?</p> <p>It has to do with how many words of stack that are used in each recursive call. In most cases, a recursive function uses more words on the stack for each recursion than the number of words a tail-recursive would allocate on the heap. As more memory is used, the garbage collector is invoked more frequently, and it has more work traversing the stack.</p> <p>In R12B and later releases, there is an optimization that in many cases reduces the number of words used on the stack in body-recursive calls. A body-recursive list function and a tail-recursive function that calls <code class="bold_code">lists:reverse/1</code> at the end will use the same amount of memory. <code class="code">lists:map/2</code>, <code class="code">lists:filter/2</code>, list comprehensions, and many other recursive functions now use the same amount of space as their tail-recursive equivalents.</p> <p>So, which is faster? It depends. On Solaris/Sparc, the body-recursive function seems to be slightly faster, even for lists with a lot of elements. On the x86 architecture, tail-recursion was up to about 30% faster.</p> <p>So, the choice is now mostly a matter of taste. If you really do need the utmost speed, you must <strong>measure</strong>. You can no longer be sure that the tail-recursive list function always is the fastest.</p> <div class="note"> <div class="label">Note</div> <div class="content">
+
+<p>A tail-recursive function that does not need to reverse the list at the end is faster than a body-recursive function, as are tail-recursive functions that do not construct any terms at all (for example, a function that sums all integers in a list).</p>
+</div> </div> <h2 id="id62699">2.4 Myth: Operator "++" is Always Bad</h2> <p>The <code class="code">++</code> operator has, somewhat undeservedly, got a bad reputation. It probably has something to do with code like the following, which is the most inefficient way there is to reverse a list:</p> <p><strong>DO NOT</strong></p> <div class="example"><pre>
+naive_reverse([H|T]) -&gt;
+    naive_reverse(T)++[H];
+naive_reverse([]) -&gt;
+    [].</pre></div> <p>As the <code class="code">++</code> operator copies its left operand, the result is copied repeatedly, leading to quadratic complexity.</p> <p>But using <code class="code">++</code> as follows is not bad:</p> <p><strong>OK</strong></p> <div class="example"><pre>
+naive_but_ok_reverse([H|T], Acc) -&gt;
+    naive_but_ok_reverse(T, [H]++Acc);
+naive_but_ok_reverse([], Acc) -&gt;
+    Acc.</pre></div> <p>Each list element is copied only once. The growing result <code class="code">Acc</code> is the right operand for the <code class="code">++</code> operator, and it is <strong>not</strong> copied.</p> <p>Experienced Erlang programmers would write as follows:</p> <p><strong>DO</strong></p> <div class="example"><pre>
+vanilla_reverse([H|T], Acc) -&gt;
+    vanilla_reverse(T, [H|Acc]);
+vanilla_reverse([], Acc) -&gt;
+    Acc.</pre></div> <p>This is slightly more efficient because here you do not build a list element only to copy it directly. (Or it would be more efficient if the compiler did not automatically rewrite <code class="code">[H]++Acc</code> to <code class="code">[H|Acc]</code>.)</p> <h2 id="id57470">2.5 Myth: Strings are Slow</h2> <p>String handling can be slow if done improperly. In Erlang, you need to think a little more about how the strings are used and choose an appropriate representation. If you use regular expressions, use the <code class="bold_code">re</code> module in STDLIB instead of the obsolete <code class="code">regexp</code> module.</p> <h2 id="id62187">2.6 Myth: Repairing a Dets File is Very Slow</h2> <p>The repair time is still proportional to the number of records in the file, but Dets repairs used to be much slower in the past. Dets has been massively rewritten and improved.</p> <h2 id="id62360">2.7 Myth: BEAM is a Stack-Based Byte-Code Virtual Machine (and Therefore Slow)</h2> <p>BEAM is a register-based virtual machine. It has 1024 virtual registers that are used for holding temporary values and for passing arguments when calling functions. Variables that need to survive a function call are saved to the stack.</p> <p>BEAM is a threaded-code interpreter. Each instruction is word pointing directly to executable C-code, making instruction dispatching very fast.</p> <h2 id="id62365">2.8 Myth: Use "_" to Speed Up Your Program When a Variable is Not Used</h2> <p>That was once true, but from R6B the BEAM compiler can see that a variable is not used.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

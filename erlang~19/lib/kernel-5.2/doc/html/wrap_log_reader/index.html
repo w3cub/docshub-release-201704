@@ -1,0 +1,105 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Wrap_log_reader - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content=" wrap_log_reader ">
+  <meta name="keywords" content="wrap, log, reader, -, erlang, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/lib/kernel-5.2/doc/html/wrap_log_reader/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>wrap_log_reader</h1> <h2>Module</h2> <p class="REFBODY">wrap_log_reader</p> <h2>Module summary</h2> <p class="REFBODY">A service to read internally formatted wrap disk logs. </p> <h2>Description</h2> 
+<p>This module makes it possible to read internally formatted wrap disk logs, see <code class="bold_code"><a href="../disk_log/"><span class="code">disk_log(3)</span></a></code>. <code class="code">wrap_log_reader</code> does not interfere with <code class="code">disk_log</code> activities; there is however a bug in this version of the <code class="code">wrap_log_reader</code>, see section <code class="bold_code"><a href="#bugs">Known Limitations</a></code>.</p> <p>A wrap disk log file consists of many files, called index files. A log file can be opened and closed. Also, a single index file can be opened separately. If a non-existent or non-internally formatted file is opened, an error message is returned. If the file is corrupt, no attempt is made to repair it, but an error message is returned.</p> <p>If a log is configured to be distributed, it is possible that all items are not logged on all nodes. <code class="code">wrap_log_reader</code> only reads the log on the called node; it is up to the user to be sure that all items are read.</p>  <h2>Data types</h2> <h3 class="code">continuation()</h3> 
+<p>Continuation returned by <code class="code">open/1,2</code> or <code class="code">chunk/1,2</code>.</p>  <h2>Exports</h2> <h3 id="chunk-2" class="code">chunk(Continuation) -&gt; chunk_ret()<br>chunk(Continuation, N) -&gt; chunk_ret()</h3> <p>Types:</p>     <pre>Continuation = <a href="#type-continuation">continuation()</a>
+N = infinity | integer() &gt;= 1
+chunk_ret() = 
+    {Continuation2, Terms :: [term()]} |
+    {Continuation2,
+     Terms :: [term()],
+     Badbytes :: integer() &gt;= 0} |
+    {Continuation2, eof} |
+    {error, Reason :: term()}</pre>
+
+<p>Enables to efficiently read the terms that are appended to a log. Minimises disk I/O by reading 64 kilobyte chunks from the file.</p> <p>The first time <code class="code">chunk()</code> is called, an initial continuation returned from <code class="code">open/1</code> or <code class="code">open/2</code> must be provided.</p> <p>When <code class="code">chunk/3</code> is called, <code class="code">N</code> controls the maximum number of terms that are read from the log in each chunk. Defaults to <code class="code">infinity</code>, which means that all the terms contained in the 8K chunk are read. If less than <code class="code">N</code> terms are returned, this does not necessarily mean that end of file is reached.</p> <p>Returns a tuple <code class="code">{Continuation2, Terms}</code>, where <code class="code">Terms</code> is a list of terms found in the log. <code class="code">Continuation2</code> is yet another continuation that must be passed on to any subsequent calls to <code class="code">chunk()</code>. With a series of calls to <code class="code">chunk()</code>, it is then possible to extract all terms from a log.</p> <p>Returns a tuple <code class="code">{Continuation2, Terms, Badbytes}</code> if the log is opened in read only mode and the read chunk is corrupt. <code class="code">Badbytes</code> indicates the number of non-Erlang terms found in the chunk. Notice that the log is not repaired.</p> <p>Returns <code class="code">{Continuation2, eof}</code> when the end of the log is reached, and <code class="code">{error, Reason}</code> if an error occurs.</p> <p>The returned continuation either is or is not valid in the next call to this function. This is because the log can wrap and delete the file into which the continuation points. To ensure this does not occur, the log can be blocked during the search.</p>  <h3 id="close-1" class="code">close(Continuation) -&gt; ok | {error, Reason}</h3> <p>Types:</p>    <pre>Continuation = <a href="#type-continuation">continuation()</a>
+Reason = <a href="../file/#type-posix">file:posix()</a></pre>
+
+<p>Closes a log file properly.</p>  <h3 id="open-2" class="code">open(Filename) -&gt; open_ret()<br>open(Filename, N) -&gt; open_ret()</h3> <p>Types:</p>     <pre>Filename = string() | atom()
+N = integer()
+open_ret() = 
+    {ok, Continuation :: <a href="#type-continuation">continuation()</a>} |
+    {error, Reason :: tuple()}</pre>
+
+<p><code class="code">Filename</code> specifies the name of the file to be read.</p> <p><code class="code">N</code> specifies the index of the file to be read. If <code class="code">N</code> is omitted, the whole wrap log file is read; if it is specified, only the specified index file is read.</p> <p>Returns <code class="code">{ok, Continuation}</code> if the log/index file is opened successfully. <code class="code">Continuation</code> is to be used when chunking or closing the file.</p> <p>Returns <code class="code">{error, Reason}</code> for all errors.</p>  <h2 id="id147219">Known Limitations</h2>   <p>This version of <code class="code">wrap_log_reader</code> does not detect if <code class="code">disk_log</code> wraps to a new index file between a call to <code class="code">wrap_log_reader:open()</code> and the first call to <code class="code">wrap_log_reader:chunk()</code>. If this occurs, the call to <code class="code">chunk()</code> reads the last logged items in the log file, as the opened index file was truncated by <code class="code">disk_log</code>.</p>  <h2 id="id147259">See Also</h2>  <p><code class="bold_code"><a href="../disk_log/"><span class="code">disk_log(3)</span></a></code></p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

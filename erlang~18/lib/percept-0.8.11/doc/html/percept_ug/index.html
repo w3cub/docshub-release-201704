@@ -1,0 +1,146 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>1 Percept - Erlang 18 - W3cubDocs</title>
+  
+  <meta name="description" content="Percept, or Percept - Erlang Concurrency Profiling Tool, utilizes trace informations and profiler events to form a picture of the processes&#39;s &hellip;">
+  <meta name="keywords" content="percept, -, erlang, erlang~18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~18/lib/percept-0.8.11/doc/html/percept_ug/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~18/" class="_nav-link" title="" style="margin-left:0;">Erlang 18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>1 Percept</h1> <p> Percept, or Percept - Erlang Concurrency Profiling Tool, utilizes trace informations and profiler events to form a picture of the processes's and ports runnability. </p> <h2 id="id60691">1.1 Introduction</h2> <p> Percept uses <code class="code">erlang:trace/3</code> and <code class="code">erlang:system_profile/2</code> to monitor events from process states. Such states are,</p> <ul> <li>waiting</li> <li>running</li> <li>runnable</li> <li>free</li> <li>exiting</li> </ul> <p> There are some other states too, <code class="code">suspended</code>, <code class="code">hibernating</code>, and garbage collecting (<code class="code">gc</code>). The only ignored state is <code class="code">gc</code> and a process is considered to have its previous state through out the entire garbage collecting phase. The main reason for this, is that our model considers the <code class="code">gc</code> as a third state neither active nor inactive. </p> <p> A waiting or suspended process is considered an inactive process and a running or runnable process is considered an active process. </p> <p> Events are collected and stored to a file. The file can be moved and analyzed on a different machine than the target machine. </p> <p> Note, even if percept is not installed on your target machine, profiling can still be done via the module <code class="bold_code"><a href="../percept_profile/">percept_profile</a></code> located in runtime_tools. </p> <h2 id="id60939">1.2 Getting started</h2> <h4>Profiling</h4> <p> There are a few ways to start the profiling of a specific code. The command <code class="code">percept:profile/3</code> is a preferred way. </p> <p> The command takes a filename for the data destination file as first argument, a callback entry-point as second argument and a list of specific profiler options, for instance <code class="code">procs</code>, as third argument. </p> <p> Let's say we have a module called example that initializes our profiling-test and let it run under some defined manner designed by ourself. The module needs a start function, let's call it go and it takes zero arguments. The start arguments would look like: </p> <p><code class="code">percept:profile("test.dat", {test, go, []}, [procs]).</code></p> <p> For a semi-real example we start a tree of processes that does sorting of random numbers. In our model below we use a controller process that distributes work to different client processes. </p> <div class="example"><pre>
+
+-module(sorter).
+-export([go/3,loop/0,main/4]).
+
+go(I,N,M) -&gt;
+    spawn(?MODULE, main, [I,N,M,self()]),
+    receive done -&gt; ok end.
+
+main(I,N,M,Parent) -&gt;
+    Pids = lists:foldl(
+	fun(_,Ps) -&gt; 
+	    [ spawn(?MODULE,loop, []) | Ps]
+	end, [], lists:seq(1,M)),
+
+    lists:foreach(
+	fun(_) -&gt; 
+	    send_work(N,Pids),
+	    gather(Pids)
+	end, lists:seq(1,I)),
+
+    lists:foreach(
+	fun(Pid) -&gt;
+	    Pid ! {self(), quit}
+	end, Pids),
+
+    gather(Pids), Parent ! done.
+
+send_work(_,[]) -&gt; ok;
+send_work(N,[Pid|Pids]) -&gt;
+    Pid ! {self(),sort,N},
+    send_work(round(N*1.2),Pids).
+
+loop() -&gt;
+    receive
+	{Pid, sort, N} -&gt; dummy_sort(N),Pid ! {self(), done},loop();
+	{Pid, quit} -&gt; Pid ! {self(), done}
+    end.
+	    
+dummy_sort(N) -&gt; lists:sort([ random:uniform(N) || _ &lt;- lists:seq(1,N)]).
+
+gather([]) -&gt; ok;
+gather([Pid|Pids]) -&gt; receive {Pid, done} -&gt; gather(Pids) end.
+</pre></div> <p>We can now start our test using percept:</p> <div class="example"><pre>
+Erlang (BEAM) emulator version 5.6 [async-threads:0] [kernel-poll:false]
+
+Eshell V5.6  (abort with ^G)
+1&gt; percept:profile("test.dat", {sorter, go, [5, 2000, 15]}, [procs]).
+Starting profiling.
+ok
+    </pre></div> <p> Percept sets up the trace and profiling facilities to listen for process specific events. It then stores these events to the <code class="code">test.dat</code> file. The profiling will go on for the whole duration until <code class="code">sorter:go/3</code> returns and the profiling has concluded. </p> <h4>Data viewing</h4> <p> To analyze this file, use <code class="code">percept:analyze("test.dat")</code>. We can do this on any machine with Percept installed. The command will parse the data file and insert all events in a RAM database, <code class="code">percept_db</code>. The initial command will only prompt how many processes were involved in the profile. </p> <div class="example"><pre>
+2&gt; percept:analyze("test.dat").                                      
+Parsing: "test.dat" 
+Parsed 428 entries in 3.81310e-2 s.
+    17 created processes.
+    0 opened ports.
+ok
+     </pre></div> <p> To view the data we start the web-server using <code class="code">percept:start_webserver/1</code>. The command will return the hostname and the a port where we should direct our favorite web browser. </p> <div class="example"><pre>
+3&gt; percept:start_webserver(8888).
+{started,"durin",8888}
+4&gt; 
+     </pre></div> <h4>Overview selection</h4> <p> Now we can view our data. The database has its content from <code class="code">percept:analyze/1</code> command and the webserver is started. </p> <p> When we click on the <code class="code">overview</code> button in the menu percept will generate a graph of the concurrency and send it to our web browser. In this view we get no details but rather the big picture. We can see if our processes behave in an inefficient manner. Dips in the graph represents low concurrency in the erlang system. </p> <p> We can zoom in on different areas of the graph either using the mouse to select an area or by specifying min and max ranges in the edit boxes. </p> <div class="note"> <div class="label">Note</div> <div class="content">
+
+<p>Measured time is presented in seconds if nothing else is stated.</p> </div> </div>  <em>Figure 1.1: Overview selection</em> <h4>Processes selection</h4> <p> To get a more detailed description we can select the process view by clicking the <code class="code">processes</code> button in the menu. </p> <p> The table shows process id's that are click-able and direct you to the process information page, a lifetime bar that presents a rough estimate in green color about when the process was alive during profiling, an entry-point, its registered name if it had one and the process's parent id. </p> <p> We can select which processes we want to compare and then hit the <code class="code">compare</code> button on the top right of the screen. </p>  <em>Figure 1.2: Processes selection</em> <h4>Compare selection</h4> <p> The activity bar under the concurrency graph shows each process's runnability. The color green shows when a process is active (which is running or runnable) and the white color represents time when a process is inactive (waiting in a receive or is suspended). </p> <p> To inspect a certain process click on the process id button, this will direct you to a process information page for that specific process. </p>  <em>Figure 1.3: Processes compare selection</em> <h4>Process information selection</h4> <p> Here we can some general information for the process. Parent and children processes, spawn and exit times, entry-point and start arguments. </p> <p> We can also see the process' inactive times. How many times it has been waiting, statistical information and most importantly in which function. </p> <p> The time percentages presented in process information are of time spent in waiting, not total run time. </p>  <em>Figure 1.4: Process information selection</em><div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

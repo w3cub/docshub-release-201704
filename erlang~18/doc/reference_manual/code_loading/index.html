@@ -1,0 +1,110 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>14 Compilation and Code Loading - Erlang 18 - W3cubDocs</title>
+  
+  <meta name="description" content="How code is compiled and loaded is not a language issue, but is system-dependent. This section describes compilation and code loading in Erlang&#47; &hellip;">
+  <meta name="keywords" content="compilation, and, code, loading, -, erlang, erlang~18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~18/doc/reference_manual/code_loading/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~18/" class="_nav-link" title="" style="margin-left:0;">Erlang 18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>14 Compilation and Code Loading</h1> <p>How code is compiled and loaded is not a language issue, but is system-dependent. This section describes compilation and code loading in Erlang/OTP with references to relevant parts of the documentation.</p> <h2 id="id88306">14.1 Compilation</h2> <p>Erlang programs must be <strong>compiled</strong> to object code. The compiler can generate a new file that contains the object code. The current abstract machine, which runs the object code, is called BEAM, therefore the object files get the suffix <code class="code">.beam</code>. The compiler can also generate a binary which can be loaded directly.</p> <p>The compiler is located in the module <code class="code">compile</code> (see the <code class="bold_code">compile(3)</code> manual page in Compiler).</p> <div class="example"><pre>
+compile:file(Module)
+compile:file(Module, Options)</pre></div> <p>The Erlang shell understands the command <code class="code">c(Module)</code> which both compiles and loads <code class="code">Module</code>.</p> <p>There is also a module <code class="code">make</code>, which provides a set of functions similar to the UNIX type Make functions, see the <code class="bold_code">make(3)</code> manual page in Tools.</p> <p>The compiler can also be accessed from the OS prompt, see the <code class="bold_code">erl(1)</code> manual page in ERTS.</p> <div class="example"><pre>
+% erl -compile Module1...ModuleN
+% erl -make</pre></div> <p>The <code class="code">erlc</code> program provides an even better way to compile modules from the shell, see the <code class="bold_code">erlc(1)</code> manual page in ERTS. It understands a number of flags that can be used to define macros, add search paths for include files, and more.</p> <div class="example"><pre>
+% erlc &lt;flags&gt; File1.erl...FileN.erl</pre></div> <h2 id="id88426">14.2 Code Loading</h2>  <p>The object code must be <strong>loaded</strong> into the Erlang runtime system. This is handled by the <strong>code server</strong>, see the <code class="bold_code">code(3)</code> manual page in Kernel.</p> <p>The code server loads code according to a code loading strategy, which is either <strong>interactive</strong> (default) or <strong>embedded</strong>. In interactive mode, code is searched for in a <strong>code path</strong> and loaded when first referenced. In embedded mode, code is loaded at start-up according to a <strong>boot script</strong>. This is described in <code class="bold_code"> System Principles </code>.</p> <h2 id="id88478">14.3 Code Replacement</h2> <p>Erlang supports change of code in a running system. Code replacement is done on module level.</p> <p>The code of a module can exist in two variants in a system: <strong>current</strong> and <strong>old</strong>. When a module is loaded into the system for the first time, the code becomes 'current'. If then a new instance of the module is loaded, the code of the previous instance becomes 'old' and the new instance becomes 'current'.</p> <p>Both old and current code is valid, and can be evaluated concurrently. Fully qualified function calls always refer to current code. Old code can still be evaluated because of processes lingering in the old code.</p> <p>If a third instance of the module is loaded, the code server removes (purges) the old code and any processes lingering in it is terminated. Then the third instance becomes 'current' and the previously current code becomes 'old'.</p> <p>To change from old code to current code, a process must make a fully qualified function call.</p> <p><strong>Example:</strong></p> <div class="example"><pre>
+-module(m).
+-export([loop/0]).
+
+loop() -&gt;
+    receive
+        code_switch -&gt;
+            m:loop();
+        Msg -&gt;
+            ...
+            loop()
+    end.</pre></div> <p>To make the process change code, send the message <code class="code">code_switch</code> to it. The process then makes a fully qualified call to <code class="code">m:loop()</code> and changes to current code. Notice that <code class="code">m:loop/0</code> must be exported.</p> <p>For code replacement of funs to work, use the syntax <code class="code">fun Module:FunctionName/Arity</code>.</p> <h2 id="id88557">14.4 Running a Function When a Module is Loaded</h2>  <div class="warning"> <div class="label">Warning</div> <div class="content">
+
+<p>The <code class="code">on_load</code> feature is to be considered experimental as there are a number of known weak points in current semantics, which therefore might change in future Erlang/OTP releases:</p> <ul> <li><p>Doing external call in <code class="code">on_load</code> to the module itself leads to deadlock.</p></li> <li><p>At module upgrade, other processes calling the module get suspended waiting for <code class="code">on_load</code> to finish. This can be very bad for applications with demands on realtime characteristics.</p></li> <li><p>At module upgrade, no rollback is done if the <code class="code">on_load</code> function fails. The system is left in a bad limbo state without any working and reachable instance of the module.</p></li> </ul> <p>The problems with module upgrade described above can be fixed in future Erlang/OTP releases by changing the behaviour to not make the module reachable until after the <code class="code">on_load</code> function has successfully returned.</p> </div> </div> <p>The <code class="code">-on_load()</code> directive names a function that is to be run automatically when a module is loaded.</p> <p>Its syntax is as follows:</p> <div class="example"><pre>
+-on_load(Name/0).</pre></div> <p>It is not necessary to export the function. It is called in a freshly spawned process (which terminates as soon as the function returns). The function must return <code class="code">ok</code> if the module is to remain loaded and become callable, or any other value if the module is to be unloaded. Generating an exception also causes the module to be unloaded. If the return value is not an atom, a warning error report is sent to the error logger.</p> <p>A process that calls any function in a module whose <code class="code">on_load</code> function has not yet returned, is suspended until the <code class="code">on_load</code> function has returned.</p> <p>In embedded mode, first all modules are loaded. Then all <code class="code">on_load</code> functions are called. The system is terminated unless all of the <code class="code">on_load</code> functions return <code class="code">ok</code></p>. <p><strong>Example:</strong></p> <div class="example"><pre>
+-module(m).
+-on_load(load_my_nifs/0).
+
+load_my_nifs() -&gt;
+    NifPath = ...,    %Set up the path to the NIF library.
+    Info = ...,       %Initialize the Info term
+    erlang:load_nif(NifPath, Info).</pre></div> <p>If the call to <code class="code">erlang:load_nif/2</code> fails, the module is unloaded and a warning report is sent to the error loader.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

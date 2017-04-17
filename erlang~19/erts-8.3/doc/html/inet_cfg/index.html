@@ -1,0 +1,102 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>10. Inet Configuration - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content="This section describes how the Erlang runtime system is configured for IP communication. It also explains how you can configure it for your needs by &hellip;">
+  <meta name="keywords" content="inet, configuration, -, erlang, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/erts-8.3/doc/html/inet_cfg/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>10 Inet Configuration</h1> <h2 id="id97645">10.1 Introduction</h2> <p>This section describes how the Erlang runtime system is configured for IP communication. It also explains how you can configure it for your needs by a configuration file. The information is primarily intended for users with special configuration needs or problems. There is normally no need for specific settings for Erlang to function properly on a correctly IP-configured platform.</p> <p>When Erlang starts up it reads the Kernel variable <code class="code">inetrc</code>, which, if defined, is to specify the location and name of a user configuration file. Example:</p> <div class="example"><pre>
+% erl -kernel inetrc '"./cfg_files/erl_inetrc"'</pre></div> <p>Notice that the use of an <code class="code">.inetrc</code> file, which was supported in earlier Erlang/OTP versions, is now obsolete.</p> <p>A second way to specify the configuration file is to set environment variable <code class="code">ERL_INETRC</code> to the full name of the file. Example (bash):</p> <div class="example"><pre>
+% export ERL_INETRC=./cfg_files/erl_inetrc</pre></div> <p>Notice that the Kernel variable <code class="code">inetrc</code> overrides this environment variable.</p> <p>If no user configuration file is specified and Erlang is started in non-distributed or short name distributed mode, Erlang uses default configuration settings and a native lookup method that works correctly under most circumstances. Erlang reads no information from system <code class="code">inet</code> configuration files (such as <code class="code">/etc/host.conf</code> and <code class="code">/etc/nsswitch.conf</code>) in these modes, except for <code class="code">/etc/resolv.conf</code> and <code class="code">/etc/hosts</code> that is read and monitored for changes on Unix platforms for the internal DNS client <code class="bold_code"><span class="code">inet_res(3)</span></code>.</p> <p>If Erlang is started in long name distributed mode, it needs to get the domain name from somewhere and reads system <code class="code">inet</code> configuration files for this information. Any hosts and resolver information found is also recorded, but not used as long as Erlang is configured for native lookups. The information becomes useful if the lookup method is changed to <code class="code">'file'</code> or <code class="code">'dns'</code>, see below.</p> <p>Native lookup (system calls) is always the default resolver method. This is true for all platforms, except VxWorks and OSE Delta where <code class="code">'file'</code> or <code class="code">'dns'</code> is used (in that priority order).</p> <p>On Windows platforms, Erlang searches the system registry rather than looks for configuration files when started in long name distributed mode.</p> <h2 id="id97773">10.2 Configuration Data</h2> <p>Erlang records the following data in a local database if found in system <code class="code">inet</code> configuration files (or system registry):</p> <ul> <li>Hostnames and host addresses</li> <li>Domain name</li> <li>Nameservers</li> <li>Search domains</li> <li>Lookup method</li> </ul> <p>This data can also be specified explicitly in the user configuration file. This file is to contain lines of configuration parameters (each terminated with a full stop). Some parameters add data to the configuration (such as host and nameserver), others overwrite any previous settings (such as domain and lookup). The user configuration file is always examined last in the configuration process, making it possible for the user to override any default values or previously made settings. Call <code class="code">inet:get_rc()</code> to view the state of the <code class="code">inet</code> configuration database.</p> <p>The valid configuration parameters are as follows:</p> <dl> <dt><strong><code class="code">{file, Format, File}.</code></strong></dt> <dd> <p><code class="code">Format = atom()</code></p> <p><code class="code">File = string()</code></p> <p>Specify a system file that Erlang is to read configuration data from. <code class="code">Format</code> tells the parser how the file is to be interpreted:</p> <ul> <li> <code class="code">resolv</code> (Unix resolv.conf)</li> <li> <code class="code">host_conf_freebsd</code> (FreeBSD host.conf)</li> <li> <code class="code">host_conf_bsdos</code> (BSDOS host.conf)</li> <li> <code class="code">host_conf_linux</code> (Linux host.conf)</li> <li> <code class="code">nsswitch_conf</code> (Unix nsswitch.conf)</li> <li> <code class="code">hosts</code> (Unix hosts)</li> </ul> <p><code class="code">File</code> is to specify the filename with full path.</p> </dd> <dt><strong><code class="code">{resolv_conf, File}.</code></strong></dt> <dd> <p><code class="code">File = string()</code></p> <p>Specify a system file that Erlang is to read resolver configuration from for the internal DNS client <code class="bold_code"><span class="code">inet_res(3)</span></code>, and monitor for changes, even if it does not exist. The path must be absolute.</p> <p>This can override the configuration parameters <code class="code">nameserver</code> and <code class="code">search</code> depending on the contents of the specified file. They can also change any time in the future reflecting the file contents.</p> <p>If the file is specified as an empty string <code class="code">""</code>, no file is read or monitored in the future. This emulates the old behavior of not configuring the DNS client when the node is started in short name distributed mode.</p> <p>If this parameter is not specified, it defaults to <code class="code">/etc/resolv.conf</code> unless environment variable <code class="code">ERL_INET_ETC_DIR</code> is set, which defines the directory for this file to some maybe other than <code class="code">/etc</code>.</p> </dd> <dt><strong><code class="code">{hosts_file, File}.</code></strong></dt> <dd> <p><code class="code">File = string()</code></p> <p>Specify a system file that Erlang is to read resolver configuration from for the internal hosts file resolver, and monitor for changes, even if it does not exist. The path must be absolute.</p> <p>These host entries are searched after all added with <code class="code">{file, hosts, File}</code> above or <code class="code">{host, IP, Aliases}</code> below when lookup option <code class="code">file</code> is used.</p> <p>If the file is specified as an empty string <code class="code">""</code>, no file is read or monitored in the future. This emulates the old behavior of not configuring the DNS client when the node is started in short name distributed mode.</p> <p>If this parameter is not specified, it defaults to <code class="code">/etc/hosts</code> unless environment variable <code class="code">ERL_INET_ETC_DIR</code> is set, which defines the directory for this file to some maybe other than <code class="code">/etc</code>.</p> </dd> <dt><strong><code class="code">{registry, Type}.</code></strong></dt> <dd> <p><code class="code">Type = atom()</code></p> <p>Specify a system registry that Erlang is to read configuration data from. <code class="code">win32</code> is the only valid option.</p> </dd> <dt><strong><code class="code">{host, IP, Aliases}.</code></strong></dt> <dd> <p><code class="code">IP = tuple()</code></p> <p><code class="code">Aliases = [string()]</code></p> <p>Add host entry to the hosts table.</p> </dd> <dt><strong><code class="code">{domain, Domain}.</code></strong></dt> <dd> <p><code class="code">Domain = string()</code></p> <p>Set domain name.</p> </dd> <dt><strong><code class="code">{nameserver, IP [,Port]}.</code></strong></dt> <dd> <p><code class="code">IP = tuple()</code></p> <p><code class="code">Port = integer()</code></p> <p>Add address (and port, if other than default) of the primary nameserver to use for <code class="bold_code"><span class="code">inet_res(3)</span></code>. </p> </dd> <dt><strong><code class="code">{alt_nameserver, IP [,Port]}.</code></strong></dt> <dd> <p><code class="code">IP = tuple()</code></p> <p><code class="code">Port = integer()</code></p> <p>Add address (and port, if other than default) of the secondary nameserver for <code class="bold_code"><span class="code">inet_res(3)</span></code>. </p> </dd> <dt><strong><code class="code">{search, Domains}.</code></strong></dt> <dd> <p><code class="code">Domains = [string()]</code></p> <p>Add search domains for <code class="bold_code"><span class="code">inet_res(3)</span></code>. </p> </dd> <dt><strong><code class="code">{lookup, Methods}.</code></strong></dt> <dd> <p><code class="code">Methods = [atom()]</code></p> <p>Specify lookup methods and in which order to try them. The valid methods are as follows:</p> <ul> <li> <code class="code">native</code> (use system calls)</li> <li> <code class="code">file</code> (use host data retrieved from system configuration files and/or the user configuration file)</li> <li> <code class="code">dns</code> (use the Erlang DNS client <code class="bold_code"><span class="code">inet_res(3)</span></code> for nameserver queries)</li> </ul> <p>The lookup method <code class="code">string</code> tries to parse the hostname as an IPv4 or IPv6 string and return the resulting IP address. It is automatically tried first when <code class="code">native</code> is <strong>not</strong> in the <code class="code">Methods</code> list. To skip it in this case, the pseudo lookup method <code class="code">nostring</code> can be inserted anywhere in the <code class="code">Methods</code> list.</p> </dd> <dt><strong><code class="code">{cache_size, Size}.</code></strong></dt> <dd> <p><code class="code">Size = integer()</code></p> <p>Set the resolver cache size. Defaults to 100 DNS records.</p> </dd> <dt><strong><code class="code">{cache_refresh, Time}.</code></strong></dt> <dd> <p><code class="code">Time = integer()</code></p> <p>Set how often (in milliseconds) the resolver cache for <code class="bold_code"><span class="code">inet_res(3)</span></code> is refreshed (that is, expired DNS records are deleted). Defaults to 1 hour.</p> </dd> <dt><strong><code class="code">{timeout, Time}.</code></strong></dt> <dd> <p><code class="code">Time = integer()</code></p> <p>Set the time to wait until retry (in milliseconds) for DNS queries made by <code class="bold_code"><span class="code">inet_res(3)</span></code>. Defaults to 2 seconds.</p> </dd> <dt><strong><code class="code">{retry, N}.</code></strong></dt> <dd> <p><code class="code">N = integer()</code></p> <p>Set the number of DNS queries <code class="bold_code"><span class="code">inet_res(3)</span></code> will try before giving up. Defaults to 3.</p> </dd> <dt><strong><code class="code">{inet6, Bool}.</code></strong></dt> <dd> <p><code class="code">Bool = true | false</code></p> <p>Tells the DNS client <code class="bold_code"><span class="code">inet_res(3)</span></code> to look up IPv6 addresses. Defaults to <code class="code">false</code>.</p> </dd> <dt><strong><code class="code">{usevc, Bool}.</code></strong></dt> <dd> <p><code class="code">Bool = true | false</code></p> <p>Tells the DNS client <code class="bold_code"><span class="code">inet_res(3)</span></code> to use TCP (Virtual Circuit) instead of UDP. Defaults to <code class="code">false</code>.</p> </dd> <dt><strong><code class="code">{edns, Version}.</code></strong></dt> <dd> <p><code class="code">Version = false | 0</code></p> <p>Sets the EDNS version that <code class="bold_code"><span class="code">inet_res(3)</span></code> will use. The only allowed version is zero. Defaults to <code class="code">false</code>, which means not to use EDNS.</p> </dd> <dt><strong><code class="code">{udp_payload_size, Size}.</code></strong></dt> <dd> <p><code class="code">N = integer()</code></p> <p>Sets the allowed UDP payload size <code class="bold_code"><span class="code">inet_res(3)</span></code> will advertise in EDNS queries. Also sets the limit when the DNS query will be deemed too large for UDP forcing a TCP query instead; this is not entirely correct, as the advertised UDP payload size of the individual nameserver is what is to be used, but this simple strategy will do until a more intelligent (probing, caching) algorithm needs to be implemented. Default to 1280, which stems from the standard Ethernet MTU size.</p> </dd> <dt><strong><code class="code">{udp, Module}.</code></strong></dt> <dd> <p><code class="code">Module = atom()</code></p> <p>Tell Erlang to use another primitive UDP module than <code class="code">inet_udp</code>.</p> </dd> <dt><strong><code class="code">{tcp, Module}.</code></strong></dt> <dd> <p><code class="code">Module = atom()</code></p> <p>Tell Erlang to use another primitive TCP module than <code class="code">inet_tcp</code>.</p> </dd> <dt><strong><code class="code">clear_hosts.</code></strong></dt> <dd> <p>Clear the hosts table.</p> </dd> <dt><strong><code class="code">clear_ns.</code></strong></dt> <dd> <p>Clear the list of recorded nameservers (primary and secondary).</p> </dd> <dt><strong><code class="code">clear_search.</code></strong></dt> <dd> <p>Clear the list of search domains.</p> </dd> </dl> <h2 id="id98544">10.3 User Configuration Example</h2> <p>Assume that a user does not want Erlang to use the native lookup method, but wants Erlang to read all information necessary from start and use that for resolving names and addresses. If lookup fails, Erlang is to request the data from a nameserver (using the Erlang DNS client, set to use EDNS allowing larger responses). The resolver configuration is updated when its configuration file changes. Also, DNS records are never to be cached. The user configuration file (in this example named <code class="code">erl_inetrc</code>, stored in directory <code class="code">./cfg_files</code>) can then look as follows (Unix):</p> <div class="example"><pre>
+%% -- ERLANG INET CONFIGURATION FILE --
+%% read the hosts file
+{file, hosts, "/etc/hosts"}.
+%% add a particular host
+{host, {134,138,177,105}, ["finwe"]}.
+%% do not monitor the hosts file
+{hosts_file, ""}.
+%% read and monitor nameserver config from here
+{resolv_conf, "/usr/local/etc/resolv.conf"}.
+%% enable EDNS
+{edns,0}.
+%% disable caching
+{cache_size, 0}.
+%% specify lookup method
+{lookup, [file, dns]}.</pre></div> <p>And Erlang can, for example, be started as follows:</p> <div class="example"><pre>
+% erl -sname my_node -kernel inetrc '"./cfg_files/erl_inetrc"'</pre></div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

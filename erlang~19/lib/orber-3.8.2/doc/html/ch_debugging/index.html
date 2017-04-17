@@ -1,0 +1,122 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>13. Debugging - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content="Persons who use Orber for the first time may find it hard to tell what goes wrong when trying to setup communication between an Orber-ORB and ORB&# &hellip;">
+  <meta name="keywords" content="debugging, -, erlang, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/lib/orber-3.8.2/doc/html/ch_debugging/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>13 Debugging</h1> <h2 id="id85667">13.1 Tools and FAQ</h2> <p>Persons who use Orber for the first time may find it hard to tell what goes wrong when trying to setup communication between an Orber-ORB and ORB:s supplied by another vendor or another Orber-ORB. The purpose of this chapter is to inform about the most common mistakes and what tools one can use to overcome these problems. </p> <h4>Tools</h4> <p>To begin with, Orber can be configured to run in debug mode. There are four ways to set this parameter:</p> <ul> <li> <strong>erl -orber orber_debug_level 10</strong> - can be added to a start-script.</li> <li> <strong>corba:orb_init([{orber_debug_level, 10}])</strong> - this operation must be invoked <strong>before</strong> starting Orber.</li> <li> <strong>orber:configure(orber_debug_level, 10)</strong> - this operation can be invoked at any time.</li> <li> <strong>OrberWeb</strong> - via the <code class="code">Configuration</code> menu one can easily change the configuration. For more information, see the OrberWeb chapter in this User's Guide.</li> </ul> <p>When Orber runs i debug mode, printouts will be generated if anything abnormal occurs (not necessarily an error). An error message typically looks like:</p> <div class="example"><pre>
+=ERROR REPORT==== 29-Nov-2001::14:09:55 ===
+=================== Orber =================
+[410] corba:common_create(orber_test_server, [{pseudo,truce}]); 
+not a boolean(truce).
+===========================================
+      </pre></div> <p>In the example above, we tried to create an object with an incorrect option (i.e. should have been <code class="code">{pseudo,true}</code>).</p> <p>If you are not able to solve the problem, you should include all generated reports when contacting support or using the erlang-questions mailing list.</p> <p>It is easy to forget to, for example, set all fields in a struct, which one may not discover when developing an application using Orber. When using a typed language, such faults would cause a compile time error. To avoid these mistakes, Orber allows the user to activate automatic typechecking of all local invocations of CORBA Objects. For this feature to be really useful, the user must create test suites which cover as much as possible. For example, invoking an operation with invalid or incorrect arguments should also be tested. This option can be activated for one object or all object via:</p> <ul> <li> <strong>'MyModuyle_MyInterface':oe_create(Env, [{local_typecheck, true}])</strong> - This approach will only activate, or deactivate, typechecking for the returned instance. Naturally, this option can also be passed to <code class="code">oe_create_link/2</code>, <code class="code">corba:create/4</code> and <code class="code">corba:create_link/4</code>.</li> <li> <strong>erl -orber flags 2</strong> - can be added to a start-script. All object invocations will be typechecked, unless overridden by the previous option.</li> <li> <strong>corba:orb_init([{flags, 16#0002}])</strong> - this operation must be invoked <strong>before</strong> starting Orber. Behaves as the previous option.</li> </ul> <p>If incorrect data is passed or returned, Orber uses the <code class="code">error_logger</code> to generate logs, which can look like:</p> <div class="example"><pre>
+=ERROR REPORT==== 10-Jul-2002::12:36:09 ===
+========= Orber Typecheck Request =========
+Invoked......: MyModule_MyInterface:foo/1
+Typecode.....: [{tk_enum,"IDL:MyModule/enumerant:1.0",
+                         "enumerant",
+                         ["one","two"]}]
+Arguments....: [three]
+Result.......: {'EXCEPTION',{'MARSHAL',[],102,'COMPLETED_NO'}}
+===========================================
+      </pre></div> <p>Note, that the arity is equivalent to the IDL-file. In the example above, an undefined enumerant was used. In most cases, it is useful to set the configuration parameter <code class="code">orber_debug_level 10</code> as well. Due to the extra overhead, this option <strong>MAY ONLY</strong> be used during testing and development. For more information, see also <code class="bold_code"><a href="../ch_install/#config">configuration settings</a></code>.</p> <p>It is also possible to trace all communication between an Orber-ORB and, for example, a Java-ORB, communicating via IIOP. All you need to do is to activate an <code class="bold_code"><a href="../ch_interceptors/">interceptor</a></code>. Normally, the users must implement the interceptor themselves, but for your convenience Orber includes three pre-compiled interceptors called <code class="code">orber_iiop_tracer</code>, <code class="code">orber_iiop_tracer_silent</code> and <code class="code">orber_iiop_tracer_stealth</code>.</p> <div class="warning"> <div class="label">Warning</div> <div class="content">
+
+<p>Logging all traffic is <strong>expensive</strong>. Hence, only use the supplied interceptors during test and development.</p> </div> </div> <p>The <code class="code">orber_iiop_tracer</code> and <code class="code">orber_iiop_tracer_silent</code> interceptors uses the <code class="code">error_logger</code> module to generate the logs. If the traffic is intense you probably want to write the reports to a log-file. This is done by, for example, invoking:</p> <div class="example"><pre>
+erl&gt; error_logger:tty(false). 
+erl&gt; error_logger:logfile({open, "/tmp/IIOPTrace"}). 
+      </pre></div> <p>The <code class="code">IIOPTrace</code> file will contain, if you use the <code class="code">orber_iiop_tracer</code> interceptor, reports which looks like:</p> <div class="example"><pre>
+=INFO REPORT==== 13-Jul-2005::18:22:39 ===
+=============== new_out_connection =======
+Node      : myNode@myHost
+From      : 192.0.0.10:47987
+To        : 192.0.0.20:4001
+==========================================
+
+=INFO REPORT==== 29-Nov-2001::15:26:28 ===
+=============== out_request ==============
+Connection: {"192.0.0.20",4001,"192.0.0.10",47987}
+Operation : resolve
+Parameters: [[{'CosNaming_NameComponent',
+                "AIK","SwedishIcehockeyChampions"}]]
+Context   : [{'IOP_ServiceContext',1,
+               {'CONV_FRAME_CodeSetContext',65537,65801}}]
+==========================================
+      </pre></div> <p>The <code class="code">orber_iiop_tracer_silent</code> will not log GIOP encoded data. To activate one the interceptors, you have two options:</p> <ul> <li> <strong>erl -orber interceptors "{native,[orber_iiop_tracer]}"</strong> - can be added to a start-script.</li> <li> <strong>corba:orb_init([{interceptors, {native, [orber_iiop_tracer_silent]}}])</strong> - this operation must be invoked <strong>before</strong> starting Orber.</li> </ul> <p>It is also possible to active and deactivate an interceptor during run-time, but this will only affect currently existing connections. For more information, consult Orber's Reference Manual regarding the operations <code class="code">orber:activate_audit_trail/0/1</code> and <code class="code">orber:activate_audit_trail/0/1.</code></p> <h4>FAQ</h4> <p><strong>Q: When my client, typically written in C++ or Java, invoke narrow on an Orber object reference it fails?</strong></p> <p>A: You must register your application in the IFR by invoking <code class="code">oe_register()</code>. If the object was created by a COS-application, you must run install (e.g. <code class="code">cosEventApp:install()</code>).</p> <p>A: Confirm, by consulting the IDL specifications, that the received object reference really inherit from the interface you are trying to narrow it to.</p>  <p><strong>Q: I am trying to register my application in the IFR but it fails. Why?</strong></p> <p>A: If one, or more, interface in your IDL-specification inherits from other interface(s), you must register them before registering your application. Note, this also apply when you inherit interfaces supported by a COS-application. Hence, they must be installed prior to registration of your application.</p>  <p><strong>Q: I have a Orber client and server residing on two different Orber instances but I only get the 'OBJECT_NOT_EXIST' exception, even though I am sure that the object is still alive?</strong></p> <p>A: If the two Orber-ORB's are not intended to be a part of multi-node ORB, make sure that the two Orber-ORB's have different <strong>domain</strong> names set (see <code class="bold_code"><a href="../ch_install/#config">configuration settings</a></code>). The easiest way to confirm this is to invoke <code class="code">orber:info()</code> on each node.</p>  <p><strong>Q: When I'm trying to install and/or start Orber it fails?</strong></p> <p>A: Make sure that no other Orber-ORB is already running on the same node. If so, change the <code class="code">iiop_port</code> configuration parameter (see <code class="bold_code"><a href="../ch_install/#config">configuration settings</a></code>).</p>  <p><strong>Q: My Orber server is invoked via IIOP but Orber cannot marshal the reply?</strong></p> <p>A: Consult your IDL file to confirm that your replies are of the correct type. If it is correct and the return type is, for example, a struct, make sure you have set every field in the struct. If you do not do that it will be set to the atom 'undefined', which most certainly is not correct.</p>  <p>A: Check that you handle <code class="code">inout</code> and <code class="code">out</code> parameters correctly (see the IDL specification). For example, a function which have one out-parameter and should return void, then your call-back module should return <code class="code">{reply, {ok, OutParam}, State}</code>. Note, even though the return value is void (IDL) you must reply with ok.</p>  <p><strong>Q: I cannot run Orber as a multi-node ORB?</strong></p> <p>A: Make sure that the Erlang distribution have been started for each node and the <code class="code">cookies</code> are correct. For more information, consult the <code class="code">System Documentation</code></p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

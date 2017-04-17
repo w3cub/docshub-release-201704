@@ -1,0 +1,93 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>9. Drivers - Erlang 19 - W3cubDocs</title>
+  
+  <meta name="description" content=" This section provides a brief overview on how to write efficient drivers. ">
+  <meta name="keywords" content="drivers, -, erlang, erlang~19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~19/doc/efficiency_guide/drivers/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~19/" class="_nav-link" title="" style="margin-left:0;">Erlang 19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>9 Drivers</h1> <p>This section provides a brief overview on how to write efficient drivers.</p> <p>It is assumed that you have a good understanding of drivers.</p> <h2 id="id70202">9.1 Drivers and Concurrency</h2> <p>The runtime system always takes a lock before running any code in a driver.</p> <p>By default, that lock is at the driver level, that is, if several ports have been opened to the same driver, only code for one port at the same time can be running.</p> <p>A driver can be configured to have one lock for each port instead.</p> <p>If a driver is used in a functional way (that is, holds no state, but only does some heavy calculation and returns a result), several ports with registered names can be opened beforehand, and the port to be used can be chosen based on the scheduler ID as follows:</p> <div class="example"><pre>
+-define(PORT_NAMES(),
+	{some_driver_01, some_driver_02, some_driver_03, some_driver_04,
+	 some_driver_05, some_driver_06, some_driver_07, some_driver_08,
+	 some_driver_09, some_driver_10, some_driver_11, some_driver_12,
+	 some_driver_13, some_driver_14, some_driver_15, some_driver_16}).
+
+client_port() -&gt;
+    element(erlang:system_info(scheduler_id) rem tuple_size(?PORT_NAMES()) + 1,
+	    ?PORT_NAMES()).</pre></div> <p>As long as there are no more than 16 schedulers, there will never be any lock contention on the port lock for the driver.</p> <h2 id="id70243">9.2 Avoiding Copying Binaries When Calling a Driver</h2> <p>There are basically two ways to avoid copying a binary that is sent to a driver:</p> <ul> <li> <p>If the <code class="code">Data</code> argument for <code class="bold_code">port_control/3</code> is a binary, the driver will be passed a pointer to the contents of the binary and the binary will not be copied. If the <code class="code">Data</code> argument is an iolist (list of binaries and lists), all binaries in the iolist will be copied.</p> <p>Therefore, if you want to send both a pre-existing binary and some extra data to a driver without copying the binary, you must call <code class="code">port_control/3</code> twice; once with the binary and once with the extra data. However, that will only work if there is only one process communicating with the port (because otherwise another process can call the driver in-between the calls).</p> </li> <li><p>Implement an <code class="code">outputv</code> callback (instead of an <code class="code">output</code> callback) in the driver. If a driver has an <code class="code">outputv</code> callback, refc binaries passed in an iolist in the <code class="code">Data</code> argument for <code class="bold_code">port_command/2</code> will be passed as references to the driver.</p></li> </ul> <h2 id="id70318">9.3 Returning Small Binaries from a Driver</h2> <p>The runtime system can represent binaries up to 64 bytes as heap binaries. They are always copied when sent in messages, but they require less memory if they are not sent to another process and garbage collection is cheaper.</p> <p>If you know that the binaries you return are always small, you are advised to use driver API calls that do not require a pre-allocated binary, for example, <code class="bold_code">driver_output()</code> or <code class="bold_code">erl_drv_output_term()</code>, using the <code class="code">ERL_DRV_BUF2BINARY</code> format, to allow the runtime to construct a heap binary.</p> <h2 id="id70353">9.4 Returning Large Binaries without Copying from a Driver</h2> <p>To avoid copying data when a large binary is sent or returned from the driver to an Erlang process, the driver must first allocate the binary and then send it to an Erlang process in some way.</p> <p>Use <code class="bold_code">driver_alloc_binary()</code> to allocate a binary.</p> <p>There are several ways to send a binary created with <code class="code">driver_alloc_binary()</code>:</p> <ul> <li>From the <code class="code">control</code> callback, a binary can be returned if <code class="bold_code">set_port_control_flags()</code> has been called with the flag value <code class="code">PORT_CONTROL_FLAG_BINARY</code>.</li> <li>A single binary can be sent with <code class="bold_code">driver_output_binary()</code>.</li> <li>Using <code class="bold_code">erl_drv_output_term()</code> or <code class="bold_code">erl_drv_send_term()</code>, a binary can be included in an Erlang term.</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,200 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4 Constructing and Matching Binaries - Erlang 18 - W3cubDocs</title>
+  
+  <meta name="description" content=" In R12B, the most natural way to construct and match binaries is significantly faster than in earlier releases. ">
+  <meta name="keywords" content="constructing, and, matching, binaries, -, erlang, erlang~18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~18/doc/efficiency_guide/binaryhandling/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~18/" class="_nav-link" title="" style="margin-left:0;">Erlang 18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>4 Constructing and Matching Binaries</h1> <p>In R12B, the most natural way to construct and match binaries is significantly faster than in earlier releases.</p> <p>To construct a binary, you can simply write as follows:</p> <p><strong>DO</strong> (in R12B) / <strong>REALLY DO NOT</strong> (in earlier releases)</p> <div class="example"><pre>
+my_list_to_binary(List) -&gt;
+    my_list_to_binary(List, &lt;&lt;&gt;&gt;).
+
+my_list_to_binary([H|T], Acc) -&gt;
+    my_list_to_binary(T, &lt;&lt;Acc/binary,H&gt;&gt;);
+my_list_to_binary([], Acc) -&gt;
+    Acc.</pre></div> <p>In releases before R12B, <code class="code">Acc</code> is copied in every iteration. In R12B, <code class="code">Acc</code> is copied only in the first iteration and extra space is allocated at the end of the copied binary. In the next iteration, <code class="code">H</code> is written into the extra space. When the extra space runs out, the binary is reallocated with more extra space. The extra space allocated (or reallocated) is twice the size of the existing binary data, or 256, whichever is larger.</p> <p>The most natural way to match binaries is now the fastest:</p> <p><strong>DO</strong> (in R12B)</p> <div class="example"><pre>
+my_binary_to_list(&lt;&lt;H,T/binary&gt;&gt;) -&gt;
+    [H|my_binary_to_list(T)];
+my_binary_to_list(&lt;&lt;&gt;&gt;) -&gt; [].</pre></div> <h2 id="id67309">4.1 How Binaries are Implemented</h2> <p>Internally, binaries and bitstrings are implemented in the same way. In this section, they are called <strong>binaries</strong> because that is what they are called in the emulator source code.</p> <p>Four types of binary objects are available internally:</p> <ul> <li> <p>Two are containers for binary data and are called:</p> <ul> <li> <strong>Refc binaries</strong> (short for <strong>reference-counted binaries</strong>)</li> <li><strong>Heap binaries</strong></li> </ul> </li> <li> <p>Two are merely references to a part of a binary and are called:</p> <ul> <li><strong>sub binaries</strong></li> <li><strong>match contexts</strong></li> </ul> </li> </ul> <h4>Refc Binaries</h4>  <p>Refc binaries consist of two parts:</p> <ul> <li>An object stored on the process heap, called a <strong>ProcBin</strong> </li> <li>The binary object itself, stored outside all process heaps</li> </ul> <p>The binary object can be referenced by any number of ProcBins from any number of processes. The object contains a reference counter to keep track of the number of references, so that it can be removed when the last reference disappears.</p> <p>All ProcBin objects in a process are part of a linked list, so that the garbage collector can keep track of them and decrement the reference counters in the binary when a ProcBin disappears.</p> <h4>Heap Binaries</h4>  <p>Heap binaries are small binaries, up to 64 bytes, and are stored directly on the process heap. They are copied when the process is garbage-collected and when they are sent as a message. They do not require any special handling by the garbage collector.</p> <h4>Sub Binaries</h4> <p>The reference objects <strong>sub binaries</strong> and <strong>match contexts</strong> can reference part of a refc binary or heap binary.</p> <p id="sub_binary">A <strong>sub binary</strong> is created by <code class="code">split_binary/2</code> and when a binary is matched out in a binary pattern. A sub binary is a reference into a part of another binary (refc or heap binary, but never into another sub binary). Therefore, matching out a binary is relatively cheap because the actual binary data is never copied.</p> <h4>Match Context</h4>  <p>A <strong>match context</strong> is similar to a sub binary, but is optimized for binary matching. For example, it contains a direct pointer to the binary data. For each field that is matched out of a binary, the position in the match context is incremented.</p> <p>In R11B, a match context was only used during a binary matching operation.</p> <p>In R12B, the compiler tries to avoid generating code that creates a sub binary, only to shortly afterwards create a new match context and discard the sub binary. Instead of creating a sub binary, the match context is kept.</p> <p>The compiler can only do this optimization if it knows that the match context will not be shared. If it would be shared, the functional properties (also called referential transparency) of Erlang would break.</p> <h2 id="id65619">4.2 Constructing Binaries</h2> <p>In R12B, appending to a binary or bitstring is specially optimized by the <strong>runtime system</strong>:</p> <div class="example"><pre>
+&lt;&lt;Binary/binary, ...&gt;&gt;
+&lt;&lt;Binary/bitstring, ...&gt;&gt;</pre></div> <p>As the runtime system handles the optimization (instead of the compiler), there are very few circumstances in which the optimization does not work.</p> <p>To explain how it works, let us examine the following code line by line:</p> <div class="example"><pre>
+Bin0 = &lt;&lt;0&gt;&gt;,                    %% 1
+Bin1 = &lt;&lt;Bin0/binary,1,2,3&gt;&gt;,    %% 2
+Bin2 = &lt;&lt;Bin1/binary,4,5,6&gt;&gt;,    %% 3
+Bin3 = &lt;&lt;Bin2/binary,7,8,9&gt;&gt;,    %% 4
+Bin4 = &lt;&lt;Bin1/binary,17&gt;&gt;,       %% 5 !!!
+{Bin4,Bin3}                      %% 6</pre></div> <ul> <li>Line 1 (marked with the <code class="code">%% 1</code> comment), assigns a <code class="bold_code"><a href="#heap_binary">heap binary</a></code> to the <code class="code">Bin0</code> variable.</li> <li>Line 2 is an append operation. As <code class="code">Bin0</code> has not been involved in an append operation, a new <code class="bold_code"><a href="#refc_binary">refc binary</a></code> is created and the contents of <code class="code">Bin0</code> is copied into it. The <strong>ProcBin</strong> part of the refc binary has its size set to the size of the data stored in the binary, while the binary object has extra space allocated. The size of the binary object is either twice the size of <code class="code">Bin1</code> or 256, whichever is larger. In this case it is 256.</li> <li>Line 3 is more interesting. <code class="code">Bin1</code> <strong>has</strong> been used in an append operation, and it has 252 bytes of unused storage at the end, so the 3 new bytes are stored there.</li> <li>Line 4. The same applies here. There are 249 bytes left, so there is no problem storing another 3 bytes.</li> <li>Line 5. Here, something <strong>interesting</strong> happens. Notice that the result is not appended to the previous result in <code class="code">Bin3</code>, but to <code class="code">Bin1</code>. It is expected that <code class="code">Bin4</code> will be assigned the value <code class="code">&lt;&lt;0,1,2,3,17&gt;&gt;</code>. It is also expected that <code class="code">Bin3</code> will retain its value (<code class="code">&lt;&lt;0,1,2,3,4,5,6,7,8,9&gt;&gt;</code>). Clearly, the runtime system cannot write byte <code class="code">17</code> into the binary, because that would change the value of <code class="code">Bin3</code> to <code class="code">&lt;&lt;0,1,2,3,4,17,6,7,8,9&gt;&gt;</code>.</li> </ul> <p>The runtime system sees that <code class="code">Bin1</code> is the result from a previous append operation (not from the latest append operation), so it <strong>copies</strong> the contents of <code class="code">Bin1</code> to a new binary, reserve extra storage, and so on. (Here is not explained how the runtime system can know that it is not allowed to write into <code class="code">Bin1</code>; it is left as an exercise to the curious reader to figure out how it is done by reading the emulator sources, primarily <code class="code">erl_bits.c</code>.)</p> <h4>Circumstances That Force Copying</h4> <p>The optimization of the binary append operation requires that there is a <strong>single</strong> ProcBin and a <strong>single reference</strong> to the ProcBin for the binary. The reason is that the binary object can be moved (reallocated) during an append operation, and when that happens, the pointer in the ProcBin must be updated. If there would be more than one ProcBin pointing to the binary object, it would not be possible to find and update all of them.</p> <p>Therefore, certain operations on a binary mark it so that any future append operation will be forced to copy the binary. In most cases, the binary object will be shrunk at the same time to reclaim the extra space allocated for growing.</p> <p>When appending to a binary as follows, only the binary returned from the latest append operation will support further cheap append operations:</p> <div class="example"><pre>
+Bin = &lt;&lt;Bin0,...&gt;&gt;</pre></div> <p>In the code fragment in the beginning of this section, appending to <code class="code">Bin</code> will be cheap, while appending to <code class="code">Bin0</code> will force the creation of a new binary and copying of the contents of <code class="code">Bin0</code>.</p> <p>If a binary is sent as a message to a process or port, the binary will be shrunk and any further append operation will copy the binary data into a new binary. For example, in the following code fragment <code class="code">Bin1</code> will be copied in the third line:</p> <div class="example"><pre>
+Bin1 = &lt;&lt;Bin0,...&gt;&gt;,
+PortOrPid ! Bin1,
+Bin = &lt;&lt;Bin1,...&gt;&gt;  %% Bin1 will be COPIED
+</pre></div> <p>The same happens if you insert a binary into an Ets table, send it to a port using <code class="code">erlang:port_command/2</code>, or pass it to <code class="bold_code">enif_inspect_binary</code> in a NIF.</p> <p>Matching a binary will also cause it to shrink and the next append operation will copy the binary data:</p> <div class="example"><pre>
+Bin1 = &lt;&lt;Bin0,...&gt;&gt;,
+&lt;&lt;X,Y,Z,T/binary&gt;&gt; = Bin1,
+Bin = &lt;&lt;Bin1,...&gt;&gt;  %% Bin1 will be COPIED
+</pre></div> <p>The reason is that a <code class="bold_code"><a href="#match_context">match context</a></code> contains a direct pointer to the binary data.</p> <p>If a process simply keeps binaries (either in "loop data" or in the process dictionary), the garbage collector can eventually shrink the binaries. If only one such binary is kept, it will not be shrunk. If the process later appends to a binary that has been shrunk, the binary object will be reallocated to make place for the data to be appended.</p> <h2 id="id65283">4.3 Matching Binaries</h2> <p>Let us revisit the example in the beginning of the previous section:</p> <p><strong>DO</strong> (in R12B)</p> <div class="example"><pre>
+my_binary_to_list(&lt;&lt;H,T/binary&gt;&gt;) -&gt;
+    [H|my_binary_to_list(T)];
+my_binary_to_list(&lt;&lt;&gt;&gt;) -&gt; [].</pre></div> <p>The first time <code class="code">my_binary_to_list/1</code> is called, a <code class="bold_code"><a href="#match_context">match context</a></code> is created. The match context points to the first byte of the binary. 1 byte is matched out and the match context is updated to point to the second byte in the binary.</p> <p>In R11B, at this point a <code class="bold_code"><a href="#sub_binary">sub binary</a></code> would be created. In R12B, the compiler sees that there is no point in creating a sub binary, because there will soon be a call to a function (in this case, to <code class="code">my_binary_to_list/1</code> itself) that immediately will create a new match context and discard the sub binary.</p> <p>Therefore, in R12B, <code class="code">my_binary_to_list/1</code> calls itself with the match context instead of with a sub binary. The instruction that initializes the matching operation basically does nothing when it sees that it was passed a match context instead of a binary.</p> <p>When the end of the binary is reached and the second clause matches, the match context will simply be discarded (removed in the next garbage collection, as there is no longer any reference to it).</p> <p>To summarize, <code class="code">my_binary_to_list/1</code> in R12B only needs to create <strong>one</strong> match context and no sub binaries. In R11B, if the binary contains <strong>N</strong> bytes, <strong>N+1</strong> match contexts and <strong>N</strong> sub binaries are created.</p> <p>In R11B, the fastest way to match binaries is as follows:</p> <p><strong>DO NOT</strong> (in R12B)</p> <div class="example"><pre>
+my_complicated_binary_to_list(Bin) -&gt;
+    my_complicated_binary_to_list(Bin, 0).
+
+my_complicated_binary_to_list(Bin, Skip) -&gt;
+    case Bin of
+	&lt;&lt;_:Skip/binary,Byte,_/binary&gt;&gt; -&gt;
+	    [Byte|my_complicated_binary_to_list(Bin, Skip+1)];
+	&lt;&lt;_:Skip/binary&gt;&gt; -&gt;
+	    []
+    end.</pre></div> <p>This function cleverly avoids building sub binaries, but it cannot avoid building a match context in each recursion step. Therefore, in both R11B and R12B, <code class="code">my_complicated_binary_to_list/1</code> builds <strong>N+1</strong> match contexts. (In a future Erlang/OTP release, the compiler might be able to generate code that reuses the match context.)</p> <p>Returning to <code class="code">my_binary_to_list/1</code>, notice that the match context was discarded when the entire binary had been traversed. What happens if the iteration stops before it has reached the end of the binary? Will the optimization still work?</p> <div class="example"><pre>
+after_zero(&lt;&lt;0,T/binary&gt;&gt;) -&gt;
+    T;
+after_zero(&lt;&lt;_,T/binary&gt;&gt;) -&gt;
+    after_zero(T);
+after_zero(&lt;&lt;&gt;&gt;) -&gt;
+    &lt;&lt;&gt;&gt;.
+  </pre></div> <p>Yes, it will. The compiler will remove the building of the sub binary in the second clause:</p> <div class="example"><pre>
+...
+after_zero(&lt;&lt;_,T/binary&gt;&gt;) -&gt;
+    after_zero(T);
+...</pre></div> <p>But it will generate code that builds a sub binary in the first clause:</p> <div class="example"><pre>
+after_zero(&lt;&lt;0,T/binary&gt;&gt;) -&gt;
+    T;
+...</pre></div> <p>Therefore, <code class="code">after_zero/1</code> builds one match context and one sub binary (assuming it is passed a binary that contains a zero byte).</p> <p>Code like the following will also be optimized:</p> <div class="example"><pre>
+all_but_zeroes_to_list(Buffer, Acc, 0) -&gt;
+    {lists:reverse(Acc),Buffer};
+all_but_zeroes_to_list(&lt;&lt;0,T/binary&gt;&gt;, Acc, Remaining) -&gt;
+    all_but_zeroes_to_list(T, Acc, Remaining-1);
+all_but_zeroes_to_list(&lt;&lt;Byte,T/binary&gt;&gt;, Acc, Remaining) -&gt;
+    all_but_zeroes_to_list(T, [Byte|Acc], Remaining-1).</pre></div> <p>The compiler removes building of sub binaries in the second and third clauses, and it adds an instruction to the first clause that converts <code class="code">Buffer</code> from a match context to a sub binary (or do nothing if <code class="code">Buffer</code> is a binary already).</p> <p>Before you begin to think that the compiler can optimize any binary patterns, the following function cannot be optimized by the compiler (currently, at least):</p> <div class="example"><pre>
+non_opt_eq([H|T1], &lt;&lt;H,T2/binary&gt;&gt;) -&gt;
+    non_opt_eq(T1, T2);
+non_opt_eq([_|_], &lt;&lt;_,_/binary&gt;&gt;) -&gt;
+    false;
+non_opt_eq([], &lt;&lt;&gt;&gt;) -&gt;
+    true.</pre></div> <p>It was mentioned earlier that the compiler can only delay creation of sub binaries if it knows that the binary will not be shared. In this case, the compiler cannot know.</p> <p>Soon it is shown how to rewrite <code class="code">non_opt_eq/2</code> so that the delayed sub binary optimization can be applied, and more importantly, it is shown how you can find out whether your code can be optimized.</p> <h4>Option bin_opt_info</h4>  <p>Use the <code class="code">bin_opt_info</code> option to have the compiler print a lot of information about binary optimizations. It can be given either to the compiler or <code class="code">erlc</code>:</p> <div class="example"><pre>
+erlc +bin_opt_info Mod.erl</pre></div> <p>or passed through an environment variable:</p> <div class="example"><pre>
+export ERL_COMPILER_OPTIONS=bin_opt_info</pre></div> <p>Notice that the <code class="code">bin_opt_info</code> is not meant to be a permanent option added to your <code class="code">Makefile</code>s, because all messages that it generates cannot be eliminated. Therefore, passing the option through the environment is in most cases the most practical approach.</p> <p>The warnings look as follows:</p> <div class="example"><pre>
+./efficiency_guide.erl:60: Warning: NOT OPTIMIZED: sub binary is used or returned
+./efficiency_guide.erl:62: Warning: OPTIMIZED: creation of sub binary delayed</pre></div> <p>To make it clearer exactly what code the warnings refer to, the warnings in the following examples are inserted as comments after the clause they refer to, for example:</p> <div class="example"><pre>
+after_zero(&lt;&lt;0,T/binary&gt;&gt;) -&gt;
+         %% NOT OPTIMIZED: sub binary is used or returned
+    T;
+after_zero(&lt;&lt;_,T/binary&gt;&gt;) -&gt;
+         %% OPTIMIZED: creation of sub binary delayed
+    after_zero(T);
+after_zero(&lt;&lt;&gt;&gt;) -&gt;
+    &lt;&lt;&gt;&gt;.</pre></div> <p>The warning for the first clause says that the creation of a sub binary cannot be delayed, because it will be returned. The warning for the second clause says that a sub binary will not be created (yet).</p> <p>Let us revisit the earlier example of the code that could not be optimized and find out why:</p> <div class="example"><pre>
+non_opt_eq([H|T1], &lt;&lt;H,T2/binary&gt;&gt;) -&gt;
+        %% INFO: matching anything else but a plain variable to
+	%%    the left of binary pattern will prevent delayed 
+	%%    sub binary optimization;
+	%%    SUGGEST changing argument order
+        %% NOT OPTIMIZED: called function non_opt_eq/2 does not
+	%%    begin with a suitable binary matching instruction
+    non_opt_eq(T1, T2);
+non_opt_eq([_|_], &lt;&lt;_,_/binary&gt;&gt;) -&gt;
+    false;
+non_opt_eq([], &lt;&lt;&gt;&gt;) -&gt;
+    true.</pre></div> <p>The compiler emitted two warnings. The <code class="code">INFO</code> warning refers to the function <code class="code">non_opt_eq/2</code> as a callee, indicating that any function that call <code class="code">non_opt_eq/2</code> cannot make delayed sub binary optimization. There is also a suggestion to change argument order. The second warning (that happens to refer to the same line) refers to the construction of the sub binary itself.</p> <p>Soon another example will show the difference between the <code class="code">INFO</code> and <code class="code">NOT OPTIMIZED</code> warnings somewhat clearer, but let us first follow the suggestion to change argument order:</p> <div class="example"><pre>
+opt_eq(&lt;&lt;H,T1/binary&gt;&gt;, [H|T2]) -&gt;
+        %% OPTIMIZED: creation of sub binary delayed
+    opt_eq(T1, T2);
+opt_eq(&lt;&lt;_,_/binary&gt;&gt;, [_|_]) -&gt;
+    false;
+opt_eq(&lt;&lt;&gt;&gt;, []) -&gt;
+    true.</pre></div> <p>The compiler gives a warning for the following code fragment:</p> <div class="example"><pre>
+match_body([0|_], &lt;&lt;H,_/binary&gt;&gt;) -&gt;
+        %% INFO: matching anything else but a plain variable to
+	%%    the left of binary pattern will prevent delayed 
+	%%    sub binary optimization;
+	%%    SUGGEST changing argument order
+    done;
+...</pre></div> <p>The warning means that <strong>if</strong> there is a call to <code class="code">match_body/2</code> (from another clause in <code class="code">match_body/2</code> or another function), the delayed sub binary optimization will not be possible. More warnings will occur for any place where a sub binary is matched out at the end of and passed as the second argument to <code class="code">match_body/2</code>, for example:</p> <div class="example"><pre>
+match_head(List, &lt;&lt;_:10,Data/binary&gt;&gt;) -&gt;
+        %% NOT OPTIMIZED: called function match_body/2 does not
+	%%     begin with a suitable binary matching instruction
+    match_body(List, Data).</pre></div> <h4>Unused Variables</h4> <p>The compiler figures out if a variable is unused. The same code is generated for each of the following functions:</p> <div class="example"><pre>
+count1(&lt;&lt;_,T/binary&gt;&gt;, Count) -&gt; count1(T, Count+1);
+count1(&lt;&lt;&gt;&gt;, Count) -&gt; Count.
+
+count2(&lt;&lt;H,T/binary&gt;&gt;, Count) -&gt; count2(T, Count+1);
+count2(&lt;&lt;&gt;&gt;, Count) -&gt; Count.
+
+count3(&lt;&lt;_H,T/binary&gt;&gt;, Count) -&gt; count3(T, Count+1);
+count3(&lt;&lt;&gt;&gt;, Count) -&gt; Count.</pre></div> <p>In each iteration, the first 8 bits in the binary will be skipped, not matched out.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

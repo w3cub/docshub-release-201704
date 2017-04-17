@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>11 Profiling - Erlang 18 - W3cubDocs</title>
+  
+  <meta name="description" content="Even experienced software developers often guess wrong about where the performance bottlenecks are in their programs. Therefore, profile your &hellip;">
+  <meta name="keywords" content="profiling, -, erlang, erlang~18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/erlang~18/doc/efficiency_guide/profiling/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/erlang~18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/erlang~18/" class="_nav-link" title="" style="margin-left:0;">Erlang 18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _erlang">
+				
+<h1>11 Profiling</h1> <h2 id="id70757">11.1 Do Not Guess About Performance - Profile</h2> <p>Even experienced software developers often guess wrong about where the performance bottlenecks are in their programs. Therefore, profile your program to see where the performance bottlenecks are and concentrate on optimizing them.</p> <p>Erlang/OTP contains several tools to help finding bottlenecks:</p> <ul> <li> <code class="code">fprof</code> provides the most detailed information about where the program time is spent, but it significantly slows down the program it profiles.</li> <li> <p><code class="code">eprof</code> provides time information of each function used in the program. No call graph is produced, but <code class="code">eprof</code> has considerable less impact on the program it profiles.</p> <p>If the program is too large to be profiled by <code class="code">fprof</code> or <code class="code">eprof</code>, the <code class="code">cover</code> and <code class="code">cprof</code> tools can be used to locate code parts that are to be more thoroughly profiled using <code class="code">fprof</code> or <code class="code">eprof</code>.</p> </li> <li> <code class="code">cover</code> provides execution counts per line per process, with less overhead than <code class="code">fprof</code>. Execution counts can, with some caution, be used to locate potential performance bottlenecks.</li> <li> <code class="code">cprof</code> is the most lightweight tool, but it only provides execution counts on a function basis (for all processes, not per process).</li> </ul> <p>The tools are further described in <code class="bold_code"><a href="#profiling_tools">Tools</a></code>.</p> <h2 id="id70855">11.2 Large Systems</h2> <p>For a large system, it can be interesting to run profiling on a simulated and limited scenario to start with. But bottlenecks have a tendency to appear or cause problems only when many things are going on at the same time, and when many nodes are involved. Therefore, it is also desirable to run profiling in a system test plant on a real target system.</p> <p>For a large system, you do not want to run the profiling tools on the whole system. Instead you want to concentrate on central processes and modules, which contribute for a big part of the execution.</p> <h2 id="id70875">11.3 What to Look For</h2> <p>When analyzing the result file from the profiling activity, look for functions that are called many times and have a long "own" execution time (time excluding calls to other functions). Functions that are called a lot of times can also be interesting, as even small things can add up to quite a bit if repeated often. Also ask yourself what you can do to reduce this time. The following are appropriate types of questions to ask yourself:</p> <ul> <li>Is it possible to reduce the number of times the function is called?</li> <li>Can any test be run less often if the order of tests is changed?</li> <li>Can any redundant tests be removed?</li> <li>Does any calculated expression give the same result each time?</li> <li>Are there other ways to do this that are equivalent and more efficient?</li> <li>Can another internal data representation be used to make things more efficient?</li> </ul> <p>These questions are not always trivial to answer. Some benchmarks might be needed to back up your theory and to avoid making things slower if your theory is wrong. For details, see <code class="bold_code"><a href="#benchmark">Benchmarking</a></code>.</p> <h2 id="id70932">11.4 Tools</h2>  <h4>fprof</h4> <p><code class="code">fprof</code> measures the execution time for each function, both own time, that is, how much time a function has used for its own execution, and accumulated time, that is, including called functions. The values are displayed per process. You also get to know how many times each function has been called.</p> <p><code class="code">fprof</code> is based on trace to file to minimize runtime performance impact. Using <code class="code">fprof</code> is just a matter of calling a few library functions, see the <code class="bold_code">fprof</code> manual page in <code class="code">tools</code> .<code class="code">fprof</code> was introduced in R8.</p> <h4>eprof</h4> <p><code class="code">eprof</code> is based on the Erlang <code class="code">trace_info</code> BIFs. <code class="code">eprof</code> shows how much time has been used by each process, and in which function calls this time has been spent. Time is shown as percentage of total time and absolute time. For more information, see the <code class="bold_code">eprof</code> manual page in <code class="code">tools</code>.</p> <h4>cover</h4> <p>The primary use of <code class="code">cover</code> is coverage analysis to verify test cases, making sure that all relevant code is covered. <code class="code">cover</code> counts how many times each executable line of code is executed when a program is run, on a per module basis.</p> <p>Clearly, this information can be used to determine what code is run very frequently and can therefore be subject for optimization. Using <code class="code">cover</code> is just a matter of calling a few library functions, see the <code class="bold_code">cover</code> manual page in <code class="code">tools</code>.</p> <h4>cprof</h4> <p><code class="code">cprof</code> is something in between <code class="code">fprof</code> and <code class="code">cover</code> regarding features. It counts how many times each function is called when the program is run, on a per module basis. <code class="code">cprof</code> has a low performance degradation effect (compared with <code class="code">fprof</code>) and does not need to recompile any modules to profile (compared with <code class="code">cover</code>). For more information, see the <code class="bold_code">cprof</code> manual page in <code class="code">tools</code>.</p> <h4>Tool Summary</h4> <table> <tr> <td><strong>Tool</strong></td> <td><strong>Results</strong></td> <td><strong>Size of Result</strong></td> <td><strong>Effects on Program Execution Time</strong></td> <td><strong>Records Number of Calls</strong></td> <td><strong>Records Execution Time</strong></td> <td><strong>Records Called by</strong></td> <td><strong>Records Garbage Collection</strong></td> </tr> <tr> <td><code class="code">fprof</code></td> <td>Per process to screen/file</td> <td>Large</td> <td>Significant slowdown</td> <td>Yes</td> <td>Total and own</td> <td>Yes</td> <td>Yes</td> </tr> <tr> <td><code class="code">eprof</code></td> <td>Per process/function to screen/file</td> <td>Medium</td> <td>Small slowdown</td> <td>Yes</td> <td>Only total</td> <td>No</td> <td>No</td> </tr> <tr> <td><code class="code">cover</code></td> <td>Per module to screen/file</td> <td>Small</td> <td>Moderate slowdown</td> <td>Yes, per line</td> <td>No</td> <td>No</td> <td>No</td> </tr> <tr> <td><code class="code">cprof</code></td> <td>Per module to caller</td> <td>Small</td> <td>Small slowdown</td> <td>Yes</td> <td>No</td> <td>No</td> <td>No</td> </tr> </table> <em>Table 11.1: Tool Summary</em> <h2 id="id71485">11.5 Benchmarking</h2>  <p>The main purpose of benchmarking is to find out which implementation of a given algorithm or function is the fastest. Benchmarking is far from an exact science. Today's operating systems generally run background tasks that are difficult to turn off. Caches and multiple CPU cores does not facilitate benchmarking. It would be best to run UNIX computers in single-user mode when benchmarking, but that is inconvenient to say the least for casual testing.</p> <p>Benchmarks can measure wall-clock time or CPU time.</p> <ul> <li> <code class="bold_code">timer:tc/3</code> measures wall-clock time. The advantage with wall-clock time is that I/O, swapping, and other activities in the operating system kernel are included in the measurements. The disadvantage is that the measurements vary a lot. Usually it is best to run the benchmark several times and note the shortest time, which is to be the minimum time that is possible to achieve under the best of circumstances.</li> <li> <code class="bold_code">statistics/1</code> with argument <code class="code">runtime</code> measures CPU time spent in the Erlang virtual machine. The advantage with CPU time is that the results are more consistent from run to run. The disadvantage is that the time spent in the operating system kernel (such as swapping and I/O) is not included. Therefore, measuring CPU time is misleading if any I/O (file or socket) is involved.</li> </ul> <p>It is probably a good idea to do both wall-clock measurements and CPU time measurements.</p> <p>Some final advice:</p> <ul> <li>The granularity of both measurement types can be high. Therefore, ensure that each individual measurement lasts for at least several seconds.</li> <li>To make the test fair, each new test run is to run in its own, newly created Erlang process. Otherwise, if all tests run in the same process, the later tests start out with larger heap sizes and therefore probably do fewer garbage collections. Also consider restarting the Erlang emulator between each test.</li> <li>Do not assume that the fastest implementation of a given algorithm on computer architecture X is also the fastest on computer architecture Y.</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 1999–2016 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
