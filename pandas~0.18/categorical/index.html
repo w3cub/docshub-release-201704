@@ -1,0 +1,1050 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>20. Categorical Data - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content=" New in version 0.15. ">
+  <meta name="keywords" content="categorical, data, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/categorical/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="categorical">Categorical Data</h1> <div class="versionadded" id="categorical-data"> <p><span class="versionmodified">New in version 0.15.</span></p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">While there was <code>pandas.Categorical</code> in earlier versions, the ability to use categorical data in <code>Series</code> and <code>DataFrame</code> is new.</p> </div> <p>This is an introduction to pandas categorical data type, including a short comparison with R’s <code>factor</code>.</p> <p><code>Categoricals</code> are a pandas data type, which correspond to categorical variables in statistics: a variable, which can take on only a limited, and usually fixed, number of possible values (<code>categories</code>; <code>levels</code> in R). Examples are gender, social class, blood types, country affiliations, observation time or ratings via Likert scales.</p> <p>In contrast to statistical categorical variables, categorical data might have an order (e.g. ‘strongly agree’ vs ‘agree’ or ‘first observation’ vs. ‘second observation’), but numerical operations (additions, divisions, ...) are not possible.</p> <p>All values of categorical data are either in <code>categories</code> or <code>np.nan</code>. Order is defined by the order of <code>categories</code>, not lexical order of the values. Internally, the data structure consists of a <code>categories</code> array and an integer array of <code>codes</code> which point to the real value in the <code>categories</code> array.</p> <p>The categorical data type is useful in the following cases:</p> <ul class="simple"> <li>A string variable consisting of only a few different values. Converting such a string variable to a categorical variable will save some memory, see <a class="reference internal" href="#categorical-memory">here</a>.</li> <li>The lexical order of a variable is not the same as the logical order (“one”, “two”, “three”). By converting to a categorical and specifying an order on the categories, sorting and min/max will use the logical order instead of the lexical order, see <a class="reference internal" href="#categorical-sort">here</a>.</li> <li>As a signal to other python libraries that this column should be treated as a categorical variable (e.g. to use suitable statistical methods or plot types).</li> </ul> <p>See also the <a class="reference internal" href="../api/#api-categorical">API docs on categoricals</a>.</p>  <h2 id="object-creation">Object Creation</h2> <p>Categorical <code>Series</code> or columns in a <code>DataFrame</code> can be created in several ways:</p> <p>By specifying <code>dtype="category"</code> when constructing a <code>Series</code>:</p> <pre data-language="python">In [1]: s = pd.Series(["a","b","c","a"], dtype="category")
+
+In [2]: s
+Out[2]: 
+0    a
+1    b
+2    c
+3    a
+dtype: category
+Categories (3, object): [a, b, c]
+</pre> <p>By converting an existing <code>Series</code> or column to a <code>category</code> dtype:</p> <pre data-language="python">In [3]: df = pd.DataFrame({"A":["a","b","c","a"]})
+
+In [4]: df["B"] = df["A"].astype('category')
+
+In [5]: df
+Out[5]: 
+   A  B
+0  a  a
+1  b  b
+2  c  c
+3  a  a
+</pre> <p>By using some special functions:</p> <pre data-language="python">In [6]: df = pd.DataFrame({'value': np.random.randint(0, 100, 20)})
+
+In [7]: labels = [ "{0} - {1}".format(i, i + 9) for i in range(0, 100, 10) ]
+
+In [8]: df['group'] = pd.cut(df.value, range(0, 105, 10), right=False, labels=labels)
+
+In [9]: df.head(10)
+Out[9]: 
+   value    group
+0     65  60 - 69
+1     49  40 - 49
+2     56  50 - 59
+3     43  40 - 49
+4     43  40 - 49
+5     91  90 - 99
+6     32  30 - 39
+7     87  80 - 89
+8     36  30 - 39
+9      8    0 - 9
+</pre> <p>See <a class="reference internal" href="../reshaping/#reshaping-tile-cut">documentation</a> for <a class="reference internal" href="../generated/pandas.cut/#pandas.cut" title="pandas.cut"><code>cut()</code></a>.</p> <p>By passing a <a class="reference internal" href="../generated/pandas.categorical/#pandas.Categorical" title="pandas.Categorical"><code>pandas.Categorical</code></a> object to a <code>Series</code> or assigning it to a <code>DataFrame</code>.</p> <pre data-language="python">In [10]: raw_cat = pd.Categorical(["a","b","c","a"], categories=["b","c","d"],
+   ....:                          ordered=False)
+   ....: 
+
+In [11]: s = pd.Series(raw_cat)
+
+In [12]: s
+Out[12]: 
+0    NaN
+1      b
+2      c
+3    NaN
+dtype: category
+Categories (3, object): [b, c, d]
+
+In [13]: df = pd.DataFrame({"A":["a","b","c","a"]})
+
+In [14]: df["B"] = raw_cat
+
+In [15]: df
+Out[15]: 
+   A    B
+0  a  NaN
+1  b    b
+2  c    c
+3  a  NaN
+</pre> <p>You can also specify differently ordered categories or make the resulting data ordered, by passing these arguments to <code>astype()</code>:</p> <pre data-language="python">In [16]: s = pd.Series(["a","b","c","a"])
+
+In [17]: s_cat = s.astype("category", categories=["b","c","d"], ordered=False)
+
+In [18]: s_cat
+Out[18]: 
+0    NaN
+1      b
+2      c
+3    NaN
+dtype: category
+Categories (3, object): [b, c, d]
+</pre> <p>Categorical data has a specific <code>category</code> <a class="reference internal" href="../basics/#basics-dtypes">dtype</a>:</p> <pre data-language="python">In [19]: df.dtypes
+Out[19]: 
+A      object
+B    category
+dtype: object
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">In contrast to R’s <code>factor</code> function, categorical data is not converting input values to strings and categories will end up the same data type as the original values.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">In contrast to R’s <code>factor</code> function, there is currently no way to assign/change labels at creation time. Use <code>categories</code> to change the categories after creation time.</p> </div> <p>To get back to the original Series or <code>numpy</code> array, use <code>Series.astype(original_dtype)</code> or <code>np.asarray(categorical)</code>:</p> <pre data-language="python">In [20]: s = pd.Series(["a","b","c","a"])
+
+In [21]: s
+Out[21]: 
+0    a
+1    b
+2    c
+3    a
+dtype: object
+
+In [22]: s2 = s.astype('category')
+
+In [23]: s2
+Out[23]: 
+0    a
+1    b
+2    c
+3    a
+dtype: category
+Categories (3, object): [a, b, c]
+
+In [24]: s3 = s2.astype('string')
+
+In [25]: s3
+Out[25]: 
+0    a
+1    b
+2    c
+3    a
+dtype: object
+
+In [26]: np.asarray(s2)
+Out[26]: array(['a', 'b', 'c', 'a'], dtype=object)
+</pre> <p>If you have already <code>codes</code> and <code>categories</code>, you can use the <a class="reference internal" href="../generated/pandas.categorical.from_codes/#pandas.Categorical.from_codes" title="pandas.Categorical.from_codes"><code>from_codes()</code></a> constructor to save the factorize step during normal constructor mode:</p> <pre data-language="python">In [27]: splitter = np.random.choice([0,1], 5, p=[0.5,0.5])
+
+In [28]: s = pd.Series(pd.Categorical.from_codes(splitter, categories=["train", "test"]))
+</pre>   <h2 id="description">Description</h2> <p>Using <code>.describe()</code> on categorical data will produce similar output to a <code>Series</code> or <code>DataFrame</code> of type <code>string</code>.</p> <pre data-language="python">In [29]: cat = pd.Categorical(["a", "c", "c", np.nan], categories=["b", "a", "c"])
+
+In [30]: df = pd.DataFrame({"cat":cat, "s":["a", "c", "c", np.nan]})
+
+In [31]: df.describe()
+Out[31]: 
+       cat  s
+count    3  3
+unique   2  2
+top      c  c
+freq     2  2
+
+In [32]: df["cat"].describe()
+Out[32]: 
+count     3
+unique    2
+top       c
+freq      2
+Name: cat, dtype: object
+</pre>   <h2 id="working-with-categories">Working with categories</h2> <p>Categorical data has a <code>categories</code> and a <code>ordered</code> property, which list their possible values and whether the ordering matters or not. These properties are exposed as <code>s.cat.categories</code> and <code>s.cat.ordered</code>. If you don’t manually specify categories and ordering, they are inferred from the passed in values.</p> <pre data-language="python">In [33]: s = pd.Series(["a","b","c","a"], dtype="category")
+
+In [34]: s.cat.categories
+Out[34]: Index([u'a', u'b', u'c'], dtype='object')
+
+In [35]: s.cat.ordered
+Out[35]: False
+</pre> <p>It’s also possible to pass in the categories in a specific order:</p> <pre data-language="python">In [36]: s = pd.Series(pd.Categorical(["a","b","c","a"], categories=["c","b","a"]))
+
+In [37]: s.cat.categories
+Out[37]: Index([u'c', u'b', u'a'], dtype='object')
+
+In [38]: s.cat.ordered
+Out[38]: False
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">New categorical data are NOT automatically ordered. You must explicitly pass <code>ordered=True</code> to indicate an ordered <code>Categorical</code>.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>The result of <code>Series.unique()</code> is not always the same as <code>Series.cat.categories</code>, because <code>Series.unique()</code> has a couple of guarantees, namely that it returns categories in the order of appearance, and it only includes values that are actually present.</p> <pre data-language="python">In [39]: s = pd.Series(list('babc')).astype('category', categories=list('abcd'))
+
+In [40]: s
+Out[40]: 
+0    b
+1    a
+2    b
+3    c
+dtype: category
+Categories (4, object): [a, b, c, d]
+
+# categories
+In [41]: s.cat.categories
+Out[41]: Index([u'a', u'b', u'c', u'd'], dtype='object')
+
+# uniques
+In [42]: s.unique()
+Out[42]: 
+[b, a, c]
+Categories (3, object): [b, a, c]
+</pre> </div>  <h3 id="renaming-categories">Renaming categories</h3> <p>Renaming categories is done by assigning new values to the <code>Series.cat.categories</code> property or by using the <code>Categorical.rename_categories()</code> method:</p> <pre data-language="python">In [43]: s = pd.Series(["a","b","c","a"], dtype="category")
+
+In [44]: s
+Out[44]: 
+0    a
+1    b
+2    c
+3    a
+dtype: category
+Categories (3, object): [a, b, c]
+
+In [45]: s.cat.categories = ["Group %s" % g for g in s.cat.categories]
+
+In [46]: s
+Out[46]: 
+0    Group a
+1    Group b
+2    Group c
+3    Group a
+dtype: category
+Categories (3, object): [Group a, Group b, Group c]
+
+In [47]: s.cat.rename_categories([1,2,3])
+Out[47]: 
+0    1
+1    2
+2    3
+3    1
+dtype: category
+Categories (3, int64): [1, 2, 3]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">In contrast to R’s <code>factor</code>, categorical data can have categories of other types than string.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Be aware that assigning new categories is an inplace operations, while most other operation under <code>Series.cat</code> per default return a new Series of dtype <code>category</code>.</p> </div> <p>Categories must be unique or a <code>ValueError</code> is raised:</p> <pre data-language="python">In [48]: try:
+   ....:     s.cat.categories = [1,1,1]
+   ....: except ValueError as e:
+   ....:     print("ValueError: " + str(e))
+   ....: 
+ValueError: Categorical categories must be unique
+</pre>   <h3 id="appending-new-categories">Appending new categories</h3> <p>Appending categories can be done by using the <code>Categorical.add_categories()</code> method:</p> <pre data-language="python">In [49]: s = s.cat.add_categories([4])
+
+In [50]: s.cat.categories
+Out[50]: Index([u'Group a', u'Group b', u'Group c', 4], dtype='object')
+
+In [51]: s
+Out[51]: 
+0    Group a
+1    Group b
+2    Group c
+3    Group a
+dtype: category
+Categories (4, object): [Group a, Group b, Group c, 4]
+</pre>   <h3 id="removing-categories">Removing categories</h3> <p>Removing categories can be done by using the <code>Categorical.remove_categories()</code> method. Values which are removed are replaced by <code>np.nan</code>.:</p> <pre data-language="python">In [52]: s = s.cat.remove_categories([4])
+
+In [53]: s
+Out[53]: 
+0    Group a
+1    Group b
+2    Group c
+3    Group a
+dtype: category
+Categories (3, object): [Group a, Group b, Group c]
+</pre>   <h3 id="removing-unused-categories">Removing unused categories</h3> <p>Removing unused categories can also be done:</p> <pre data-language="python">In [54]: s = pd.Series(pd.Categorical(["a","b","a"], categories=["a","b","c","d"]))
+
+In [55]: s
+Out[55]: 
+0    a
+1    b
+2    a
+dtype: category
+Categories (4, object): [a, b, c, d]
+
+In [56]: s.cat.remove_unused_categories()
+Out[56]: 
+0    a
+1    b
+2    a
+dtype: category
+Categories (2, object): [a, b]
+</pre>   <h3 id="setting-categories">Setting categories</h3> <p>If you want to do remove and add new categories in one step (which has some speed advantage), or simply set the categories to a predefined scale, use <code>Categorical.set_categories()</code>.</p> <pre data-language="python">In [57]: s = pd.Series(["one","two","four", "-"], dtype="category")
+
+In [58]: s
+Out[58]: 
+0     one
+1     two
+2    four
+3       -
+dtype: category
+Categories (4, object): [-, four, one, two]
+
+In [59]: s = s.cat.set_categories(["one","two","three","four"])
+
+In [60]: s
+Out[60]: 
+0     one
+1     two
+2    four
+3     NaN
+dtype: category
+Categories (4, object): [one, two, three, four]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Be aware that <code>Categorical.set_categories()</code> cannot know whether some category is omitted intentionally or because it is misspelled or (under Python3) due to a type difference (e.g., numpys S1 dtype and python strings). This can result in surprising behaviour!</p> </div>    <h2 id="sorting-and-order">Sorting and Order</h2> <div class="admonition warning" id="categorical-sort"> <p class="first admonition-title">Warning</p> <p class="last">The default for construction has changed in v0.16.0 to <code>ordered=False</code>, from the prior implicit <code>ordered=True</code></p> </div> <p>If categorical data is ordered (<code>s.cat.ordered == True</code>), then the order of the categories has a meaning and certain operations are possible. If the categorical is unordered, <code>.min()/.max()</code> will raise a <code>TypeError</code>.</p> <pre data-language="python">In [61]: s = pd.Series(pd.Categorical(["a","b","c","a"], ordered=False))
+
+In [62]: s.sort_values(inplace=True)
+
+In [63]: s = pd.Series(["a","b","c","a"]).astype('category', ordered=True)
+
+In [64]: s.sort_values(inplace=True)
+
+In [65]: s
+Out[65]: 
+0    a
+3    a
+1    b
+2    c
+dtype: category
+Categories (3, object): [a &lt; b &lt; c]
+
+In [66]: s.min(), s.max()
+Out[66]: ('a', 'c')
+</pre> <p>You can set categorical data to be ordered by using <code>as_ordered()</code> or unordered by using <code>as_unordered()</code>. These will by default return a <em>new</em> object.</p> <pre data-language="python">In [67]: s.cat.as_ordered()
+Out[67]: 
+0    a
+3    a
+1    b
+2    c
+dtype: category
+Categories (3, object): [a &lt; b &lt; c]
+
+In [68]: s.cat.as_unordered()
+Out[68]: 
+0    a
+3    a
+1    b
+2    c
+dtype: category
+Categories (3, object): [a, b, c]
+</pre> <p>Sorting will use the order defined by categories, not any lexical order present on the data type. This is even true for strings and numeric data:</p> <pre data-language="python">In [69]: s = pd.Series([1,2,3,1], dtype="category")
+
+In [70]: s = s.cat.set_categories([2,3,1], ordered=True)
+
+In [71]: s
+Out[71]: 
+0    1
+1    2
+2    3
+3    1
+dtype: category
+Categories (3, int64): [2 &lt; 3 &lt; 1]
+
+In [72]: s.sort_values(inplace=True)
+
+In [73]: s
+Out[73]: 
+1    2
+2    3
+0    1
+3    1
+dtype: category
+Categories (3, int64): [2 &lt; 3 &lt; 1]
+
+In [74]: s.min(), s.max()
+Out[74]: (2, 1)
+</pre>  <h3 id="reordering">Reordering</h3> <p>Reordering the categories is possible via the <code>Categorical.reorder_categories()</code> and the <code>Categorical.set_categories()</code> methods. For <code>Categorical.reorder_categories()</code>, all old categories must be included in the new categories and no new categories are allowed. This will necessarily make the sort order the same as the categories order.</p> <pre data-language="python">In [75]: s = pd.Series([1,2,3,1], dtype="category")
+
+In [76]: s = s.cat.reorder_categories([2,3,1], ordered=True)
+
+In [77]: s
+Out[77]: 
+0    1
+1    2
+2    3
+3    1
+dtype: category
+Categories (3, int64): [2 &lt; 3 &lt; 1]
+
+In [78]: s.sort_values(inplace=True)
+
+In [79]: s
+Out[79]: 
+1    2
+2    3
+0    1
+3    1
+dtype: category
+Categories (3, int64): [2 &lt; 3 &lt; 1]
+
+In [80]: s.min(), s.max()
+Out[80]: (2, 1)
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Note the difference between assigning new categories and reordering the categories: the first renames categories and therefore the individual values in the <code>Series</code>, but if the first position was sorted last, the renamed value will still be sorted last. Reordering means that the way values are sorted is different afterwards, but not that individual values in the <code>Series</code> are changed.</p> </div> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If the <code>Categorical</code> is not ordered, <code>Series.min()</code> and <code>Series.max()</code> will raise <code>TypeError</code>. Numeric operations like <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> and operations based on them (e.g. <code>Series.median()</code>, which would need to compute the mean between two values if the length of an array is even) do not work and raise a <code>TypeError</code>.</p> </div>   <h3 id="multi-column-sorting">Multi Column Sorting</h3> <p>A categorical dtyped column will participate in a multi-column sort in a similar manner to other columns. The ordering of the categorical is determined by the <code>categories</code> of that column.</p> <pre data-language="python">In [81]: dfs = pd.DataFrame({'A' : pd.Categorical(list('bbeebbaa'), categories=['e','a','b'], ordered=True),
+   ....:                     'B' : [1,2,1,2,2,1,2,1] })
+   ....: 
+
+In [82]: dfs.sort_values(by=['A', 'B'])
+Out[82]: 
+   A  B
+2  e  1
+3  e  2
+7  a  1
+6  a  2
+0  b  1
+5  b  1
+1  b  2
+4  b  2
+</pre> <p>Reordering the <code>categories</code> changes a future sort.</p> <pre data-language="python">In [83]: dfs['A'] = dfs['A'].cat.reorder_categories(['a','b','e'])
+
+In [84]: dfs.sort_values(by=['A','B'])
+Out[84]: 
+   A  B
+7  a  1
+6  a  2
+0  b  1
+5  b  1
+1  b  2
+4  b  2
+2  e  1
+3  e  2
+</pre>    <h2 id="comparisons">Comparisons</h2> <p>Comparing categorical data with other objects is possible in three cases:</p>  <ul class="simple"> <li>comparing equality (<code>==</code> and <code>!=</code>) to a list-like object (list, Series, array, ...) of the same length as the categorical data.</li> <li>all comparisons (<code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, and <code>&lt;=</code>) of categorical data to another categorical Series, when <code>ordered==True</code> and the <code>categories</code> are the same.</li> <li>all comparisons of a categorical data to a scalar.</li> </ul>  <p>All other comparisons, especially “non-equality” comparisons of two categoricals with different categories or a categorical with any list-like object, will raise a TypeError.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Any “non-equality” comparisons of categorical data with a <code>Series</code>, <code>np.array</code>, <code>list</code> or categorical data with different categories or ordering will raise an <code>TypeError</code> because custom categories ordering could be interpreted in two ways: one with taking into account the ordering and one without.</p> </div> <pre data-language="python">In [85]: cat = pd.Series([1,2,3]).astype("category", categories=[3,2,1], ordered=True)
+
+In [86]: cat_base = pd.Series([2,2,2]).astype("category", categories=[3,2,1], ordered=True)
+
+In [87]: cat_base2 = pd.Series([2,2,2]).astype("category", ordered=True)
+
+In [88]: cat
+Out[88]: 
+0    1
+1    2
+2    3
+dtype: category
+Categories (3, int64): [3 &lt; 2 &lt; 1]
+
+In [89]: cat_base
+Out[89]: 
+0    2
+1    2
+2    2
+dtype: category
+Categories (3, int64): [3 &lt; 2 &lt; 1]
+
+In [90]: cat_base2
+Out[90]: 
+0    2
+1    2
+2    2
+dtype: category
+Categories (1, int64): [2]
+</pre> <p>Comparing to a categorical with the same categories and ordering or to a scalar works:</p> <pre data-language="python">In [91]: cat &gt; cat_base
+Out[91]: 
+0     True
+1    False
+2    False
+dtype: bool
+
+In [92]: cat &gt; 2
+Out[92]: 
+0     True
+1    False
+2    False
+dtype: bool
+</pre> <p>Equality comparisons work with any list-like object of same length and scalars:</p> <pre data-language="python">In [93]: cat == cat_base
+Out[93]: 
+0    False
+1     True
+2    False
+dtype: bool
+
+In [94]: cat == np.array([1,2,3])
+Out[94]: 
+0    True
+1    True
+2    True
+dtype: bool
+
+In [95]: cat == 2
+Out[95]: 
+0    False
+1     True
+2    False
+dtype: bool
+</pre> <p>This doesn’t work because the categories are not the same:</p> <pre data-language="python">In [96]: try:
+   ....:     cat &gt; cat_base2
+   ....: except TypeError as e:
+   ....:      print("TypeError: " + str(e))
+   ....: 
+TypeError: Categoricals can only be compared if 'categories' are the same
+</pre> <p>If you want to do a “non-equality” comparison of a categorical series with a list-like object which is not categorical data, you need to be explicit and convert the categorical data back to the original values:</p> <pre data-language="python">In [97]: base = np.array([1,2,3])
+
+In [98]: try:
+   ....:     cat &gt; base
+   ....: except TypeError as e:
+   ....:      print("TypeError: " + str(e))
+   ....: 
+TypeError: Cannot compare a Categorical for op __gt__ with type &lt;type 'numpy.ndarray'&gt;.
+If you want to compare values, use 'np.asarray(cat) &lt;op&gt; other'.
+
+In [99]: np.asarray(cat) &gt; base
+Out[99]: array([False, False, False], dtype=bool)
+</pre>   <h2 id="operations">Operations</h2> <p>Apart from <code>Series.min()</code>, <code>Series.max()</code> and <code>Series.mode()</code>, the following operations are possible with categorical data:</p> <p><code>Series</code> methods like <code>Series.value_counts()</code> will use all categories, even if some categories are not present in the data:</p> <pre data-language="python">In [100]: s = pd.Series(pd.Categorical(["a","b","c","c"], categories=["c","a","b","d"]))
+
+In [101]: s.value_counts()
+Out[101]: 
+c    2
+b    1
+a    1
+d    0
+dtype: int64
+</pre> <p>Groupby will also show “unused” categories:</p> <pre data-language="python">In [102]: cats = pd.Categorical(["a","b","b","b","c","c","c"], categories=["a","b","c","d"])
+
+In [103]: df = pd.DataFrame({"cats":cats,"values":[1,2,2,2,3,4,5]})
+
+In [104]: df.groupby("cats").mean()
+Out[104]: 
+      values
+cats        
+a        1.0
+b        2.0
+c        4.0
+d        NaN
+
+In [105]: cats2 = pd.Categorical(["a","a","b","b"], categories=["a","b","c"])
+
+In [106]: df2 = pd.DataFrame({"cats":cats2,"B":["c","d","c","d"], "values":[1,2,3,4]})
+
+In [107]: df2.groupby(["cats","B"]).mean()
+Out[107]: 
+        values
+cats B        
+a    c     1.0
+     d     2.0
+b    c     3.0
+     d     4.0
+c    c     NaN
+     d     NaN
+</pre> <p>Pivot tables:</p> <pre data-language="python">In [108]: raw_cat = pd.Categorical(["a","a","b","b"], categories=["a","b","c"])
+
+In [109]: df = pd.DataFrame({"A":raw_cat,"B":["c","d","c","d"], "values":[1,2,3,4]})
+
+In [110]: pd.pivot_table(df, values='values', index=['A', 'B'])
+Out[110]: 
+A  B
+a  c    1.0
+   d    2.0
+b  c    3.0
+   d    4.0
+c  c    NaN
+   d    NaN
+Name: values, dtype: float64
+</pre>   <h2 id="data-munging">Data munging</h2> <p>The optimized pandas data access methods <code>.loc</code>, <code>.iloc</code>, <code>.ix</code> <code>.at</code>, and <code>.iat</code>, work as normal. The only difference is the return type (for getting) and that only values already in <code>categories</code> can be assigned.</p>  <h3 id="getting">Getting</h3> <p>If the slicing operation returns either a <code>DataFrame</code> or a column of type <code>Series</code>, the <code>category</code> dtype is preserved.</p> <pre data-language="python">In [111]: idx = pd.Index(["h","i","j","k","l","m","n",])
+
+In [112]: cats = pd.Series(["a","b","b","b","c","c","c"], dtype="category", index=idx)
+
+In [113]: values= [1,2,2,2,3,4,5]
+
+In [114]: df = pd.DataFrame({"cats":cats,"values":values}, index=idx)
+
+In [115]: df.iloc[2:4,:]
+Out[115]: 
+  cats  values
+j    b       2
+k    b       2
+
+In [116]: df.iloc[2:4,:].dtypes
+Out[116]: 
+cats      category
+values       int64
+dtype: object
+
+In [117]: df.loc["h":"j","cats"]
+Out[117]: 
+h    a
+i    b
+j    b
+Name: cats, dtype: category
+Categories (3, object): [a, b, c]
+
+In [118]: df.ix["h":"j",0:1]
+Out[118]: 
+  cats
+h    a
+i    b
+j    b
+
+In [119]: df[df["cats"] == "b"]
+Out[119]: 
+  cats  values
+i    b       2
+j    b       2
+k    b       2
+</pre> <p>An example where the category type is not preserved is if you take one single row: the resulting <code>Series</code> is of dtype <code>object</code>:</p> <pre data-language="python"># get the complete "h" row as a Series
+In [120]: df.loc["h", :]
+Out[120]: 
+cats      a
+values    1
+Name: h, dtype: object
+</pre> <p>Returning a single item from categorical data will also return the value, not a categorical of length “1”.</p> <pre data-language="python">In [121]: df.iat[0,0]
+Out[121]: 'a'
+
+In [122]: df["cats"].cat.categories = ["x","y","z"]
+
+In [123]: df.at["h","cats"] # returns a string
+Out[123]: 'x'
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This is a difference to R’s <code>factor</code> function, where <code>factor(c(1,2,3))[1]</code> returns a single value <code>factor</code>.</p> </div> <p>To get a single value <code>Series</code> of type <code>category</code> pass in a list with a single value:</p> <pre data-language="python">In [124]: df.loc[["h"],"cats"]
+Out[124]: 
+h    x
+Name: cats, dtype: category
+Categories (3, object): [x, y, z]
+</pre>   <h3 id="string-and-datetime-accessors">String and datetime accessors</h3> <div class="versionadded"> <p><span class="versionmodified">New in version 0.17.1.</span></p> </div> <p>The accessors <code>.dt</code> and <code>.str</code> will work if the <code>s.cat.categories</code> are of an appropriate type:</p> <pre data-language="python">In [125]: str_s = pd.Series(list('aabb'))
+
+In [126]: str_cat = str_s.astype('category')
+
+In [127]: str_cat
+Out[127]: 
+0    a
+1    a
+2    b
+3    b
+dtype: category
+Categories (2, object): [a, b]
+
+In [128]: str_cat.str.contains("a")
+Out[128]: 
+0     True
+1     True
+2    False
+3    False
+dtype: bool
+
+In [129]: date_s = pd.Series(pd.date_range('1/1/2015', periods=5))
+
+In [130]: date_cat = date_s.astype('category')
+
+In [131]: date_cat
+Out[131]: 
+0   2015-01-01
+1   2015-01-02
+2   2015-01-03
+3   2015-01-04
+4   2015-01-05
+dtype: category
+Categories (5, datetime64[ns]): [2015-01-01, 2015-01-02, 2015-01-03, 2015-01-04, 2015-01-05]
+
+In [132]: date_cat.dt.day
+Out[132]: 
+0    1
+1    2
+2    3
+3    4
+4    5
+dtype: int64
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The returned <code>Series</code> (or <code>DataFrame</code>) is of the same type as if you used the <code>.str.&lt;method&gt;</code> / <code>.dt.&lt;method&gt;</code> on a <code>Series</code> of that type (and not of type <code>category</code>!).</p> </div> <p>That means, that the returned values from methods and properties on the accessors of a <code>Series</code> and the returned values from methods and properties on the accessors of this <code>Series</code> transformed to one of type <code>category</code> will be equal:</p> <pre data-language="python">In [133]: ret_s = str_s.str.contains("a")
+
+In [134]: ret_cat = str_cat.str.contains("a")
+
+In [135]: ret_s.dtype == ret_cat.dtype
+Out[135]: True
+
+In [136]: ret_s == ret_cat
+Out[136]: 
+0    True
+1    True
+2    True
+3    True
+dtype: bool
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The work is done on the <code>categories</code> and then a new <code>Series</code> is constructed. This has some performance implication if you have a <code>Series</code> of type string, where lots of elements are repeated (i.e. the number of unique elements in the <code>Series</code> is a lot smaller than the length of the <code>Series</code>). In this case it can be faster to convert the original <code>Series</code> to one of type <code>category</code> and use <code>.str.&lt;method&gt;</code> or <code>.dt.&lt;property&gt;</code> on that.</p> </div>   <h3 id="setting">Setting</h3> <p>Setting values in a categorical column (or <code>Series</code>) works as long as the value is included in the <code>categories</code>:</p> <pre data-language="python">In [137]: idx = pd.Index(["h","i","j","k","l","m","n"])
+
+In [138]: cats = pd.Categorical(["a","a","a","a","a","a","a"], categories=["a","b"])
+
+In [139]: values = [1,1,1,1,1,1,1]
+
+In [140]: df = pd.DataFrame({"cats":cats,"values":values}, index=idx)
+
+In [141]: df.iloc[2:4,:] = [["b",2],["b",2]]
+
+In [142]: df
+Out[142]: 
+  cats  values
+h    a       1
+i    a       1
+j    b       2
+k    b       2
+l    a       1
+m    a       1
+n    a       1
+
+In [143]: try:
+   .....:     df.iloc[2:4,:] = [["c",3],["c",3]]
+   .....: except ValueError as e:
+   .....:     print("ValueError: " + str(e))
+   .....: 
+ValueError: Cannot setitem on a Categorical with a new category, set the categories first
+</pre> <p>Setting values by assigning categorical data will also check that the <code>categories</code> match:</p> <pre data-language="python">In [144]: df.loc["j":"k","cats"] = pd.Categorical(["a","a"], categories=["a","b"])
+
+In [145]: df
+Out[145]: 
+  cats  values
+h    a       1
+i    a       1
+j    a       2
+k    a       2
+l    a       1
+m    a       1
+n    a       1
+
+In [146]: try:
+   .....:     df.loc["j":"k","cats"] = pd.Categorical(["b","b"], categories=["a","b","c"])
+   .....: except ValueError as e:
+   .....:     print("ValueError: " + str(e))
+   .....: 
+ValueError: Cannot set a Categorical with another, without identical categories
+</pre> <p>Assigning a <code>Categorical</code> to parts of a column of other types will use the values:</p> <pre data-language="python">In [147]: df = pd.DataFrame({"a":[1,1,1,1,1], "b":["a","a","a","a","a"]})
+
+In [148]: df.loc[1:2,"a"] = pd.Categorical(["b","b"], categories=["a","b"])
+
+In [149]: df.loc[2:3,"b"] = pd.Categorical(["b","b"], categories=["a","b"])
+
+In [150]: df
+Out[150]: 
+   a  b
+0  1  a
+1  b  a
+2  b  b
+3  1  b
+4  1  a
+
+In [151]: df.dtypes
+Out[151]: 
+a    object
+b    object
+dtype: object
+</pre>   <h3 id="merging">Merging</h3> <p>You can concat two <code>DataFrames</code> containing categorical data together, but the categories of these categoricals need to be the same:</p> <pre data-language="python">In [152]: cat = pd.Series(["a","b"], dtype="category")
+
+In [153]: vals = [1,2]
+
+In [154]: df = pd.DataFrame({"cats":cat, "vals":vals})
+
+In [155]: res = pd.concat([df,df])
+
+In [156]: res
+Out[156]: 
+  cats  vals
+0    a     1
+1    b     2
+0    a     1
+1    b     2
+
+In [157]: res.dtypes
+Out[157]: 
+cats    category
+vals       int64
+dtype: object
+</pre> <p>In this case the categories are not the same and so an error is raised:</p> <pre data-language="python">In [158]: df_different = df.copy()
+
+In [159]: df_different["cats"].cat.categories = ["c","d"]
+
+In [160]: try:
+   .....:     pd.concat([df,df_different])
+   .....: except ValueError as e:
+   .....:     print("ValueError: " + str(e))
+   .....: 
+ValueError: incompatible categories in categorical concat
+</pre> <p>The same applies to <code>df.append(df_different)</code>.</p>    <h2 id="getting-data-in-out">Getting Data In/Out</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 0.15.2.</span></p> </div> <p>Writing data (<code>Series</code>, <code>Frames</code>) to a HDF store that contains a <code>category</code> dtype was implemented in 0.15.2. See <a class="reference internal" href="../io/#io-hdf5-categorical">here</a> for an example and caveats.</p> <p>Writing data to and reading data from <em>Stata</em> format files was implemented in 0.15.2. See <a class="reference internal" href="../io/#io-stata-categorical">here</a> for an example and caveats.</p> <p>Writing to a CSV file will convert the data, effectively removing any information about the categorical (categories and ordering). So if you read back the CSV file you have to convert the relevant columns back to <code>category</code> and assign the right categories and categories ordering.</p> <pre data-language="python">In [161]: s = pd.Series(pd.Categorical(['a', 'b', 'b', 'a', 'a', 'd']))
+
+# rename the categories
+In [162]: s.cat.categories = ["very good", "good", "bad"]
+
+# reorder the categories and add missing categories
+In [163]: s = s.cat.set_categories(["very bad", "bad", "medium", "good", "very good"])
+
+In [164]: df = pd.DataFrame({"cats":s, "vals":[1,2,3,4,5,6]})
+
+In [165]: csv = StringIO()
+
+In [166]: df.to_csv(csv)
+
+In [167]: df2 = pd.read_csv(StringIO(csv.getvalue()))
+
+In [168]: df2.dtypes
+Out[168]: 
+Unnamed: 0     int64
+cats          object
+vals           int64
+dtype: object
+
+In [169]: df2["cats"]
+Out[169]: 
+0    very good
+1         good
+2         good
+3    very good
+4    very good
+5          bad
+Name: cats, dtype: object
+
+# Redo the category
+In [170]: df2["cats"] = df2["cats"].astype("category")
+
+In [171]: df2["cats"].cat.set_categories(["very bad", "bad", "medium", "good", "very good"],
+   .....:                                inplace=True)
+   .....: 
+
+In [172]: df2.dtypes
+Out[172]: 
+Unnamed: 0       int64
+cats          category
+vals             int64
+dtype: object
+
+In [173]: df2["cats"]
+Out[173]: 
+0    very good
+1         good
+2         good
+3    very good
+4    very good
+5          bad
+Name: cats, dtype: category
+Categories (5, object): [very bad, bad, medium, good, very good]
+</pre> <p>The same holds for writing to a SQL database with <code>to_sql</code>.</p>   <h2 id="missing-data">Missing Data</h2> <p>pandas primarily uses the value <code>np.nan</code> to represent missing data. It is by default not included in computations. See the <a class="reference internal" href="../missing_data/#missing-data">Missing Data section</a>.</p> <p>Missing values should <strong>not</strong> be included in the Categorical’s <code>categories</code>, only in the <code>values</code>. Instead, it is understood that NaN is different, and is always a possibility. When working with the Categorical’s <code>codes</code>, missing values will always have a code of <code>-1</code>.</p> <pre data-language="python">In [174]: s = pd.Series(["a", "b", np.nan, "a"], dtype="category")
+
+# only two categories
+In [175]: s
+Out[175]: 
+0      a
+1      b
+2    NaN
+3      a
+dtype: category
+Categories (2, object): [a, b]
+
+In [176]: s.cat.codes
+Out[176]: 
+0    0
+1    1
+2   -1
+3    0
+dtype: int8
+</pre> <p>Methods for working with missing data, e.g. <a class="reference internal" href="../generated/pandas.series.isnull/#pandas.Series.isnull" title="pandas.Series.isnull"><code>isnull()</code></a>, <a class="reference internal" href="../generated/pandas.series.fillna/#pandas.Series.fillna" title="pandas.Series.fillna"><code>fillna()</code></a>, <a class="reference internal" href="../generated/pandas.series.dropna/#pandas.Series.dropna" title="pandas.Series.dropna"><code>dropna()</code></a>, all work normally:</p> <pre data-language="python">In [177]: s = pd.Series(["a", "b", np.nan], dtype="category")
+
+In [178]: s
+Out[178]: 
+0      a
+1      b
+2    NaN
+dtype: category
+Categories (2, object): [a, b]
+
+In [179]: pd.isnull(s)
+Out[179]: 
+0    False
+1    False
+2     True
+dtype: bool
+
+In [180]: s.fillna("a")
+Out[180]: 
+0    a
+1    b
+2    a
+dtype: category
+Categories (2, object): [a, b]
+</pre>   <h2 id="differences-to-r-s-factor">Differences to R’s <code>factor</code>
+</h2> <p>The following differences to R’s factor functions can be observed:</p> <ul class="simple"> <li>R’s <code>levels</code> are named <code>categories</code>
+</li> <li>R’s <code>levels</code> are always of type string, while <code>categories</code> in pandas can be of any dtype.</li> <li>It’s not possible to specify labels at creation time. Use <code>s.cat.rename_categories(new_labels)</code> afterwards.</li> <li>In contrast to R’s <code>factor</code> function, using categorical data as the sole input to create a new categorical series will <em>not</em> remove unused categories but create a new categorical series which is equal to the passed in one!</li> <li>R allows for missing values to be included in its <code>levels</code> (pandas’ <code>categories</code>). Pandas does not allow <code>NaN</code> categories, but missing values can still be in the <code>values</code>.</li> </ul>   <h2 id="gotchas">Gotchas</h2>  <h3 id="categorical-rfactor">Memory Usage</h3> <p id="memory-usage">The memory usage of a <code>Categorical</code> is proportional to the number of categories times the length of the data. In contrast, an <code>object</code> dtype is a constant times the length of the data.</p> <pre data-language="python">In [181]: s = pd.Series(['foo','bar']*1000)
+
+# object dtype
+In [182]: s.nbytes
+Out[182]: 16000
+
+# category dtype
+In [183]: s.astype('category').nbytes
+Out[183]: 2016
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>If the number of categories approaches the length of the data, the <code>Categorical</code> will use nearly the same or more memory than an equivalent <code>object</code> dtype representation.</p> <pre data-language="python">In [184]: s = pd.Series(['foo%04d' % i for i in range(2000)])
+
+# object dtype
+In [185]: s.nbytes
+Out[185]: 16000
+
+# category dtype
+In [186]: s.astype('category').nbytes
+Out[186]: 20000
+</pre> </div>   <h3 id="old-style-constructor-usage">Old style constructor usage</h3> <p>In earlier versions than pandas 0.15, a <code>Categorical</code> could be constructed by passing in precomputed <code>codes</code> (called then <code>labels</code>) instead of values with categories. The <code>codes</code> were interpreted as pointers to the categories with <code>-1</code> as <code>NaN</code>. This type of constructor usage is replaced by the special constructor <a class="reference internal" href="../generated/pandas.categorical.from_codes/#pandas.Categorical.from_codes" title="pandas.Categorical.from_codes"><code>Categorical.from_codes()</code></a>.</p> <p>Unfortunately, in some special cases, using code which assumes the old style constructor usage will work with the current pandas version, resulting in subtle bugs:</p> <pre data-language="python">&gt;&gt;&gt; cat = pd.Categorical([1,2], [1,2,3])
+&gt;&gt;&gt; # old version
+&gt;&gt;&gt; cat.get_values()
+array([2, 3], dtype=int64)
+&gt;&gt;&gt; # new version
+&gt;&gt;&gt; cat.get_values()
+array([1, 2], dtype=int64)
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">If you used <code>Categoricals</code> with older versions of pandas, please audit your code before upgrading and change your code to use the <a class="reference internal" href="../generated/pandas.categorical.from_codes/#pandas.Categorical.from_codes" title="pandas.Categorical.from_codes"><code>from_codes()</code></a> constructor.</p> </div>   <h3 id="categorical-is-not-a-numpy-array">
+<code>Categorical</code> is not a <code>numpy</code> array</h3> <p>Currently, categorical data and the underlying <code>Categorical</code> is implemented as a python object and not as a low-level <code>numpy</code> array dtype. This leads to some problems.</p> <p><code>numpy</code> itself doesn’t know about the new <code>dtype</code>:</p> <pre data-language="python">In [187]: try:
+   .....:     np.dtype("category")
+   .....: except TypeError as e:
+   .....:     print("TypeError: " + str(e))
+   .....: 
+TypeError: data type "category" not understood
+
+In [188]: dtype = pd.Categorical(["a"]).dtype
+
+In [189]: try:
+   .....:     np.dtype(dtype)
+   .....: except TypeError as e:
+   .....:      print("TypeError: " + str(e))
+   .....: 
+TypeError: data type not understood
+</pre> <p>Dtype comparisons work:</p> <pre data-language="python">In [190]: dtype == np.str_
+Out[190]: False
+
+In [191]: np.str_ == dtype
+Out[191]: False
+</pre> <p>To check if a Series contains Categorical data, with pandas 0.16 or later, use <code>hasattr(s, 'cat')</code>:</p> <pre data-language="python">In [192]: hasattr(pd.Series(['a'], dtype='category'), 'cat')
+Out[192]: True
+
+In [193]: hasattr(pd.Series(['a']), 'cat')
+Out[193]: False
+</pre> <p>Using <code>numpy</code> functions on a <code>Series</code> of type <code>category</code> should not work as <code>Categoricals</code> are not numeric data (even in the case that <code>.categories</code> is numeric).</p> <pre data-language="python">In [194]: s = pd.Series(pd.Categorical([1,2,3,4]))
+
+In [195]: try:
+   .....:     np.sum(s)
+   .....: except TypeError as e:
+   .....:      print("TypeError: " + str(e))
+   .....: 
+TypeError: Categorical cannot perform the operation sum
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If such a function works, please file a bug at <a class="reference external" href="https://github.com/pydata/pandas" target="_blank">https://github.com/pydata/pandas</a>!</p> </div>   <h3 id="dtype-in-apply">dtype in apply</h3> <p>Pandas currently does not preserve the dtype in apply functions: If you apply along rows you get a <code>Series</code> of <code>object</code> <code>dtype</code> (same as getting a row -&gt; getting one element will return a basic type) and applying along columns will also convert to object.</p> <pre data-language="python">In [196]: df = pd.DataFrame({"a":[1,2,3,4],
+   .....:                    "b":["a","b","c","d"],
+   .....:                    "cats":pd.Categorical([1,2,3,2])})
+   .....: 
+
+In [197]: df.apply(lambda row: type(row["cats"]), axis=1)
+Out[197]: 
+0    &lt;type 'int'&gt;
+1    &lt;type 'int'&gt;
+2    &lt;type 'int'&gt;
+3    &lt;type 'int'&gt;
+dtype: object
+
+In [198]: df.apply(lambda col: col.dtype, axis=0)
+Out[198]: 
+a       object
+b       object
+cats    object
+dtype: object
+</pre>   <h3 id="categorical-index">Categorical Index</h3> <div class="versionadded"> <p><span class="versionmodified">New in version 0.16.1.</span></p> </div> <p>A new <code>CategoricalIndex</code> index type is introduced in version 0.16.1. See the <a class="reference internal" href="../advanced/#indexing-categoricalindex">advanced indexing docs</a> for a more detailed explanation.</p> <p>Setting the index, will create create a <code>CategoricalIndex</code></p> <pre data-language="python">In [199]: cats = pd.Categorical([1,2,3,4], categories=[4,2,3,1])
+
+In [200]: strings = ["a","b","c","d"]
+
+In [201]: values = [4,2,3,1]
+
+In [202]: df = pd.DataFrame({"strings":strings, "values":values}, index=cats)
+
+In [203]: df.index
+Out[203]: CategoricalIndex([1, 2, 3, 4], categories=[4, 2, 3, 1], ordered=False, dtype='category')
+
+# This now sorts by the categories order
+In [204]: df.sort_index()
+Out[204]: 
+  strings  values
+4       d       1
+2       b       2
+3       c       3
+1       a       4
+</pre> <p>In previous versions (&lt;0.16.1) there is no index of type <code>category</code>, so setting the index to categorical column will convert the categorical data to a “normal” dtype first and therefore remove any custom ordering of the categories.</p>   <h3 id="side-effects">Side Effects</h3> <p>Constructing a <code>Series</code> from a <code>Categorical</code> will not copy the input <code>Categorical</code>. This means that changes to the <code>Series</code> will in most cases change the original <code>Categorical</code>:</p> <pre data-language="python">In [205]: cat = pd.Categorical([1,2,3,10], categories=[1,2,3,4,10])
+
+In [206]: s = pd.Series(cat, name="cat")
+
+In [207]: cat
+Out[207]: 
+[1, 2, 3, 10]
+Categories (5, int64): [1, 2, 3, 4, 10]
+
+In [208]: s.iloc[0:2] = 10
+
+In [209]: cat
+Out[209]: 
+[10, 10, 3, 10]
+Categories (5, int64): [1, 2, 3, 4, 10]
+
+In [210]: df = pd.DataFrame(s)
+
+In [211]: df["cat"].cat.categories = [1,2,3,4,5]
+
+In [212]: cat
+Out[212]: 
+[5, 5, 3, 5]
+Categories (5, int64): [1, 2, 3, 4, 5]
+</pre> <p>Use <code>copy=True</code> to prevent such a behaviour or simply don’t reuse <code>Categoricals</code>:</p> <pre data-language="python">In [213]: cat = pd.Categorical([1,2,3,10], categories=[1,2,3,4,10])
+
+In [214]: s = pd.Series(cat, name="cat", copy=True)
+
+In [215]: cat
+Out[215]: 
+[1, 2, 3, 10]
+Categories (5, int64): [1, 2, 3, 4, 10]
+
+In [216]: s.iloc[0:2] = 10
+
+In [217]: cat
+Out[217]: 
+[1, 2, 3, 10]
+Categories (5, int64): [1, 2, 3, 4, 10]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This also happens in some cases when you supply a <code>numpy</code> array instead of a <code>Categorical</code>: using an int array (e.g. <code>np.array([1,2,3,4])</code>) will exhibit the same behaviour, while using a string array (e.g. <code>np.array(["a","b","c","a"])</code>) will not.</p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/categorical.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/categorical.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

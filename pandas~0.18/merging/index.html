@@ -1,0 +1,379 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>16. Merge, Join, and Concatenate - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content="pandas provides various facilities for easily combining together Series, DataFrame, and Panel objects with various kinds of set logic for the &hellip;">
+  <meta name="keywords" content="merge, join, and, concatenate, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/merging/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="merging">Merge, join, and concatenate</h1> <p id="merge-join-and-concatenate">pandas provides various facilities for easily combining together Series, DataFrame, and Panel objects with various kinds of set logic for the indexes and relational algebra functionality in the case of join / merge-type operations.</p>  <h2 id="merging-concat">Concatenating objects</h2> <p id="concatenating-objects">The <code>concat</code> function (in the main pandas namespace) does all of the heavy lifting of performing concatenation operations along an axis while performing optional set logic (union or intersection) of the indexes (if any) on the other axes. Note that I say “if any” because there is only a single possible axis of concatenation for Series.</p> <p>Before diving into all of the details of <code>concat</code> and what it can do, here is a simple example:</p> <pre data-language="python">In [1]: df1 = pd.DataFrame({'A': ['A0', 'A1', 'A2', 'A3'],
+   ...:                     'B': ['B0', 'B1', 'B2', 'B3'],
+   ...:                     'C': ['C0', 'C1', 'C2', 'C3'],
+   ...:                     'D': ['D0', 'D1', 'D2', 'D3']},
+   ...:                     index=[0, 1, 2, 3])
+   ...: 
+
+In [2]: df2 = pd.DataFrame({'A': ['A4', 'A5', 'A6', 'A7'],
+   ...:                     'B': ['B4', 'B5', 'B6', 'B7'],
+   ...:                     'C': ['C4', 'C5', 'C6', 'C7'],
+   ...:                     'D': ['D4', 'D5', 'D6', 'D7']},
+   ...:                      index=[4, 5, 6, 7])
+   ...: 
+
+In [3]: df3 = pd.DataFrame({'A': ['A8', 'A9', 'A10', 'A11'],
+   ...:                     'B': ['B8', 'B9', 'B10', 'B11'],
+   ...:                     'C': ['C8', 'C9', 'C10', 'C11'],
+   ...:                     'D': ['D8', 'D9', 'D10', 'D11']},
+   ...:                     index=[8, 9, 10, 11])
+   ...: 
+
+In [4]: frames = [df1, df2, df3]
+
+In [5]: result = pd.concat(frames)
+</pre>  <img alt="_images/merging_concat_basic.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_basic.png"> <p>Like its sibling function on ndarrays, <code>numpy.concatenate</code>, <code>pandas.concat</code> takes a list or dict of homogeneously-typed objects and concatenates them with some configurable handling of “what to do with the other axes”:</p> <pre data-language="python">pd.concat(objs, axis=0, join='outer', join_axes=None, ignore_index=False,
+       keys=None, levels=None, names=None, verify_integrity=False)
+</pre> <ul class="simple"> <li>
+<code>objs</code>: a sequence or mapping of Series, DataFrame, or Panel objects. If a dict is passed, the sorted keys will be used as the <code>keys</code> argument, unless it is passed, in which case the values will be selected (see below). Any None objects will be dropped silently unless they are all None in which case a ValueError will be raised.</li> <li>
+<code>axis</code>: {0, 1, ...}, default 0. The axis to concatenate along.</li> <li>
+<code>join</code>: {‘inner’, ‘outer’}, default ‘outer’. How to handle indexes on other axis(es). Outer for union and inner for intersection.</li> <li>
+<code>join_axes</code>: list of Index objects. Specific indexes to use for the other n - 1 axes instead of performing inner/outer set logic.</li> <li>
+<code>keys</code>: sequence, default None. Construct hierarchical index using the passed keys as the outermost level. If multiple levels passed, should contain tuples.</li> <li>
+<code>levels</code> : list of sequences, default None. Specific levels (unique values) to use for constructing a MultiIndex. Otherwise they will be inferred from the keys.</li> <li>
+<code>names</code>: list, default None. Names for the levels in the resulting hierarchical index.</li> <li>
+<code>verify_integrity</code>: boolean, default False. Check whether the new concatenated axis contains duplicates. This can be very expensive relative to the actual data concatenation.</li> <li>
+<code>ignore_index</code> : boolean, default False. If True, do not use the index values on the concatenation axis. The resulting axis will be labeled 0, ..., n - 1. This is useful if you are concatenating objects where the concatenation axis does not have meaningful indexing information. Note the index values on the other axes are still respected in the join.</li> <li>
+<code>copy</code> : boolean, default True. If False, do not copy data unnecessarily.</li> </ul> <p>Without a little bit of context and example many of these arguments don’t make much sense. Let’s take the above example. Suppose we wanted to associate specific keys with each of the pieces of the chopped up DataFrame. We can do this using the <code>keys</code> argument:</p> <pre data-language="python">In [6]: result = pd.concat(frames, keys=['x', 'y', 'z'])
+</pre>  <img alt="_images/merging_concat_keys.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_keys.png"> <p>As you can see (if you’ve read the rest of the documentation), the resulting object’s index has a <a class="reference internal" href="../advanced/#advanced-hierarchical">hierarchical index</a>. This means that we can now do stuff like select out each chunk by key:</p> <pre data-language="python">In [7]: result.ix['y']
+Out[7]: 
+    A   B   C   D
+4  A4  B4  C4  D4
+5  A5  B5  C5  D5
+6  A6  B6  C6  D6
+7  A7  B7  C7  D7
+</pre> <p>It’s not a stretch to see how this can be very useful. More detail on this functionality below.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">It is worth noting however, that <code>concat</code> (and therefore <code>append</code>) makes a full copy of the data, and that constantly reusing this function can create a significant performance hit. If you need to use the operation over several datasets, use a list comprehension.</p> </div> <pre data-language="python">frames = [ process_your_file(f) for f in files ]
+result = pd.concat(frames)
+</pre>  <h3 id="set-logic-on-the-other-axes">Set logic on the other axes</h3> <p>When gluing together multiple DataFrames (or Panels or...), for example, you have a choice of how to handle the other axes (other than the one being concatenated). This can be done in three ways:</p> <ul class="simple"> <li>Take the (sorted) union of them all, <code>join='outer'</code>. This is the default option as it results in zero information loss.</li> <li>Take the intersection, <code>join='inner'</code>.</li> <li>Use a specific index (in the case of DataFrame) or indexes (in the case of Panel or future higher dimensional objects), i.e. the <code>join_axes</code> argument</li> </ul> <p>Here is a example of each of these methods. First, the default <code>join='outer'</code> behavior:</p> <pre data-language="python">In [8]: df4 = pd.DataFrame({'B': ['B2', 'B3', 'B6', 'B7'],
+   ...:                  'D': ['D2', 'D3', 'D6', 'D7'],
+   ...:                  'F': ['F2', 'F3', 'F6', 'F7']},
+   ...:                 index=[2, 3, 6, 7])
+   ...: 
+
+In [9]: result = pd.concat([df1, df4], axis=1)
+</pre>  <img alt="_images/merging_concat_axis1.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_axis1.png"> <p>Note that the row indexes have been unioned and sorted. Here is the same thing with <code>join='inner'</code>:</p> <pre data-language="python">In [10]: result = pd.concat([df1, df4], axis=1, join='inner')
+</pre>  <img alt="_images/merging_concat_axis1_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_axis1_inner.png"> <p>Lastly, suppose we just wanted to reuse the <em>exact index</em> from the original DataFrame:</p> <pre data-language="python">In [11]: result = pd.concat([df1, df4], axis=1, join_axes=[df1.index])
+</pre>  <img alt="_images/merging_concat_axis1_join_axes.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_axis1_join_axes.png">   <h3 id="merging-concatenation">Concatenating using <code>append</code>
+</h3> <p id="concatenating-using-append">A useful shortcut to <code>concat</code> are the <code>append</code> instance methods on Series and DataFrame. These methods actually predated <code>concat</code>. They concatenate along <code>axis=0</code>, namely the index:</p> <pre data-language="python">In [12]: result = df1.append(df2)
+</pre>  <img alt="_images/merging_append1.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append1.png"> <p>In the case of DataFrame, the indexes must be disjoint but the columns do not need to be:</p> <pre data-language="python">In [13]: result = df1.append(df4)
+</pre>  <img alt="_images/merging_append2.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append2.png"> <p><code>append</code> may take multiple objects to concatenate:</p> <pre data-language="python">In [14]: result = df1.append([df2, df3])
+</pre>  <img alt="_images/merging_append3.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append3.png"> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Unlike <code>list.append</code> method, which appends to the original list and returns nothing, <code>append</code> here <strong>does not</strong> modify <code>df1</code> and returns its copy with <code>df2</code> appended.</p> </div>   <h3 id="merging-ignore-index">Ignoring indexes on the concatenation axis</h3> <p id="ignoring-indexes-on-the-concatenation-axis">For DataFrames which don’t have a meaningful index, you may wish to append them and ignore the fact that they may have overlapping indexes:</p> <p>To do this, use the <code>ignore_index</code> argument:</p> <pre data-language="python">In [15]: result = pd.concat([df1, df4], ignore_index=True)
+</pre>  <img alt="_images/merging_concat_ignore_index.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_ignore_index.png"> <p>This is also a valid argument to <code>DataFrame.append</code>:</p> <pre data-language="python">In [16]: result = df1.append(df4, ignore_index=True)
+</pre>  <img alt="_images/merging_append_ignore_index.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append_ignore_index.png">   <h3 id="merging-mixed-ndims">Concatenating with mixed ndims</h3> <p id="concatenating-with-mixed-ndims">You can concatenate a mix of Series and DataFrames. The Series will be transformed to DataFrames with the column name as the name of the Series.</p> <pre data-language="python">In [17]: s1 = pd.Series(['X0', 'X1', 'X2', 'X3'], name='X')
+
+In [18]: result = pd.concat([df1, s1], axis=1)
+</pre>  <img alt="_images/merging_concat_mixed_ndim.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_mixed_ndim.png"> <p>If unnamed Series are passed they will be numbered consecutively.</p> <pre data-language="python">In [19]: s2 = pd.Series(['_0', '_1', '_2', '_3'])
+
+In [20]: result = pd.concat([df1, s2, s2, s2], axis=1)
+</pre>  <img alt="_images/merging_concat_unnamed_series.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_unnamed_series.png"> <p>Passing <code>ignore_index=True</code> will drop all name references.</p> <pre data-language="python">In [21]: result = pd.concat([df1, s1], axis=1, ignore_index=True)
+</pre>  <img alt="_images/merging_concat_series_ignore_index.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_series_ignore_index.png">   <h3 id="more-concatenating-with-group-keys">More concatenating with group keys</h3> <p>A fairly common use of the <code>keys</code> argument is to override the column names when creating a new DataFrame based on existing Series. Notice how the default behaviour consists on letting the resulting DataFrame inherits the parent Series’ name, when these existed.</p> <pre data-language="python">In [22]: s3 = pd.Series([0, 1, 2, 3], name='foo')
+
+In [23]: s4 = pd.Series([0, 1, 2, 3])
+
+In [24]: s5 = pd.Series([0, 1, 4, 5])
+
+In [25]: pd.concat([s3, s4, s5], axis=1)
+Out[25]: 
+   foo  0  1
+0    0  0  0
+1    1  1  1
+2    2  2  4
+3    3  3  5
+</pre> <p>Through the <code>keys</code> argument we can override the existing column names.</p> <pre data-language="python">In [26]: pd.concat([s3, s4, s5], axis=1, keys=['red','blue','yellow'])
+Out[26]: 
+   red  blue  yellow
+0    0     0       0
+1    1     1       1
+2    2     2       4
+3    3     3       5
+</pre> <p>Let’s consider now a variation on the very first example presented:</p> <pre data-language="python">In [27]: result = pd.concat(frames, keys=['x', 'y', 'z'])
+</pre>  <img alt="_images/merging_concat_group_keys2.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_group_keys2.png"> <p>You can also pass a dict to <code>concat</code> in which case the dict keys will be used for the <code>keys</code> argument (unless other keys are specified):</p> <pre data-language="python">In [28]: pieces = {'x': df1, 'y': df2, 'z': df3}
+
+In [29]: result = pd.concat(pieces)
+</pre>  <img alt="_images/merging_concat_dict.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_dict.png"> <pre data-language="python">In [30]: result = pd.concat(pieces, keys=['z', 'y'])
+</pre>  <img alt="_images/merging_concat_dict_keys.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_dict_keys.png"> <p>The MultiIndex created has levels that are constructed from the passed keys and the index of the DataFrame pieces:</p> <pre data-language="python">In [31]: result.index.levels
+Out[31]: FrozenList([[u'z', u'y'], [4, 5, 6, 7, 8, 9, 10, 11]])
+</pre> <p>If you wish to specify other levels (as will occasionally be the case), you can do so using the <code>levels</code> argument:</p> <pre data-language="python">In [32]: result = pd.concat(pieces, keys=['x', 'y', 'z'],
+   ....:                 levels=[['z', 'y', 'x', 'w']],
+   ....:                 names=['group_key'])
+   ....: 
+</pre>  <img alt="_images/merging_concat_dict_keys_names.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_concat_dict_keys_names.png"> <pre data-language="python">In [33]: result.index.levels
+Out[33]: FrozenList([[u'z', u'y', u'x', u'w'], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]])
+</pre> <p>Yes, this is fairly esoteric, but is actually necessary for implementing things like GroupBy where the order of a categorical variable is meaningful.</p>   <h3 id="merging-append-row">Appending rows to a DataFrame</h3> <p id="appending-rows-to-a-dataframe">While not especially efficient (since a new object must be created), you can append a single row to a DataFrame by passing a Series or dict to <code>append</code>, which returns a new DataFrame as above.</p> <pre data-language="python">In [34]: s2 = pd.Series(['X0', 'X1', 'X2', 'X3'], index=['A', 'B', 'C', 'D'])
+
+In [35]: result = df1.append(s2, ignore_index=True)
+</pre>  <img alt="_images/merging_append_series_as_row.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append_series_as_row.png"> <p>You should use <code>ignore_index</code> with this method to instruct DataFrame to discard its index. If you wish to preserve the index, you should construct an appropriately-indexed DataFrame and append or concatenate those objects.</p> <p>You can also pass a list of dicts or Series:</p> <pre data-language="python">In [36]: dicts = [{'A': 1, 'B': 2, 'C': 3, 'X': 4},
+   ....:          {'A': 5, 'B': 6, 'C': 7, 'Y': 8}]
+   ....: 
+
+In [37]: result = df1.append(dicts, ignore_index=True)
+</pre>  <img alt="_images/merging_append_dits.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_append_dits.png">    <h2 id="merging-join">Database-style DataFrame joining/merging</h2> <p id="database-style-dataframe-joining-merging">pandas has full-featured, <strong>high performance</strong> in-memory join operations idiomatically very similar to relational databases like SQL. These methods perform significantly better (in some cases well over an order of magnitude better) than other open source implementations (like <code>base::merge.data.frame</code> in R). The reason for this is careful algorithmic design and internal layout of the data in DataFrame.</p> <p>See the <a class="reference internal" href="../cookbook/#cookbook-merge">cookbook</a> for some advanced strategies.</p> <p>Users who are familiar with SQL but new to pandas might be interested in a <a class="reference internal" href="../comparison_with_sql/#compare-with-sql-join">comparison with SQL</a>.</p> <p>pandas provides a single function, <code>merge</code>, as the entry point for all standard database join operations between DataFrame objects:</p> <pre data-language="python">merge(left, right, how='inner', on=None, left_on=None, right_on=None,
+      left_index=False, right_index=False, sort=True,
+      suffixes=('_x', '_y'), copy=True, indicator=False)
+</pre> <p>Here’s a description of what each argument is for:</p>  <ul> <li>
+<code>left</code>: A DataFrame object </li> <li>
+<code>right</code>: Another DataFrame object </li> <li>
+<code>on</code>: Columns (names) to join on. Must be found in both the left and right DataFrame objects. If not passed and <code>left_index</code> and <code>right_index</code> are <code>False</code>, the intersection of the columns in the DataFrames will be inferred to be the join keys </li> <li>
+<code>left_on</code>: Columns from the left DataFrame to use as keys. Can either be column names or arrays with length equal to the length of the DataFrame </li> <li>
+<code>right_on</code>: Columns from the right DataFrame to use as keys. Can either be column names or arrays with length equal to the length of the DataFrame </li> <li>
+<code>left_index</code>: If <code>True</code>, use the index (row labels) from the left DataFrame as its join key(s). In the case of a DataFrame with a MultiIndex (hierarchical), the number of levels must match the number of join keys from the right DataFrame </li> <li>
+<code>right_index</code>: Same usage as <code>left_index</code> for the right DataFrame </li> <li>
+<code>how</code>: One of <code>'left'</code>, <code>'right'</code>, <code>'outer'</code>, <code>'inner'</code>. Defaults to <code>inner</code>. See below for more detailed description of each method </li> <li>
+<code>sort</code>: Sort the result DataFrame by the join keys in lexicographical order. Defaults to <code>True</code>, setting to <code>False</code> will improve performance substantially in many cases </li> <li>
+<code>suffixes</code>: A tuple of string suffixes to apply to overlapping columns. Defaults to <code>('_x', '_y')</code>. </li> <li>
+<code>copy</code>: Always copy data (default <code>True</code>) from the passed DataFrame objects, even when reindexing is not necessary. Cannot be avoided in many cases but may improve performance / memory usage. The cases where copying can be avoided are somewhat pathological but this option is provided nonetheless. </li> <li>
+<p class="first"><code>indicator</code>: Add a column to the output DataFrame called <code>_merge</code> with information on the source of each row. <code>_merge</code> is Categorical-type and takes on a value of <code>left_only</code> for observations whose merge key only appears in <code>'left'</code> DataFrame, <code>right_only</code> for observations whose merge key only appears in <code>'right'</code> DataFrame, and <code>both</code> if the observation’s merge key is found in both.</p> <div class="versionadded"> <p><span class="versionmodified">New in version 0.17.0.</span></p> </div> </li> </ul>  <p>The return type will be the same as <code>left</code>. If <code>left</code> is a <code>DataFrame</code> and <code>right</code> is a subclass of DataFrame, the return type will still be <code>DataFrame</code>.</p> <p><code>merge</code> is a function in the pandas namespace, and it is also available as a DataFrame instance method, with the calling DataFrame being implicitly considered the left object in the join.</p> <p>The related <code>DataFrame.join</code> method, uses <code>merge</code> internally for the index-on-index and index-on-column(s) joins, but <em>joins on indexes</em> by default rather than trying to join on common columns (the default behavior for <code>merge</code>). If you are joining on index, you may wish to use <code>DataFrame.join</code> to save yourself some typing.</p>  <h3 id="brief-primer-on-merge-methods-relational-algebra">Brief primer on merge methods (relational algebra)</h3> <p>Experienced users of relational databases like SQL will be familiar with the terminology used to describe join operations between two SQL-table like structures (DataFrame objects). There are several cases to consider which are very important to understand:</p>  <ul class="simple"> <li>
+<strong>one-to-one</strong> joins: for example when joining two DataFrame objects on their indexes (which must contain unique values)</li> <li>
+<strong>many-to-one</strong> joins: for example when joining an index (unique) to one or more columns in a DataFrame</li> <li>
+<strong>many-to-many</strong> joins: joining columns on columns.</li> </ul>  <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">When joining columns on columns (potentially a many-to-many join), any indexes on the passed DataFrame objects <strong>will be discarded</strong>.</p> </div> <p>It is worth spending some time understanding the result of the <strong>many-to-many</strong> join case. In SQL / standard relational algebra, if a key combination appears more than once in both tables, the resulting table will have the <strong>Cartesian product</strong> of the associated data. Here is a very basic example with one unique key combination:</p> <pre data-language="python">In [38]: left = pd.DataFrame({'key': ['K0', 'K1', 'K2', 'K3'],
+   ....:                      'A': ['A0', 'A1', 'A2', 'A3'],
+   ....:                      'B': ['B0', 'B1', 'B2', 'B3']})
+   ....: 
+
+In [39]: right = pd.DataFrame({'key': ['K0', 'K1', 'K2', 'K3'],
+   ....:                       'C': ['C0', 'C1', 'C2', 'C3'],
+   ....:                       'D': ['D0', 'D1', 'D2', 'D3']})
+   ....: 
+
+In [40]: result = pd.merge(left, right, on='key')
+</pre>  <img alt="_images/merging_merge_on_key.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key.png"> <p>Here is a more complicated example with multiple join keys:</p> <pre data-language="python">In [41]: left = pd.DataFrame({'key1': ['K0', 'K0', 'K1', 'K2'],
+   ....:                      'key2': ['K0', 'K1', 'K0', 'K1'],
+   ....:                      'A': ['A0', 'A1', 'A2', 'A3'],
+   ....:                      'B': ['B0', 'B1', 'B2', 'B3']})
+   ....: 
+
+In [42]: right = pd.DataFrame({'key1': ['K0', 'K1', 'K1', 'K2'],
+   ....:                       'key2': ['K0', 'K0', 'K0', 'K0'],
+   ....:                       'C': ['C0', 'C1', 'C2', 'C3'],
+   ....:                       'D': ['D0', 'D1', 'D2', 'D3']})
+   ....: 
+
+In [43]: result = pd.merge(left, right, on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_merge_on_key_multiple.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key_multiple.png"> <p>The <code>how</code> argument to <code>merge</code> specifies how to determine which keys are to be included in the resulting table. If a key combination <strong>does not appear</strong> in either the left or right tables, the values in the joined table will be <code>NA</code>. Here is a summary of the <code>how</code> options and their SQL equivalent names:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Merge method</th> <th class="head">SQL Join Name</th> <th class="head">Description</th> </tr> </thead>  <tr class="row-even">
+<td><code>left</code></td> <td><code>LEFT OUTER JOIN</code></td> <td>Use keys from left frame only</td> </tr> <tr class="row-odd">
+<td><code>right</code></td> <td><code>RIGHT OUTER JOIN</code></td> <td>Use keys from right frame only</td> </tr> <tr class="row-even">
+<td><code>outer</code></td> <td><code>FULL OUTER JOIN</code></td> <td>Use union of keys from both frames</td> </tr> <tr class="row-odd">
+<td><code>inner</code></td> <td><code>INNER JOIN</code></td> <td>Use intersection of keys from both frames</td> </tr>  </table> <pre data-language="python">In [44]: result = pd.merge(left, right, how='left', on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_merge_on_key_left.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key_left.png"> <pre data-language="python">In [45]: result = pd.merge(left, right, how='right', on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_merge_on_key_right.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key_right.png"> <pre data-language="python">In [46]: result = pd.merge(left, right, how='outer', on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_merge_on_key_outer.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key_outer.png"> <pre data-language="python">In [47]: result = pd.merge(left, right, how='inner', on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_merge_on_key_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_on_key_inner.png">   <h3 id="merging-indicator">The merge indicator</h3> <div class="versionadded" id="the-merge-indicator"> <p><span class="versionmodified">New in version 0.17.0.</span></p> </div> <p><code>merge</code> now accepts the argument <code>indicator</code>. If <code>True</code>, a Categorical-type column called <code>_merge</code> will be added to the output object that takes on values:</p>  <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Observation Origin</th> <th class="head">
+<code>_merge</code> value</th> </tr> </thead>  <tr class="row-even">
+<td>Merge key only in <code>'left'</code> frame</td> <td><code>left_only</code></td> </tr> <tr class="row-odd">
+<td>Merge key only in <code>'right'</code> frame</td> <td><code>right_only</code></td> </tr> <tr class="row-even">
+<td>Merge key in both frames</td> <td><code>both</code></td> </tr>  </table>  <pre data-language="python">In [48]: df1 = DataFrame({'col1':[0,1], 'col_left':['a','b']})
+
+In [49]: df2 = DataFrame({'col1':[1,2,2],'col_right':[2,2,2]})
+
+In [50]: merge(df1, df2, on='col1', how='outer', indicator=True)
+Out[50]: 
+   col1 col_left  col_right      _merge
+0   0.0        a        NaN   left_only
+1   1.0        b        2.0        both
+2   2.0      NaN        2.0  right_only
+3   2.0      NaN        2.0  right_only
+</pre> <p>The <code>indicator</code> argument will also accept string arguments, in which case the indicator function will use the value of the passed string as the name for the indicator column.</p> <pre data-language="python">In [51]: merge(df1, df2, on='col1', how='outer', indicator='indicator_column')
+Out[51]: 
+   col1 col_left  col_right indicator_column
+0   0.0        a        NaN        left_only
+1   1.0        b        2.0             both
+2   2.0      NaN        2.0       right_only
+3   2.0      NaN        2.0       right_only
+</pre>   <h3 id="merging-join-index">Joining on index</h3> <p id="joining-on-index"><code>DataFrame.join</code> is a convenient method for combining the columns of two potentially differently-indexed DataFrames into a single result DataFrame. Here is a very basic example:</p> <pre data-language="python">In [52]: left = pd.DataFrame({'A': ['A0', 'A1', 'A2'],
+   ....:                      'B': ['B0', 'B1', 'B2']},
+   ....:                      index=['K0', 'K1', 'K2'])
+   ....: 
+
+In [53]: right = pd.DataFrame({'C': ['C0', 'C2', 'C3'],
+   ....:                       'D': ['D0', 'D2', 'D3']},
+   ....:                       index=['K0', 'K2', 'K3'])
+   ....: 
+
+In [54]: result = left.join(right)
+</pre>  <img alt="_images/merging_join.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join.png"> <pre data-language="python">In [55]: result = left.join(right, how='outer')
+</pre>  <img alt="_images/merging_join_outer.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_outer.png"> <pre data-language="python">In [56]: result = left.join(right, how='inner')
+</pre>  <img alt="_images/merging_join_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_inner.png"> <p>The data alignment here is on the indexes (row labels). This same behavior can be achieved using <code>merge</code> plus additional arguments instructing it to use the indexes:</p> <pre data-language="python">In [57]: result = pd.merge(left, right, left_index=True, right_index=True, how='outer')
+</pre>  <img alt="_images/merging_merge_index_outer.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_index_outer.png"> <pre data-language="python">In [58]: result = pd.merge(left, right, left_index=True, right_index=True, how='inner');
+</pre>  <img alt="_images/merging_merge_index_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_index_inner.png">   <h3 id="joining-key-columns-on-an-index">Joining key columns on an index</h3> <p><code>join</code> takes an optional <code>on</code> argument which may be a column or multiple column names, which specifies that the passed DataFrame is to be aligned on that column in the DataFrame. These two function calls are completely equivalent:</p> <pre data-language="python">left.join(right, on=key_or_keys)
+pd.merge(left, right, left_on=key_or_keys, right_index=True,
+      how='left', sort=False)
+</pre> <p>Obviously you can choose whichever form you find more convenient. For many-to-one joins (where one of the DataFrame’s is already indexed by the join key), using <code>join</code> may be more convenient. Here is a simple example:</p> <pre data-language="python">In [59]: left = pd.DataFrame({'A': ['A0', 'A1', 'A2', 'A3'],
+   ....:                      'B': ['B0', 'B1', 'B2', 'B3'],
+   ....:                      'key': ['K0', 'K1', 'K0', 'K1']})
+   ....: 
+
+In [60]: right = pd.DataFrame({'C': ['C0', 'C1'],
+   ....:                       'D': ['D0', 'D1']},
+   ....:                       index=['K0', 'K1'])
+   ....: 
+
+In [61]: result = left.join(right, on='key')
+</pre>  <img alt="_images/merging_join_key_columns.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_key_columns.png"> <pre data-language="python">In [62]: result = pd.merge(left, right, left_on='key', right_index=True,
+   ....:                   how='left', sort=False);
+   ....: 
+</pre>  <img alt="_images/merging_merge_key_columns.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_key_columns.png"> <p id="merging-multikey-join">To join on multiple keys, the passed DataFrame must have a <code>MultiIndex</code>:</p> <pre data-language="python">In [63]: left = pd.DataFrame({'A': ['A0', 'A1', 'A2', 'A3'],
+   ....:                      'B': ['B0', 'B1', 'B2', 'B3'],
+   ....:                      'key1': ['K0', 'K0', 'K1', 'K2'],
+   ....:                      'key2': ['K0', 'K1', 'K0', 'K1']})
+   ....: 
+
+In [64]: index = pd.MultiIndex.from_tuples([('K0', 'K0'), ('K1', 'K0'),
+   ....:                                   ('K2', 'K0'), ('K2', 'K1')])
+   ....: 
+
+In [65]: right = pd.DataFrame({'C': ['C0', 'C1', 'C2', 'C3'],
+   ....:                    'D': ['D0', 'D1', 'D2', 'D3']},
+   ....:                   index=index)
+   ....: 
+</pre> <p>Now this can be joined by passing the two key column names:</p> <pre data-language="python">In [66]: result = left.join(right, on=['key1', 'key2'])
+</pre>  <img alt="_images/merging_join_multikeys.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_multikeys.png"> <p id="merging-df-inner-join">The default for <code>DataFrame.join</code> is to perform a left join (essentially a “VLOOKUP” operation, for Excel users), which uses only the keys found in the calling DataFrame. Other join types, for example inner join, can be just as easily performed:</p> <pre data-language="python">In [67]: result = left.join(right, on=['key1', 'key2'], how='inner')
+</pre>  <img alt="_images/merging_join_multikeys_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_multikeys_inner.png"> <p>As you can see, this drops any rows where there was no match.</p>   <h3 id="merging-join-on-mi">Joining a single Index to a Multi-index</h3> <div class="versionadded" id="joining-a-single-index-to-a-multi-index"> <p><span class="versionmodified">New in version 0.14.0.</span></p> </div> <p>You can join a singly-indexed <code>DataFrame</code> with a level of a multi-indexed <code>DataFrame</code>. The level will match on the name of the index of the singly-indexed frame against a level name of the multi-indexed frame.</p> <pre data-language="python">In [68]: left = pd.DataFrame({'A': ['A0', 'A1', 'A2'],
+   ....:                      'B': ['B0', 'B1', 'B2']},
+   ....:                      index=Index(['K0', 'K1', 'K2'], name='key'))
+   ....: 
+
+In [69]: index = pd.MultiIndex.from_tuples([('K0', 'Y0'), ('K1', 'Y1'),
+   ....:                                   ('K2', 'Y2'), ('K2', 'Y3')],
+   ....:                                    names=['key', 'Y'])
+   ....: 
+
+In [70]: right = pd.DataFrame({'C': ['C0', 'C1', 'C2', 'C3'],
+   ....:                       'D': ['D0', 'D1', 'D2', 'D3']},
+   ....:                       index=index)
+   ....: 
+
+In [71]: result = left.join(right, how='inner')
+</pre>  <img alt="_images/merging_join_multiindex_inner.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_multiindex_inner.png"> <p>This is equivalent but less verbose and more memory efficient / faster than this.</p> <pre data-language="python">In [72]: result = pd.merge(left.reset_index(), right.reset_index(),
+   ....:       on=['key'], how='inner').set_index(['key','Y'])
+   ....: 
+</pre>  <img alt="_images/merging_merge_multiindex_alternative.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_multiindex_alternative.png">   <h3 id="joining-with-two-multi-indexes">Joining with two multi-indexes</h3> <p>This is not Implemented via <code>join</code> at-the-moment, however it can be done using the following.</p> <pre data-language="python">In [73]: index = pd.MultiIndex.from_tuples([('K0', 'X0'), ('K0', 'X1'),
+   ....:                                    ('K1', 'X2')],
+   ....:                                     names=['key', 'X'])
+   ....: 
+
+In [74]: left = pd.DataFrame({'A': ['A0', 'A1', 'A2'],
+   ....:                      'B': ['B0', 'B1', 'B2']},
+   ....:                       index=index)
+   ....: 
+
+In [75]: result = pd.merge(left.reset_index(), right.reset_index(),
+   ....:                   on=['key'], how='inner').set_index(['key','X','Y'])
+   ....: 
+</pre>  <img alt="_images/merging_merge_two_multiindex.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_two_multiindex.png">   <h3 id="overlapping-value-columns">Overlapping value columns</h3> <p>The merge <code>suffixes</code> argument takes a tuple of list of strings to append to overlapping column names in the input DataFrames to disambiguate the result columns:</p> <pre data-language="python">In [76]: left = pd.DataFrame({'k': ['K0', 'K1', 'K2'], 'v': [1, 2, 3]})
+
+In [77]: right = pd.DataFrame({'k': ['K0', 'K0', 'K3'], 'v': [4, 5, 6]})
+
+In [78]: result = pd.merge(left, right, on='k')
+</pre>  <img alt="_images/merging_merge_overlapped.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_overlapped.png"> <pre data-language="python">In [79]: result = pd.merge(left, right, on='k', suffixes=['_l', '_r'])
+</pre>  <img alt="_images/merging_merge_overlapped_suffix.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_overlapped_suffix.png"> <p><code>DataFrame.join</code> has <code>lsuffix</code> and <code>rsuffix</code> arguments which behave similarly.</p> <pre data-language="python">In [80]: left = left.set_index('k')
+
+In [81]: right = right.set_index('k')
+
+In [82]: result = left.join(right, lsuffix='_l', rsuffix='_r')
+</pre>  <img alt="_images/merging_merge_overlapped_multi_suffix.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_merge_overlapped_multi_suffix.png">   <h3 id="merging-multiple-join">Joining multiple DataFrame or Panel objects</h3> <p id="joining-multiple-dataframe-or-panel-objects">A list or tuple of DataFrames can also be passed to <code>DataFrame.join</code> to join them together on their indexes. The same is true for <code>Panel.join</code>.</p> <pre data-language="python">In [83]: right2 = pd.DataFrame({'v': [7, 8, 9]}, index=['K1', 'K1', 'K2'])
+
+In [84]: result = left.join([right, right2])
+</pre>  <img alt="_images/merging_join_multi_df.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_join_multi_df.png">   <h3 id="merging-ordered-merge">Merging Ordered Data</h3> <p id="merging-ordered-data">New in v0.8.0 is the ordered_merge function for combining time series and other ordered data. In particular it has an optional <code>fill_method</code> keyword to fill/interpolate missing data:</p> <pre data-language="python">In [85]: left = DataFrame({'k': ['K0', 'K1', 'K1', 'K2'],
+   ....:                   'lv': [1, 2, 3, 4],
+   ....:                   's': ['a', 'b', 'c', 'd']})
+   ....: 
+
+In [86]: right = DataFrame({'k': ['K1', 'K2', 'K4'],
+   ....:                    'rv': [1, 2, 3]})
+   ....: 
+
+In [87]: result = ordered_merge(left, right, fill_method='ffill', left_by='s')
+</pre>  <img alt="_images/merging_ordered_merge.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_ordered_merge.png">   <h3 id="merging-combine-first-update">Merging together values within Series or DataFrame columns</h3> <p id="merging-together-values-within-series-or-dataframe-columns">Another fairly common situation is to have two like-indexed (or similarly indexed) Series or DataFrame objects and wanting to “patch” values in one object from values for matching indices in the other. Here is an example:</p> <pre data-language="python">In [88]: df1 = pd.DataFrame([[np.nan, 3., 5.], [-4.6, np.nan, np.nan],
+   ....:                    [np.nan, 7., np.nan]])
+   ....: 
+
+In [89]: df2 = pd.DataFrame([[-42.6, np.nan, -8.2], [-5., 1.6, 4]],
+   ....:                    index=[1, 2])
+   ....: 
+</pre> <p>For this, use the <code>combine_first</code> method:</p> <pre data-language="python">In [90]: result = df1.combine_first(df2)
+</pre>  <img alt="_images/merging_combine_first.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_combine_first.png"> <p>Note that this method only takes values from the right DataFrame if they are missing in the left DataFrame. A related method, <code>update</code>, alters non-NA values inplace:</p> <pre data-language="python">In [91]: df1.update(df2)
+</pre>  <img alt="_images/merging_update.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/merging_update.png"><div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/merging.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/merging.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

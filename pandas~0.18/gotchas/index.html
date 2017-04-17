@@ -1,0 +1,359 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>27. Caveats and Gotchas - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content="pandas follows the numpy convention of raising an error when you try to convert something to a bool. This happens in a if or when using the boolean &hellip;">
+  <meta name="keywords" content="caveats, and, gotchas, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/gotchas/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="gotchas">Caveats and Gotchas</h1>  <h2 id="gotchas-truth">Using If/Truth Statements with pandas</h2> <p id="caveats-and-gotchas">pandas follows the numpy convention of raising an error when you try to convert something to a <code>bool</code>. This happens in a <code>if</code> or when using the boolean operations, <code>and</code>, <code>or</code>, or <code>not</code>. It is not clear what the result of</p> <pre data-language="python">&gt;&gt;&gt; if pd.Series([False, True, False]):
+     ...
+</pre> <p>should be. Should it be <code>True</code> because it’s not zero-length? <code>False</code> because there are <code>False</code> values? It is unclear, so instead, pandas raises a <code>ValueError</code>:</p> <pre data-language="python">&gt;&gt;&gt; if pd.Series([False, True, False]):
+    print("I was true")
+Traceback
+    ...
+ValueError: The truth value of an array is ambiguous. Use a.empty, a.any() or a.all().
+</pre> <p>If you see that, you need to explicitly choose what you want to do with it (e.g., use <code>any()</code>, <code>all()</code> or <code>empty</code>). or, you might want to compare if the pandas object is <code>None</code></p> <pre data-language="python">&gt;&gt;&gt; if pd.Series([False, True, False]) is not None:
+       print("I was not None")
+&gt;&gt;&gt; I was not None
+</pre> <p>or return if <code>any</code> value is <code>True</code>.</p> <pre data-language="python">&gt;&gt;&gt; if pd.Series([False, True, False]).any():
+       print("I am any")
+&gt;&gt;&gt; I am any
+</pre> <p>To evaluate single-element pandas objects in a boolean context, use the method <code>.bool()</code>:</p> <pre data-language="python">In [1]: pd.Series([True]).bool()
+Out[1]: True
+
+In [2]: pd.Series([False]).bool()
+Out[2]: False
+
+In [3]: pd.DataFrame([[True]]).bool()
+Out[3]: True
+
+In [4]: pd.DataFrame([[False]]).bool()
+Out[4]: False
+</pre>  <h3 id="bitwise-boolean">Bitwise boolean</h3> <p>Bitwise boolean operators like <code>==</code> and <code>!=</code> will return a boolean <code>Series</code>, which is almost always what you want anyways.</p> <pre data-language="python">&gt;&gt;&gt; s = pd.Series(range(5))
+&gt;&gt;&gt; s == 4
+0    False
+1    False
+2    False
+3    False
+4     True
+dtype: bool
+</pre> <p>See <a class="reference internal" href="../basics/#basics-compare">boolean comparisons</a> for more examples.</p>   <h3 id="using-the-in-operator">Using the <code>in</code> operator</h3> <p>Using the Python <code>in</code> operator on a Series tests for membership in the index, not membership among the values.</p> <p>If this behavior is surprising, keep in mind that using <code>in</code> on a Python dictionary tests keys, not values, and Series are dict-like. To test for membership in the values, use the method <a class="reference internal" href="../generated/pandas.series.isin/#pandas.Series.isin" title="pandas.Series.isin"><code>isin()</code></a>:</p> <p>For DataFrames, likewise, <code>in</code> applies to the column axis, testing for membership in the list of column names.</p>    <h2 id="nan-integer-na-values-and-na-type-promotions">
+<code>NaN</code>, Integer <code>NA</code> values and <code>NA</code> type promotions</h2>  <h3 id="choice-of-na-representation">Choice of <code>NA</code> representation</h3> <p>For lack of <code>NA</code> (missing) support from the ground up in NumPy and Python in general, we were given the difficult choice between either</p> <ul class="simple"> <li>A <em>masked array</em> solution: an array of data and an array of boolean values indicating whether a value</li> <li>Using a special sentinel value, bit pattern, or set of sentinel values to denote <code>NA</code> across the dtypes</li> </ul> <p>For many reasons we chose the latter. After years of production use it has proven, at least in my opinion, to be the best decision given the state of affairs in NumPy and Python in general. The special value <code>NaN</code> (Not-A-Number) is used everywhere as the <code>NA</code> value, and there are API functions <code>isnull</code> and <code>notnull</code> which can be used across the dtypes to detect NA values.</p> <p>However, it comes with it a couple of trade-offs which I most certainly have not ignored.</p>   <h3 id="gotchas-intna">Support for integer <code>NA</code>
+</h3> <p id="support-for-integer-na">In the absence of high performance <code>NA</code> support being built into NumPy from the ground up, the primary casualty is the ability to represent NAs in integer arrays. For example:</p> <pre data-language="python">In [5]: s = pd.Series([1, 2, 3, 4, 5], index=list('abcde'))
+
+In [6]: s
+Out[6]: 
+a    1
+b    2
+c    3
+d    4
+e    5
+dtype: int64
+
+In [7]: s.dtype
+Out[7]: dtype('int64')
+
+In [8]: s2 = s.reindex(['a', 'b', 'c', 'f', 'u'])
+
+In [9]: s2
+Out[9]: 
+a    1.0
+b    2.0
+c    3.0
+f    NaN
+u    NaN
+dtype: float64
+
+In [10]: s2.dtype
+Out[10]: dtype('float64')
+</pre> <p>This trade-off is made largely for memory and performance reasons, and also so that the resulting Series continues to be “numeric”. One possibility is to use <code>dtype=object</code> arrays instead.</p>   <h3 id="na-type-promotions">
+<code>NA</code> type promotions</h3> <p>When introducing NAs into an existing Series or DataFrame via <code>reindex</code> or some other means, boolean and integer types will be promoted to a different dtype in order to store the NAs. These are summarized by this table:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Typeclass</th> <th class="head">Promotion dtype for storing NAs</th> </tr> </thead>  <tr class="row-even">
+<td><code>floating</code></td> <td>no change</td> </tr> <tr class="row-odd">
+<td><code>object</code></td> <td>no change</td> </tr> <tr class="row-even">
+<td><code>integer</code></td> <td>cast to <code>float64</code>
+</td> </tr> <tr class="row-odd">
+<td><code>boolean</code></td> <td>cast to <code>object</code>
+</td> </tr>  </table> <p>While this may seem like a heavy trade-off, in practice I have found very few cases where this is an issue in practice. Some explanation for the motivation here in the next section.</p>   <h3 id="why-not-make-numpy-like-r">Why not make NumPy like R?</h3> <p>Many people have suggested that NumPy should simply emulate the <code>NA</code> support present in the more domain-specific statistical programming language <a class="reference external" href="http://r-project.org" target="_blank">R</a>. Part of the reason is the NumPy type hierarchy:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Typeclass</th> <th class="head">Dtypes</th> </tr> </thead>  <tr class="row-even">
+<td><code>numpy.floating</code></td> <td><code>float16, float32, float64, float128</code></td> </tr> <tr class="row-odd">
+<td><code>numpy.integer</code></td> <td><code>int8, int16, int32, int64</code></td> </tr> <tr class="row-even">
+<td><code>numpy.unsignedinteger</code></td> <td><code>uint8, uint16, uint32, uint64</code></td> </tr> <tr class="row-odd">
+<td><code>numpy.object_</code></td> <td><code>object_</code></td> </tr> <tr class="row-even">
+<td><code>numpy.bool_</code></td> <td><code>bool_</code></td> </tr> <tr class="row-odd">
+<td><code>numpy.character</code></td> <td><code>string_, unicode_</code></td> </tr>  </table> <p>The R language, by contrast, only has a handful of built-in data types: <code>integer</code>, <code>numeric</code> (floating-point), <code>character</code>, and <code>boolean</code>. <code>NA</code> types are implemented by reserving special bit patterns for each type to be used as the missing value. While doing this with the full NumPy type hierarchy would be possible, it would be a more substantial trade-off (especially for the 8- and 16-bit data types) and implementation undertaking.</p> <p>An alternate approach is that of using masked arrays. A masked array is an array of data with an associated boolean <em>mask</em> denoting whether each value should be considered <code>NA</code> or not. I am personally not in love with this approach as I feel that overall it places a fairly heavy burden on the user and the library implementer. Additionally, it exacts a fairly high performance cost when working with numerical data compared with the simple approach of using <code>NaN</code>. Thus, I have chosen the Pythonic “practicality beats purity” approach and traded integer <code>NA</code> capability for a much simpler approach of using a special value in float and object arrays to denote <code>NA</code>, and promoting integer arrays to floating when NAs must be introduced.</p>    <h2 id="integer-indexing">Integer indexing</h2> <p>Label-based indexing with integer axis labels is a thorny topic. It has been discussed heavily on mailing lists and among various members of the scientific Python community. In pandas, our general viewpoint is that labels matter more than integer locations. Therefore, with an integer axis index <em>only</em> label-based indexing is possible with the standard tools like <code>.ix</code>. The following code will generate exceptions:</p> <pre data-language="python">s = pd.Series(range(5))
+s[-1]
+df = pd.DataFrame(np.random.randn(5, 4))
+df
+df.ix[-2:]
+</pre> <p>This deliberate decision was made to prevent ambiguities and subtle bugs (many users reported finding bugs when the API change was made to stop “falling back” on position-based indexing).</p>   <h2 id="label-based-slicing-conventions">Label-based slicing conventions</h2>  <h3 id="non-monotonic-indexes-require-exact-matches">Non-monotonic indexes require exact matches</h3> <p>If the index of a <code>Series</code> or <code>DataFrame</code> is monotonically increasing or decreasing, then the bounds of a label-based slice can be outside the range of the index, much like slice indexing a normal Python <code>list</code>. Monotonicity of an index can be tested with the <code>is_monotonic_increasing</code> and <code>is_monotonic_decreasing</code> attributes.</p> <pre data-language="python">In [11]: df = pd.DataFrame(index=[2,3,3,4,5], columns=['data'], data=range(5))
+
+In [12]: df.index.is_monotonic_increasing
+Out[12]: True
+
+# no rows 0 or 1, but still returns rows 2, 3 (both of them), and 4:
+In [13]: df.loc[0:4, :]
+Out[13]: 
+   data
+2     0
+3     1
+3     2
+4     3
+
+# slice is are outside the index, so empty DataFrame is returned
+In [14]: df.loc[13:15, :]
+Out[14]: 
+Empty DataFrame
+Columns: [data]
+Index: []
+</pre> <p>On the other hand, if the index is not monotonic, then both slice bounds must be <em>unique</em> members of the index.</p> <pre data-language="python">In [15]: df = pd.DataFrame(index=[2,3,1,4,3,5], columns=['data'], data=range(6))
+
+In [16]: df.index.is_monotonic_increasing
+Out[16]: False
+
+# OK because 2 and 4 are in the index
+In [17]: df.loc[2:4, :]
+Out[17]: 
+   data
+2     0
+3     1
+1     2
+4     3
+</pre> <pre data-language="python"># 0 is not in the index
+In [9]: df.loc[0:4, :]
+KeyError: 0
+
+# 3 is not a unique label
+In [11]: df.loc[2:3, :]
+KeyError: 'Cannot get right slice bound for non-unique label: 3'
+</pre>   <h3 id="endpoints-are-inclusive">Endpoints are inclusive</h3> <p>Compared with standard Python sequence slicing in which the slice endpoint is not inclusive, label-based slicing in pandas <strong>is inclusive</strong>. The primary reason for this is that it is often not possible to easily determine the “successor” or next element after a particular label in an index. For example, consider the following Series:</p> <pre data-language="python">In [18]: s = pd.Series(np.random.randn(6), index=list('abcdef'))
+
+In [19]: s
+Out[19]: 
+a    1.544821
+b   -1.708552
+c    1.545458
+d   -0.735738
+e   -0.649091
+f   -0.403878
+dtype: float64
+</pre> <p>Suppose we wished to slice from <code>c</code> to <code>e</code>, using integers this would be</p> <pre data-language="python">In [20]: s[2:5]
+Out[20]: 
+c    1.545458
+d   -0.735738
+e   -0.649091
+dtype: float64
+</pre> <p>However, if you only had <code>c</code> and <code>e</code>, determining the next element in the index can be somewhat complicated. For example, the following does not work:</p> <pre data-language="python">s.ix['c':'e'+1]
+</pre> <p>A very common use case is to limit a time series to start and end at two specific dates. To enable this, we made the design design to make label-based slicing include both endpoints:</p> <pre data-language="python">In [21]: s.ix['c':'e']
+Out[21]: 
+c    1.545458
+d   -0.735738
+e   -0.649091
+dtype: float64
+</pre> <p>This is most definitely a “practicality beats purity” sort of thing, but it is something to watch out for if you expect label-based slicing to behave exactly in the way that standard Python integer slicing works.</p>    <h2 id="miscellaneous-indexing-gotchas">Miscellaneous indexing gotchas</h2>  <h3 id="reindex-versus-ix-gotchas">Reindex versus ix gotchas</h3> <p>Many users will find themselves using the <code>ix</code> indexing capabilities as a concise means of selecting data from a pandas object:</p> <pre data-language="python">In [22]: df = pd.DataFrame(np.random.randn(6, 4), columns=['one', 'two', 'three', 'four'],
+   ....:                   index=list('abcdef'))
+   ....: 
+
+In [23]: df
+Out[23]: 
+        one       two     three      four
+a -2.474932  0.975891 -0.204206  0.452707
+b  3.478418 -0.591538 -0.508560  0.047946
+c -0.170009 -1.615606 -0.894382  1.334681
+d -0.418002 -0.690649  0.128522  0.429260
+e  1.207515 -1.308877 -0.548792 -1.520879
+f  1.153696  0.609378 -0.825763  0.218223
+
+In [24]: df.ix[['b', 'c', 'e']]
+Out[24]: 
+        one       two     three      four
+b  3.478418 -0.591538 -0.508560  0.047946
+c -0.170009 -1.615606 -0.894382  1.334681
+e  1.207515 -1.308877 -0.548792 -1.520879
+</pre> <p>This is, of course, completely equivalent <em>in this case</em> to using the <code>reindex</code> method:</p> <pre data-language="python">In [25]: df.reindex(['b', 'c', 'e'])
+Out[25]: 
+        one       two     three      four
+b  3.478418 -0.591538 -0.508560  0.047946
+c -0.170009 -1.615606 -0.894382  1.334681
+e  1.207515 -1.308877 -0.548792 -1.520879
+</pre> <p>Some might conclude that <code>ix</code> and <code>reindex</code> are 100% equivalent based on this. This is indeed true <strong>except in the case of integer indexing</strong>. For example, the above operation could alternately have been expressed as:</p> <pre data-language="python">In [26]: df.ix[[1, 2, 4]]
+Out[26]: 
+        one       two     three      four
+b  3.478418 -0.591538 -0.508560  0.047946
+c -0.170009 -1.615606 -0.894382  1.334681
+e  1.207515 -1.308877 -0.548792 -1.520879
+</pre> <p>If you pass <code>[1, 2, 4]</code> to <code>reindex</code> you will get another thing entirely:</p> <pre data-language="python">In [27]: df.reindex([1, 2, 4])
+Out[27]: 
+   one  two  three  four
+1  NaN  NaN    NaN   NaN
+2  NaN  NaN    NaN   NaN
+4  NaN  NaN    NaN   NaN
+</pre> <p>So it’s important to remember that <code>reindex</code> is <strong>strict label indexing only</strong>. This can lead to some potentially surprising results in pathological cases where an index contains, say, both integers and strings:</p> <pre data-language="python">In [28]: s = pd.Series([1, 2, 3], index=['a', 0, 1])
+
+In [29]: s
+Out[29]: 
+a    1
+0    2
+1    3
+dtype: int64
+
+In [30]: s.ix[[0, 1]]
+Out[30]: 
+0    2
+1    3
+dtype: int64
+
+In [31]: s.reindex([0, 1])
+Out[31]: 
+0    2
+1    3
+dtype: int64
+</pre> <p>Because the index in this case does not contain solely integers, <code>ix</code> falls back on integer indexing. By contrast, <code>reindex</code> only looks for the values passed in the index, thus finding the integers <code>0</code> and <code>1</code>. While it would be possible to insert some logic to check whether a passed sequence is all contained in the index, that logic would exact a very high cost in large data sets.</p>   <h3 id="reindex-potentially-changes-underlying-series-dtype">Reindex potentially changes underlying Series dtype</h3> <p>The use of <code>reindex_like</code> can potentially change the dtype of a <code>Series</code>.</p> <pre data-language="python">In [32]: series = pd.Series([1, 2, 3])
+
+In [33]: x = pd.Series([True])
+
+In [34]: x.dtype
+Out[34]: dtype('bool')
+
+In [35]: x = pd.Series([True]).reindex_like(series)
+
+In [36]: x.dtype
+Out[36]: dtype('O')
+</pre> <p>This is because <code>reindex_like</code> silently inserts <code>NaNs</code> and the <code>dtype</code> changes accordingly. This can cause some issues when using <code>numpy</code> <code>ufuncs</code> such as <code>numpy.logical_and</code>.</p> <p>See the <a class="reference external" href="https://github.com/pydata/pandas/issues/2388" target="_blank">this old issue</a> for a more detailed discussion.</p>    <h2 id="parsing-dates-from-text-files">Parsing Dates from Text Files</h2> <p>When parsing multiple text file columns into a single date column, the new date column is prepended to the data and then <code>index_col</code> specification is indexed off of the new set of columns rather than the original ones:</p> <pre data-language="python">In [37]: print(open('tmp.csv').read())
+KORD,19990127, 19:00:00, 18:56:00, 0.8100
+KORD,19990127, 20:00:00, 19:56:00, 0.0100
+KORD,19990127, 21:00:00, 20:56:00, -0.5900
+KORD,19990127, 21:00:00, 21:18:00, -0.9900
+KORD,19990127, 22:00:00, 21:56:00, -0.5900
+KORD,19990127, 23:00:00, 22:56:00, -0.5900
+
+In [38]: date_spec = {'nominal': [1, 2], 'actual': [1, 3]}
+
+In [39]: df = pd.read_csv('tmp.csv', header=None,
+   ....:                  parse_dates=date_spec,
+   ....:                  keep_date_col=True,
+   ....:                  index_col=0)
+   ....: 
+
+# index_col=0 refers to the combined column "nominal" and not the original
+# first column of 'KORD' strings
+In [40]: df
+Out[40]: 
+                                 actual     0         1          2          3  \
+nominal                                                                         
+1999-01-27 19:00:00 1999-01-27 18:56:00  KORD  19990127   19:00:00   18:56:00   
+1999-01-27 20:00:00 1999-01-27 19:56:00  KORD  19990127   20:00:00   19:56:00   
+1999-01-27 21:00:00 1999-01-27 20:56:00  KORD  19990127   21:00:00   20:56:00   
+1999-01-27 21:00:00 1999-01-27 21:18:00  KORD  19990127   21:00:00   21:18:00   
+1999-01-27 22:00:00 1999-01-27 21:56:00  KORD  19990127   22:00:00   21:56:00   
+1999-01-27 23:00:00 1999-01-27 22:56:00  KORD  19990127   23:00:00   22:56:00   
+
+                        4  
+nominal                    
+1999-01-27 19:00:00  0.81  
+1999-01-27 20:00:00  0.01  
+1999-01-27 21:00:00 -0.59  
+1999-01-27 21:00:00 -0.99  
+1999-01-27 22:00:00 -0.59  
+1999-01-27 23:00:00 -0.59  
+</pre>   <h2 id="differences-with-numpy">Differences with NumPy</h2> <p>For Series and DataFrame objects, <code>var</code> normalizes by <code>N-1</code> to produce unbiased estimates of the sample variance, while NumPy’s <code>var</code> normalizes by N, which measures the variance of the sample. Note that <code>cov</code> normalizes by <code>N-1</code> in both pandas and NumPy.</p>   <h2 id="thread-safety">Thread-safety</h2> <p>As of pandas 0.11, pandas is not 100% thread safe. The known issues relate to the <code>DataFrame.copy</code> method. If you are doing a lot of copying of DataFrame objects shared among threads, we recommend holding locks inside the threads where the data copying occurs.</p> <p>See <a class="reference external" href="http://stackoverflow.com/questions/13592618/python-pandas-dataframe-thread-safe" target="_blank">this link</a> for more information.</p>   <h2 id="html-gotchas">HTML Table Parsing</h2> <p id="html-table-parsing">There are some versioning issues surrounding the libraries that are used to parse HTML tables in the top-level pandas io function <code>read_html</code>.</p> <p><strong>Issues with</strong> <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a></p>  <ul class="simple"> <li>Benefits<ul> <li>
+<a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> is very fast</li> <li>
+<a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> requires Cython to install correctly.</li> </ul> </li> <li>Drawbacks<ul> <li>
+<a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> does <em>not</em> make any guarantees about the results of its parse <em>unless</em> it is given <a class="reference external" href="http://validator.w3.org/docs/help.html#validation_basics" target="_blank"><strong>strictly valid markup</strong></a>.</li> <li>In light of the above, we have chosen to allow you, the user, to use the <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> backend, but <strong>this backend will use</strong> <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> if <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> fails to parse</li> <li>It is therefore <em>highly recommended</em> that you install both <a class="reference external" href="http://www.crummy.com/software/BeautifulSoup" target="_blank"><strong>BeautifulSoup4</strong></a> and <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a>, so that you will still get a valid result (provided everything else is valid) even if <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> fails.</li> </ul> </li> </ul>  <p><strong>Issues with</strong> <a class="reference external" href="http://www.crummy.com/software/BeautifulSoup" target="_blank"><strong>BeautifulSoup4</strong></a> <strong>using</strong> <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> <strong>as a backend</strong></p>  <ul class="simple"> <li>The above issues hold here as well since <a class="reference external" href="http://www.crummy.com/software/BeautifulSoup" target="_blank"><strong>BeautifulSoup4</strong></a> is essentially just a wrapper around a parser backend.</li> </ul>  <p><strong>Issues with</strong> <a class="reference external" href="http://www.crummy.com/software/BeautifulSoup" target="_blank"><strong>BeautifulSoup4</strong></a> <strong>using</strong> <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> <strong>as a backend</strong></p>  <ul class="simple"> <li>Benefits<ul> <li>
+<a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> is far more lenient than <a class="reference external" href="http://lxml.de" target="_blank"><strong>lxml</strong></a> and consequently deals with <em>real-life markup</em> in a much saner way rather than just, e.g., dropping an element without notifying you.</li> <li>
+<a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> <em>generates valid HTML5 markup from invalid markup automatically</em>. This is extremely important for parsing HTML tables, since it guarantees a valid document. However, that does NOT mean that it is “correct”, since the process of fixing markup does not have a single definition.</li> <li>
+<a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> is pure Python and requires no additional build steps beyond its own installation.</li> </ul> </li> <li>Drawbacks<ul> <li>The biggest drawback to using <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank"><strong>html5lib</strong></a> is that it is slow as molasses. However consider the fact that many tables on the web are not big enough for the parsing algorithm runtime to matter. It is more likely that the bottleneck will be in the process of reading the raw text from the URL over the web, i.e., IO (input-output). For very large tables, this might not be true.</li> </ul> </li> </ul>  <p><strong>Issues with using</strong> <a class="reference external" href="https://store.continuum.io/cshop/anaconda" target="_blank"><strong>Anaconda</strong></a></p>  <ul class="simple"> <li>
+<a class="reference external" href="https://store.continuum.io/cshop/anaconda" target="_blank">Anaconda</a> ships with <a class="reference external" href="http://lxml.de" target="_blank">lxml</a> version 3.2.0; the following workaround for <a class="reference external" href="https://store.continuum.io/cshop/anaconda" target="_blank">Anaconda</a> was successfully used to deal with the versioning issues surrounding <a class="reference external" href="http://lxml.de" target="_blank">lxml</a> and <a class="reference external" href="http://www.crummy.com/software/BeautifulSoup" target="_blank">BeautifulSoup4</a>.</li> </ul> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Unless you have <em>both</em>:</p>  <ul class="simple"> <li>A strong restriction on the upper bound of the runtime of some code that incorporates <code>read_html()</code>
+</li> <li>Complete knowledge that the HTML you will be parsing will be 100% valid at all times</li> </ul>  <p>then you should install <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank">html5lib</a> and things will work swimmingly without you having to muck around with <code>conda</code>. If you want the best of both worlds then install both <a class="reference external" href="https://github.com/html5lib/html5lib-python" target="_blank">html5lib</a> and <a class="reference external" href="http://lxml.de" target="_blank">lxml</a>. If you do install <a class="reference external" href="http://lxml.de" target="_blank">lxml</a> then you need to perform the following commands to ensure that lxml will work correctly:</p> <pre data-language="sh"># remove the included version
+conda remove lxml
+
+# install the latest version of lxml
+pip install 'git+git://github.com/lxml/lxml.git'
+
+# install the latest version of beautifulsoup4
+pip install 'bzr+lp:beautifulsoup'
+</pre> <p class="last">Note that you need <a class="reference external" href="http://bazaar.canonical.com/en" target="_blank">bzr</a> and <a class="reference external" href="http://git-scm.com" target="_blank">git</a> installed to perform the last two operations.</p> </div>    <h2 id="byte-ordering-issues">Byte-Ordering Issues</h2> <p>Occasionally you may have to deal with data that were created on a machine with a different byte order than the one on which you are running Python. A common symptom of this issue is an error like</p> <pre data-language="python">Traceback
+    ...
+ValueError: Big-endian buffer not supported on little-endian compiler
+</pre> <p>To deal with this issue you should convert the underlying NumPy array to the native system byte order <em>before</em> passing it to Series/DataFrame/Panel constructors using something similar to the following:</p> <pre data-language="python">In [41]: x = np.array(list(range(10)), '&gt;i4') # big endian
+
+In [42]: newx = x.byteswap().newbyteorder() # force native byteorder
+
+In [43]: s = pd.Series(newx)
+</pre> <p>See <a class="reference external" href="http://docs.scipy.org/doc/numpy/user/basics.byteswapping.html" target="_blank">the NumPy documentation on byte order</a> for more details.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/gotchas.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/gotchas.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,883 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>17. Reshaping and Pivot Tables - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content=" Data is often stored in CSV files or databases in so-called “stacked” or “record” format&#58; ">
+  <meta name="keywords" content="reshaping, and, pivot, tables, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/reshaping/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="reshaping">Reshaping and Pivot Tables</h1>  <h2 id="reshaping-and-pivot-tables">Reshaping by pivoting DataFrame objects</h2> <p>Data is often stored in CSV files or databases in so-called “stacked” or “record” format:</p> <pre data-language="python">In [1]: df
+Out[1]: 
+         date variable     value
+0  2000-01-03        A  0.469112
+1  2000-01-04        A -0.282863
+2  2000-01-05        A -1.509059
+3  2000-01-03        B -1.135632
+4  2000-01-04        B  1.212112
+5  2000-01-05        B -0.173215
+6  2000-01-03        C  0.119209
+7  2000-01-04        C -1.044236
+8  2000-01-05        C -0.861849
+9  2000-01-03        D -2.104569
+10 2000-01-04        D -0.494929
+11 2000-01-05        D  1.071804
+</pre> <p>For the curious here is how the above DataFrame was created:</p> <pre data-language="python">import pandas.util.testing as tm; tm.N = 3
+def unpivot(frame):
+    N, K = frame.shape
+    data = {'value' : frame.values.ravel('F'),
+            'variable' : np.asarray(frame.columns).repeat(N),
+            'date' : np.tile(np.asarray(frame.index), K)}
+    return pd.DataFrame(data, columns=['date', 'variable', 'value'])
+df = unpivot(tm.makeTimeDataFrame())
+</pre> <p>To select out everything for variable <code>A</code> we could do:</p> <pre data-language="python">In [2]: df[df['variable'] == 'A']
+Out[2]: 
+        date variable     value
+0 2000-01-03        A  0.469112
+1 2000-01-04        A -0.282863
+2 2000-01-05        A -1.509059
+</pre> <p>But suppose we wish to do time series operations with the variables. A better representation would be where the <code>columns</code> are the unique variables and an <code>index</code> of dates identifies individual observations. To reshape the data into this form, use the <code>pivot</code> function:</p> <pre data-language="python">In [3]: df.pivot(index='date', columns='variable', values='value')
+Out[3]: 
+variable           A         B         C         D
+date                                              
+2000-01-03  0.469112 -1.135632  0.119209 -2.104569
+2000-01-04 -0.282863  1.212112 -1.044236 -0.494929
+2000-01-05 -1.509059 -0.173215 -0.861849  1.071804
+</pre> <p>If the <code>values</code> argument is omitted, and the input DataFrame has more than one column of values which are not used as column or index inputs to <code>pivot</code>, then the resulting “pivoted” DataFrame will have <a class="reference internal" href="../advanced/#advanced-hierarchical">hierarchical columns</a> whose topmost level indicates the respective value column:</p> <pre data-language="python">In [4]: df['value2'] = df['value'] * 2
+
+In [5]: pivoted = df.pivot('date', 'variable')
+
+In [6]: pivoted
+Out[6]: 
+               value                                  value2            \
+variable           A         B         C         D         A         B   
+date                                                                     
+2000-01-03  0.469112 -1.135632  0.119209 -2.104569  0.938225 -2.271265   
+2000-01-04 -0.282863  1.212112 -1.044236 -0.494929 -0.565727  2.424224   
+2000-01-05 -1.509059 -0.173215 -0.861849  1.071804 -3.018117 -0.346429   
+
+                                
+variable           C         D  
+date                            
+2000-01-03  0.238417 -4.209138  
+2000-01-04 -2.088472 -0.989859  
+2000-01-05 -1.723698  2.143608  
+</pre> <p>You of course can then select subsets from the pivoted DataFrame:</p> <pre data-language="python">In [7]: pivoted['value2']
+Out[7]: 
+variable           A         B         C         D
+date                                              
+2000-01-03  0.938225 -2.271265  0.238417 -4.209138
+2000-01-04 -0.565727  2.424224 -2.088472 -0.989859
+2000-01-05 -3.018117 -0.346429 -1.723698  2.143608
+</pre> <p>Note that this returns a view on the underlying data in the case where the data are homogeneously-typed.</p>   <h2 id="reshaping-stacking">Reshaping by stacking and unstacking</h2> <p id="reshaping-by-stacking-and-unstacking">Closely related to the <code>pivot</code> function are the related <code>stack</code> and <code>unstack</code> functions currently available on Series and DataFrame. These functions are designed to work together with <code>MultiIndex</code> objects (see the section on <a class="reference internal" href="../advanced/#advanced-hierarchical">hierarchical indexing</a>). Here are essentially what these functions do:</p>  <ul class="simple"> <li>
+<code>stack</code>: “pivot” a level of the (possibly hierarchical) column labels, returning a DataFrame with an index with a new inner-most level of row labels.</li> <li>
+<code>unstack</code>: inverse operation from <code>stack</code>: “pivot” a level of the (possibly hierarchical) row index to the column axis, producing a reshaped DataFrame with a new inner-most level of column labels.</li> </ul>  <p>The clearest way to explain is by example. Let’s take a prior example data set from the hierarchical indexing section:</p> <pre data-language="python">In [8]: tuples = list(zip(*[['bar', 'bar', 'baz', 'baz',
+   ...:                      'foo', 'foo', 'qux', 'qux'],
+   ...:                     ['one', 'two', 'one', 'two',
+   ...:                      'one', 'two', 'one', 'two']]))
+   ...: 
+
+In [9]: index = pd.MultiIndex.from_tuples(tuples, names=['first', 'second'])
+
+In [10]: df = pd.DataFrame(np.random.randn(8, 2), index=index, columns=['A', 'B'])
+
+In [11]: df2 = df[:4]
+
+In [12]: df2
+Out[12]: 
+                     A         B
+first second                    
+bar   one     0.721555 -0.706771
+      two    -1.039575  0.271860
+baz   one    -0.424972  0.567020
+      two     0.276232 -1.087401
+</pre> <p>The <code>stack</code> function “compresses” a level in the DataFrame’s columns to produce either:</p>  <ul class="simple"> <li>A Series, in the case of a simple column Index</li> <li>A DataFrame, in the case of a <code>MultiIndex</code> in the columns</li> </ul>  <p>If the columns have a <code>MultiIndex</code>, you can choose which level to stack. The stacked level becomes the new lowest level in a <code>MultiIndex</code> on the columns:</p> <pre data-language="python">In [13]: stacked = df2.stack()
+
+In [14]: stacked
+Out[14]: 
+first  second   
+bar    one     A    0.721555
+               B   -0.706771
+       two     A   -1.039575
+               B    0.271860
+baz    one     A   -0.424972
+               B    0.567020
+       two     A    0.276232
+               B   -1.087401
+dtype: float64
+</pre> <p>With a “stacked” DataFrame or Series (having a <code>MultiIndex</code> as the <code>index</code>), the inverse operation of <code>stack</code> is <code>unstack</code>, which by default unstacks the <strong>last level</strong>:</p> <pre data-language="python">In [15]: stacked.unstack()
+Out[15]: 
+                     A         B
+first second                    
+bar   one     0.721555 -0.706771
+      two    -1.039575  0.271860
+baz   one    -0.424972  0.567020
+      two     0.276232 -1.087401
+
+In [16]: stacked.unstack(1)
+Out[16]: 
+second        one       two
+first                      
+bar   A  0.721555 -1.039575
+      B -0.706771  0.271860
+baz   A -0.424972  0.276232
+      B  0.567020 -1.087401
+
+In [17]: stacked.unstack(0)
+Out[17]: 
+first          bar       baz
+second                      
+one    A  0.721555 -0.424972
+       B -0.706771  0.567020
+two    A -1.039575  0.276232
+       B  0.271860 -1.087401
+</pre> <p id="reshaping-unstack-by-name">If the indexes have names, you can use the level names instead of specifying the level numbers:</p> <pre data-language="python">In [18]: stacked.unstack('second')
+Out[18]: 
+second        one       two
+first                      
+bar   A  0.721555 -1.039575
+      B -0.706771  0.271860
+baz   A -0.424972  0.276232
+      B  0.567020 -1.087401
+</pre> <p>Notice that the <code>stack</code> and <code>unstack</code> methods implicitly sort the index levels involved. Hence a call to <code>stack</code> and then <code>unstack</code>, or viceversa, will result in a <strong>sorted</strong> copy of the original DataFrame or Series:</p> <pre data-language="python">In [19]: index = pd.MultiIndex.from_product([[2,1], ['a', 'b']])
+
+In [20]: df = pd.DataFrame(np.random.randn(4), index=index, columns=['A'])
+
+In [21]: df
+Out[21]: 
+            A
+2 a -0.370647
+  b -1.157892
+1 a -1.344312
+  b  0.844885
+
+In [22]: all(df.unstack().stack() == df.sort_index())
+Out[22]: True
+</pre> <p>while the above code will raise a <code>TypeError</code> if the call to <code>sort_index</code> is removed.</p>  <h3 id="reshaping-stack-multiple">Multiple Levels</h3> <p id="multiple-levels">You may also stack or unstack more than one level at a time by passing a list of levels, in which case the end result is as if each level in the list were processed individually.</p> <pre data-language="python">In [23]: columns = pd.MultiIndex.from_tuples([
+   ....:         ('A', 'cat', 'long'), ('B', 'cat', 'long'),
+   ....:         ('A', 'dog', 'short'), ('B', 'dog', 'short')
+   ....:     ],
+   ....:     names=['exp', 'animal', 'hair_length']
+   ....: )
+   ....: 
+
+In [24]: df = pd.DataFrame(np.random.randn(4, 4), columns=columns)
+
+In [25]: df
+Out[25]: 
+exp                 A         B         A         B
+animal            cat       cat       dog       dog
+hair_length      long      long     short     short
+0            1.075770 -0.109050  1.643563 -1.469388
+1            0.357021 -0.674600 -1.776904 -0.968914
+2           -1.294524  0.413738  0.276662 -0.472035
+3           -0.013960 -0.362543 -0.006154 -0.923061
+
+In [26]: df.stack(level=['animal', 'hair_length'])
+Out[26]: 
+exp                          A         B
+  animal hair_length                    
+0 cat    long         1.075770 -0.109050
+  dog    short        1.643563 -1.469388
+1 cat    long         0.357021 -0.674600
+  dog    short       -1.776904 -0.968914
+2 cat    long        -1.294524  0.413738
+  dog    short        0.276662 -0.472035
+3 cat    long        -0.013960 -0.362543
+  dog    short       -0.006154 -0.923061
+</pre> <p>The list of levels can contain either level names or level numbers (but not a mixture of the two).</p> <pre data-language="python"># df.stack(level=['animal', 'hair_length'])
+# from above is equivalent to:
+In [27]: df.stack(level=[1, 2])
+Out[27]: 
+exp                          A         B
+  animal hair_length                    
+0 cat    long         1.075770 -0.109050
+  dog    short        1.643563 -1.469388
+1 cat    long         0.357021 -0.674600
+  dog    short       -1.776904 -0.968914
+2 cat    long        -1.294524  0.413738
+  dog    short        0.276662 -0.472035
+3 cat    long        -0.013960 -0.362543
+  dog    short       -0.006154 -0.923061
+</pre>   <h3 id="missing-data">Missing Data</h3> <p>These functions are intelligent about handling missing data and do not expect each subgroup within the hierarchical index to have the same set of labels. They also can handle the index being unsorted (but you can make it sorted by calling <code>sort_index</code>, of course). Here is a more complex example:</p> <pre data-language="python">In [28]: columns = pd.MultiIndex.from_tuples([('A', 'cat'), ('B', 'dog'),
+   ....:                                      ('B', 'cat'), ('A', 'dog')],
+   ....:                                     names=['exp', 'animal'])
+   ....: 
+
+In [29]: index = pd.MultiIndex.from_product([('bar', 'baz', 'foo', 'qux'),
+   ....:                                     ('one', 'two')],
+   ....:                                    names=['first', 'second'])
+   ....: 
+
+In [30]: df = pd.DataFrame(np.random.randn(8, 4), index=index, columns=columns)
+
+In [31]: df2 = df.ix[[0, 1, 2, 4, 5, 7]]
+
+In [32]: df2
+Out[32]: 
+exp                  A         B                   A
+animal             cat       dog       cat       dog
+first second                                        
+bar   one     0.895717  0.805244 -1.206412  2.565646
+      two     1.431256  1.340309 -1.170299 -0.226169
+baz   one     0.410835  0.813850  0.132003 -0.827317
+foo   one    -1.413681  1.607920  1.024180  0.569605
+      two     0.875906 -2.211372  0.974466 -2.006747
+qux   two    -1.226825  0.769804 -1.281247 -0.727707
+</pre> <p>As mentioned above, <code>stack</code> can be called with a <code>level</code> argument to select which level in the columns to stack:</p> <pre data-language="python">In [33]: df2.stack('exp')
+Out[33]: 
+animal                 cat       dog
+first second exp                    
+bar   one    A    0.895717  2.565646
+             B   -1.206412  0.805244
+      two    A    1.431256 -0.226169
+             B   -1.170299  1.340309
+baz   one    A    0.410835 -0.827317
+             B    0.132003  0.813850
+foo   one    A   -1.413681  0.569605
+             B    1.024180  1.607920
+      two    A    0.875906 -2.006747
+             B    0.974466 -2.211372
+qux   two    A   -1.226825 -0.727707
+             B   -1.281247  0.769804
+
+In [34]: df2.stack('animal')
+Out[34]: 
+exp                         A         B
+first second animal                    
+bar   one    cat     0.895717 -1.206412
+             dog     2.565646  0.805244
+      two    cat     1.431256 -1.170299
+             dog    -0.226169  1.340309
+baz   one    cat     0.410835  0.132003
+             dog    -0.827317  0.813850
+foo   one    cat    -1.413681  1.024180
+             dog     0.569605  1.607920
+      two    cat     0.875906  0.974466
+             dog    -2.006747 -2.211372
+qux   two    cat    -1.226825 -1.281247
+             dog    -0.727707  0.769804
+</pre> <p>Unstacking can result in missing values if subgroups do not have the same set of labels. By default, missing values will be replaced with the default fill value for that data type, <code>NaN</code> for float, <code>NaT</code> for datetimelike, etc. For integer types, by default data will converted to float and missing values will be set to <code>NaN</code>.</p> <pre data-language="python">In [35]: df3 = df.iloc[[0, 1, 4, 7], [1, 2]]
+
+In [36]: df3
+Out[36]: 
+exp                  B          
+animal             dog       cat
+first second                    
+bar   one     0.805244 -1.206412
+      two     1.340309 -1.170299
+foo   one     1.607920  1.024180
+qux   two     0.769804 -1.281247
+
+In [37]: df3.unstack()
+Out[37]: 
+exp            B                              
+animal       dog                 cat          
+second       one       two       one       two
+first                                         
+bar     0.805244  1.340309 -1.206412 -1.170299
+foo     1.607920       NaN  1.024180       NaN
+qux          NaN  0.769804       NaN -1.281247
+</pre> <p>Alternatively, unstack takes an optional <code>fill_value</code> argument, for specifying the value of missing data.</p> <pre data-language="python">In [38]: df3.unstack(fill_value=-1e9)
+Out[38]: 
+exp                B                                          
+animal           dog                         cat              
+second           one           two           one           two
+first                                                         
+bar     8.052440e-01  1.340309e+00 -1.206412e+00 -1.170299e+00
+foo     1.607920e+00 -1.000000e+09  1.024180e+00 -1.000000e+09
+qux    -1.000000e+09  7.698036e-01 -1.000000e+09 -1.281247e+00
+</pre>   <h3 id="with-a-multiindex">With a MultiIndex</h3> <p>Unstacking when the columns are a <code>MultiIndex</code> is also careful about doing the right thing:</p> <pre data-language="python">In [39]: df[:3].unstack(0)
+Out[39]: 
+exp            A                   B                                      A  \
+animal       cat                 dog                cat                 dog   
+first        bar       baz       bar      baz       bar       baz       bar   
+second                                                                        
+one     0.895717  0.410835  0.805244  0.81385 -1.206412  0.132003  2.565646   
+two     1.431256       NaN  1.340309      NaN -1.170299       NaN -0.226169   
+
+exp               
+animal            
+first        baz  
+second            
+one    -0.827317  
+two          NaN  
+
+In [40]: df2.unstack(1)
+Out[40]: 
+exp            A                   B                                       A  \
+animal       cat                 dog                 cat                 dog   
+second       one       two       one       two       one       two       one   
+first                                                                          
+bar     0.895717  1.431256  0.805244  1.340309 -1.206412 -1.170299  2.565646   
+baz     0.410835       NaN  0.813850       NaN  0.132003       NaN -0.827317   
+foo    -1.413681  0.875906  1.607920 -2.211372  1.024180  0.974466  0.569605   
+qux          NaN -1.226825       NaN  0.769804       NaN -1.281247       NaN   
+
+exp               
+animal            
+second       two  
+first             
+bar    -0.226169  
+baz          NaN  
+foo    -2.006747  
+qux    -0.727707  
+</pre>    <h2 id="reshaping-melt">Reshaping by Melt</h2> <p id="reshaping-by-melt">The <a class="reference internal" href="../generated/pandas.melt/#pandas.melt" title="pandas.melt"><code>melt()</code></a> function is useful to massage a DataFrame into a format where one or more columns are identifier variables, while all other columns, considered measured variables, are “unpivoted” to the row axis, leaving just two non-identifier columns, “variable” and “value”. The names of those columns can be customized by supplying the <code>var_name</code> and <code>value_name</code> parameters.</p> <p>For instance,</p> <pre data-language="python">In [41]: cheese = pd.DataFrame({'first' : ['John', 'Mary'],
+   ....:                        'last' : ['Doe', 'Bo'],
+   ....:                        'height' : [5.5, 6.0],
+   ....:                        'weight' : [130, 150]})
+   ....: 
+
+In [42]: cheese
+Out[42]: 
+  first  height last  weight
+0  John     5.5  Doe     130
+1  Mary     6.0   Bo     150
+
+In [43]: pd.melt(cheese, id_vars=['first', 'last'])
+Out[43]: 
+  first last variable  value
+0  John  Doe   height    5.5
+1  Mary   Bo   height    6.0
+2  John  Doe   weight  130.0
+3  Mary   Bo   weight  150.0
+
+In [44]: pd.melt(cheese, id_vars=['first', 'last'], var_name='quantity')
+Out[44]: 
+  first last quantity  value
+0  John  Doe   height    5.5
+1  Mary   Bo   height    6.0
+2  John  Doe   weight  130.0
+3  Mary   Bo   weight  150.0
+</pre> <p>Another way to transform is to use the <code>wide_to_long</code> panel data convenience function.</p> <pre data-language="python">In [45]: dft = pd.DataFrame({"A1970" : {0 : "a", 1 : "b", 2 : "c"},
+   ....:                     "A1980" : {0 : "d", 1 : "e", 2 : "f"},
+   ....:                     "B1970" : {0 : 2.5, 1 : 1.2, 2 : .7},
+   ....:                     "B1980" : {0 : 3.2, 1 : 1.3, 2 : .1},
+   ....:                     "X"     : dict(zip(range(3), np.random.randn(3)))
+   ....:                    })
+   ....: 
+
+In [46]: dft["id"] = dft.index
+
+In [47]: dft
+Out[47]: 
+  A1970 A1980  B1970  B1980         X  id
+0     a     d    2.5    3.2 -0.121306   0
+1     b     e    1.2    1.3 -0.097883   1
+2     c     f    0.7    0.1  0.695775   2
+
+In [48]: pd.wide_to_long(dft, ["A", "B"], i="id", j="year")
+Out[48]: 
+                X  A    B
+id year                  
+0  1970 -0.121306  a  2.5
+1  1970 -0.097883  b  1.2
+2  1970  0.695775  c  0.7
+0  1980 -0.121306  d  3.2
+1  1980 -0.097883  e  1.3
+2  1980  0.695775  f  0.1
+</pre>   <h2 id="combining-with-stats-and-groupby">Combining with stats and GroupBy</h2> <p>It should be no shock that combining <code>pivot</code> / <code>stack</code> / <code>unstack</code> with GroupBy and the basic Series and DataFrame statistical functions can produce some very expressive and fast data manipulations.</p> <pre data-language="python">In [49]: df
+Out[49]: 
+exp                  A         B                   A
+animal             cat       dog       cat       dog
+first second                                        
+bar   one     0.895717  0.805244 -1.206412  2.565646
+      two     1.431256  1.340309 -1.170299 -0.226169
+baz   one     0.410835  0.813850  0.132003 -0.827317
+      two    -0.076467 -1.187678  1.130127 -1.436737
+foo   one    -1.413681  1.607920  1.024180  0.569605
+      two     0.875906 -2.211372  0.974466 -2.006747
+qux   one    -0.410001 -0.078638  0.545952 -1.219217
+      two    -1.226825  0.769804 -1.281247 -0.727707
+
+In [50]: df.stack().mean(1).unstack()
+Out[50]: 
+animal             cat       dog
+first second                    
+bar   one    -0.155347  1.685445
+      two     0.130479  0.557070
+baz   one     0.271419 -0.006733
+      two     0.526830 -1.312207
+foo   one    -0.194750  1.088763
+      two     0.925186 -2.109060
+qux   one     0.067976 -0.648927
+      two    -1.254036  0.021048
+
+# same result, another way
+In [51]: df.groupby(level=1, axis=1).mean()
+Out[51]: 
+animal             cat       dog
+first second                    
+bar   one    -0.155347  1.685445
+      two     0.130479  0.557070
+baz   one     0.271419 -0.006733
+      two     0.526830 -1.312207
+foo   one    -0.194750  1.088763
+      two     0.925186 -2.109060
+qux   one     0.067976 -0.648927
+      two    -1.254036  0.021048
+
+In [52]: df.stack().groupby(level=1).mean()
+Out[52]: 
+exp            A         B
+second                    
+one     0.071448  0.455513
+two    -0.424186 -0.204486
+
+In [53]: df.mean().unstack(0)
+Out[53]: 
+exp            A         B
+animal                    
+cat     0.060843  0.018596
+dog    -0.413580  0.232430
+</pre>   <h2 id="pivot-tables">Pivot tables</h2> <p id="reshaping-pivot">The function <code>pandas.pivot_table</code> can be used to create spreadsheet-style pivot tables. See the <a class="reference internal" href="../cookbook/#cookbook-pivot">cookbook</a> for some advanced strategies</p> <p>It takes a number of arguments</p> <ul class="simple"> <li>
+<code>data</code>: A DataFrame object</li> <li>
+<code>values</code>: a column or a list of columns to aggregate</li> <li>
+<code>index</code>: a column, Grouper, array which has the same length as data, or list of them. Keys to group by on the pivot table index. If an array is passed, it is being used as the same manner as column values.</li> <li>
+<code>columns</code>: a column, Grouper, array which has the same length as data, or list of them. Keys to group by on the pivot table column. If an array is passed, it is being used as the same manner as column values.</li> <li>
+<code>aggfunc</code>: function to use for aggregation, defaulting to <code>numpy.mean</code>
+</li> </ul> <p>Consider a data set like this:</p> <pre data-language="python">In [54]: import datetime
+
+In [55]: df = pd.DataFrame({'A': ['one', 'one', 'two', 'three'] * 6,
+   ....:                    'B': ['A', 'B', 'C'] * 8,
+   ....:                    'C': ['foo', 'foo', 'foo', 'bar', 'bar', 'bar'] * 4,
+   ....:                    'D': np.random.randn(24),
+   ....:                    'E': np.random.randn(24),
+   ....:                    'F': [datetime.datetime(2013, i, 1) for i in range(1, 13)] +
+   ....:                         [datetime.datetime(2013, i, 15) for i in range(1, 13)]})
+   ....: 
+
+In [56]: df
+Out[56]: 
+        A  B    C         D         E          F
+0     one  A  foo  0.341734 -0.317441 2013-01-01
+1     one  B  foo  0.959726 -1.236269 2013-02-01
+2     two  C  foo -1.110336  0.896171 2013-03-01
+3   three  A  bar -0.619976 -0.487602 2013-04-01
+4     one  B  bar  0.149748 -0.082240 2013-05-01
+5     one  C  bar -0.732339 -2.182937 2013-06-01
+6     two  A  foo  0.687738  0.380396 2013-07-01
+..    ... ..  ...       ...       ...        ...
+17    one  C  bar -0.345352  0.206053 2013-06-15
+18    two  A  foo  1.314232 -0.251905 2013-07-15
+19  three  B  foo  0.690579 -2.213588 2013-08-15
+20    one  C  foo  0.995761  1.063327 2013-09-15
+21    one  A  bar  2.396780  1.266143 2013-10-15
+22    two  B  bar  0.014871  0.299368 2013-11-15
+23  three  C  bar  3.357427 -0.863838 2013-12-15
+
+[24 rows x 6 columns]
+</pre> <p>We can produce pivot tables from this data very easily:</p> <pre data-language="python">In [57]: pd.pivot_table(df, values='D', index=['A', 'B'], columns=['C'])
+Out[57]: 
+C             bar       foo
+A     B                    
+one   A  1.120915 -0.514058
+      B -0.338421  0.002759
+      C -0.538846  0.699535
+three A -1.181568       NaN
+      B       NaN  0.433512
+      C  0.588783       NaN
+two   A       NaN  1.000985
+      B  0.158248       NaN
+      C       NaN  0.176180
+
+In [58]: pd.pivot_table(df, values='D', index=['B'], columns=['A', 'C'], aggfunc=np.sum)
+Out[58]: 
+A       one               three                 two          
+C       bar       foo       bar       foo       bar       foo
+B                                                            
+A  2.241830 -1.028115 -2.363137       NaN       NaN  2.001971
+B -0.676843  0.005518       NaN  0.867024  0.316495       NaN
+C -1.077692  1.399070  1.177566       NaN       NaN  0.352360
+
+In [59]: pd.pivot_table(df, values=['D','E'], index=['B'], columns=['A', 'C'], aggfunc=np.sum)
+Out[59]: 
+          D                                                           E  \
+A       one               three                 two                 one   
+C       bar       foo       bar       foo       bar       foo       bar   
+B                                                                         
+A  2.241830 -1.028115 -2.363137       NaN       NaN  2.001971  2.786113   
+B -0.676843  0.005518       NaN  0.867024  0.316495       NaN  1.368280   
+C -1.077692  1.399070  1.177566       NaN       NaN  0.352360 -1.976883   
+
+                                                     
+A               three                 two            
+C       foo       bar       foo       bar       foo  
+B                                                    
+A -0.043211  1.922577       NaN       NaN  0.128491  
+B -1.103384       NaN -2.128743 -0.194294       NaN  
+C  1.495717 -0.263660       NaN       NaN  0.872482  
+</pre> <p>The result object is a DataFrame having potentially hierarchical indexes on the rows and columns. If the <code>values</code> column name is not given, the pivot table will include all of the data that can be aggregated in an additional level of hierarchy in the columns:</p> <pre data-language="python">In [60]: pd.pivot_table(df, index=['A', 'B'], columns=['C'])
+Out[60]: 
+                D                   E          
+C             bar       foo       bar       foo
+A     B                                        
+one   A  1.120915 -0.514058  1.393057 -0.021605
+      B -0.338421  0.002759  0.684140 -0.551692
+      C -0.538846  0.699535 -0.988442  0.747859
+three A -1.181568       NaN  0.961289       NaN
+      B       NaN  0.433512       NaN -1.064372
+      C  0.588783       NaN -0.131830       NaN
+two   A       NaN  1.000985       NaN  0.064245
+      B  0.158248       NaN -0.097147       NaN
+      C       NaN  0.176180       NaN  0.436241
+</pre> <p>Also, you can use <code>Grouper</code> for <code>index</code> and <code>columns</code> keywords. For detail of <code>Grouper</code>, see <a class="reference internal" href="../groupby/#groupby-specify">Grouping with a Grouper specification</a>.</p> <pre data-language="python">In [61]: pd.pivot_table(df, values='D', index=pd.Grouper(freq='M', key='F'), columns='C')
+Out[61]: 
+C                bar       foo
+F                             
+2013-01-31       NaN -0.514058
+2013-02-28       NaN  0.002759
+2013-03-31       NaN  0.176180
+2013-04-30 -1.181568       NaN
+2013-05-31 -0.338421       NaN
+2013-06-30 -0.538846       NaN
+2013-07-31       NaN  1.000985
+2013-08-31       NaN  0.433512
+2013-09-30       NaN  0.699535
+2013-10-31  1.120915       NaN
+2013-11-30  0.158248       NaN
+2013-12-31  0.588783       NaN
+</pre> <p>You can render a nice output of the table omitting the missing values by calling <code>to_string</code> if you wish:</p> <pre data-language="python">In [62]: table = pd.pivot_table(df, index=['A', 'B'], columns=['C'])
+
+In [63]: print(table.to_string(na_rep=''))
+                D                   E          
+C             bar       foo       bar       foo
+A     B                                        
+one   A  1.120915 -0.514058  1.393057 -0.021605
+      B -0.338421  0.002759  0.684140 -0.551692
+      C -0.538846  0.699535 -0.988442  0.747859
+three A -1.181568            0.961289          
+      B            0.433512           -1.064372
+      C  0.588783           -0.131830          
+two   A            1.000985            0.064245
+      B  0.158248           -0.097147          
+      C            0.176180            0.436241
+</pre> <p>Note that <code>pivot_table</code> is also available as an instance method on DataFrame.</p>  <h3 id="reshaping-pivot-margins">Adding margins</h3> <p id="adding-margins">If you pass <code>margins=True</code> to <code>pivot_table</code>, special <code>All</code> columns and rows will be added with partial group aggregates across the categories on the rows and columns:</p> <pre data-language="python">In [64]: df.pivot_table(index=['A', 'B'], columns='C', margins=True, aggfunc=np.std)
+Out[64]: 
+                D                             E                    
+C             bar       foo       All       bar       foo       All
+A     B                                                            
+one   A  1.804346  1.210272  1.569879  0.179483  0.418374  0.858005
+      B  0.690376  1.353355  0.898998  1.083825  0.968138  1.101401
+      C  0.273641  0.418926  0.771139  1.689271  0.446140  1.422136
+three A  0.794212       NaN  0.794212  2.049040       NaN  2.049040
+      B       NaN  0.363548  0.363548       NaN  1.625237  1.625237
+      C  3.915454       NaN  3.915454  1.035215       NaN  1.035215
+two   A       NaN  0.442998  0.442998       NaN  0.447104  0.447104
+      B  0.202765       NaN  0.202765  0.560757       NaN  0.560757
+      C       NaN  1.819408  1.819408       NaN  0.650439  0.650439
+All      1.556686  0.952552  1.246608  1.250924  0.899904  1.059389
+</pre>    <h2 id="reshaping-crosstabulations">Cross tabulations</h2> <p id="cross-tabulations">Use the <code>crosstab</code> function to compute a cross-tabulation of two (or more) factors. By default <code>crosstab</code> computes a frequency table of the factors unless an array of values and an aggregation function are passed.</p> <p>It takes a number of arguments</p> <ul class="simple"> <li>
+<code>index</code>: array-like, values to group by in the rows</li> <li>
+<code>columns</code>: array-like, values to group by in the columns</li> <li>
+<code>values</code>: array-like, optional, array of values to aggregate according to the factors</li> <li>
+<code>aggfunc</code>: function, optional, If no values array is passed, computes a frequency table</li> <li>
+<code>rownames</code>: sequence, default <code>None</code>, must match number of row arrays passed</li> <li>
+<code>colnames</code>: sequence, default <code>None</code>, if passed, must match number of column arrays passed</li> <li>
+<code>margins</code>: boolean, default <code>False</code>, Add row/column margins (subtotals)</li> <li>
+<code>normalize</code>: boolean, {‘all’, ‘index’, ‘columns’}, or {0,1}, default <code>False</code>. Normalize by dividing all values by the sum of values.</li> </ul> <p>Any Series passed will have their name attributes used unless row or column names for the cross-tabulation are specified</p> <p>For example:</p> <pre data-language="python">In [65]: foo, bar, dull, shiny, one, two = 'foo', 'bar', 'dull', 'shiny', 'one', 'two'
+
+In [66]: a = np.array([foo, foo, bar, bar, foo, foo], dtype=object)
+
+In [67]: b = np.array([one, one, two, one, two, one], dtype=object)
+
+In [68]: c = np.array([dull, dull, shiny, dull, dull, shiny], dtype=object)
+
+In [69]: pd.crosstab(a, [b, c], rownames=['a'], colnames=['b', 'c'])
+Out[69]: 
+b    one        two      
+c   dull shiny dull shiny
+a                        
+bar    1     0    0     1
+foo    2     1    1     0
+</pre> <p>If <code>crosstab</code> receives only two Series, it will provide a frequency table.</p> <pre data-language="python">In [70]: df = pd.DataFrame({'A': [1, 2, 2, 2, 2], 'B': [3, 3, 4, 4, 4],
+   ....:                    'C': [1, 1, np.nan, 1, 1]})
+   ....: 
+
+In [71]: df
+Out[71]: 
+   A  B    C
+0  1  3  1.0
+1  2  3  1.0
+2  2  4  NaN
+3  2  4  1.0
+4  2  4  1.0
+
+In [72]: pd.crosstab(df.A, df.B)
+Out[72]: 
+B  3  4
+A      
+1  1  0
+2  1  3
+</pre>  <h3 id="normalization">Normalization</h3> <div class="versionadded"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div> <p>Frequency tables can also be normalized to show percentages rather than counts using the <code>normalize</code> argument:</p> <pre data-language="python">In [73]: pd.crosstab(df.A, df.B, normalize=True)
+Out[73]: 
+B    3    4
+A          
+1  0.2  0.0
+2  0.2  0.6
+</pre> <p><code>normalize</code> can also normalize values within each row or within each column:</p> <pre data-language="python">In [74]: pd.crosstab(df.A, df.B, normalize='columns')
+Out[74]: 
+B    3    4
+A          
+1  0.5  0.0
+2  0.5  1.0
+</pre> <p><code>crosstab</code> can also be passed a third Series and an aggregation function (<code>aggfunc</code>) that will be applied to the values of the third Series within each group defined by the first two Series:</p> <pre data-language="python">In [75]: pd.crosstab(df.A, df.B, values=df.C, aggfunc=np.sum)
+Out[75]: 
+B    3    4
+A          
+1  1.0  NaN
+2  1.0  2.0
+</pre>   <h3 id="id1">Adding Margins</h3> <p>Finally, one can also add margins or normalize this output.</p> <pre data-language="python">In [76]: pd.crosstab(df.A, df.B, values=df.C, aggfunc=np.sum, normalize=True,
+   ....:             margins=True)
+   ....: 
+Out[76]: 
+B       3    4   All
+A                   
+1    0.25  0.0  0.25
+2    0.25  0.5  0.75
+All  0.50  0.5  1.00
+</pre>    <h2 id="reshaping-tile">Tiling</h2> <p id="tiling">The <code>cut</code> function computes groupings for the values of the input array and is often used to transform continuous variables to discrete or categorical variables:</p> <pre data-language="python">In [77]: ages = np.array([10, 15, 13, 12, 23, 25, 28, 59, 60])
+
+In [78]: pd.cut(ages, bins=3)
+Out[78]: 
+[(9.95, 26.667], (9.95, 26.667], (9.95, 26.667], (9.95, 26.667], (9.95, 26.667], (9.95, 26.667], (26.667, 43.333], (43.333, 60], (43.333, 60]]
+Categories (3, object): [(9.95, 26.667] &lt; (26.667, 43.333] &lt; (43.333, 60]]
+</pre> <p>If the <code>bins</code> keyword is an integer, then equal-width bins are formed. Alternatively we can specify custom bin-edges:</p> <pre data-language="python">In [79]: pd.cut(ages, bins=[0, 18, 35, 70])
+Out[79]: 
+[(0, 18], (0, 18], (0, 18], (0, 18], (18, 35], (18, 35], (18, 35], (35, 70], (35, 70]]
+Categories (3, object): [(0, 18] &lt; (18, 35] &lt; (35, 70]]
+</pre>   <h2 id="reshaping-dummies">Computing indicator / dummy variables</h2> <p id="computing-indicator-dummy-variables">To convert a categorical variable into a “dummy” or “indicator” DataFrame, for example a column in a DataFrame (a Series) which has <code>k</code> distinct values, can derive a DataFrame containing <code>k</code> columns of 1s and 0s:</p> <pre data-language="python">In [80]: df = pd.DataFrame({'key': list('bbacab'), 'data1': range(6)})
+
+In [81]: pd.get_dummies(df['key'])
+Out[81]: 
+     a    b    c
+0  0.0  1.0  0.0
+1  0.0  1.0  0.0
+2  1.0  0.0  0.0
+3  0.0  0.0  1.0
+4  1.0  0.0  0.0
+5  0.0  1.0  0.0
+</pre> <p>Sometimes it’s useful to prefix the column names, for example when merging the result with the original DataFrame:</p> <pre data-language="python">In [82]: dummies = pd.get_dummies(df['key'], prefix='key')
+
+In [83]: dummies
+Out[83]: 
+   key_a  key_b  key_c
+0    0.0    1.0    0.0
+1    0.0    1.0    0.0
+2    1.0    0.0    0.0
+3    0.0    0.0    1.0
+4    1.0    0.0    0.0
+5    0.0    1.0    0.0
+
+In [84]: df[['data1']].join(dummies)
+Out[84]: 
+   data1  key_a  key_b  key_c
+0      0    0.0    1.0    0.0
+1      1    0.0    1.0    0.0
+2      2    1.0    0.0    0.0
+3      3    0.0    0.0    1.0
+4      4    1.0    0.0    0.0
+5      5    0.0    1.0    0.0
+</pre> <p>This function is often used along with discretization functions like <code>cut</code>:</p> <pre data-language="python">In [85]: values = np.random.randn(10)
+
+In [86]: values
+Out[86]: 
+array([ 0.4082, -1.0481, -0.0257, -0.9884,  0.0941,  1.2627,  1.29  ,
+        0.0824, -0.0558,  0.5366])
+
+In [87]: bins = [0, 0.2, 0.4, 0.6, 0.8, 1]
+
+In [88]: pd.get_dummies(pd.cut(values, bins))
+Out[88]: 
+   (0, 0.2]  (0.2, 0.4]  (0.4, 0.6]  (0.6, 0.8]  (0.8, 1]
+0       0.0         0.0         1.0         0.0       0.0
+1       0.0         0.0         0.0         0.0       0.0
+2       0.0         0.0         0.0         0.0       0.0
+3       0.0         0.0         0.0         0.0       0.0
+4       1.0         0.0         0.0         0.0       0.0
+5       0.0         0.0         0.0         0.0       0.0
+6       0.0         0.0         0.0         0.0       0.0
+7       1.0         0.0         0.0         0.0       0.0
+8       0.0         0.0         0.0         0.0       0.0
+9       0.0         0.0         1.0         0.0       0.0
+</pre> <p>See also <a class="reference internal" href="../generated/pandas.series.str.get_dummies/#pandas.Series.str.get_dummies" title="pandas.Series.str.get_dummies"><code>Series.str.get_dummies</code></a>.</p> <div class="versionadded"> <p><span class="versionmodified">New in version 0.15.0.</span></p> </div> <p><a class="reference internal" href="../generated/pandas.get_dummies/#pandas.get_dummies" title="pandas.get_dummies"><code>get_dummies()</code></a> also accepts a DataFrame. By default all categorical variables (categorical in the statistical sense, those with <code>object</code> or <code>categorical</code> dtype) are encoded as dummy variables.</p> <pre data-language="python">In [89]: df = pd.DataFrame({'A': ['a', 'b', 'a'], 'B': ['c', 'c', 'b'],
+   ....:                    'C': [1, 2, 3]})
+   ....: 
+
+In [90]: pd.get_dummies(df)
+Out[90]: 
+   C  A_a  A_b  B_b  B_c
+0  1  1.0  0.0  0.0  1.0
+1  2  0.0  1.0  0.0  1.0
+2  3  1.0  0.0  1.0  0.0
+</pre> <p>All non-object columns are included untouched in the output.</p> <p>You can control the columns that are encoded with the <code>columns</code> keyword.</p> <pre data-language="python">In [91]: pd.get_dummies(df, columns=['A'])
+Out[91]: 
+   B  C  A_a  A_b
+0  c  1  1.0  0.0
+1  c  2  0.0  1.0
+2  b  3  1.0  0.0
+</pre> <p>Notice that the <code>B</code> column is still included in the output, it just hasn’t been encoded. You can drop <code>B</code> before calling <code>get_dummies</code> if you don’t want to include it in the output.</p> <p>As with the Series version, you can pass values for the <code>prefix</code> and <code>prefix_sep</code>. By default the column name is used as the prefix, and ‘_’ as the prefix separator. You can specify <code>prefix</code> and <code>prefix_sep</code> in 3 ways</p> <ul class="simple"> <li>string: Use the same value for <code>prefix</code> or <code>prefix_sep</code> for each column to be encoded</li> <li>list: Must be the same length as the number of columns being encoded.</li> <li>dict: Mapping column name to prefix</li> </ul> <pre data-language="python">In [92]: simple = pd.get_dummies(df, prefix='new_prefix')
+
+In [93]: simple
+Out[93]: 
+   C  new_prefix_a  new_prefix_b  new_prefix_b  new_prefix_c
+0  1           1.0           0.0           0.0           1.0
+1  2           0.0           1.0           0.0           1.0
+2  3           1.0           0.0           1.0           0.0
+
+In [94]: from_list = pd.get_dummies(df, prefix=['from_A', 'from_B'])
+
+In [95]: from_list
+Out[95]: 
+   C  from_A_a  from_A_b  from_B_b  from_B_c
+0  1       1.0       0.0       0.0       1.0
+1  2       0.0       1.0       0.0       1.0
+2  3       1.0       0.0       1.0       0.0
+
+In [96]: from_dict = pd.get_dummies(df, prefix={'B': 'from_B', 'A': 'from_A'})
+
+In [97]: from_dict
+Out[97]: 
+   C  from_A_a  from_A_b  from_B_b  from_B_c
+0  1       1.0       0.0       0.0       1.0
+1  2       0.0       1.0       0.0       1.0
+2  3       1.0       0.0       1.0       0.0
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 0.18.0.</span></p> </div> <p>Sometimes it will be useful to only keep k-1 levels of a categorical variable to avoid collinearity when feeding the result to statistical models. You can switch to this mode by turn on <code>drop_first</code>.</p> <pre data-language="python">In [98]: s = pd.Series(list('abcaa'))
+
+In [99]: pd.get_dummies(s)
+Out[99]: 
+     a    b    c
+0  1.0  0.0  0.0
+1  0.0  1.0  0.0
+2  0.0  0.0  1.0
+3  1.0  0.0  0.0
+4  1.0  0.0  0.0
+
+In [100]: pd.get_dummies(s, drop_first=True)
+Out[100]: 
+     b    c
+0  0.0  0.0
+1  1.0  0.0
+2  0.0  1.0
+3  0.0  0.0
+4  0.0  0.0
+</pre> <p>When a column contains only one level, it will be omitted in the result.</p> <pre data-language="python">In [101]: df = pd.DataFrame({'A':list('aaaaa'),'B':list('ababc')})
+
+In [102]: pd.get_dummies(df)
+Out[102]: 
+   A_a  B_a  B_b  B_c
+0  1.0  1.0  0.0  0.0
+1  1.0  0.0  1.0  0.0
+2  1.0  1.0  0.0  0.0
+3  1.0  0.0  1.0  0.0
+4  1.0  0.0  0.0  1.0
+
+In [103]: pd.get_dummies(df, drop_first=True)
+Out[103]: 
+   B_b  B_c
+0  0.0  0.0
+1  1.0  0.0
+2  0.0  0.0
+3  1.0  0.0
+4  0.0  1.0
+</pre>   <h2 id="factorizing-values">Factorizing values</h2> <p>To encode 1-d values as an enumerated type use <code>factorize</code>:</p> <pre data-language="python">In [104]: x = pd.Series(['A', 'A', np.nan, 'B', 3.14, np.inf])
+
+In [105]: x
+Out[105]: 
+0       A
+1       A
+2     NaN
+3       B
+4    3.14
+5     inf
+dtype: object
+
+In [106]: labels, uniques = pd.factorize(x)
+
+In [107]: labels
+Out[107]: array([ 0,  0, -1,  1,  2,  3])
+
+In [108]: uniques
+Out[108]: Index([u'A', u'B', 3.14, inf], dtype='object')
+</pre> <p>Note that <code>factorize</code> is similar to <code>numpy.unique</code>, but differs in its handling of NaN:</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The following <code>numpy.unique</code> will fail under Python 3 with a <code>TypeError</code> because of an ordering bug. See also <a class="reference external" href="https://github.com/numpy/numpy/issues/641" target="_blank">Here</a></p> </div> <pre data-language="python">In [109]: pd.factorize(x, sort=True)
+Out[109]: 
+(array([ 2,  2, -1,  3,  0,  1]),
+ Index([3.14, inf, u'A', u'B'], dtype='object'))
+
+In [110]: np.unique(x, return_inverse=True)[::-1]
+Out[110]: (array([3, 3, 0, 4, 1, 2]), array([nan, 3.14, inf, 'A', 'B'], dtype=object))
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you just want to handle one column as a categorical variable (like R’s factor), you can use <code>df["cat_col"] = pd.Categorical(df["col"])</code> or <code>df["cat_col"] = df["col"].astype("category")</code>. For full docs on <a class="reference internal" href="../generated/pandas.categorical/#pandas.Categorical" title="pandas.Categorical"><code>Categorical</code></a>, see the <a class="reference internal" href="../categorical/#categorical">Categorical introduction</a> and the <a class="reference internal" href="../api/#api-categorical">API documentation</a>. This feature was introduced in version 0.15.</p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/reshaping.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/reshaping.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

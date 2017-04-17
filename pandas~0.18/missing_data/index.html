@@ -1,0 +1,923 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>14. Working With Missing Data - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content=" In this section, we will discuss missing (also referred to as NA) values in pandas. ">
+  <meta name="keywords" content="working, with, missing, data, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/missing_data/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="missing-data">Working with missing data</h1> <p id="working-with-missing-data">In this section, we will discuss missing (also referred to as NA) values in pandas.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The choice of using <code>NaN</code> internally to denote missing data was largely for simplicity and performance reasons. It differs from the MaskedArray approach of, for example, <code>scikits.timeseries</code>. We are hopeful that NumPy will soon be able to provide a native NA type solution (similar to R) performant enough to be used in pandas.</p> </div> <p>See the <a class="reference internal" href="../cookbook/#cookbook-missing-data">cookbook</a> for some advanced strategies</p>  <h2 id="missing-data-basics">Missing data basics</h2>  <h3 id="when-why-does-data-become-missing">When / why does data become missing?</h3> <p>Some might quibble over our usage of <em>missing</em>. By “missing” we simply mean <strong>null</strong> or “not present for whatever reason”. Many data sets simply arrive with missing data, either because it exists and was not collected or it never existed. For example, in a collection of financial time series, some of the time series might start on different dates. Thus, values prior to the start date would generally be marked as missing.</p> <p>In pandas, one of the most common ways that missing data is <strong>introduced</strong> into a data set is by reindexing. For example</p> <pre data-language="python">In [1]: df = pd.DataFrame(np.random.randn(5, 3), index=['a', 'c', 'e', 'f', 'h'],
+   ...:                   columns=['one', 'two', 'three'])
+   ...: 
+
+In [2]: df['four'] = 'bar'
+
+In [3]: df['five'] = df['one'] &gt; 0
+
+In [4]: df
+Out[4]: 
+        one       two     three four   five
+a  0.469112 -0.282863 -1.509059  bar   True
+c -1.135632  1.212112 -0.173215  bar  False
+e  0.119209 -1.044236 -0.861849  bar   True
+f -2.104569 -0.494929  1.071804  bar  False
+h  0.721555 -0.706771 -1.039575  bar   True
+
+In [5]: df2 = df.reindex(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
+
+In [6]: df2
+Out[6]: 
+        one       two     three four   five
+a  0.469112 -0.282863 -1.509059  bar   True
+b       NaN       NaN       NaN  NaN    NaN
+c -1.135632  1.212112 -0.173215  bar  False
+d       NaN       NaN       NaN  NaN    NaN
+e  0.119209 -1.044236 -0.861849  bar   True
+f -2.104569 -0.494929  1.071804  bar  False
+g       NaN       NaN       NaN  NaN    NaN
+h  0.721555 -0.706771 -1.039575  bar   True
+</pre>   <h3 id="values-considered-missing">Values considered “missing”</h3> <p>As data comes in many shapes and forms, pandas aims to be flexible with regard to handling missing data. While <code>NaN</code> is the default missing value marker for reasons of computational speed and convenience, we need to be able to easily detect this value with data of different types: floating point, integer, boolean, and general object. In many cases, however, the Python <code>None</code> will arise and we wish to also consider that “missing” or “null”.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Prior to version v0.10.0 <code>inf</code> and <code>-inf</code> were also considered to be “null” in computations. This is no longer the case by default; use the <code>mode.use_inf_as_null</code> option to recover it.</p> </div> <p id="missing-isnull">To make detecting missing values easier (and across different array dtypes), pandas provides the <code>isnull()</code> and <code>notnull()</code> functions, which are also methods on <code>Series</code> and <code>DataFrame</code> objects:</p> <pre data-language="python">In [7]: df2['one']
+Out[7]: 
+a    0.469112
+b         NaN
+c   -1.135632
+d         NaN
+e    0.119209
+f   -2.104569
+g         NaN
+h    0.721555
+Name: one, dtype: float64
+
+In [8]: pd.isnull(df2['one'])
+Out[8]: 
+a    False
+b     True
+c    False
+d     True
+e    False
+f    False
+g     True
+h    False
+Name: one, dtype: bool
+
+In [9]: df2['four'].notnull()
+Out[9]: 
+a     True
+b    False
+c     True
+d    False
+e     True
+f     True
+g    False
+h     True
+Name: four, dtype: bool
+
+In [10]: df2.isnull()
+Out[10]: 
+     one    two  three   four   five
+a  False  False  False  False  False
+b   True   True   True   True   True
+c  False  False  False  False  False
+d   True   True   True   True   True
+e  False  False  False  False  False
+f  False  False  False  False  False
+g   True   True   True   True   True
+h  False  False  False  False  False
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p>One has to be mindful that in python (and numpy), the <code>nan's</code> don’t compare equal, but <code>None's</code> <strong>do</strong>. Note that Pandas/numpy uses the fact that <code>np.nan != np.nan</code>, and treats <code>None</code> like <code>np.nan</code>.</p> <pre data-language="python">In [11]: None == None
+Out[11]: True
+
+In [12]: np.nan == np.nan
+Out[12]: False
+</pre> <p>So as compared to above, a scalar equality comparison versus a <code>None/np.nan</code> doesn’t provide useful information.</p> <pre data-language="python">In [13]: df2['one'] == np.nan
+Out[13]: 
+a    False
+b    False
+c    False
+d    False
+e    False
+f    False
+g    False
+h    False
+Name: one, dtype: bool
+</pre> </div>    <h2 id="datetimes">Datetimes</h2> <p>For datetime64[ns] types, <code>NaT</code> represents missing values. This is a pseudo-native sentinel value that can be represented by numpy in a singular dtype (datetime64[ns]). pandas objects provide intercompatibility between <code>NaT</code> and <code>NaN</code>.</p> <pre data-language="python">In [14]: df2 = df.copy()
+
+In [15]: df2['timestamp'] = pd.Timestamp('20120101')
+
+In [16]: df2
+Out[16]: 
+        one       two     three four   five  timestamp
+a  0.469112 -0.282863 -1.509059  bar   True 2012-01-01
+c -1.135632  1.212112 -0.173215  bar  False 2012-01-01
+e  0.119209 -1.044236 -0.861849  bar   True 2012-01-01
+f -2.104569 -0.494929  1.071804  bar  False 2012-01-01
+h  0.721555 -0.706771 -1.039575  bar   True 2012-01-01
+
+In [17]: df2.ix[['a','c','h'],['one','timestamp']] = np.nan
+
+In [18]: df2
+Out[18]: 
+        one       two     three four   five  timestamp
+a       NaN -0.282863 -1.509059  bar   True        NaT
+c       NaN  1.212112 -0.173215  bar  False        NaT
+e  0.119209 -1.044236 -0.861849  bar   True 2012-01-01
+f -2.104569 -0.494929  1.071804  bar  False 2012-01-01
+h       NaN -0.706771 -1.039575  bar   True        NaT
+
+In [19]: df2.get_dtype_counts()
+Out[19]: 
+bool              1
+datetime64[ns]    1
+float64           3
+object            1
+dtype: int64
+</pre>   <h2 id="missing-inserting">Inserting missing data</h2> <p id="inserting-missing-data">You can insert missing values by simply assigning to containers. The actual missing value used will be chosen based on the dtype.</p> <p>For example, numeric containers will always use <code>NaN</code> regardless of the missing value type chosen:</p> <pre data-language="python">In [20]: s = pd.Series([1, 2, 3])
+
+In [21]: s.loc[0] = None
+
+In [22]: s
+Out[22]: 
+0    NaN
+1    2.0
+2    3.0
+dtype: float64
+</pre> <p>Likewise, datetime containers will always use <code>NaT</code>.</p> <p>For object containers, pandas will use the value given:</p> <pre data-language="python">In [23]: s = pd.Series(["a", "b", "c"])
+
+In [24]: s.loc[0] = None
+
+In [25]: s.loc[1] = np.nan
+
+In [26]: s
+Out[26]: 
+0    None
+1     NaN
+2       c
+dtype: object
+</pre>   <h2 id="calculations-with-missing-data">Calculations with missing data</h2> <p>Missing values propagate naturally through arithmetic operations between pandas objects.</p> <pre data-language="python">In [27]: a
+Out[27]: 
+        one       two
+a       NaN -0.282863
+c       NaN  1.212112
+e  0.119209 -1.044236
+f -2.104569 -0.494929
+h -2.104569 -0.706771
+
+In [28]: b
+Out[28]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  1.212112 -0.173215
+e  0.119209 -1.044236 -0.861849
+f -2.104569 -0.494929  1.071804
+h       NaN -0.706771 -1.039575
+
+In [29]: a + b
+Out[29]: 
+        one  three       two
+a       NaN    NaN -0.565727
+c       NaN    NaN  2.424224
+e  0.238417    NaN -2.088472
+f -4.209138    NaN -0.989859
+h       NaN    NaN -1.413542
+</pre> <p>The descriptive statistics and computational methods discussed in the <a class="reference internal" href="../basics/#basics-stats">data structure overview</a> (and listed <a class="reference internal" href="../api/#api-series-stats">here</a> and <a class="reference internal" href="../api/#api-dataframe-stats">here</a>) are all written to account for missing data. For example:</p> <ul class="simple"> <li>When summing data, NA (missing) values will be treated as zero</li> <li>If the data are all NA, the result will be NA</li> <li>Methods like <strong>cumsum</strong> and <strong>cumprod</strong> ignore NA values, but preserve them in the resulting arrays</li> </ul> <pre data-language="python">In [30]: df
+Out[30]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  1.212112 -0.173215
+e  0.119209 -1.044236 -0.861849
+f -2.104569 -0.494929  1.071804
+h       NaN -0.706771 -1.039575
+
+In [31]: df['one'].sum()
+Out[31]: -1.9853605075978744
+
+In [32]: df.mean(1)
+Out[32]: 
+a   -0.895961
+c    0.519449
+e   -0.595625
+f   -0.509232
+h   -0.873173
+dtype: float64
+
+In [33]: df.cumsum()
+Out[33]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  0.929249 -1.682273
+e  0.119209 -0.114987 -2.544122
+f -1.985361 -0.609917 -1.472318
+h       NaN -1.316688 -2.511893
+</pre>  <h3 id="na-values-in-groupby">NA values in GroupBy</h3> <p>NA groups in GroupBy are automatically excluded. This behavior is consistent with R, for example:</p> <pre data-language="python">In [34]: df
+Out[34]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  1.212112 -0.173215
+e  0.119209 -1.044236 -0.861849
+f -2.104569 -0.494929  1.071804
+h       NaN -0.706771 -1.039575
+
+In [35]: df.groupby('one').mean()
+Out[35]: 
+                two     three
+one                          
+-2.104569 -0.494929  1.071804
+ 0.119209 -1.044236 -0.861849
+</pre> <p>See the groupby section <a class="reference internal" href="../groupby/#groupby-missing">here</a> for more information.</p>    <h2 id="cleaning-filling-missing-data">Cleaning / filling missing data</h2> <p>pandas objects are equipped with various data manipulation methods for dealing with missing data.</p>  <h3 id="missing-data-fillna">Filling missing values: fillna</h3> <p id="filling-missing-values-fillna">The <strong>fillna</strong> function can “fill in” NA values with non-null data in a couple of ways, which we illustrate:</p> <p><strong>Replace NA with a scalar value</strong></p> <pre data-language="python">In [36]: df2
+Out[36]: 
+        one       two     three four   five  timestamp
+a       NaN -0.282863 -1.509059  bar   True        NaT
+c       NaN  1.212112 -0.173215  bar  False        NaT
+e  0.119209 -1.044236 -0.861849  bar   True 2012-01-01
+f -2.104569 -0.494929  1.071804  bar  False 2012-01-01
+h       NaN -0.706771 -1.039575  bar   True        NaT
+
+In [37]: df2.fillna(0)
+Out[37]: 
+        one       two     three four   five  timestamp
+a  0.000000 -0.282863 -1.509059  bar   True 1970-01-01
+c  0.000000  1.212112 -0.173215  bar  False 1970-01-01
+e  0.119209 -1.044236 -0.861849  bar   True 2012-01-01
+f -2.104569 -0.494929  1.071804  bar  False 2012-01-01
+h  0.000000 -0.706771 -1.039575  bar   True 1970-01-01
+
+In [38]: df2['four'].fillna('missing')
+Out[38]: 
+a    bar
+c    bar
+e    bar
+f    bar
+h    bar
+Name: four, dtype: object
+</pre> <p><strong>Fill gaps forward or backward</strong></p> <p>Using the same filling arguments as <a class="reference internal" href="../basics/#basics-reindexing">reindexing</a>, we can propagate non-null values forward or backward:</p> <pre data-language="python">In [39]: df
+Out[39]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  1.212112 -0.173215
+e  0.119209 -1.044236 -0.861849
+f -2.104569 -0.494929  1.071804
+h       NaN -0.706771 -1.039575
+
+In [40]: df.fillna(method='pad')
+Out[40]: 
+        one       two     three
+a       NaN -0.282863 -1.509059
+c       NaN  1.212112 -0.173215
+e  0.119209 -1.044236 -0.861849
+f -2.104569 -0.494929  1.071804
+h -2.104569 -0.706771 -1.039575
+</pre> <p id="missing-data-fillna-limit"><strong>Limit the amount of filling</strong></p> <p>If we only want consecutive gaps filled up to a certain number of data points, we can use the <code>limit</code> keyword:</p> <pre data-language="python">In [41]: df
+Out[41]: 
+   one       two     three
+a  NaN -0.282863 -1.509059
+c  NaN  1.212112 -0.173215
+e  NaN       NaN       NaN
+f  NaN       NaN       NaN
+h  NaN -0.706771 -1.039575
+
+In [42]: df.fillna(method='pad', limit=1)
+Out[42]: 
+   one       two     three
+a  NaN -0.282863 -1.509059
+c  NaN  1.212112 -0.173215
+e  NaN  1.212112 -0.173215
+f  NaN       NaN       NaN
+h  NaN -0.706771 -1.039575
+</pre> <p>To remind you, these are the available filling methods:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Method</th> <th class="head">Action</th> </tr> </thead>  <tr class="row-even">
+<td>pad / ffill</td> <td>Fill values forward</td> </tr> <tr class="row-odd">
+<td>bfill / backfill</td> <td>Fill values backward</td> </tr>  </table> <p>With time series data, using pad/ffill is extremely common so that the “last known value” is available at every time point.</p> <p>The <code>ffill()</code> function is equivalent to <code>fillna(method='ffill')</code> and <code>bfill()</code> is equivalent to <code>fillna(method='bfill')</code></p>   <h3 id="missing-data-pandasobject">Filling with a PandasObject</h3> <div class="versionadded" id="filling-with-a-pandasobject"> <p><span class="versionmodified">New in version 0.12.</span></p> </div> <p>You can also fillna using a dict or Series that is alignable. The labels of the dict or index of the Series must match the columns of the frame you wish to fill. The use case of this is to fill a DataFrame with the mean of that column.</p> <pre data-language="python">In [43]: dff = pd.DataFrame(np.random.randn(10,3), columns=list('ABC'))
+
+In [44]: dff.iloc[3:5,0] = np.nan
+
+In [45]: dff.iloc[4:6,1] = np.nan
+
+In [46]: dff.iloc[5:8,2] = np.nan
+
+In [47]: dff
+Out[47]: 
+          A         B         C
+0  0.271860 -0.424972  0.567020
+1  0.276232 -1.087401 -0.673690
+2  0.113648 -1.478427  0.524988
+3       NaN  0.577046 -1.715002
+4       NaN       NaN -1.157892
+5 -1.344312       NaN       NaN
+6 -0.109050  1.643563       NaN
+7  0.357021 -0.674600       NaN
+8 -0.968914 -1.294524  0.413738
+9  0.276662 -0.472035 -0.013960
+
+In [48]: dff.fillna(dff.mean())
+Out[48]: 
+          A         B         C
+0  0.271860 -0.424972  0.567020
+1  0.276232 -1.087401 -0.673690
+2  0.113648 -1.478427  0.524988
+3 -0.140857  0.577046 -1.715002
+4 -0.140857 -0.401419 -1.157892
+5 -1.344312 -0.401419 -0.293543
+6 -0.109050  1.643563 -0.293543
+7  0.357021 -0.674600 -0.293543
+8 -0.968914 -1.294524  0.413738
+9  0.276662 -0.472035 -0.013960
+
+In [49]: dff.fillna(dff.mean()['B':'C'])
+Out[49]: 
+          A         B         C
+0  0.271860 -0.424972  0.567020
+1  0.276232 -1.087401 -0.673690
+2  0.113648 -1.478427  0.524988
+3       NaN  0.577046 -1.715002
+4       NaN -0.401419 -1.157892
+5 -1.344312 -0.401419 -0.293543
+6 -0.109050  1.643563 -0.293543
+7  0.357021 -0.674600 -0.293543
+8 -0.968914 -1.294524  0.413738
+9  0.276662 -0.472035 -0.013960
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 0.13.</span></p> </div> <p>Same result as above, but is aligning the ‘fill’ value which is a Series in this case.</p> <pre data-language="python">In [50]: dff.where(pd.notnull(dff), dff.mean(), axis='columns')
+Out[50]: 
+          A         B         C
+0  0.271860 -0.424972  0.567020
+1  0.276232 -1.087401 -0.673690
+2  0.113648 -1.478427  0.524988
+3 -0.140857  0.577046 -1.715002
+4 -0.140857 -0.401419 -1.157892
+5 -1.344312 -0.401419 -0.293543
+6 -0.109050  1.643563 -0.293543
+7  0.357021 -0.674600 -0.293543
+8 -0.968914 -1.294524  0.413738
+9  0.276662 -0.472035 -0.013960
+</pre>   <h3 id="missing-data-dropna">Dropping axis labels with missing data: dropna</h3> <p id="dropping-axis-labels-with-missing-data-dropna">You may wish to simply exclude labels from a data set which refer to missing data. To do this, use the <strong>dropna</strong> method:</p> <pre data-language="python">In [51]: df
+Out[51]: 
+   one       two     three
+a  NaN -0.282863 -1.509059
+c  NaN  1.212112 -0.173215
+e  NaN  0.000000  0.000000
+f  NaN  0.000000  0.000000
+h  NaN -0.706771 -1.039575
+
+In [52]: df.dropna(axis=0)
+Out[52]: 
+Empty DataFrame
+Columns: [one, two, three]
+Index: []
+
+In [53]: df.dropna(axis=1)
+Out[53]: 
+        two     three
+a -0.282863 -1.509059
+c  1.212112 -0.173215
+e  0.000000  0.000000
+f  0.000000  0.000000
+h -0.706771 -1.039575
+
+In [54]: df['one'].dropna()
+Out[54]: Series([], Name: one, dtype: float64)
+</pre> <p>Series.dropna is a simpler method as it only has one axis to consider. DataFrame.dropna has considerably more options than Series.dropna, which can be examined <a class="reference internal" href="../api/#api-dataframe-missing">in the API</a>.</p>   <h3 id="missing-data-interpolate">Interpolation</h3> <div class="versionadded" id="interpolation"> <p><span class="versionmodified">New in version 0.13.0: </span><a class="reference internal" href="../generated/pandas.dataframe.interpolate/#pandas.DataFrame.interpolate" title="pandas.DataFrame.interpolate"><code>interpolate()</code></a>, and <a class="reference internal" href="../generated/pandas.series.interpolate/#pandas.Series.interpolate" title="pandas.Series.interpolate"><code>interpolate()</code></a> have revamped interpolation methods and functionality.</p> </div> <div class="versionadded"> <p><span class="versionmodified">New in version 0.17.0: </span>The <code>limit_direction</code> keyword argument was added.</p> </div> <p>Both Series and Dataframe objects have an <code>interpolate</code> method that, by default, performs linear interpolation at missing datapoints.</p> <pre data-language="python">In [55]: ts
+Out[55]: 
+2000-01-31    0.469112
+2000-02-29         NaN
+2000-03-31         NaN
+2000-04-28         NaN
+2000-05-31         NaN
+2000-06-30         NaN
+2000-07-31         NaN
+                ...   
+2007-10-31   -3.305259
+2007-11-30   -5.485119
+2007-12-31   -6.854968
+2008-01-31   -7.809176
+2008-02-29   -6.346480
+2008-03-31   -8.089641
+2008-04-30   -8.916232
+Freq: BM, dtype: float64
+
+In [56]: ts.count()
+Out[56]: 61
+
+In [57]: ts.interpolate().count()
+Out[57]: 100
+
+In [58]: ts.interpolate().plot()
+Out[58]: &lt;matplotlib.axes._subplots.AxesSubplot at 0x135238210&gt;
+</pre> <img alt="_images/series_interpolate.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/series_interpolate.png"> <p>Index aware interpolation is available via the <code>method</code> keyword:</p> <pre data-language="python">In [59]: ts2
+Out[59]: 
+2000-01-31    0.469112
+2000-02-29         NaN
+2002-07-31   -5.689738
+2005-01-31         NaN
+2008-04-30   -8.916232
+dtype: float64
+
+In [60]: ts2.interpolate()
+Out[60]: 
+2000-01-31    0.469112
+2000-02-29   -2.610313
+2002-07-31   -5.689738
+2005-01-31   -7.302985
+2008-04-30   -8.916232
+dtype: float64
+
+In [61]: ts2.interpolate(method='time')
+Out[61]: 
+2000-01-31    0.469112
+2000-02-29    0.273272
+2002-07-31   -5.689738
+2005-01-31   -7.095568
+2008-04-30   -8.916232
+dtype: float64
+</pre> <p>For a floating-point index, use <code>method='values'</code>:</p> <pre data-language="python">In [62]: ser
+Out[62]: 
+0.0      0.0
+1.0      NaN
+10.0    10.0
+dtype: float64
+
+In [63]: ser.interpolate()
+Out[63]: 
+0.0      0.0
+1.0      5.0
+10.0    10.0
+dtype: float64
+
+In [64]: ser.interpolate(method='values')
+Out[64]: 
+0.0      0.0
+1.0      1.0
+10.0    10.0
+dtype: float64
+</pre> <p>You can also interpolate with a DataFrame:</p> <pre data-language="python">In [65]: df = pd.DataFrame({'A': [1, 2.1, np.nan, 4.7, 5.6, 6.8],
+   ....:                    'B': [.25, np.nan, np.nan, 4, 12.2, 14.4]})
+   ....: 
+
+In [66]: df
+Out[66]: 
+     A      B
+0  1.0   0.25
+1  2.1    NaN
+2  NaN    NaN
+3  4.7   4.00
+4  5.6  12.20
+5  6.8  14.40
+
+In [67]: df.interpolate()
+Out[67]: 
+     A      B
+0  1.0   0.25
+1  2.1   1.50
+2  3.4   2.75
+3  4.7   4.00
+4  5.6  12.20
+5  6.8  14.40
+</pre> <p>The <code>method</code> argument gives access to fancier interpolation methods. If you have <a class="reference external" href="http://www.scipy.org" target="_blank">scipy</a> installed, you can set pass the name of a 1-d interpolation routine to <code>method</code>. You’ll want to consult the full scipy interpolation <a class="reference external" href="http://docs.scipy.org/doc/scipy/reference/interpolate.html#univariate-interpolation" target="_blank">documentation</a> and reference <a class="reference external" href="http://docs.scipy.org/doc/scipy/reference/tutorial/interpolate.html" target="_blank">guide</a> for details. The appropriate interpolation method will depend on the type of data you are working with.</p> <ul class="simple"> <li>If you are dealing with a time series that is growing at an increasing rate, <code>method='quadratic'</code> may be appropriate.</li> <li>If you have values approximating a cumulative distribution function, then <code>method='pchip'</code> should work well.</li> <li>To fill missing values with goal of smooth plotting, use <code>method='akima'</code>.</li> </ul> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">These methods require <code>scipy</code>.</p> </div> <pre data-language="python">In [68]: df.interpolate(method='barycentric')
+Out[68]: 
+      A       B
+0  1.00   0.250
+1  2.10  -7.660
+2  3.53  -4.515
+3  4.70   4.000
+4  5.60  12.200
+5  6.80  14.400
+
+In [69]: df.interpolate(method='pchip')
+Out[69]: 
+         A          B
+0  1.00000   0.250000
+1  2.10000   0.672808
+2  3.43454   1.928950
+3  4.70000   4.000000
+4  5.60000  12.200000
+5  6.80000  14.400000
+
+In [70]: df.interpolate(method='akima')
+Out[70]: 
+          A          B
+0  1.000000   0.250000
+1  2.100000  -0.873316
+2  3.406667   0.320034
+3  4.700000   4.000000
+4  5.600000  12.200000
+5  6.800000  14.400000
+</pre> <p>When interpolating via a polynomial or spline approximation, you must also specify the degree or order of the approximation:</p> <pre data-language="python">In [71]: df.interpolate(method='spline', order=2)
+Out[71]: 
+          A          B
+0  1.000000   0.250000
+1  2.100000  -0.428598
+2  3.404545   1.206900
+3  4.700000   4.000000
+4  5.600000  12.200000
+5  6.800000  14.400000
+
+In [72]: df.interpolate(method='polynomial', order=2)
+Out[72]: 
+          A          B
+0  1.000000   0.250000
+1  2.100000  -4.161538
+2  3.547059  -2.911538
+3  4.700000   4.000000
+4  5.600000  12.200000
+5  6.800000  14.400000
+</pre> <p>Compare several methods:</p> <pre data-language="python">In [73]: np.random.seed(2)
+
+In [74]: ser = pd.Series(np.arange(1, 10.1, .25)**2 + np.random.randn(37))
+
+In [75]: bad = np.array([4, 13, 14, 15, 16, 17, 18, 20, 29])
+
+In [76]: ser[bad] = np.nan
+
+In [77]: methods = ['linear', 'quadratic', 'cubic']
+
+In [78]: df = pd.DataFrame({m: ser.interpolate(method=m) for m in methods})
+
+In [79]: df.plot()
+Out[79]: &lt;matplotlib.axes._subplots.AxesSubplot at 0x1353432d0&gt;
+</pre> <img alt="_images/compare_interpolations.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/compare_interpolations.png"> <p>Another use case is interpolation at <em>new</em> values. Suppose you have 100 observations from some distribution. And let’s suppose that you’re particularly interested in what’s happening around the middle. You can mix pandas’ <code>reindex</code> and <code>interpolate</code> methods to interpolate at the new values.</p> <pre data-language="python">In [80]: ser = pd.Series(np.sort(np.random.uniform(size=100)))
+
+# interpolate at new_index
+In [81]: new_index = ser.index | pd.Index([49.25, 49.5, 49.75, 50.25, 50.5, 50.75])
+
+In [82]: interp_s = ser.reindex(new_index).interpolate(method='pchip')
+
+In [83]: interp_s[49:51]
+Out[83]: 
+49.00    0.471410
+49.25    0.476841
+49.50    0.481780
+49.75    0.485998
+50.00    0.489266
+50.25    0.491814
+50.50    0.493995
+50.75    0.495763
+51.00    0.497074
+dtype: float64
+</pre>  <h4 id="interpolation-limits">Interpolation Limits</h4> <p>Like other pandas fill methods, <code>interpolate</code> accepts a <code>limit</code> keyword argument. Use this argument to limit the number of consecutive interpolations, keeping <code>NaN</code> values for interpolations that are too far from the last valid observation:</p> <pre data-language="python">In [84]: ser = pd.Series([np.nan, np.nan, 5, np.nan, np.nan, np.nan, 13])
+
+In [85]: ser.interpolate(limit=2)
+Out[85]: 
+0     NaN
+1     NaN
+2     5.0
+3     7.0
+4     9.0
+5     NaN
+6    13.0
+dtype: float64
+</pre> <p>By default, <code>limit</code> applies in a forward direction, so that only <code>NaN</code> values after a non-<code>NaN</code> value can be filled. If you provide <code>'backward'</code> or <code>'both'</code> for the <code>limit_direction</code> keyword argument, you can fill <code>NaN</code> values before non-<code>NaN</code> values, or both before and after non-<code>NaN</code> values, respectively:</p> <pre data-language="python">In [86]: ser.interpolate(limit=1)  # limit_direction == 'forward'
+Out[86]: 
+0     NaN
+1     NaN
+2     5.0
+3     7.0
+4     NaN
+5     NaN
+6    13.0
+dtype: float64
+
+In [87]: ser.interpolate(limit=1, limit_direction='backward')
+Out[87]: 
+0     NaN
+1     5.0
+2     5.0
+3     NaN
+4     NaN
+5    11.0
+6    13.0
+dtype: float64
+
+In [88]: ser.interpolate(limit=1, limit_direction='both')
+Out[88]: 
+0     NaN
+1     5.0
+2     5.0
+3     7.0
+4     NaN
+5    11.0
+6    13.0
+dtype: float64
+</pre>    <h3 id="missing-data-replace">Replacing Generic Values</h3> <p id="replacing-generic-values">Often times we want to replace arbitrary values with other values. New in v0.8 is the <code>replace</code> method in Series/DataFrame that provides an efficient yet flexible way to perform such replacements.</p> <p>For a Series, you can replace a single value or a list of values by another value:</p> <pre data-language="python">In [89]: ser = pd.Series([0., 1., 2., 3., 4.])
+
+In [90]: ser.replace(0, 5)
+Out[90]: 
+0    5.0
+1    1.0
+2    2.0
+3    3.0
+4    4.0
+dtype: float64
+</pre> <p>You can replace a list of values by a list of other values:</p> <pre data-language="python">In [91]: ser.replace([0, 1, 2, 3, 4], [4, 3, 2, 1, 0])
+Out[91]: 
+0    4.0
+1    3.0
+2    2.0
+3    1.0
+4    0.0
+dtype: float64
+</pre> <p>You can also specify a mapping dict:</p> <pre data-language="python">In [92]: ser.replace({0: 10, 1: 100})
+Out[92]: 
+0     10.0
+1    100.0
+2      2.0
+3      3.0
+4      4.0
+dtype: float64
+</pre> <p>For a DataFrame, you can specify individual values by column:</p> <pre data-language="python">In [93]: df = pd.DataFrame({'a': [0, 1, 2, 3, 4], 'b': [5, 6, 7, 8, 9]})
+
+In [94]: df.replace({'a': 0, 'b': 5}, 100)
+Out[94]: 
+     a    b
+0  100  100
+1    1    6
+2    2    7
+3    3    8
+4    4    9
+</pre> <p>Instead of replacing with specified values, you can treat all given values as missing and interpolate over them:</p> <pre data-language="python">In [95]: ser.replace([1, 2, 3], method='pad')
+Out[95]: 
+0    0.0
+1    0.0
+2    0.0
+3    0.0
+4    4.0
+dtype: float64
+</pre>   <h3 id="missing-data-replace-expression">String/Regular Expression Replacement</h3> <div class="admonition note" id="string-regular-expression-replacement"> <p class="first admonition-title">Note</p> <p class="last">Python strings prefixed with the <code>r</code> character such as <code>r'hello world'</code> are so-called “raw” strings. They have different semantics regarding backslashes than strings without this prefix. Backslashes in raw strings will be interpreted as an escaped backslash, e.g., <code>r'\' == '\\'</code>. You should <a class="reference external" href="http://docs.python.org/2/reference/lexical_analysis.html#string-literals" target="_blank">read about them</a> if this is unclear.</p> </div> <p>Replace the ‘.’ with <code>nan</code> (str -&gt; str)</p> <pre data-language="python">In [96]: d = {'a': list(range(4)), 'b': list('ab..'), 'c': ['a', 'b', np.nan, 'd']}
+
+In [97]: df = pd.DataFrame(d)
+
+In [98]: df.replace('.', np.nan)
+Out[98]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>Now do it with a regular expression that removes surrounding whitespace (regex -&gt; regex)</p> <pre data-language="python">In [99]: df.replace(r'\s*\.\s*', np.nan, regex=True)
+Out[99]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>Replace a few different values (list -&gt; list)</p> <pre data-language="python">In [100]: df.replace(['a', '.'], ['b', np.nan])
+Out[100]: 
+   a    b    c
+0  0    b    b
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>list of regex -&gt; list of regex</p> <pre data-language="python">In [101]: df.replace([r'\.', r'(a)'], ['dot', '\1stuff'], regex=True)
+Out[101]: 
+   a       b       c
+0  0  stuff  stuff
+1  1       b       b
+2  2     dot     NaN
+3  3     dot       d
+</pre> <p>Only search in column <code>'b'</code> (dict -&gt; dict)</p> <pre data-language="python">In [102]: df.replace({'b': '.'}, {'b': np.nan})
+Out[102]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>Same as the previous example, but use a regular expression for searching instead (dict of regex -&gt; dict)</p> <pre data-language="python">In [103]: df.replace({'b': r'\s*\.\s*'}, {'b': np.nan}, regex=True)
+Out[103]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>You can pass nested dictionaries of regular expressions that use <code>regex=True</code></p> <pre data-language="python">In [104]: df.replace({'b': {'b': r''}}, regex=True)
+Out[104]: 
+   a  b    c
+0  0  a    a
+1  1       b
+2  2  .  NaN
+3  3  .    d
+</pre> <p>or you can pass the nested dictionary like so</p> <pre data-language="python">In [105]: df.replace(regex={'b': {r'\s*\.\s*': np.nan}})
+Out[105]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  NaN  NaN
+3  3  NaN    d
+</pre> <p>You can also use the group of a regular expression match when replacing (dict of regex -&gt; dict of regex), this works for lists as well</p> <pre data-language="python">In [106]: df.replace({'b': r'\s*(\.)\s*'}, {'b': r'\1ty'}, regex=True)
+Out[106]: 
+   a    b    c
+0  0    a    a
+1  1    b    b
+2  2  .ty  NaN
+3  3  .ty    d
+</pre> <p>You can pass a list of regular expressions, of which those that match will be replaced with a scalar (list of regex -&gt; regex)</p> <pre data-language="python">In [107]: df.replace([r'\s*\.\s*', r'a|b'], np.nan, regex=True)
+Out[107]: 
+   a   b    c
+0  0 NaN  NaN
+1  1 NaN  NaN
+2  2 NaN  NaN
+3  3 NaN    d
+</pre> <p>All of the regular expression examples can also be passed with the <code>to_replace</code> argument as the <code>regex</code> argument. In this case the <code>value</code> argument must be passed explicitly by name or <code>regex</code> must be a nested dictionary. The previous example, in this case, would then be</p> <pre data-language="python">In [108]: df.replace(regex=[r'\s*\.\s*', r'a|b'], value=np.nan)
+Out[108]: 
+   a   b    c
+0  0 NaN  NaN
+1  1 NaN  NaN
+2  2 NaN  NaN
+3  3 NaN    d
+</pre> <p>This can be convenient if you do not want to pass <code>regex=True</code> every time you want to use a regular expression.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Anywhere in the above <code>replace</code> examples that you see a regular expression a compiled regular expression is valid as well.</p> </div>   <h3 id="numeric-replacement">Numeric Replacement</h3> <p>Similar to <code>DataFrame.fillna</code></p> <pre data-language="python">In [109]: df = pd.DataFrame(np.random.randn(10, 2))
+
+In [110]: df[np.random.rand(df.shape[0]) &gt; 0.5] = 1.5
+
+In [111]: df.replace(1.5, np.nan)
+Out[111]: 
+          0         1
+0 -0.844214 -1.021415
+1  0.432396 -0.323580
+2  0.423825  0.799180
+3  1.262614  0.751965
+4       NaN       NaN
+5       NaN       NaN
+6 -0.498174 -1.060799
+7  0.591667 -0.183257
+8  1.019855 -1.482465
+9       NaN       NaN
+</pre> <p>Replacing more than one value via lists works as well</p> <pre data-language="python">In [112]: df00 = df.values[0, 0]
+
+In [113]: df.replace([1.5, df00], [np.nan, 'a'])
+Out[113]: 
+          0         1
+0         a -1.021415
+1  0.432396 -0.323580
+2  0.423825  0.799180
+3   1.26261  0.751965
+4       NaN       NaN
+5       NaN       NaN
+6 -0.498174 -1.060799
+7  0.591667 -0.183257
+8   1.01985 -1.482465
+9       NaN       NaN
+
+In [114]: df[1].dtype
+Out[114]: dtype('float64')
+</pre> <p>You can also operate on the DataFrame in place</p> <pre data-language="python">In [115]: df.replace(1.5, np.nan, inplace=True)
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p>When replacing multiple <code>bool</code> or <code>datetime64</code> objects, the first argument to <code>replace</code> (<code>to_replace</code>) must match the type of the value being replaced type. For example,</p> <pre data-language="python">s = pd.Series([True, False, True])
+s.replace({'a string': 'new value', True: False})  # raises
+
+TypeError: Cannot compare types 'ndarray(dtype=bool)' and 'str'
+</pre> <p>will raise a <code>TypeError</code> because one of the <code>dict</code> keys is not of the correct type for replacement.</p> <p>However, when replacing a <em>single</em> object such as,</p> <pre data-language="python">In [116]: s = pd.Series([True, False, True])
+
+In [117]: s.replace('a string', 'another string')
+Out[117]: 
+0     True
+1    False
+2     True
+dtype: bool
+</pre> <p class="last">the original <code>NDFrame</code> object will be returned untouched. We’re working on unifying this API, but for backwards compatibility reasons we cannot break the latter behavior. See <a class="reference external" href="https://github.com/pydata/pandas/issues/6354" target="_blank">GH6354</a> for more details.</p> </div>    <h2 id="missing-data-casting-rules-and-indexing">Missing data casting rules and indexing</h2> <p>While pandas supports storing arrays of integer and boolean type, these types are not capable of storing missing data. Until we can switch to using a native NA type in NumPy, we’ve established some “casting rules” when reindexing will cause missing data to be introduced into, say, a Series or DataFrame. Here they are:</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">data type</th> <th class="head">Cast to</th> </tr> </thead>  <tr class="row-even">
+<td>integer</td> <td>float</td> </tr> <tr class="row-odd">
+<td>boolean</td> <td>object</td> </tr> <tr class="row-even">
+<td>float</td> <td>no cast</td> </tr> <tr class="row-odd">
+<td>object</td> <td>no cast</td> </tr>  </table> <p>For example:</p> <pre data-language="python">In [118]: s = pd.Series(np.random.randn(5), index=[0, 2, 4, 6, 7])
+
+In [119]: s &gt; 0
+Out[119]: 
+0    True
+2    True
+4    True
+6    True
+7    True
+dtype: bool
+
+In [120]: (s &gt; 0).dtype
+Out[120]: dtype('bool')
+
+In [121]: crit = (s &gt; 0).reindex(list(range(8)))
+
+In [122]: crit
+Out[122]: 
+0    True
+1     NaN
+2    True
+3     NaN
+4    True
+5     NaN
+6    True
+7    True
+dtype: object
+
+In [123]: crit.dtype
+Out[123]: dtype('O')
+</pre> <p>Ordinarily NumPy will complain if you try to use an object array (even if it contains boolean values) instead of a boolean array to get or set values from an ndarray (e.g. selecting values based on some criteria). If a boolean vector contains NAs, an exception will be generated:</p> <pre data-language="python">In [124]: reindexed = s.reindex(list(range(8))).fillna(0)
+
+In [125]: reindexed[crit]
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+&lt;ipython-input-125-2da204ed1ac7&gt; in &lt;module&gt;()
+----&gt; 1 reindexed[crit]
+
+/Users/tom.augspurger/miniconda3/envs/docs/lib/python2.7/site-packages/pandas/pandas/core/series.py in __getitem__(self, key)
+    619             key = list(key)
+    620 
+--&gt; 621         if is_bool_indexer(key):
+    622             key = check_bool_indexer(self.index, key)
+    623 
+
+/Users/tom.augspurger/miniconda3/envs/docs/lib/python2.7/site-packages/pandas/pandas/core/common.pyc in is_bool_indexer(key)
+   1208             if not lib.is_bool_array(key):
+   1209                 if isnull(key).any():
+-&gt; 1210                     raise ValueError('cannot index with vector containing '
+   1211                                      'NA / NaN values')
+   1212                 return False
+
+ValueError: cannot index with vector containing NA / NaN values
+</pre> <p>However, these can be filled in using <strong>fillna</strong> and it will work fine:</p> <pre data-language="python">In [126]: reindexed[crit.fillna(False)]
+Out[126]: 
+0    0.126504
+2    0.696198
+4    0.697416
+6    0.601516
+7    0.003659
+dtype: float64
+
+In [127]: reindexed[crit.fillna(True)]
+Out[127]: 
+0    0.126504
+1    0.000000
+2    0.696198
+3    0.000000
+4    0.697416
+5    0.000000
+6    0.601516
+7    0.003659
+dtype: float64
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/missing_data.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/missing_data.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,2040 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>11. Indexing and Selecting Data - Pandas 0.18 - W3cubDocs</title>
+  
+  <meta name="description" content=" The axis labeling information in pandas objects serves many purposes&#58; ">
+  <meta name="keywords" content="indexing, and, selecting, data, -, pandas, pandas~0.18">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.18/indexing/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.18.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.18/" class="_nav-link" title="" style="margin-left:0;">pandas 0.18</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="indexing">Indexing and Selecting Data</h1> <p id="indexing-and-selecting-data">The axis labeling information in pandas objects serves many purposes:</p>  <ul class="simple"> <li>Identifies data (i.e. provides <em>metadata</em>) using known indicators, important for analysis, visualization, and interactive console display</li> <li>Enables automatic and explicit data alignment</li> <li>Allows intuitive getting and setting of subsets of the data set</li> </ul>  <p>In this section, we will focus on the final point: namely, how to slice, dice, and generally get and set subsets of pandas objects. The primary focus will be on Series and DataFrame as they have received more development attention in this area. Expect more work to be invested in higher-dimensional data structures (including <code>Panel</code>) in the future, especially in label-based advanced indexing.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The Python and NumPy indexing operators <code>[]</code> and attribute operator <code>.</code> provide quick and easy access to pandas data structures across a wide range of use cases. This makes interactive work intuitive, as there’s little new to learn if you already know how to deal with Python dictionaries and NumPy arrays. However, since the type of the data to be accessed isn’t known in advance, directly using standard operators has some optimization limits. For production code, we recommended that you take advantage of the optimized pandas data access methods exposed in this chapter.</p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">Whether a copy or a reference is returned for a setting operation, may depend on the context. This is sometimes called <code>chained assignment</code> and should be avoided. See <a class="reference internal" href="#indexing-view-versus-copy">Returning a View versus Copy</a></p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">In 0.15.0 <code>Index</code> has internally been refactored to no longer subclass <code>ndarray</code> but instead subclass <code>PandasObject</code>, similarly to the rest of the pandas objects. This should be a transparent change with only very limited API implications (See the <a class="reference internal" href="http://pandas.pydata.org/pandas-docs/version/0.18.1/whatsnew.html#whatsnew-0150-refactoring" target="_blank">Internal Refactoring</a>)</p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">Indexing on an integer-based Index with floats has been clarified in 0.18.0, for a summary of the changes, see <a class="reference internal" href="http://pandas.pydata.org/pandas-docs/version/0.18.1/whatsnew.html#whatsnew-0180-float-indexers" target="_blank">here</a>.</p> </div> <p>See the <a class="reference internal" href="../advanced/#advanced">MultiIndex / Advanced Indexing</a> for <code>MultiIndex</code> and more advanced indexing documentation.</p> <p>See the <a class="reference internal" href="../cookbook/#cookbook-selection">cookbook</a> for some advanced strategies</p>  <h2 id="different-choices-for-indexing">Different Choices for Indexing</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 0.11.0.</span></p> </div> <p>Object selection has had a number of user-requested additions in order to support more explicit location based indexing. pandas now supports three types of multi-axis indexing.</p> <ul> <li>
+<p class="first"><code>.loc</code> is primarily label based, but may also be used with a boolean array. <code>.loc</code> will raise <code>KeyError</code> when the items are not found. Allowed inputs are:</p> <ul> <li>A single label, e.g. <code>5</code> or <code>'a'</code>, (note that <code>5</code> is interpreted as a <em>label</em> of the index. This use is <strong>not</strong> an integer position along the index) </li> <li>A list or array of labels <code>['a', 'b', 'c']</code> </li> <li>A slice object with labels <code>'a':'f'</code>, (note that contrary to usual python slices, <strong>both</strong> the start and the stop are included!) </li> <li>A boolean array </li> <li>
+<p class="first">A <code>callable</code> function with one argument (the calling Series, DataFrame or Panel) and that returns valid output for indexing (one of the above)</p>  <div class="versionadded"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div>  </li> </ul> <p>See more at <a class="reference internal" href="#indexing-label">Selection by Label</a></p> </li> <li>
+<p class="first"><code>.iloc</code> is primarily integer position based (from <code>0</code> to <code>length-1</code> of the axis), but may also be used with a boolean array. <code>.iloc</code> will raise <code>IndexError</code> if a requested indexer is out-of-bounds, except <em>slice</em> indexers which allow out-of-bounds indexing. (this conforms with python/numpy <em>slice</em> semantics). Allowed inputs are:</p> <ul> <li>An integer e.g. <code>5</code> </li> <li>A list or array of integers <code>[4, 3, 0]</code> </li> <li>A slice object with ints <code>1:7</code> </li> <li>A boolean array </li> <li>
+<p class="first">A <code>callable</code> function with one argument (the calling Series, DataFrame or Panel) and that returns valid output for indexing (one of the above)</p>  <div class="versionadded"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div>  </li> </ul> <p>See more at <a class="reference internal" href="#indexing-integer">Selection by Position</a></p> </li> <li>
+<p class="first"><code>.ix</code> supports mixed integer and label based access. It is primarily label based, but will fall back to integer positional access unless the corresponding axis is of integer type. <code>.ix</code> is the most general and will support any of the inputs in <code>.loc</code> and <code>.iloc</code>. <code>.ix</code> also supports floating point label schemes. <code>.ix</code> is exceptionally useful when dealing with mixed positional and label based hierarchical indexes.</p> <p>However, when an axis is integer based, ONLY label based access and not positional access is supported. Thus, in such cases, it’s usually better to be explicit and use <code>.iloc</code> or <code>.loc</code>.</p> <p>See more at <a class="reference internal" href="../advanced/#advanced">Advanced Indexing</a> and <a class="reference internal" href="../advanced/#advanced-advanced-hierarchical">Advanced Hierarchical</a>.</p> </li> <li>
+<code>.loc</code>, <code>.iloc</code>, <code>.ix</code> and also <code>[]</code> indexing can accept a <code>callable</code> as indexer. See more at <a class="reference internal" href="#indexing-callable">Selection By Callable</a>. </li> </ul> <p>Getting values from an object with multi-axes selection uses the following notation (using <code>.loc</code> as an example, but applies to <code>.iloc</code> and <code>.ix</code> as well). Any of the axes accessors may be the null slice <code>:</code>. Axes left out of the specification are assumed to be <code>:</code>. (e.g. <code>p.loc['a']</code> is equiv to <code>p.loc['a', :, :]</code>)</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Object Type</th> <th class="head">Indexers</th> </tr> </thead>  <tr class="row-even">
+<td>Series</td> <td><code>s.loc[indexer]</code></td> </tr> <tr class="row-odd">
+<td>DataFrame</td> <td><code>df.loc[row_indexer,column_indexer]</code></td> </tr> <tr class="row-even">
+<td>Panel</td> <td><code>p.loc[item_indexer,major_indexer,minor_indexer]</code></td> </tr>  </table>   <h2 id="indexing-basics">Basics</h2> <p id="basics">As mentioned when introducing the data structures in the <a class="reference internal" href="../basics/#basics">last section</a>, the primary function of indexing with <code>[]</code> (a.k.a. <code>__getitem__</code> for those familiar with implementing class behavior in Python) is selecting out lower-dimensional slices. Thus,</p> <table class="docutils">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Object Type</th> <th class="head">Selection</th> <th class="head">Return Value Type</th> </tr> </thead>  <tr class="row-even">
+<td>Series</td> <td><code>series[label]</code></td> <td>scalar value</td> </tr> <tr class="row-odd">
+<td>DataFrame</td> <td><code>frame[colname]</code></td> <td>
+<code>Series</code> corresponding to colname</td> </tr> <tr class="row-even">
+<td>Panel</td> <td><code>panel[itemname]</code></td> <td>
+<code>DataFrame</code> corresponding to the itemname</td> </tr>  </table> <p>Here we construct a simple time series data set to use for illustrating the indexing functionality:</p> <pre data-language="python">In [1]: dates = pd.date_range('1/1/2000', periods=8)
+
+In [2]: df = pd.DataFrame(np.random.randn(8, 4), index=dates, columns=['A', 'B', 'C', 'D'])
+
+In [3]: df
+Out[3]: 
+                   A         B         C         D
+2000-01-01  0.469112 -0.282863 -1.509059 -1.135632
+2000-01-02  1.212112 -0.173215  0.119209 -1.044236
+2000-01-03 -0.861849 -2.104569 -0.494929  1.071804
+2000-01-04  0.721555 -0.706771 -1.039575  0.271860
+2000-01-05 -0.424972  0.567020  0.276232 -1.087401
+2000-01-06 -0.673690  0.113648 -1.478427  0.524988
+2000-01-07  0.404705  0.577046 -1.715002 -1.039268
+2000-01-08 -0.370647 -1.157892 -1.344312  0.844885
+
+In [4]: panel = pd.Panel({'one' : df, 'two' : df - df.mean()})
+
+In [5]: panel
+Out[5]: 
+&lt;class 'pandas.core.panel.Panel'&gt;
+Dimensions: 2 (items) x 8 (major_axis) x 4 (minor_axis)
+Items axis: one to two
+Major_axis axis: 2000-01-01 00:00:00 to 2000-01-08 00:00:00
+Minor_axis axis: A to D
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">None of the indexing functionality is time series specific unless specifically stated.</p> </div> <p>Thus, as per above, we have the most basic indexing using <code>[]</code>:</p> <pre data-language="python">In [6]: s = df['A']
+
+In [7]: s[dates[5]]
+Out[7]: -0.67368970808837059
+
+In [8]: panel['two']
+Out[8]: 
+                   A         B         C         D
+2000-01-01  0.409571  0.113086 -0.610826 -0.936507
+2000-01-02  1.152571  0.222735  1.017442 -0.845111
+2000-01-03 -0.921390 -1.708620  0.403304  1.270929
+2000-01-04  0.662014 -0.310822 -0.141342  0.470985
+2000-01-05 -0.484513  0.962970  1.174465 -0.888276
+2000-01-06 -0.733231  0.509598 -0.580194  0.724113
+2000-01-07  0.345164  0.972995 -0.816769 -0.840143
+2000-01-08 -0.430188 -0.761943 -0.446079  1.044010
+</pre> <p>You can pass a list of columns to <code>[]</code> to select columns in that order. If a column is not contained in the DataFrame, an exception will be raised. Multiple columns can also be set in this manner:</p> <pre data-language="python">In [9]: df
+Out[9]: 
+                   A         B         C         D
+2000-01-01  0.469112 -0.282863 -1.509059 -1.135632
+2000-01-02  1.212112 -0.173215  0.119209 -1.044236
+2000-01-03 -0.861849 -2.104569 -0.494929  1.071804
+2000-01-04  0.721555 -0.706771 -1.039575  0.271860
+2000-01-05 -0.424972  0.567020  0.276232 -1.087401
+2000-01-06 -0.673690  0.113648 -1.478427  0.524988
+2000-01-07  0.404705  0.577046 -1.715002 -1.039268
+2000-01-08 -0.370647 -1.157892 -1.344312  0.844885
+
+In [10]: df[['B', 'A']] = df[['A', 'B']]
+
+In [11]: df
+Out[11]: 
+                   A         B         C         D
+2000-01-01 -0.282863  0.469112 -1.509059 -1.135632
+2000-01-02 -0.173215  1.212112  0.119209 -1.044236
+2000-01-03 -2.104569 -0.861849 -0.494929  1.071804
+2000-01-04 -0.706771  0.721555 -1.039575  0.271860
+2000-01-05  0.567020 -0.424972  0.276232 -1.087401
+2000-01-06  0.113648 -0.673690 -1.478427  0.524988
+2000-01-07  0.577046  0.404705 -1.715002 -1.039268
+2000-01-08 -1.157892 -0.370647 -1.344312  0.844885
+</pre> <p>You may find this useful for applying a transform (in-place) to a subset of the columns.</p>   <h2 id="attribute-access">Attribute Access</h2> <p id="indexing-attribute-access">You may access an index on a <code id="indexing-columns-multiple">Series</code>, column on a <code>DataFrame</code>, and an item on a <code>Panel</code> directly as an attribute:</p> <pre data-language="python">In [12]: sa = pd.Series([1,2,3],index=list('abc'))
+
+In [13]: dfa = df.copy()
+</pre> <pre data-language="python">In [14]: sa.b
+Out[14]: 2
+
+In [15]: dfa.A
+Out[15]: 
+2000-01-01   -0.282863
+2000-01-02   -0.173215
+2000-01-03   -2.104569
+2000-01-04   -0.706771
+2000-01-05    0.567020
+2000-01-06    0.113648
+2000-01-07    0.577046
+2000-01-08   -1.157892
+Freq: D, Name: A, dtype: float64
+
+In [16]: panel.one
+Out[16]: 
+                   A         B         C         D
+2000-01-01  0.469112 -0.282863 -1.509059 -1.135632
+2000-01-02  1.212112 -0.173215  0.119209 -1.044236
+2000-01-03 -0.861849 -2.104569 -0.494929  1.071804
+2000-01-04  0.721555 -0.706771 -1.039575  0.271860
+2000-01-05 -0.424972  0.567020  0.276232 -1.087401
+2000-01-06 -0.673690  0.113648 -1.478427  0.524988
+2000-01-07  0.404705  0.577046 -1.715002 -1.039268
+2000-01-08 -0.370647 -1.157892 -1.344312  0.844885
+</pre> <p>You can use attribute access to modify an existing element of a Series or column of a DataFrame, but be careful; if you try to use attribute access to create a new column, it fails silently, creating a new attribute rather than a new column.</p> <pre data-language="python">In [17]: sa.a = 5
+
+In [18]: sa
+Out[18]: 
+a    5
+b    2
+c    3
+dtype: int64
+
+In [19]: dfa.A = list(range(len(dfa.index)))  # ok if A already exists
+
+In [20]: dfa
+Out[20]: 
+            A         B         C         D
+2000-01-01  0  0.469112 -1.509059 -1.135632
+2000-01-02  1  1.212112  0.119209 -1.044236
+2000-01-03  2 -0.861849 -0.494929  1.071804
+2000-01-04  3  0.721555 -1.039575  0.271860
+2000-01-05  4 -0.424972  0.276232 -1.087401
+2000-01-06  5 -0.673690 -1.478427  0.524988
+2000-01-07  6  0.404705 -1.715002 -1.039268
+2000-01-08  7 -0.370647 -1.344312  0.844885
+
+In [21]: dfa['A'] = list(range(len(dfa.index)))  # use this form to create a new column
+
+In [22]: dfa
+Out[22]: 
+            A         B         C         D
+2000-01-01  0  0.469112 -1.509059 -1.135632
+2000-01-02  1  1.212112  0.119209 -1.044236
+2000-01-03  2 -0.861849 -0.494929  1.071804
+2000-01-04  3  0.721555 -1.039575  0.271860
+2000-01-05  4 -0.424972  0.276232 -1.087401
+2000-01-06  5 -0.673690 -1.478427  0.524988
+2000-01-07  6  0.404705 -1.715002 -1.039268
+2000-01-08  7 -0.370647 -1.344312  0.844885
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <ul class="last simple"> <li>You can use this access only if the index element is a valid python identifier, e.g. <code>s.1</code> is not allowed. See <a class="reference external" href="http://docs.python.org/2.7/reference/lexical_analysis.html#identifiers" target="_blank">here for an explanation of valid identifiers</a>.</li> <li>The attribute will not be available if it conflicts with an existing method name, e.g. <code>s.min</code> is not allowed.</li> <li>Similarly, the attribute will not be available if it conflicts with any of the following list: <code>index</code>, <code>major_axis</code>, <code>minor_axis</code>, <code>items</code>, <code>labels</code>.</li> <li>In any of these cases, standard indexing will still work, e.g. <code>s['1']</code>, <code>s['min']</code>, and <code>s['index']</code> will access the corresponding element or column.</li> <li>The <code>Series/Panel</code> accesses are available starting in 0.13.0.</li> </ul> </div> <p>If you are using the IPython environment, you may also use tab-completion to see these accessible attributes.</p> <p>You can also assign a <code>dict</code> to a row of a <code>DataFrame</code>:</p> <pre data-language="python">In [23]: x = pd.DataFrame({'x': [1, 2, 3], 'y': [3, 4, 5]})
+
+In [24]: x.iloc[1] = dict(x=9, y=99)
+
+In [25]: x
+Out[25]: 
+   x   y
+0  1   3
+1  9  99
+2  3   5
+</pre>   <h2 id="slicing-ranges">Slicing ranges</h2> <p>The most robust and consistent way of slicing ranges along arbitrary axes is described in the <a class="reference internal" href="#indexing-integer">Selection by Position</a> section detailing the <code>.iloc</code> method. For now, we explain the semantics of slicing using the <code>[]</code> operator.</p> <p>With Series, the syntax works exactly as with an ndarray, returning a slice of the values and the corresponding labels:</p> <pre data-language="python">In [26]: s[:5]
+Out[26]: 
+2000-01-01   -0.282863
+2000-01-02   -0.173215
+2000-01-03   -2.104569
+2000-01-04   -0.706771
+2000-01-05    0.567020
+Freq: D, Name: A, dtype: float64
+
+In [27]: s[::2]
+Out[27]: 
+2000-01-01   -0.282863
+2000-01-03   -2.104569
+2000-01-05    0.567020
+2000-01-07    0.577046
+Freq: 2D, Name: A, dtype: float64
+
+In [28]: s[::-1]
+Out[28]: 
+2000-01-08   -1.157892
+2000-01-07    0.577046
+2000-01-06    0.113648
+2000-01-05    0.567020
+2000-01-04   -0.706771
+2000-01-03   -2.104569
+2000-01-02   -0.173215
+2000-01-01   -0.282863
+Freq: -1D, Name: A, dtype: float64
+</pre> <p>Note that setting works as well:</p> <pre data-language="python">In [29]: s2 = s.copy()
+
+In [30]: s2[:5] = 0
+
+In [31]: s2
+Out[31]: 
+2000-01-01    0.000000
+2000-01-02    0.000000
+2000-01-03    0.000000
+2000-01-04    0.000000
+2000-01-05    0.000000
+2000-01-06    0.113648
+2000-01-07    0.577046
+2000-01-08   -1.157892
+Freq: D, Name: A, dtype: float64
+</pre> <p>With DataFrame, slicing inside of <code>[]</code> <strong>slices the rows</strong>. This is provided largely as a convenience since it is such a common operation.</p> <pre data-language="python">In [32]: df[:3]
+Out[32]: 
+                   A         B         C         D
+2000-01-01 -0.282863  0.469112 -1.509059 -1.135632
+2000-01-02 -0.173215  1.212112  0.119209 -1.044236
+2000-01-03 -2.104569 -0.861849 -0.494929  1.071804
+
+In [33]: df[::-1]
+Out[33]: 
+                   A         B         C         D
+2000-01-08 -1.157892 -0.370647 -1.344312  0.844885
+2000-01-07  0.577046  0.404705 -1.715002 -1.039268
+2000-01-06  0.113648 -0.673690 -1.478427  0.524988
+2000-01-05  0.567020 -0.424972  0.276232 -1.087401
+2000-01-04 -0.706771  0.721555 -1.039575  0.271860
+2000-01-03 -2.104569 -0.861849 -0.494929  1.071804
+2000-01-02 -0.173215  1.212112  0.119209 -1.044236
+2000-01-01 -0.282863  0.469112 -1.509059 -1.135632
+</pre>   <h2 id="indexing-label">Selection By Label</h2> <div class="admonition warning" id="selection-by-label"> <p class="first admonition-title">Warning</p> <p class="last">Whether a copy or a reference is returned for a setting operation, may depend on the context. This is sometimes called <code>chained assignment</code> and should be avoided. See <a class="reference internal" href="#indexing-view-versus-copy">Returning a View versus Copy</a></p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p>  <code>.loc</code> is strict when you present slicers that are not compatible (or convertible) with the index type. For example using integers in a <code>DatetimeIndex</code>. These will raise a <code>TypeError</code>. <pre data-language="python">In [34]: dfl = pd.DataFrame(np.random.randn(5,4), columns=list('ABCD'), index=pd.date_range('20130101',periods=5))
+
+In [35]: dfl
+Out[35]: 
+                   A         B         C         D
+2013-01-01  1.075770 -0.109050  1.643563 -1.469388
+2013-01-02  0.357021 -0.674600 -1.776904 -0.968914
+2013-01-03 -1.294524  0.413738  0.276662 -0.472035
+2013-01-04 -0.013960 -0.362543 -0.006154 -0.923061
+2013-01-05  0.895717  0.805244 -1.206412  2.565646
+</pre> <pre data-language="python">In [4]: dfl.loc[2:3]
+TypeError: cannot do slice indexing on &lt;class 'pandas.tseries.index.DatetimeIndex'&gt; with these indexers [2] of &lt;type 'int'&gt;
+</pre> <p>String likes in slicing <em>can</em> be convertible to the type of the index and lead to natural slicing.</p> <pre data-language="python">In [36]: dfl.loc['20130102':'20130104']
+Out[36]: 
+                   A         B         C         D
+2013-01-02  0.357021 -0.674600 -1.776904 -0.968914
+2013-01-03 -1.294524  0.413738  0.276662 -0.472035
+2013-01-04 -0.013960 -0.362543 -0.006154 -0.923061
+</pre> </div> <p>pandas provides a suite of methods in order to have <strong>purely label based indexing</strong>. This is a strict inclusion based protocol. <strong>At least 1</strong> of the labels for which you ask, must be in the index or a <code>KeyError</code> will be raised! When slicing, the start bound is <em>included</em>, <strong>AND</strong> the stop bound is <em>included</em>. Integers are valid labels, but they refer to the label <strong>and not the position</strong>.</p> <p>The <code>.loc</code> attribute is the primary access method. The following are valid inputs:</p> <ul class="simple"> <li>A single label, e.g. <code>5</code> or <code>'a'</code>, (note that <code>5</code> is interpreted as a <em>label</em> of the index. This use is <strong>not</strong> an integer position along the index)</li> <li>A list or array of labels <code>['a', 'b', 'c']</code>
+</li> <li>A slice object with labels <code>'a':'f'</code> (note that contrary to usual python slices, <strong>both</strong> the start and the stop are included!)</li> <li>A boolean array</li> <li>A <code>callable</code>, see <a class="reference internal" href="#indexing-callable">Selection By Callable</a>
+</li> </ul> <pre data-language="python">In [37]: s1 = pd.Series(np.random.randn(6),index=list('abcdef'))
+
+In [38]: s1
+Out[38]: 
+a    1.431256
+b    1.340309
+c   -1.170299
+d   -0.226169
+e    0.410835
+f    0.813850
+dtype: float64
+
+In [39]: s1.loc['c':]
+Out[39]: 
+c   -1.170299
+d   -0.226169
+e    0.410835
+f    0.813850
+dtype: float64
+
+In [40]: s1.loc['b']
+Out[40]: 1.3403088497993827
+</pre> <p>Note that setting works as well:</p> <pre data-language="python">In [41]: s1.loc['c':] = 0
+
+In [42]: s1
+Out[42]: 
+a    1.431256
+b    1.340309
+c    0.000000
+d    0.000000
+e    0.000000
+f    0.000000
+dtype: float64
+</pre> <p>With a DataFrame</p> <pre data-language="python">In [43]: df1 = pd.DataFrame(np.random.randn(6,4),
+   ....:                    index=list('abcdef'),
+   ....:                    columns=list('ABCD'))
+   ....: 
+
+In [44]: df1
+Out[44]: 
+          A         B         C         D
+a  0.132003 -0.827317 -0.076467 -1.187678
+b  1.130127 -1.436737 -1.413681  1.607920
+c  1.024180  0.569605  0.875906 -2.211372
+d  0.974466 -2.006747 -0.410001 -0.078638
+e  0.545952 -1.219217 -1.226825  0.769804
+f -1.281247 -0.727707 -0.121306 -0.097883
+
+In [45]: df1.loc[['a', 'b', 'd'], :]
+Out[45]: 
+          A         B         C         D
+a  0.132003 -0.827317 -0.076467 -1.187678
+b  1.130127 -1.436737 -1.413681  1.607920
+d  0.974466 -2.006747 -0.410001 -0.078638
+</pre> <p>Accessing via label slices</p> <pre data-language="python">In [46]: df1.loc['d':, 'A':'C']
+Out[46]: 
+          A         B         C
+d  0.974466 -2.006747 -0.410001
+e  0.545952 -1.219217 -1.226825
+f -1.281247 -0.727707 -0.121306
+</pre> <p>For getting a cross section using a label (equiv to <code>df.xs('a')</code>)</p> <pre data-language="python">In [47]: df1.loc['a']
+Out[47]: 
+A    0.132003
+B   -0.827317
+C   -0.076467
+D   -1.187678
+Name: a, dtype: float64
+</pre> <p>For getting values with a boolean array</p> <pre data-language="python">In [48]: df1.loc['a'] &gt; 0
+Out[48]: 
+A     True
+B    False
+C    False
+D    False
+Name: a, dtype: bool
+
+In [49]: df1.loc[:, df1.loc['a'] &gt; 0]
+Out[49]: 
+          A
+a  0.132003
+b  1.130127
+c  1.024180
+d  0.974466
+e  0.545952
+f -1.281247
+</pre> <p>For getting a value explicitly (equiv to deprecated <code>df.get_value('a','A')</code>)</p> <pre data-language="python"># this is also equivalent to ``df1.at['a','A']``
+In [50]: df1.loc['a', 'A']
+Out[50]: 0.13200317033032932
+</pre>   <h2 id="indexing-integer">Selection By Position</h2> <div class="admonition warning" id="selection-by-position"> <p class="first admonition-title">Warning</p> <p class="last">Whether a copy or a reference is returned for a setting operation, may depend on the context. This is sometimes called <code>chained assignment</code> and should be avoided. See <a class="reference internal" href="#indexing-view-versus-copy">Returning a View versus Copy</a></p> </div> <p>pandas provides a suite of methods in order to get <strong>purely integer based indexing</strong>. The semantics follow closely python and numpy slicing. These are <code>0-based</code> indexing. When slicing, the start bounds is <em>included</em>, while the upper bound is <em>excluded</em>. Trying to use a non-integer, even a <strong>valid</strong> label will raise a <code>IndexError</code>.</p> <p>The <code>.iloc</code> attribute is the primary access method. The following are valid inputs:</p> <ul class="simple"> <li>An integer e.g. <code>5</code>
+</li> <li>A list or array of integers <code>[4, 3, 0]</code>
+</li> <li>A slice object with ints <code>1:7</code>
+</li> <li>A boolean array</li> <li>A <code>callable</code>, see <a class="reference internal" href="#indexing-callable">Selection By Callable</a>
+</li> </ul> <pre data-language="python">In [51]: s1 = pd.Series(np.random.randn(5), index=list(range(0,10,2)))
+
+In [52]: s1
+Out[52]: 
+0    0.695775
+2    0.341734
+4    0.959726
+6   -1.110336
+8   -0.619976
+dtype: float64
+
+In [53]: s1.iloc[:3]
+Out[53]: 
+0    0.695775
+2    0.341734
+4    0.959726
+dtype: float64
+
+In [54]: s1.iloc[3]
+Out[54]: -1.1103361028911669
+</pre> <p>Note that setting works as well:</p> <pre data-language="python">In [55]: s1.iloc[:3] = 0
+
+In [56]: s1
+Out[56]: 
+0    0.000000
+2    0.000000
+4    0.000000
+6   -1.110336
+8   -0.619976
+dtype: float64
+</pre> <p>With a DataFrame</p> <pre data-language="python">In [57]: df1 = pd.DataFrame(np.random.randn(6,4),
+   ....:                    index=list(range(0,12,2)),
+   ....:                    columns=list(range(0,8,2)))
+   ....: 
+
+In [58]: df1
+Out[58]: 
+           0         2         4         6
+0   0.149748 -0.732339  0.687738  0.176444
+2   0.403310 -0.154951  0.301624 -2.179861
+4  -1.369849 -0.954208  1.462696 -1.743161
+6  -0.826591 -0.345352  1.314232  0.690579
+8   0.995761  2.396780  0.014871  3.357427
+10 -0.317441 -1.236269  0.896171 -0.487602
+</pre> <p>Select via integer slicing</p> <pre data-language="python">In [59]: df1.iloc[:3]
+Out[59]: 
+          0         2         4         6
+0  0.149748 -0.732339  0.687738  0.176444
+2  0.403310 -0.154951  0.301624 -2.179861
+4 -1.369849 -0.954208  1.462696 -1.743161
+
+In [60]: df1.iloc[1:5, 2:4]
+Out[60]: 
+          4         6
+2  0.301624 -2.179861
+4  1.462696 -1.743161
+6  1.314232  0.690579
+8  0.014871  3.357427
+</pre> <p>Select via integer list</p> <pre data-language="python">In [61]: df1.iloc[[1, 3, 5], [1, 3]]
+Out[61]: 
+           2         6
+2  -0.154951 -2.179861
+6  -0.345352  0.690579
+10 -1.236269 -0.487602
+</pre> <pre data-language="python">In [62]: df1.iloc[1:3, :]
+Out[62]: 
+          0         2         4         6
+2  0.403310 -0.154951  0.301624 -2.179861
+4 -1.369849 -0.954208  1.462696 -1.743161
+</pre> <pre data-language="python">In [63]: df1.iloc[:, 1:3]
+Out[63]: 
+           2         4
+0  -0.732339  0.687738
+2  -0.154951  0.301624
+4  -0.954208  1.462696
+6  -0.345352  1.314232
+8   2.396780  0.014871
+10 -1.236269  0.896171
+</pre> <pre data-language="python"># this is also equivalent to ``df1.iat[1,1]``
+In [64]: df1.iloc[1, 1]
+Out[64]: -0.15495077442490321
+</pre> <p>For getting a cross section using an integer position (equiv to <code>df.xs(1)</code>)</p> <pre data-language="python">In [65]: df1.iloc[1]
+Out[65]: 
+0    0.403310
+2   -0.154951
+4    0.301624
+6   -2.179861
+Name: 2, dtype: float64
+</pre> <p>Out of range slice indexes are handled gracefully just as in Python/Numpy.</p> <pre data-language="python"># these are allowed in python/numpy.
+# Only works in Pandas starting from v0.14.0.
+In [66]: x = list('abcdef')
+
+In [67]: x
+Out[67]: ['a', 'b', 'c', 'd', 'e', 'f']
+
+In [68]: x[4:10]
+Out[68]: ['e', 'f']
+
+In [69]: x[8:10]
+Out[69]: []
+
+In [70]: s = pd.Series(x)
+
+In [71]: s
+Out[71]: 
+0    a
+1    b
+2    c
+3    d
+4    e
+5    f
+dtype: object
+
+In [72]: s.iloc[4:10]
+Out[72]: 
+4    e
+5    f
+dtype: object
+
+In [73]: s.iloc[8:10]
+Out[73]: Series([], dtype: object)
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Prior to v0.14.0, <code>iloc</code> would not accept out of bounds indexers for slices, e.g. a value that exceeds the length of the object being indexed.</p> </div> <p>Note that this could result in an empty axis (e.g. an empty DataFrame being returned)</p> <pre data-language="python">In [74]: dfl = pd.DataFrame(np.random.randn(5,2), columns=list('AB'))
+
+In [75]: dfl
+Out[75]: 
+          A         B
+0 -0.082240 -2.182937
+1  0.380396  0.084844
+2  0.432390  1.519970
+3 -0.493662  0.600178
+4  0.274230  0.132885
+
+In [76]: dfl.iloc[:, 2:3]
+Out[76]: 
+Empty DataFrame
+Columns: []
+Index: [0, 1, 2, 3, 4]
+
+In [77]: dfl.iloc[:, 1:3]
+Out[77]: 
+          B
+0 -2.182937
+1  0.084844
+2  1.519970
+3  0.600178
+4  0.132885
+
+In [78]: dfl.iloc[4:6]
+Out[78]: 
+         A         B
+4  0.27423  0.132885
+</pre> <p>A single indexer that is out of bounds will raise an <code>IndexError</code>. A list of indexers where any element is out of bounds will raise an <code>IndexError</code></p> <pre data-language="python">dfl.iloc[[4, 5, 6]]
+IndexError: positional indexers are out-of-bounds
+
+dfl.iloc[:, 4]
+IndexError: single positional indexer is out-of-bounds
+</pre>   <h2 id="indexing-callable">Selection By Callable</h2> <div class="versionadded" id="selection-by-callable"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div> <p><code>.loc</code>, <code>.iloc</code>, <code>.ix</code> and also <code>[]</code> indexing can accept a <code>callable</code> as indexer. The <code>callable</code> must be a function with one argument (the calling Series, DataFrame or Panel) and that returns valid output for indexing.</p> <pre data-language="python">In [79]: df1 = pd.DataFrame(np.random.randn(6, 4),
+   ....:                    index=list('abcdef'),
+   ....:                    columns=list('ABCD'))
+   ....: 
+
+In [80]: df1
+Out[80]: 
+          A         B         C         D
+a -0.023688  2.410179  1.450520  0.206053
+b -0.251905 -2.213588  1.063327  1.266143
+c  0.299368 -0.863838  0.408204 -1.048089
+d -0.025747 -0.988387  0.094055  1.262731
+e  1.289997  0.082423 -0.055758  0.536580
+f -0.489682  0.369374 -0.034571 -2.484478
+
+In [81]: df1.loc[lambda df: df.A &gt; 0, :]
+Out[81]: 
+          A         B         C         D
+c  0.299368 -0.863838  0.408204 -1.048089
+e  1.289997  0.082423 -0.055758  0.536580
+
+In [82]: df1.loc[:, lambda df: ['A', 'B']]
+Out[82]: 
+          A         B
+a -0.023688  2.410179
+b -0.251905 -2.213588
+c  0.299368 -0.863838
+d -0.025747 -0.988387
+e  1.289997  0.082423
+f -0.489682  0.369374
+
+In [83]: df1.iloc[:, lambda df: [0, 1]]
+Out[83]: 
+          A         B
+a -0.023688  2.410179
+b -0.251905 -2.213588
+c  0.299368 -0.863838
+d -0.025747 -0.988387
+e  1.289997  0.082423
+f -0.489682  0.369374
+
+In [84]: df1[lambda df: df.columns[0]]
+Out[84]: 
+a   -0.023688
+b   -0.251905
+c    0.299368
+d   -0.025747
+e    1.289997
+f   -0.489682
+Name: A, dtype: float64
+</pre> <p>You can use callable indexing in <code>Series</code>.</p> <pre data-language="python">In [85]: df1.A.loc[lambda s: s &gt; 0]
+Out[85]: 
+c    0.299368
+e    1.289997
+Name: A, dtype: float64
+</pre> <p>Using these methods / indexers, you can chain data selection operations without using temporary variable.</p> <pre data-language="python">In [86]: bb = pd.read_csv('data/baseball.csv', index_col='id')
+
+In [87]: (bb.groupby(['year', 'team']).sum()
+   ....:    .loc[lambda df: df.r &gt; 100])
+   ....: 
+Out[87]: 
+           stint    g    ab    r    h  X2b  X3b  hr    rbi    sb   cs   bb  \
+year team                                                                    
+2007 CIN       6  379   745  101  203   35    2  36  125.0  10.0  1.0  105   
+     DET       5  301  1062  162  283   54    4  37  144.0  24.0  7.0   97   
+     HOU       4  311   926  109  218   47    6  14   77.0  10.0  4.0   60   
+     LAN      11  413  1021  153  293   61    3  36  154.0   7.0  5.0  114   
+     NYN      13  622  1854  240  509  101    3  61  243.0  22.0  4.0  174   
+     SFN       5  482  1305  198  337   67    6  40  171.0  26.0  7.0  235   
+     TEX       2  198   729  115  200   40    4  28  115.0  21.0  4.0   73   
+     TOR       4  459  1408  187  378   96    2  58  223.0   4.0  2.0  190   
+
+              so   ibb   hbp    sh    sf  gidp  
+year team                                       
+2007 CIN   127.0  14.0   1.0   1.0  15.0  18.0  
+     DET   176.0   3.0  10.0   4.0   8.0  28.0  
+     HOU   212.0   3.0   9.0  16.0   6.0  17.0  
+     LAN   141.0   8.0   9.0   3.0   8.0  29.0  
+     NYN   310.0  24.0  23.0  18.0  15.0  48.0  
+     SFN   188.0  51.0   8.0  16.0   6.0  41.0  
+     TEX   140.0   4.0   5.0   2.0   8.0  16.0  
+     TOR   265.0  16.0  12.0   4.0  16.0  38.0  
+</pre>   <h2 id="indexing-basics-partial-setting">Selecting Random Samples</h2> <p id="selecting-random-samples">A random selection of rows or columns from a Series, DataFrame, or Panel with the <a class="reference internal" href="../generated/pandas.dataframe.sample/#pandas.DataFrame.sample" title="pandas.DataFrame.sample"><code>sample()</code></a> method. The method will sample rows by default, and accepts a specific number of rows/columns to return, or a fraction of rows.</p> <pre data-language="python">In [88]: s = pd.Series([0,1,2,3,4,5])
+
+# When no arguments are passed, returns 1 row.
+In [89]: s.sample()
+Out[89]: 
+3    3
+dtype: int64
+
+# One may specify either a number of rows:
+In [90]: s.sample(n=3)
+Out[90]: 
+0    0
+2    2
+1    1
+dtype: int64
+
+# Or a fraction of the rows:
+In [91]: s.sample(frac=0.5)
+Out[91]: 
+4    4
+2    2
+3    3
+dtype: int64
+</pre> <p>By default, <code>sample</code> will return each row at most once, but one can also sample with replacement using the <code>replace</code> option:</p> <pre data-language="python">In [92]: s = pd.Series([0,1,2,3,4,5])
+
+ # Without replacement (default):
+In [93]: s.sample(n=6, replace=False)
+Out[93]: 
+4    4
+0    0
+3    3
+5    5
+2    2
+1    1
+dtype: int64
+
+ # With replacement:
+In [94]: s.sample(n=6, replace=True)
+Out[94]: 
+4    4
+2    2
+4    4
+3    3
+0    0
+1    1
+dtype: int64
+</pre> <p>By default, each row has an equal probability of being selected, but if you want rows to have different probabilities, you can pass the <code>sample</code> function sampling weights as <code>weights</code>. These weights can be a list, a numpy array, or a Series, but they must be of the same length as the object you are sampling. Missing values will be treated as a weight of zero, and inf values are not allowed. If weights do not sum to 1, they will be re-normalized by dividing all weights by the sum of the weights. For example:</p> <pre data-language="python">In [95]: s = pd.Series([0,1,2,3,4,5])
+
+In [96]: example_weights = [0, 0, 0.2, 0.2, 0.2, 0.4]
+
+In [97]: s.sample(n=3, weights=example_weights)
+Out[97]: 
+5    5
+4    4
+2    2
+dtype: int64
+
+# Weights will be re-normalized automatically
+In [98]: example_weights2 = [0.5, 0, 0, 0, 0, 0]
+
+In [99]: s.sample(n=1, weights=example_weights2)
+Out[99]: 
+0    0
+dtype: int64
+</pre> <p>When applied to a DataFrame, you can use a column of the DataFrame as sampling weights (provided you are sampling rows and not columns) by simply passing the name of the column as a string.</p> <pre data-language="python">In [100]: df2 = pd.DataFrame({'col1':[9,8,7,6], 'weight_column':[0.5, 0.4, 0.1, 0]})
+
+In [101]: df2.sample(n = 3, weights = 'weight_column')
+Out[101]: 
+   col1  weight_column
+1     8            0.4
+2     7            0.1
+0     9            0.5
+</pre> <p><code>sample</code> also allows users to sample columns instead of rows using the <code>axis</code> argument.</p> <pre data-language="python">In [102]: df3 = pd.DataFrame({'col1':[1,2,3], 'col2':[2,3,4]})
+
+In [103]: df3.sample(n=1, axis=1)
+Out[103]: 
+   col1
+0     1
+1     2
+2     3
+</pre> <p>Finally, one can also set a seed for <code>sample</code>‘s random number generator using the <code>random_state</code> argument, which will accept either an integer (as a seed) or a numpy RandomState object.</p> <pre data-language="python">In [104]: df4 = pd.DataFrame({'col1':[1,2,3], 'col2':[2,3,4]})
+
+# With a given seed, the sample will always draw the same rows.
+In [105]: df4.sample(n=2, random_state=2)
+Out[105]: 
+   col1  col2
+2     3     4
+1     2     3
+
+In [106]: df4.sample(n=2, random_state=2)
+Out[106]: 
+   col1  col2
+2     3     4
+1     2     3
+</pre>   <h2 id="setting-with-enlargement">Setting With Enlargement</h2> <div class="versionadded"> <p><span class="versionmodified">New in version 0.13.</span></p> </div> <p>The <code>.loc/.ix/[]</code> operations can perform enlargement when setting a non-existant key for that axis.</p> <p>In the <code>Series</code> case this is effectively an appending operation</p> <pre data-language="python">In [107]: se = pd.Series([1,2,3])
+
+In [108]: se
+Out[108]: 
+0    1
+1    2
+2    3
+dtype: int64
+
+In [109]: se[5] = 5.
+
+In [110]: se
+Out[110]: 
+0    1.0
+1    2.0
+2    3.0
+5    5.0
+dtype: float64
+</pre> <p>A <code>DataFrame</code> can be enlarged on either axis via <code>.loc</code></p> <pre data-language="python">In [111]: dfi = pd.DataFrame(np.arange(6).reshape(3,2),
+   .....:                 columns=['A','B'])
+   .....: 
+
+In [112]: dfi
+Out[112]: 
+   A  B
+0  0  1
+1  2  3
+2  4  5
+
+In [113]: dfi.loc[:,'C'] = dfi.loc[:,'A']
+
+In [114]: dfi
+Out[114]: 
+   A  B  C
+0  0  1  0
+1  2  3  2
+2  4  5  4
+</pre> <p>This is like an <code>append</code> operation on the <code>DataFrame</code>.</p> <pre data-language="python">In [115]: dfi.loc[3] = 5
+
+In [116]: dfi
+Out[116]: 
+   A  B  C
+0  0  1  0
+1  2  3  2
+2  4  5  4
+3  5  5  5
+</pre>   <h2 id="indexing-basics-get-value">Fast scalar value getting and setting</h2> <p id="fast-scalar-value-getting-and-setting">Since indexing with <code>[]</code> must handle a lot of cases (single-label access, slicing, boolean indexing, etc.), it has a bit of overhead in order to figure out what you’re asking for. If you only want to access a scalar value, the fastest way is to use the <code>at</code> and <code>iat</code> methods, which are implemented on all of the data structures.</p> <p>Similarly to <code>loc</code>, <code>at</code> provides <strong>label</strong> based scalar lookups, while, <code>iat</code> provides <strong>integer</strong> based lookups analogously to <code>iloc</code></p> <pre data-language="python">In [117]: s.iat[5]
+Out[117]: 5
+
+In [118]: df.at[dates[5], 'A']
+Out[118]: 0.1136484096888855
+
+In [119]: df.iat[3, 0]
+Out[119]: -0.70677113363008448
+</pre> <p>You can also set using these same indexers.</p> <pre data-language="python">In [120]: df.at[dates[5], 'E'] = 7
+
+In [121]: df.iat[3, 0] = 7
+</pre> <p><code>at</code> may enlarge the object in-place as above if the indexer is missing.</p> <pre data-language="python">In [122]: df.at[dates[-1]+1, 0] = 7
+
+In [123]: df
+Out[123]: 
+                   A         B         C         D    E    0
+2000-01-01 -0.282863  0.469112 -1.509059 -1.135632  NaN  NaN
+2000-01-02 -0.173215  1.212112  0.119209 -1.044236  NaN  NaN
+2000-01-03 -2.104569 -0.861849 -0.494929  1.071804  NaN  NaN
+2000-01-04  7.000000  0.721555 -1.039575  0.271860  NaN  NaN
+2000-01-05  0.567020 -0.424972  0.276232 -1.087401  NaN  NaN
+2000-01-06  0.113648 -0.673690 -1.478427  0.524988  7.0  NaN
+2000-01-07  0.577046  0.404705 -1.715002 -1.039268  NaN  NaN
+2000-01-08 -1.157892 -0.370647 -1.344312  0.844885  NaN  NaN
+2000-01-09       NaN       NaN       NaN       NaN  NaN  7.0
+</pre>   <h2 id="boolean-indexing">Boolean indexing</h2> <p id="indexing-boolean">Another common operation is the use of boolean vectors to filter the data. The operators are: <code>|</code> for <code>or</code>, <code>&amp;</code> for <code>and</code>, and <code>~</code> for <code>not</code>. These <strong>must</strong> be grouped by using parentheses.</p> <p>Using a boolean vector to index a Series works exactly as in a numpy ndarray:</p> <pre data-language="python">In [124]: s = pd.Series(range(-3, 4))
+
+In [125]: s
+Out[125]: 
+0   -3
+1   -2
+2   -1
+3    0
+4    1
+5    2
+6    3
+dtype: int64
+
+In [126]: s[s &gt; 0]
+Out[126]: 
+4    1
+5    2
+6    3
+dtype: int64
+
+In [127]: s[(s &lt; -1) | (s &gt; 0.5)]
+Out[127]: 
+0   -3
+1   -2
+4    1
+5    2
+6    3
+dtype: int64
+
+In [128]: s[~(s &lt; 0)]
+Out[128]: 
+3    0
+4    1
+5    2
+6    3
+dtype: int64
+</pre> <p>You may select rows from a DataFrame using a boolean vector the same length as the DataFrame’s index (for example, something derived from one of the columns of the DataFrame):</p> <pre data-language="python">In [129]: df[df['A'] &gt; 0]
+Out[129]: 
+                   A         B         C         D    E   0
+2000-01-04  7.000000  0.721555 -1.039575  0.271860  NaN NaN
+2000-01-05  0.567020 -0.424972  0.276232 -1.087401  NaN NaN
+2000-01-06  0.113648 -0.673690 -1.478427  0.524988  7.0 NaN
+2000-01-07  0.577046  0.404705 -1.715002 -1.039268  NaN NaN
+</pre> <p>List comprehensions and <code>map</code> method of Series can also be used to produce more complex criteria:</p> <pre data-language="python">In [130]: df2 = pd.DataFrame({'a' : ['one', 'one', 'two', 'three', 'two', 'one', 'six'],
+   .....:                     'b' : ['x', 'y', 'y', 'x', 'y', 'x', 'x'],
+   .....:                     'c' : np.random.randn(7)})
+   .....: 
+
+# only want 'two' or 'three'
+In [131]: criterion = df2['a'].map(lambda x: x.startswith('t'))
+
+In [132]: df2[criterion]
+Out[132]: 
+       a  b         c
+2    two  y  0.109121
+3  three  x  1.126203
+4    two  y -0.977349
+
+# equivalent but slower
+In [133]: df2[[x.startswith('t') for x in df2['a']]]
+Out[133]: 
+       a  b         c
+2    two  y  0.109121
+3  three  x  1.126203
+4    two  y -0.977349
+
+# Multiple criteria
+In [134]: df2[criterion &amp; (df2['b'] == 'x')]
+Out[134]: 
+       a  b         c
+3  three  x  1.126203
+</pre> <p>Note, with the choice methods <a class="reference internal" href="#indexing-label">Selection by Label</a>, <a class="reference internal" href="#indexing-integer">Selection by Position</a>, and <a class="reference internal" href="../advanced/#advanced">Advanced Indexing</a> you may select along more than one axis using boolean vectors combined with other indexing expressions.</p> <pre data-language="python">In [135]: df2.loc[criterion &amp; (df2['b'] == 'x'),'b':'c']
+Out[135]: 
+   b         c
+3  x  1.126203
+</pre>   <h2 id="indexing-basics-indexing-isin">Indexing with isin</h2> <p id="indexing-with-isin">Consider the <code>isin</code> method of Series, which returns a boolean vector that is true wherever the Series elements exist in the passed list. This allows you to select rows where one or more columns have values you want:</p> <pre data-language="python">In [136]: s = pd.Series(np.arange(5), index=np.arange(5)[::-1], dtype='int64')
+
+In [137]: s
+Out[137]: 
+4    0
+3    1
+2    2
+1    3
+0    4
+dtype: int64
+
+In [138]: s.isin([2, 4, 6])
+Out[138]: 
+4    False
+3    False
+2     True
+1    False
+0     True
+dtype: bool
+
+In [139]: s[s.isin([2, 4, 6])]
+Out[139]: 
+2    2
+0    4
+dtype: int64
+</pre> <p>The same method is available for <code>Index</code> objects and is useful for the cases when you don’t know which of the sought labels are in fact present:</p> <pre data-language="python">In [140]: s[s.index.isin([2, 4, 6])]
+Out[140]: 
+4    0
+2    2
+dtype: int64
+
+# compare it to the following
+In [141]: s[[2, 4, 6]]
+Out[141]: 
+2    2.0
+4    0.0
+6    NaN
+dtype: float64
+</pre> <p>In addition to that, <code>MultiIndex</code> allows selecting a separate level to use in the membership check:</p> <pre data-language="python">In [142]: s_mi = pd.Series(np.arange(6),
+   .....:                  index=pd.MultiIndex.from_product([[0, 1], ['a', 'b', 'c']]))
+   .....: 
+
+In [143]: s_mi
+Out[143]: 
+0  a    0
+   b    1
+   c    2
+1  a    3
+   b    4
+   c    5
+dtype: int64
+
+In [144]: s_mi.iloc[s_mi.index.isin([(1, 'a'), (2, 'b'), (0, 'c')])]
+Out[144]: 
+0  c    2
+1  a    3
+dtype: int64
+
+In [145]: s_mi.iloc[s_mi.index.isin(['a', 'c', 'e'], level=1)]
+Out[145]: 
+0  a    0
+   c    2
+1  a    3
+   c    5
+dtype: int64
+</pre> <p>DataFrame also has an <code>isin</code> method. When calling <code>isin</code>, pass a set of values as either an array or dict. If values is an array, <code>isin</code> returns a DataFrame of booleans that is the same shape as the original DataFrame, with True wherever the element is in the sequence of values.</p> <pre data-language="python">In [146]: df = pd.DataFrame({'vals': [1, 2, 3, 4], 'ids': ['a', 'b', 'f', 'n'],
+   .....:                    'ids2': ['a', 'n', 'c', 'n']})
+   .....: 
+
+In [147]: values = ['a', 'b', 1, 3]
+
+In [148]: df.isin(values)
+Out[148]: 
+     ids   ids2   vals
+0   True   True   True
+1   True  False  False
+2  False  False   True
+3  False  False  False
+</pre> <p>Oftentimes you’ll want to match certain values with certain columns. Just make values a <code>dict</code> where the key is the column, and the value is a list of items you want to check for.</p> <pre data-language="python">In [149]: values = {'ids': ['a', 'b'], 'vals': [1, 3]}
+
+In [150]: df.isin(values)
+Out[150]: 
+     ids   ids2   vals
+0   True  False   True
+1   True  False  False
+2  False  False   True
+3  False  False  False
+</pre> <p>Combine DataFrame’s <code>isin</code> with the <code>any()</code> and <code>all()</code> methods to quickly select subsets of your data that meet a given criteria. To select a row where each column meets its own criterion:</p> <pre data-language="python">In [151]: values = {'ids': ['a', 'b'], 'ids2': ['a', 'c'], 'vals': [1, 3]}
+
+In [152]: row_mask = df.isin(values).all(1)
+
+In [153]: df[row_mask]
+Out[153]: 
+  ids ids2  vals
+0   a    a     1
+</pre>   <h2 id="the-where-method-and-masking">The <code>where()</code> Method and Masking</h2> <p>Selecting values from a Series with a boolean vector generally returns a subset of the data. To guarantee that selection output has the same shape as the original data, you can use the <code>where</code> method in <code>Series</code> and <code>DataFrame</code>.</p> <p>To return only the selected rows</p> <pre data-language="python">In [154]: s[s &gt; 0]
+Out[154]: 
+3    1
+2    2
+1    3
+0    4
+dtype: int64
+</pre> <p>To return a Series of the same shape as the original</p> <pre data-language="python">In [155]: s.where(s &gt; 0)
+Out[155]: 
+4    NaN
+3    1.0
+2    2.0
+1    3.0
+0    4.0
+dtype: float64
+</pre> <p>Selecting values from a DataFrame with a boolean criterion now also preserves input data shape. <code>where</code> is used under the hood as the implementation. Equivalent is <code>df.where(df &lt; 0)</code></p> <pre data-language="python">In [156]: df[df &lt; 0]
+Out[156]: 
+                   A         B         C         D
+2000-01-01 -1.282782       NaN -1.071357       NaN
+2000-01-02       NaN       NaN       NaN -0.744471
+2000-01-03       NaN       NaN -0.964980 -0.845696
+2000-01-04 -1.340896       NaN -1.328865       NaN
+2000-01-05 -1.717693       NaN       NaN       NaN
+2000-01-06       NaN       NaN -1.197071 -1.066969
+2000-01-07 -0.303421 -0.858447       NaN -0.028665
+2000-01-08       NaN       NaN       NaN       NaN
+</pre> <p>In addition, <code>where</code> takes an optional <code>other</code> argument for replacement of values where the condition is False, in the returned copy.</p> <pre data-language="python">In [157]: df.where(df &lt; 0, -df)
+Out[157]: 
+                   A         B         C         D
+2000-01-01 -1.282782 -0.781836 -1.071357 -0.441153
+2000-01-02 -2.353925 -0.583787 -0.221471 -0.744471
+2000-01-03 -0.758527 -1.729689 -0.964980 -0.845696
+2000-01-04 -1.340896 -1.846883 -1.328865 -1.682706
+2000-01-05 -1.717693 -0.888782 -0.228440 -0.901805
+2000-01-06 -1.171216 -0.520260 -1.197071 -1.066969
+2000-01-07 -0.303421 -0.858447 -0.306996 -0.028665
+2000-01-08 -0.384316 -1.574159 -1.588931 -0.476720
+</pre> <p>You may wish to set values based on some boolean criteria. This can be done intuitively like so:</p> <pre data-language="python">In [158]: s2 = s.copy()
+
+In [159]: s2[s2 &lt; 0] = 0
+
+In [160]: s2
+Out[160]: 
+4    0
+3    1
+2    2
+1    3
+0    4
+dtype: int64
+
+In [161]: df2 = df.copy()
+
+In [162]: df2[df2 &lt; 0] = 0
+
+In [163]: df2
+Out[163]: 
+                   A         B         C         D
+2000-01-01  0.000000  0.781836  0.000000  0.441153
+2000-01-02  2.353925  0.583787  0.221471  0.000000
+2000-01-03  0.758527  1.729689  0.000000  0.000000
+2000-01-04  0.000000  1.846883  0.000000  1.682706
+2000-01-05  0.000000  0.888782  0.228440  0.901805
+2000-01-06  1.171216  0.520260  0.000000  0.000000
+2000-01-07  0.000000  0.000000  0.306996  0.000000
+2000-01-08  0.384316  1.574159  1.588931  0.476720
+</pre> <p>By default, <code>where</code> returns a modified copy of the data. There is an optional parameter <code>inplace</code> so that the original data can be modified without creating a copy:</p> <pre data-language="python">In [164]: df_orig = df.copy()
+
+In [165]: df_orig.where(df &gt; 0, -df, inplace=True);
+
+In [166]: df_orig
+Out[166]: 
+                   A         B         C         D
+2000-01-01  1.282782  0.781836  1.071357  0.441153
+2000-01-02  2.353925  0.583787  0.221471  0.744471
+2000-01-03  0.758527  1.729689  0.964980  0.845696
+2000-01-04  1.340896  1.846883  1.328865  1.682706
+2000-01-05  1.717693  0.888782  0.228440  0.901805
+2000-01-06  1.171216  0.520260  1.197071  1.066969
+2000-01-07  0.303421  0.858447  0.306996  0.028665
+2000-01-08  0.384316  1.574159  1.588931  0.476720
+</pre> <p><strong>alignment</strong></p> <p>Furthermore, <code>where</code> aligns the input boolean condition (ndarray or DataFrame), such that partial selection with setting is possible. This is analogous to partial setting via <code>.ix</code> (but on the contents rather than the axis labels)</p> <pre data-language="python">In [167]: df2 = df.copy()
+
+In [168]: df2[ df2[1:4] &gt; 0 ] = 3
+
+In [169]: df2
+Out[169]: 
+                   A         B         C         D
+2000-01-01 -1.282782  0.781836 -1.071357  0.441153
+2000-01-02  3.000000  3.000000  3.000000 -0.744471
+2000-01-03  3.000000  3.000000 -0.964980 -0.845696
+2000-01-04 -1.340896  3.000000 -1.328865  3.000000
+2000-01-05 -1.717693  0.888782  0.228440  0.901805
+2000-01-06  1.171216  0.520260 -1.197071 -1.066969
+2000-01-07 -0.303421 -0.858447  0.306996 -0.028665
+2000-01-08  0.384316  1.574159  1.588931  0.476720
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 0.13.</span></p> </div> <p>Where can also accept <code>axis</code> and <code>level</code> parameters to align the input when performing the <code>where</code>.</p> <pre data-language="python">In [170]: df2 = df.copy()
+
+In [171]: df2.where(df2&gt;0,df2['A'],axis='index')
+Out[171]: 
+                   A         B         C         D
+2000-01-01 -1.282782  0.781836 -1.282782  0.441153
+2000-01-02  2.353925  0.583787  0.221471  2.353925
+2000-01-03  0.758527  1.729689  0.758527  0.758527
+2000-01-04 -1.340896  1.846883 -1.340896  1.682706
+2000-01-05 -1.717693  0.888782  0.228440  0.901805
+2000-01-06  1.171216  0.520260  1.171216  1.171216
+2000-01-07 -0.303421 -0.303421  0.306996 -0.303421
+2000-01-08  0.384316  1.574159  1.588931  0.476720
+</pre> <p>This is equivalent (but faster than) the following.</p> <pre data-language="python">In [172]: df2 = df.copy()
+
+In [173]: df.apply(lambda x, y: x.where(x&gt;0,y), y=df['A'])
+Out[173]: 
+                   A         B         C         D
+2000-01-01 -1.282782  0.781836 -1.282782  0.441153
+2000-01-02  2.353925  0.583787  0.221471  2.353925
+2000-01-03  0.758527  1.729689  0.758527  0.758527
+2000-01-04 -1.340896  1.846883 -1.340896  1.682706
+2000-01-05 -1.717693  0.888782  0.228440  0.901805
+2000-01-06  1.171216  0.520260  1.171216  1.171216
+2000-01-07 -0.303421 -0.303421  0.306996 -0.303421
+2000-01-08  0.384316  1.574159  1.588931  0.476720
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div> <p>Where can accept a callable as condition and <code>other</code> arguments. The function must be with one argument (the calling Series or DataFrame) and that returns valid output as condition and <code>other</code> argument.</p> <pre data-language="python">In [174]: df3 = pd.DataFrame({'A': [1, 2, 3],
+   .....:                     'B': [4, 5, 6],
+   .....:                     'C': [7, 8, 9]})
+   .....: 
+
+In [175]: df3.where(lambda x: x &gt; 4, lambda x: x + 10)
+Out[175]: 
+    A   B  C
+0  11  14  7
+1  12   5  8
+2  13   6  9
+</pre> <p><strong>mask</strong></p> <p><code>mask</code> is the inverse boolean operation of <code>where</code>.</p> <pre data-language="python">In [176]: s.mask(s &gt;= 0)
+Out[176]: 
+4   NaN
+3   NaN
+2   NaN
+1   NaN
+0   NaN
+dtype: float64
+
+In [177]: df.mask(df &gt;= 0)
+Out[177]: 
+                   A         B         C         D
+2000-01-01 -1.282782       NaN -1.071357       NaN
+2000-01-02       NaN       NaN       NaN -0.744471
+2000-01-03       NaN       NaN -0.964980 -0.845696
+2000-01-04 -1.340896       NaN -1.328865       NaN
+2000-01-05 -1.717693       NaN       NaN       NaN
+2000-01-06       NaN       NaN -1.197071 -1.066969
+2000-01-07 -0.303421 -0.858447       NaN -0.028665
+2000-01-08       NaN       NaN       NaN       NaN
+</pre>   <h2 id="indexing-query">The <code>query()</code> Method (Experimental)</h2> <div class="versionadded" id="the-query-method-experimental"> <p><span class="versionmodified">New in version 0.13.</span></p> </div> <p><a class="reference internal" href="../generated/pandas.dataframe/#pandas.DataFrame" title="pandas.DataFrame"><code>DataFrame</code></a> objects have a <a class="reference internal" href="../generated/pandas.dataframe.query/#pandas.DataFrame.query" title="pandas.DataFrame.query"><code>query()</code></a> method that allows selection using an expression.</p> <p>You can get the value of the frame where column <code>b</code> has values between the values of columns <code>a</code> and <code>c</code>. For example:</p> <pre data-language="python">In [178]: n = 10
+
+In [179]: df = pd.DataFrame(np.random.rand(n, 3), columns=list('abc'))
+
+In [180]: df
+Out[180]: 
+          a         b         c
+0  0.287377  0.914479  0.010693
+1  0.474521  0.259146  0.607235
+2  0.317092  0.266463  0.712394
+3  0.408662  0.705810  0.920000
+4  0.740984  0.109157  0.456672
+5  0.412527  0.455994  0.236508
+6  0.769694  0.549898  0.530660
+7  0.093826  0.022924  0.425014
+8  0.029375  0.964501  0.680094
+9  0.260754  0.755564  0.761476
+
+# pure python
+In [181]: df[(df.a &lt; df.b) &amp; (df.b &lt; df.c)]
+Out[181]: 
+          a         b         c
+3  0.408662  0.705810  0.920000
+9  0.260754  0.755564  0.761476
+
+# query
+In [182]: df.query('(a &lt; b) &amp; (b &lt; c)')
+Out[182]: 
+          a         b         c
+3  0.408662  0.705810  0.920000
+9  0.260754  0.755564  0.761476
+</pre> <p>Do the same thing but fall back on a named index if there is no column with the name <code>a</code>.</p> <pre data-language="python">In [183]: df = pd.DataFrame(np.random.randint(n / 2, size=(n, 2)), columns=list('bc'))
+
+In [184]: df.index.name = 'a'
+
+In [185]: df
+Out[185]: 
+   b  c
+a      
+0  3  4
+1  1  1
+2  0  4
+3  4  3
+4  1  3
+5  3  3
+6  2  3
+7  4  0
+8  3  4
+9  2  1
+
+In [186]: df.query('a &lt; b and b &lt; c')
+Out[186]: 
+   b  c
+a      
+0  3  4
+</pre> <p>If instead you don’t want to or cannot name your index, you can use the name <code>index</code> in your query expression:</p> <pre data-language="python">In [187]: df = pd.DataFrame(np.random.randint(n, size=(n, 2)), columns=list('bc'))
+
+In [188]: df
+Out[188]: 
+   b  c
+0  8  8
+1  8  1
+2  3  4
+3  8  4
+4  8  9
+5  3  5
+6  9  4
+7  0  8
+8  9  2
+9  3  9
+
+In [189]: df.query('index &lt; b &lt; c')
+Out[189]: 
+   b  c
+2  3  4
+4  8  9
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>If the name of your index overlaps with a column name, the column name is given precedence. For example,</p> <pre data-language="python">In [190]: df = pd.DataFrame({'a': np.random.randint(5, size=5)})
+
+In [191]: df.index.name = 'a'
+
+In [192]: df.query('a &gt; 2') # uses the column 'a', not the index
+Out[192]: 
+   a
+a   
+1  3
+2  3
+4  3
+</pre> <p>You can still use the index in a query expression by using the special identifier ‘index’:</p> <pre data-language="python">In [193]: df.query('index &gt; 2')
+Out[193]: 
+   a
+a   
+3  1
+4  3
+</pre> <p class="last">If for some reason you have a column named <code>index</code>, then you can refer to the index as <code>ilevel_0</code> as well, but at this point you should consider renaming your columns to something less ambiguous.</p> </div>  <h3 id="multiindex-query-syntax">
+<code>MultiIndex</code> <code>query()</code> Syntax</h3> <p>You can also use the levels of a <code>DataFrame</code> with a <a class="reference internal" href="../generated/pandas.multiindex/#pandas.MultiIndex" title="pandas.MultiIndex"><code>MultiIndex</code></a> as if they were columns in the frame:</p> <pre data-language="python">In [194]: n = 10
+
+In [195]: colors = np.random.choice(['red', 'green'], size=n)
+
+In [196]: foods = np.random.choice(['eggs', 'ham'], size=n)
+
+In [197]: colors
+Out[197]: 
+array(['red', 'red', 'green', 'green', 'red', 'green', 'red', 'green',
+       'red', 'red'], 
+      dtype='|S5')
+
+In [198]: foods
+Out[198]: 
+array(['ham', 'eggs', 'ham', 'eggs', 'ham', 'eggs', 'ham', 'eggs', 'ham',
+       'ham'], 
+      dtype='|S4')
+
+In [199]: index = pd.MultiIndex.from_arrays([colors, foods], names=['color', 'food'])
+
+In [200]: df = pd.DataFrame(np.random.randn(n, 2), index=index)
+
+In [201]: df
+Out[201]: 
+                   0         1
+color food                    
+red   ham   0.694028  0.177154
+      eggs  0.535700 -0.506675
+green ham   0.421335 -1.289076
+      eggs -0.178069 -0.271841
+red   ham   1.406993 -1.334905
+green eggs -1.087664 -0.883833
+red   ham  -1.554827 -0.118953
+green eggs -1.460084 -0.020351
+red   ham  -0.256125  0.358575
+      ham   1.112033 -0.200521
+
+In [202]: df.query('color == "red"')
+Out[202]: 
+                   0         1
+color food                    
+red   ham   0.694028  0.177154
+      eggs  0.535700 -0.506675
+      ham   1.406993 -1.334905
+      ham  -1.554827 -0.118953
+      ham  -0.256125  0.358575
+      ham   1.112033 -0.200521
+</pre> <p>If the levels of the <code>MultiIndex</code> are unnamed, you can refer to them using special names:</p> <pre data-language="python">In [203]: df.index.names = [None, None]
+
+In [204]: df
+Out[204]: 
+                   0         1
+red   ham   0.694028  0.177154
+      eggs  0.535700 -0.506675
+green ham   0.421335 -1.289076
+      eggs -0.178069 -0.271841
+red   ham   1.406993 -1.334905
+green eggs -1.087664 -0.883833
+red   ham  -1.554827 -0.118953
+green eggs -1.460084 -0.020351
+red   ham  -0.256125  0.358575
+      ham   1.112033 -0.200521
+
+In [205]: df.query('ilevel_0 == "red"')
+Out[205]: 
+                 0         1
+red ham   0.694028  0.177154
+    eggs  0.535700 -0.506675
+    ham   1.406993 -1.334905
+    ham  -1.554827 -0.118953
+    ham  -0.256125  0.358575
+    ham   1.112033 -0.200521
+</pre> <p>The convention is <code>ilevel_0</code>, which means “index level 0” for the 0th level of the <code>index</code>.</p>   <h3 id="query-use-cases">
+<code>query()</code> Use Cases</h3> <p>A use case for <a class="reference internal" href="../generated/pandas.dataframe.query/#pandas.DataFrame.query" title="pandas.DataFrame.query"><code>query()</code></a> is when you have a collection of <a class="reference internal" href="../generated/pandas.dataframe/#pandas.DataFrame" title="pandas.DataFrame"><code>DataFrame</code></a> objects that have a subset of column names (or index levels/names) in common. You can pass the same query to both frames <em>without</em> having to specify which frame you’re interested in querying</p> <pre data-language="python">In [206]: df = pd.DataFrame(np.random.rand(n, 3), columns=list('abc'))
+
+In [207]: df
+Out[207]: 
+          a         b         c
+0  0.941841  0.116093  0.886792
+1  0.067661  0.252916  0.116448
+2  0.733342  0.951527  0.946892
+3  0.059026  0.548135  0.950113
+4  0.643295  0.330300  0.192439
+5  0.174329  0.697941  0.358970
+6  0.972314  0.789179  0.293847
+7  0.374439  0.739133  0.221186
+8  0.900625  0.534438  0.608763
+9  0.166933  0.731582  0.965147
+
+In [208]: df2 = pd.DataFrame(np.random.rand(n + 2, 3), columns=df.columns)
+
+In [209]: df2
+Out[209]: 
+           a         b         c
+0   0.763981  0.372737  0.639792
+1   0.702270  0.730804  0.134089
+2   0.522758  0.311910  0.656542
+3   0.258647  0.655096  0.654920
+4   0.452594  0.454307  0.918260
+5   0.581556  0.470410  0.417434
+6   0.552021  0.483125  0.807046
+7   0.277950  0.213500  0.471524
+8   0.501458  0.141708  0.763617
+9   0.081639  0.906284  0.480101
+10  0.472250  0.380061  0.822149
+11  0.459151  0.851196  0.125791
+
+In [210]: expr = '0.0 &lt;= a &lt;= c &lt;= 0.5'
+
+In [211]: map(lambda frame: frame.query(expr), [df, df2])
+Out[211]: 
+[          a         b         c
+ 1  0.067661  0.252916  0.116448
+ 5  0.174329  0.697941  0.358970,           a         b         c
+ 7  0.277950  0.213500  0.471524
+ 9  0.081639  0.906284  0.480101]
+</pre>   <h3 id="query-python-versus-pandas-syntax-comparison">
+<code>query()</code> Python versus pandas Syntax Comparison</h3> <p>Full numpy-like syntax</p> <pre data-language="python">In [212]: df = pd.DataFrame(np.random.randint(n, size=(n, 3)), columns=list('abc'))
+
+In [213]: df
+Out[213]: 
+   a  b  c
+0  8  6  2
+1  9  8  5
+2  7  7  9
+3  7  6  9
+4  6  9  7
+5  1  0  7
+6  8  9  1
+7  0  7  2
+8  7  2  6
+9  2  2  2
+
+In [214]: df.query('(a &lt; b) &amp; (b &lt; c)')
+Out[214]: 
+Empty DataFrame
+Columns: [a, b, c]
+Index: []
+
+In [215]: df[(df.a &lt; df.b) &amp; (df.b &lt; df.c)]
+Out[215]: 
+Empty DataFrame
+Columns: [a, b, c]
+Index: []
+</pre> <p>Slightly nicer by removing the parentheses (by binding making comparison operators bind tighter than <code>&amp;</code>/<code>|</code>)</p> <pre data-language="python">In [216]: df.query('a &lt; b &amp; b &lt; c')
+Out[216]: 
+Empty DataFrame
+Columns: [a, b, c]
+Index: []
+</pre> <p>Use English instead of symbols</p> <pre data-language="python">In [217]: df.query('a &lt; b and b &lt; c')
+Out[217]: 
+Empty DataFrame
+Columns: [a, b, c]
+Index: []
+</pre> <p>Pretty close to how you might write it on paper</p> <pre data-language="python">In [218]: df.query('a &lt; b &lt; c')
+Out[218]: 
+Empty DataFrame
+Columns: [a, b, c]
+Index: []
+</pre>   <h3 id="the-in-and-not-in-operators">The <code>in</code> and <code>not in</code> operators</h3> <p><a class="reference internal" href="../generated/pandas.dataframe.query/#pandas.DataFrame.query" title="pandas.DataFrame.query"><code>query()</code></a> also supports special use of Python’s <code>in</code> and <code>not in</code> comparison operators, providing a succinct syntax for calling the <code>isin</code> method of a <code>Series</code> or <code>DataFrame</code>.</p> <pre data-language="python"># get all rows where columns "a" and "b" have overlapping values
+In [219]: df = pd.DataFrame({'a': list('aabbccddeeff'), 'b': list('aaaabbbbcccc'),
+   .....:                    'c': np.random.randint(5, size=12),
+   .....:                    'd': np.random.randint(9, size=12)})
+   .....: 
+
+In [220]: df
+Out[220]: 
+    a  b  c  d
+0   a  a  4  8
+1   a  a  4  0
+2   b  a  3  1
+3   b  a  3  5
+4   c  b  3  0
+5   c  b  0  4
+6   d  b  2  6
+7   d  b  1  2
+8   e  c  4  3
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+In [221]: df.query('a in b')
+Out[221]: 
+   a  b  c  d
+0  a  a  4  8
+1  a  a  4  0
+2  b  a  3  1
+3  b  a  3  5
+4  c  b  3  0
+5  c  b  0  4
+
+# How you'd do it in pure Python
+In [222]: df[df.a.isin(df.b)]
+Out[222]: 
+   a  b  c  d
+0  a  a  4  8
+1  a  a  4  0
+2  b  a  3  1
+3  b  a  3  5
+4  c  b  3  0
+5  c  b  0  4
+
+In [223]: df.query('a not in b')
+Out[223]: 
+    a  b  c  d
+6   d  b  2  6
+7   d  b  1  2
+8   e  c  4  3
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+# pure Python
+In [224]: df[~df.a.isin(df.b)]
+Out[224]: 
+    a  b  c  d
+6   d  b  2  6
+7   d  b  1  2
+8   e  c  4  3
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+</pre> <p>You can combine this with other expressions for very succinct queries:</p> <pre data-language="python"># rows where cols a and b have overlapping values and col c's values are less than col d's
+In [225]: df.query('a in b and c &lt; d')
+Out[225]: 
+   a  b  c  d
+0  a  a  4  8
+3  b  a  3  5
+5  c  b  0  4
+
+# pure Python
+In [226]: df[df.b.isin(df.a) &amp; (df.c &lt; df.d)]
+Out[226]: 
+    a  b  c  d
+0   a  a  4  8
+3   b  a  3  5
+5   c  b  0  4
+6   d  b  2  6
+7   d  b  1  2
+10  f  c  1  6
+11  f  c  1  5
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Note that <code>in</code> and <code>not in</code> are evaluated in Python, since <code>numexpr</code> has no equivalent of this operation. However, <strong>only the</strong> <code>in</code>/<code>not in</code> <strong>expression itself</strong> is evaluated in vanilla Python. For example, in the expression</p> <pre data-language="python">df.query('a in b + c + d')
+</pre> <p class="last"><code>(b + c + d)</code> is evaluated by <code>numexpr</code> and <em>then</em> the <code>in</code> operation is evaluated in plain Python. In general, any operations that can be evaluated using <code>numexpr</code> will be.</p> </div>   <h3 id="special-use-of-the-operator-with-list-objects">Special use of the <code>==</code> operator with <code>list</code> objects</h3> <p>Comparing a <code>list</code> of values to a column using <code>==</code>/<code>!=</code> works similarly to <code>in</code>/<code>not in</code></p> <pre data-language="python">In [227]: df.query('b == ["a", "b", "c"]')
+Out[227]: 
+    a  b  c  d
+0   a  a  4  8
+1   a  a  4  0
+2   b  a  3  1
+3   b  a  3  5
+4   c  b  3  0
+5   c  b  0  4
+6   d  b  2  6
+7   d  b  1  2
+8   e  c  4  3
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+# pure Python
+In [228]: df[df.b.isin(["a", "b", "c"])]
+Out[228]: 
+    a  b  c  d
+0   a  a  4  8
+1   a  a  4  0
+2   b  a  3  1
+3   b  a  3  5
+4   c  b  3  0
+5   c  b  0  4
+6   d  b  2  6
+7   d  b  1  2
+8   e  c  4  3
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+In [229]: df.query('c == [1, 2]')
+Out[229]: 
+    a  b  c  d
+6   d  b  2  6
+7   d  b  1  2
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+In [230]: df.query('c != [1, 2]')
+Out[230]: 
+   a  b  c  d
+0  a  a  4  8
+1  a  a  4  0
+2  b  a  3  1
+3  b  a  3  5
+4  c  b  3  0
+5  c  b  0  4
+8  e  c  4  3
+
+# using in/not in
+In [231]: df.query('[1, 2] in c')
+Out[231]: 
+    a  b  c  d
+6   d  b  2  6
+7   d  b  1  2
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+
+In [232]: df.query('[1, 2] not in c')
+Out[232]: 
+   a  b  c  d
+0  a  a  4  8
+1  a  a  4  0
+2  b  a  3  1
+3  b  a  3  5
+4  c  b  3  0
+5  c  b  0  4
+8  e  c  4  3
+
+# pure Python
+In [233]: df[df.c.isin([1, 2])]
+Out[233]: 
+    a  b  c  d
+6   d  b  2  6
+7   d  b  1  2
+9   e  c  2  0
+10  f  c  1  6
+11  f  c  1  5
+</pre>   <h3 id="boolean-operators">Boolean Operators</h3> <p>You can negate boolean expressions with the word <code>not</code> or the <code>~</code> operator.</p> <pre data-language="python">In [234]: df = pd.DataFrame(np.random.rand(n, 3), columns=list('abc'))
+
+In [235]: df['bools'] = np.random.rand(len(df)) &gt; 0.5
+
+In [236]: df.query('~bools')
+Out[236]: 
+          a         b         c  bools
+3  0.400348  0.495503  0.815711  False
+4  0.126361  0.328858  0.356186  False
+5  0.620423  0.750739  0.718272  False
+8  0.900520  0.883878  0.452325  False
+
+In [237]: df.query('not bools')
+Out[237]: 
+          a         b         c  bools
+3  0.400348  0.495503  0.815711  False
+4  0.126361  0.328858  0.356186  False
+5  0.620423  0.750739  0.718272  False
+8  0.900520  0.883878  0.452325  False
+
+In [238]: df.query('not bools') == df[~df.bools]
+Out[238]: 
+      a     b     c bools
+3  True  True  True  True
+4  True  True  True  True
+5  True  True  True  True
+8  True  True  True  True
+</pre> <p>Of course, expressions can be arbitrarily complex too</p> <pre data-language="python"># short query syntax
+In [239]: shorter = df.query('a &lt; b &lt; c and (not bools) or bools &gt; 2')
+
+# equivalent in pure Python
+In [240]: longer = df[(df.a &lt; df.b) &amp; (df.b &lt; df.c) &amp; (~df.bools) | (df.bools &gt; 2)]
+
+In [241]: shorter
+Out[241]: 
+          a         b         c  bools
+3  0.400348  0.495503  0.815711  False
+4  0.126361  0.328858  0.356186  False
+
+In [242]: longer
+Out[242]: 
+          a         b         c  bools
+3  0.400348  0.495503  0.815711  False
+4  0.126361  0.328858  0.356186  False
+
+In [243]: shorter == longer
+Out[243]: 
+      a     b     c bools
+3  True  True  True  True
+4  True  True  True  True
+</pre>   <h3 id="performance-of-query">Performance of <code>query()</code>
+</h3> <p><code>DataFrame.query()</code> using <code>numexpr</code> is slightly faster than Python for large frames</p> <img alt="_images/query-perf.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/query-perf.png"> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>You will only see the performance benefits of using the <code>numexpr</code> engine with <code>DataFrame.query()</code> if your frame has more than approximately 200,000 rows</p>  <img alt="_images/query-perf-small.png" src="http://pandas.pydata.org/pandas-docs/version/0.18.1/_images/query-perf-small.png">  </div> <p>This plot was created using a <code>DataFrame</code> with 3 columns each containing floating point values generated using <code>numpy.random.randn()</code>.</p>    <h2 id="duplicate-data">Duplicate Data</h2> <p id="indexing-duplicate">If you want to identify and remove duplicate rows in a DataFrame, there are two methods that will help: <code>duplicated</code> and <code>drop_duplicates</code>. Each takes as an argument the columns to use to identify duplicated rows.</p> <ul class="simple"> <li>
+<code>duplicated</code> returns a boolean vector whose length is the number of rows, and which indicates whether a row is duplicated.</li> <li>
+<code>drop_duplicates</code> removes duplicate rows.</li> </ul> <p>By default, the first observed row of a duplicate set is considered unique, but each method has a <code>keep</code> parameter to specify targets to be kept.</p> <ul class="simple"> <li>
+<code>keep='first'</code> (default): mark / drop duplicates except for the first occurrence.</li> <li>
+<code>keep='last'</code>: mark / drop duplicates except for the last occurrence.</li> <li>
+<code>keep=False</code>: mark / drop all duplicates.</li> </ul> <pre data-language="python">In [244]: df2 = pd.DataFrame({'a': ['one', 'one', 'two', 'two', 'two', 'three', 'four'],
+   .....:                     'b': ['x', 'y', 'x', 'y', 'x', 'x', 'x'],
+   .....:                     'c': np.random.randn(7)})
+   .....: 
+
+In [245]: df2
+Out[245]: 
+       a  b         c
+0    one  x  0.340520
+1    one  y -0.252382
+2    two  x -1.206215
+3    two  y  1.233196
+4    two  x  1.671173
+5  three  x  0.120314
+6   four  x  0.779461
+
+In [246]: df2.duplicated('a')
+Out[246]: 
+0    False
+1     True
+2    False
+3     True
+4     True
+5    False
+6    False
+dtype: bool
+
+In [247]: df2.duplicated('a', keep='last')
+Out[247]: 
+0     True
+1    False
+2     True
+3     True
+4    False
+5    False
+6    False
+dtype: bool
+
+In [248]: df2.duplicated('a', keep=False)
+Out[248]: 
+0     True
+1     True
+2     True
+3     True
+4     True
+5    False
+6    False
+dtype: bool
+
+In [249]: df2.drop_duplicates('a')
+Out[249]: 
+       a  b         c
+0    one  x  0.340520
+2    two  x -1.206215
+5  three  x  0.120314
+6   four  x  0.779461
+
+In [250]: df2.drop_duplicates('a', keep='last')
+Out[250]: 
+       a  b         c
+1    one  y -0.252382
+4    two  x  1.671173
+5  three  x  0.120314
+6   four  x  0.779461
+
+In [251]: df2.drop_duplicates('a', keep=False)
+Out[251]: 
+       a  b         c
+5  three  x  0.120314
+6   four  x  0.779461
+</pre> <p>Also, you can pass a list of columns to identify duplications.</p> <pre data-language="python">In [252]: df2.duplicated(['a', 'b'])
+Out[252]: 
+0    False
+1    False
+2    False
+3    False
+4     True
+5    False
+6    False
+dtype: bool
+
+In [253]: df2.drop_duplicates(['a', 'b'])
+Out[253]: 
+       a  b         c
+0    one  x  0.340520
+1    one  y -0.252382
+2    two  x -1.206215
+3    two  y  1.233196
+5  three  x  0.120314
+6   four  x  0.779461
+</pre> <p>To drop duplicates by index value, use <code>Index.duplicated</code> then perform slicing. Same options are available in <code>keep</code> parameter.</p> <pre data-language="python">In [254]: df3 = pd.DataFrame({'a': np.arange(6),
+   .....:                     'b': np.random.randn(6)},
+   .....:                    index=['a', 'a', 'b', 'c', 'b', 'a'])
+   .....: 
+
+In [255]: df3
+Out[255]: 
+   a         b
+a  0 -0.867696
+a  1 -0.422603
+b  2 -1.482245
+c  3 -0.878999
+b  4  0.511972
+a  5  1.320469
+
+In [256]: df3.index.duplicated()
+Out[256]: array([False,  True, False, False,  True,  True], dtype=bool)
+
+In [257]: df3[~df3.index.duplicated()]
+Out[257]: 
+   a         b
+a  0 -0.867696
+b  2 -1.482245
+c  3 -0.878999
+
+In [258]: df3[~df3.index.duplicated(keep='last')]
+Out[258]: 
+   a         b
+c  3 -0.878999
+b  4  0.511972
+a  5  1.320469
+
+In [259]: df3[~df3.index.duplicated(keep=False)]
+Out[259]: 
+   a         b
+c  3 -0.878999
+</pre>   <h2 id="indexing-dictionarylike">Dictionary-like <code>get()</code> method</h2> <p id="dictionary-like-get-method">Each of Series, DataFrame, and Panel have a <code>get</code> method which can return a default value.</p> <pre data-language="python">In [260]: s = pd.Series([1,2,3], index=['a','b','c'])
+
+In [261]: s.get('a')               # equivalent to s['a']
+Out[261]: 1
+
+In [262]: s.get('x', default=-1)
+Out[262]: -1
+</pre>   <h2 id="the-select-method">The <code>select()</code> Method</h2> <p>Another way to extract slices from an object is with the <code>select</code> method of Series, DataFrame, and Panel. This method should be used only when there is no more direct way. <code>select</code> takes a function which operates on labels along <code>axis</code> and returns a boolean. For instance:</p> <pre data-language="python">In [263]: df.select(lambda x: x == 'A', axis=1)
+Out[263]: 
+                   A
+2000-01-01  0.888261
+2000-01-02  1.203830
+2000-01-03  0.202067
+2000-01-04  0.051667
+2000-01-05 -0.728628
+2000-01-06  0.257538
+2000-01-07  0.362494
+2000-01-08 -1.335476
+</pre>   <h2 id="the-lookup-method">The <code>lookup()</code> Method</h2> <p>Sometimes you want to extract a set of values given a sequence of row labels and column labels, and the <code>lookup</code> method allows for this and returns a numpy array. For instance,</p> <pre data-language="python">In [264]: dflookup = pd.DataFrame(np.random.rand(20,4), columns = ['A','B','C','D'])
+
+In [265]: dflookup.lookup(list(range(0,10,2)), ['B','C','A','B','D'])
+Out[265]: array([ 0.1473,  0.7212,  0.521 ,  0.6512,  0.2522])
+</pre>   <h2 id="indexing-class">Index objects</h2> <p id="index-objects">The pandas <a class="reference internal" href="../generated/pandas.index/#pandas.Index" title="pandas.Index"><code>Index</code></a> class and its subclasses can be viewed as implementing an <em>ordered multiset</em>. Duplicates are allowed. However, if you try to convert an <a class="reference internal" href="../generated/pandas.index/#pandas.Index" title="pandas.Index"><code>Index</code></a> object with duplicate entries into a <code>set</code>, an exception will be raised.</p> <p><a class="reference internal" href="../generated/pandas.index/#pandas.Index" title="pandas.Index"><code>Index</code></a> also provides the infrastructure necessary for lookups, data alignment, and reindexing. The easiest way to create an <a class="reference internal" href="../generated/pandas.index/#pandas.Index" title="pandas.Index"><code>Index</code></a> directly is to pass a <code>list</code> or other sequence to <a class="reference internal" href="../generated/pandas.index/#pandas.Index" title="pandas.Index"><code>Index</code></a>:</p> <pre data-language="python">In [266]: index = pd.Index(['e', 'd', 'a', 'b'])
+
+In [267]: index
+Out[267]: Index([u'e', u'd', u'a', u'b'], dtype='object')
+
+In [268]: 'd' in index
+Out[268]: True
+</pre> <p>You can also pass a <code>name</code> to be stored in the index:</p> <pre data-language="python">In [269]: index = pd.Index(['e', 'd', 'a', 'b'], name='something')
+
+In [270]: index.name
+Out[270]: 'something'
+</pre> <p>The name, if set, will be shown in the console display:</p> <pre data-language="python">In [271]: index = pd.Index(list(range(5)), name='rows')
+
+In [272]: columns = pd.Index(['A', 'B', 'C'], name='cols')
+
+In [273]: df = pd.DataFrame(np.random.randn(5, 3), index=index, columns=columns)
+
+In [274]: df
+Out[274]: 
+cols         A         B         C
+rows                              
+0     1.110384  0.381978 -1.112425
+1     0.037163 -0.139385  0.480202
+2     1.302333 -0.010130  1.223824
+3     0.185778  0.436259  0.678101
+4     0.311369 -0.528378 -0.674808
+
+In [275]: df['A']
+Out[275]: 
+rows
+0    1.110384
+1    0.037163
+2    1.302333
+3    0.185778
+4    0.311369
+Name: A, dtype: float64
+</pre>  <h3 id="indexing-set-metadata">Setting metadata</h3> <div class="versionadded" id="setting-metadata"> <p><span class="versionmodified">New in version 0.13.0.</span></p> </div> <p>Indexes are “mostly immutable”, but it is possible to set and change their metadata, like the index <code>name</code> (or, for <code>MultiIndex</code>, <code>levels</code> and <code>labels</code>).</p> <p>You can use the <code>rename</code>, <code>set_names</code>, <code>set_levels</code>, and <code>set_labels</code> to set these attributes directly. They default to returning a copy; however, you can specify <code>inplace=True</code> to have the data change in place.</p> <p>See <a class="reference internal" href="../advanced/#advanced">Advanced Indexing</a> for usage of MultiIndexes.</p> <pre data-language="python">In [276]: ind = pd.Index([1, 2, 3])
+
+In [277]: ind.rename("apple")
+Out[277]: Int64Index([1, 2, 3], dtype='int64', name=u'apple')
+
+In [278]: ind
+Out[278]: Int64Index([1, 2, 3], dtype='int64')
+
+In [279]: ind.set_names(["apple"], inplace=True)
+
+In [280]: ind.name = "bob"
+
+In [281]: ind
+Out[281]: Int64Index([1, 2, 3], dtype='int64', name=u'bob')
+</pre> <div class="versionadded"> <p><span class="versionmodified">New in version 0.15.0.</span></p> </div> <p><code>set_names</code>, <code>set_levels</code>, and <code>set_labels</code> also take an optional <code>level`</code> argument</p> <pre data-language="python">In [282]: index = pd.MultiIndex.from_product([range(3), ['one', 'two']], names=['first', 'second'])
+
+In [283]: index
+Out[283]: 
+MultiIndex(levels=[[0, 1, 2], [u'one', u'two']],
+           labels=[[0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 0, 1]],
+           names=[u'first', u'second'])
+
+In [284]: index.levels[1]
+Out[284]: Index([u'one', u'two'], dtype='object', name=u'second')
+
+In [285]: index.set_levels(["a", "b"], level=1)
+Out[285]: 
+MultiIndex(levels=[[0, 1, 2], [u'a', u'b']],
+           labels=[[0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 0, 1]],
+           names=[u'first', u'second'])
+</pre>   <h3 id="set-operations-on-index-objects">Set operations on Index objects</h3> <div class="admonition warning" id="indexing-set-ops"> <p class="first admonition-title">Warning</p> <p class="last">In 0.15.0. the set operations <code>+</code> and <code>-</code> were deprecated in order to provide these for numeric type operations on certain index types. <code>+</code> can be replace by <code>.union()</code> or <code>|</code>, and <code>-</code> by <code>.difference()</code>.</p> </div> <p>The two main operations are <code>union (|)</code>, <code>intersection (&amp;)</code> These can be directly called as instance methods or used via overloaded operators. Difference is provided via the <code>.difference()</code> method.</p> <pre data-language="python">In [286]: a = pd.Index(['c', 'b', 'a'])
+
+In [287]: b = pd.Index(['c', 'e', 'd'])
+
+In [288]: a | b
+Out[288]: Index([u'a', u'b', u'c', u'd', u'e'], dtype='object')
+
+In [289]: a &amp; b
+Out[289]: Index([u'c'], dtype='object')
+
+In [290]: a.difference(b)
+Out[290]: Index([u'a', u'b'], dtype='object')
+</pre> <p>Also available is the <code>symmetric_difference (^)</code> operation, which returns elements that appear in either <code>idx1</code> or <code>idx2</code> but not both. This is equivalent to the Index created by <code>idx1.difference(idx2).union(idx2.difference(idx1))</code>, with duplicates dropped.</p> <pre data-language="python">In [291]: idx1 = pd.Index([1, 2, 3, 4])
+
+In [292]: idx2 = pd.Index([2, 3, 4, 5])
+
+In [293]: idx1.symmetric_difference(idx2)
+Out[293]: Int64Index([1, 5], dtype='int64')
+
+In [294]: idx1 ^ idx2
+Out[294]: Int64Index([1, 5], dtype='int64')
+</pre>   <h3 id="missing-values">Missing values</h3> <div class="versionadded" id="indexing-missing"> <p><span class="versionmodified">New in version 0.17.1.</span></p> </div> <div class="admonition important"> <p class="first admonition-title">Important</p> <p class="last">Even though <code>Index</code> can hold missing values (<code>NaN</code>), it should be avoided if you do not want any unexpected results. For example, some operations exclude missing values implicitly.</p> </div> <p><code>Index.fillna</code> fills missing values with specified scalar value.</p> <pre data-language="python">In [295]: idx1 = pd.Index([1, np.nan, 3, 4])
+
+In [296]: idx1
+Out[296]: Float64Index([1.0, nan, 3.0, 4.0], dtype='float64')
+
+In [297]: idx1.fillna(2)
+Out[297]: Float64Index([1.0, 2.0, 3.0, 4.0], dtype='float64')
+
+In [298]: idx2 = pd.DatetimeIndex([pd.Timestamp('2011-01-01'), pd.NaT, pd.Timestamp('2011-01-03')])
+
+In [299]: idx2
+Out[299]: DatetimeIndex(['2011-01-01', 'NaT', '2011-01-03'], dtype='datetime64[ns]', freq=None)
+
+In [300]: idx2.fillna(pd.Timestamp('2011-01-02'))
+Out[300]: DatetimeIndex(['2011-01-01', '2011-01-02', '2011-01-03'], dtype='datetime64[ns]', freq=None)
+</pre>    <h2 id="set-reset-index">Set / Reset Index</h2> <p>Occasionally you will load or create a data set into a DataFrame and want to add an index after you’ve already done so. There are a couple of different ways.</p>  <h3 id="set-an-index">Set an index</h3> <p id="indexing-set-index">DataFrame has a <code>set_index</code> method which takes a column name (for a regular <code>Index</code>) or a list of column names (for a <code>MultiIndex</code>), to create a new, indexed DataFrame:</p> <pre data-language="python">In [301]: data
+Out[301]: 
+     a    b  c    d
+0  bar  one  z  1.0
+1  bar  two  y  2.0
+2  foo  one  x  3.0
+3  foo  two  w  4.0
+
+In [302]: indexed1 = data.set_index('c')
+
+In [303]: indexed1
+Out[303]: 
+     a    b    d
+c               
+z  bar  one  1.0
+y  bar  two  2.0
+x  foo  one  3.0
+w  foo  two  4.0
+
+In [304]: indexed2 = data.set_index(['a', 'b'])
+
+In [305]: indexed2
+Out[305]: 
+         c    d
+a   b          
+bar one  z  1.0
+    two  y  2.0
+foo one  x  3.0
+    two  w  4.0
+</pre> <p>The <code>append</code> keyword option allow you to keep the existing index and append the given columns to a MultiIndex:</p> <pre data-language="python">In [306]: frame = data.set_index('c', drop=False)
+
+In [307]: frame = frame.set_index(['a', 'b'], append=True)
+
+In [308]: frame
+Out[308]: 
+           c    d
+c a   b          
+z bar one  z  1.0
+y bar two  y  2.0
+x foo one  x  3.0
+w foo two  w  4.0
+</pre> <p>Other options in <code>set_index</code> allow you not drop the index columns or to add the index in-place (without creating a new object):</p> <pre data-language="python">In [309]: data.set_index('c', drop=False)
+Out[309]: 
+     a    b  c    d
+c                  
+z  bar  one  z  1.0
+y  bar  two  y  2.0
+x  foo  one  x  3.0
+w  foo  two  w  4.0
+
+In [310]: data.set_index(['a', 'b'], inplace=True)
+
+In [311]: data
+Out[311]: 
+         c    d
+a   b          
+bar one  z  1.0
+    two  y  2.0
+foo one  x  3.0
+    two  w  4.0
+</pre>   <h3 id="reset-the-index">Reset the index</h3> <p>As a convenience, there is a new function on DataFrame called <code>reset_index</code> which transfers the index values into the DataFrame’s columns and sets a simple integer index. This is the inverse operation to <code>set_index</code></p> <pre data-language="python">In [312]: data
+Out[312]: 
+         c    d
+a   b          
+bar one  z  1.0
+    two  y  2.0
+foo one  x  3.0
+    two  w  4.0
+
+In [313]: data.reset_index()
+Out[313]: 
+     a    b  c    d
+0  bar  one  z  1.0
+1  bar  two  y  2.0
+2  foo  one  x  3.0
+3  foo  two  w  4.0
+</pre> <p>The output is more similar to a SQL table or a record array. The names for the columns derived from the index are the ones stored in the <code>names</code> attribute.</p> <p>You can use the <code>level</code> keyword to remove only a portion of the index:</p> <pre data-language="python">In [314]: frame
+Out[314]: 
+           c    d
+c a   b          
+z bar one  z  1.0
+y bar two  y  2.0
+x foo one  x  3.0
+w foo two  w  4.0
+
+In [315]: frame.reset_index(level=1)
+Out[315]: 
+         a  c    d
+c b               
+z one  bar  z  1.0
+y two  bar  y  2.0
+x one  foo  x  3.0
+w two  foo  w  4.0
+</pre> <p><code>reset_index</code> takes an optional parameter <code>drop</code> which if true simply discards the index, instead of putting index values in the DataFrame’s columns.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The <code>reset_index</code> method used to be called <code>delevel</code> which is now deprecated.</p> </div>   <h3 id="adding-an-ad-hoc-index">Adding an ad hoc index</h3> <p>If you create an index yourself, you can just assign it to the <code>index</code> field:</p> <pre data-language="python">data.index = index
+</pre>    <h2 id="indexing-view-versus-copy">Returning a view versus a copy</h2> <p id="returning-a-view-versus-a-copy">When setting values in a pandas object, care must be taken to avoid what is called <code>chained indexing</code>. Here is an example.</p> <pre data-language="python">In [316]: dfmi = pd.DataFrame([list('abcd'),
+   .....:                      list('efgh'),
+   .....:                      list('ijkl'),
+   .....:                      list('mnop')],
+   .....:                     columns=pd.MultiIndex.from_product([['one','two'],
+   .....:                                                         ['first','second']]))
+   .....: 
+
+In [317]: dfmi
+Out[317]: 
+    one          two       
+  first second first second
+0     a      b     c      d
+1     e      f     g      h
+2     i      j     k      l
+3     m      n     o      p
+</pre> <p>Compare these two access methods:</p> <pre data-language="python">In [318]: dfmi['one']['second']
+Out[318]: 
+0    b
+1    f
+2    j
+3    n
+Name: second, dtype: object
+</pre> <pre data-language="python">In [319]: dfmi.loc[:,('one','second')]
+Out[319]: 
+0    b
+1    f
+2    j
+3    n
+Name: (one, second), dtype: object
+</pre> <p>These both yield the same results, so which should you use? It is instructive to understand the order of operations on these and why method 2 (<code>.loc</code>) is much preferred over method 1 (chained <code>[]</code>)</p> <p><code>dfmi['one']</code> selects the first level of the columns and returns a DataFrame that is singly-indexed. Then another python operation <code>dfmi_with_one['second']</code> selects the series indexed by <code>'second'</code> happens. This is indicated by the variable <code>dfmi_with_one</code> because pandas sees these operations as separate events. e.g. separate calls to <code>__getitem__</code>, so it has to treat them as linear operations, they happen one after another.</p> <p>Contrast this to <code>df.loc[:,('one','second')]</code> which passes a nested tuple of <code>(slice(None),('one','second'))</code> to a single call to <code>__getitem__</code>. This allows pandas to deal with this as a single entity. Furthermore this order of operations <em>can</em> be significantly faster, and allows one to index <em>both</em> axes if so desired.</p>  <h3 id="why-does-assignment-fail-when-using-chained-indexing">Why does assignment fail when using chained indexing?</h3> <p>The problem in the previous section is just a performance issue. What’s up with the <code>SettingWithCopy</code> warning? We don’t <strong>usually</strong> throw warnings around when you do something that might cost a few extra milliseconds!</p> <p>But it turns out that assigning to the product of chained indexing has inherently unpredictable results. To see this, think about how the Python interpreter executes this code:</p> <pre data-language="python">dfmi.loc[:,('one','second')] = value
+# becomes
+dfmi.loc.__setitem__((slice(None), ('one', 'second')), value)
+</pre> <p>But this code is handled differently:</p> <pre data-language="python">dfmi['one']['second'] = value
+# becomes
+dfmi.__getitem__('one').__setitem__('second', value)
+</pre> <p>See that <code>__getitem__</code> in there? Outside of simple cases, it’s very hard to predict whether it will return a view or a copy (it depends on the memory layout of the array, about which <em>pandas</em> makes no guarantees), and therefore whether the <code>__setitem__</code> will modify <code>dfmi</code> or a temporary object that gets thrown out immediately afterward. <strong>That’s</strong> what <code>SettingWithCopy</code> is warning you about!</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">You may be wondering whether we should be concerned about the <code>loc</code> property in the first example. But <code>dfmi.loc</code> is guaranteed to be <code>dfmi</code> itself with modified indexing behavior, so <code>dfmi.loc.__getitem__</code> / <code>dfmi.loc.__setitem__</code> operate on <code>dfmi</code> directly. Of course, <code>dfmi.loc.__getitem__(idx)</code> may be a view or a copy of <code>dfmi</code>.</p> </div> <p>Sometimes a <code>SettingWithCopy</code> warning will arise at times when there’s no obvious chained indexing going on. <strong>These</strong> are the bugs that <code>SettingWithCopy</code> is designed to catch! Pandas is probably trying to warn you that you’ve done this:</p> <pre data-language="python">def do_something(df):
+   foo = df[['bar', 'baz']]  # Is foo a view? A copy? Nobody knows!
+   # ... many lines here ...
+   foo['quux'] = value       # We don't know whether this will modify df or not!
+   return foo
+</pre> <p>Yikes!</p>   <h3 id="evaluation-order-matters">Evaluation order matters</h3> <p>Furthermore, in chained expressions, the order may determine whether a copy is returned or not. If an expression will set values on a copy of a slice, then a <code>SettingWithCopy</code> exception will be raised (this raise/warn behavior is new starting in 0.13.0)</p> <p>You can control the action of a chained assignment via the option <code>mode.chained_assignment</code>, which can take the values <code>['raise','warn',None]</code>, where showing a warning is the default.</p> <pre data-language="python">In [320]: dfb = pd.DataFrame({'a' : ['one', 'one', 'two',
+   .....:                            'three', 'two', 'one', 'six'],
+   .....:                     'c' : np.arange(7)})
+   .....: 
+
+# This will show the SettingWithCopyWarning
+# but the frame values will be set
+In [321]: dfb['c'][dfb.a.str.startswith('o')] = 42
+</pre> <p>This however is operating on a copy and will not work.</p> <pre data-language="python">&gt;&gt;&gt; pd.set_option('mode.chained_assignment','warn')
+&gt;&gt;&gt; dfb[dfb.a.str.startswith('o')]['c'] = 42
+Traceback (most recent call last)
+     ...
+SettingWithCopyWarning:
+     A value is trying to be set on a copy of a slice from a DataFrame.
+     Try using .loc[row_index,col_indexer] = value instead
+</pre> <p>A chained assignment can also crop up in setting in a mixed dtype frame.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">These setting rules apply to all of <code>.loc/.iloc/.ix</code></p> </div> <p>This is the correct access method</p> <pre data-language="python">In [322]: dfc = pd.DataFrame({'A':['aaa','bbb','ccc'],'B':[1,2,3]})
+
+In [323]: dfc.loc[0,'A'] = 11
+
+In [324]: dfc
+Out[324]: 
+     A  B
+0   11  1
+1  bbb  2
+2  ccc  3
+</pre> <p>This <em>can</em> work at times, but is not guaranteed, and so should be avoided</p> <pre data-language="python">In [325]: dfc = dfc.copy()
+
+In [326]: dfc['A'][0] = 111
+
+In [327]: dfc
+Out[327]: 
+     A  B
+0  111  1
+1  bbb  2
+2  ccc  3
+</pre> <p>This will <strong>not</strong> work at all, and so should be avoided</p> <pre data-language="python">&gt;&gt;&gt; pd.set_option('mode.chained_assignment','raise')
+&gt;&gt;&gt; dfc.loc[0]['A'] = 1111
+Traceback (most recent call last)
+     ...
+SettingWithCopyException:
+     A value is trying to be set on a copy of a slice from a DataFrame.
+     Try using .loc[row_index,col_indexer] = value instead
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">The chained assignment warnings / exceptions are aiming to inform the user of a possibly invalid assignment. There may be false positives; situations where a chained assignment is inadvertently reported.</p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.18.1/indexing.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.18.1/indexing.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

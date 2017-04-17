@@ -1,0 +1,1289 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>15. Group By&#58; Split-apply-combine - Pandas 0.19 - W3cubDocs</title>
+  
+  <meta name="description" content=" By “group by” we are referring to a process involving one or more of the following steps ">
+  <meta name="keywords" content="group, split-apply-combine, -, pandas, pandas~0.19">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/pandas~0.19/groupby/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/pandas~0.19.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/pandas~0.19/" class="_nav-link" title="" style="margin-left:0;">pandas 0.19</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="groupby">Group By: split-apply-combine</h1> <p id="group-by-split-apply-combine">By “group by” we are referring to a process involving one or more of the following steps</p>  <ul class="simple"> <li>
+<strong>Splitting</strong> the data into groups based on some criteria</li> <li>
+<strong>Applying</strong> a function to each group independently</li> <li>
+<strong>Combining</strong> the results into a data structure</li> </ul>  <p>Of these, the split step is the most straightforward. In fact, in many situations you may wish to split the data set into groups and do something with those groups yourself. In the apply step, we might wish to one of the following:</p>  <ul> <li>
+<p class="first"><strong>Aggregation</strong>: computing a summary statistic (or statistics) about each group. Some examples:</p>  <ul class="simple"> <li>Compute group sums or means</li> <li>Compute group sizes / counts</li> </ul>  </li> <li>
+<p class="first"><strong>Transformation</strong>: perform some group-specific computations and return a like-indexed. Some examples:</p>  <ul class="simple"> <li>Standardizing data (zscore) within group</li> <li>Filling NAs within groups with a value derived from each group</li> </ul>  </li> <li>
+<p class="first"><strong>Filtration</strong>: discard some groups, according to a group-wise computation that evaluates True or False. Some examples:</p>  <ul class="simple"> <li>Discarding data that belongs to groups with only a few members</li> <li>Filtering out data based on the group sum or mean</li> </ul>  </li> <li>Some combination of the above: GroupBy will examine the results of the apply step and try to return a sensibly combined result if it doesn’t fit into either of the above two categories </li> </ul>  <p>Since the set of object instance methods on pandas data structures are generally rich and expressive, we often simply want to invoke, say, a DataFrame function on each group. The name GroupBy should be quite familiar to those who have used a SQL-based tool (or <code>itertools</code>), in which you can write code like:</p> <pre data-language="sql">SELECT Column1, Column2, mean(Column3), sum(Column4)
+FROM SomeTable
+GROUP BY Column1, Column2
+</pre> <p>We aim to make operations like this natural and easy to express using pandas. We’ll address each area of GroupBy functionality then provide some non-trivial examples / use cases.</p> <p>See the <a class="reference internal" href="../cookbook/#cookbook-grouping"><span class="std std-ref">cookbook</span></a> for some advanced strategies</p>  <h2 id="groupby-split">Splitting an object into groups</h2> <p id="splitting-an-object-into-groups">pandas objects can be split on any of their axes. The abstract definition of grouping is to provide a mapping of labels to group names. To create a GroupBy object (more on what the GroupBy object is later), you do the following:</p> <pre data-language="python">&gt;&gt;&gt; grouped = obj.groupby(key)
+&gt;&gt;&gt; grouped = obj.groupby(key, axis=1)
+&gt;&gt;&gt; grouped = obj.groupby([key1, key2])
+</pre> <p>The mapping can be specified many different ways:</p>  <ul class="simple"> <li>A Python function, to be called on each of the axis labels</li> <li>A list or NumPy array of the same length as the selected axis</li> <li>A dict or Series, providing a <code>label -&gt; group name</code> mapping</li> <li>For DataFrame objects, a string indicating a column to be used to group. Of course <code>df.groupby('A')</code> is just syntactic sugar for <code>df.groupby(df['A'])</code>, but it makes life simpler</li> <li>A list of any of the above things</li> </ul>  <p>Collectively we refer to the grouping objects as the <strong>keys</strong>. For example, consider the following DataFrame:</p> <pre data-language="python">In [1]: df = pd.DataFrame({'A' : ['foo', 'bar', 'foo', 'bar',
+   ...:                           'foo', 'bar', 'foo', 'foo'],
+   ...:                    'B' : ['one', 'one', 'two', 'three',
+   ...:                           'two', 'two', 'one', 'three'],
+   ...:                    'C' : np.random.randn(8),
+   ...:                    'D' : np.random.randn(8)})
+   ...: 
+
+In [2]: df
+Out[2]: 
+     A      B         C         D
+0  foo    one  0.469112 -0.861849
+1  bar    one -0.282863 -2.104569
+2  foo    two -1.509059 -0.494929
+3  bar  three -1.135632  1.071804
+4  foo    two  1.212112  0.721555
+5  bar    two -0.173215 -0.706771
+6  foo    one  0.119209 -1.039575
+7  foo  three -1.044236  0.271860
+</pre> <p>We could naturally group by either the <code>A</code> or <code>B</code> columns or both:</p> <pre data-language="python">In [3]: grouped = df.groupby('A')
+
+In [4]: grouped = df.groupby(['A', 'B'])
+</pre> <p>These will split the DataFrame on its index (rows). We could also split by the columns:</p> <pre data-language="python">In [5]: def get_letter_type(letter):
+   ...:     if letter.lower() in 'aeiou':
+   ...:         return 'vowel'
+   ...:     else:
+   ...:         return 'consonant'
+   ...: 
+
+In [6]: grouped = df.groupby(get_letter_type, axis=1)
+</pre> <p>Starting with 0.8, pandas Index objects now support duplicate values. If a non-unique index is used as the group key in a groupby operation, all values for the same index value will be considered to be in one group and thus the output of aggregation functions will only contain unique index values:</p> <pre data-language="python">In [7]: lst = [1, 2, 3, 1, 2, 3]
+
+In [8]: s = pd.Series([1, 2, 3, 10, 20, 30], lst)
+
+In [9]: grouped = s.groupby(level=0)
+
+In [10]: grouped.first()
+Out[10]: 
+1    1
+2    2
+3    3
+dtype: int64
+
+In [11]: grouped.last()
+Out[11]: 
+1    10
+2    20
+3    30
+dtype: int64
+
+In [12]: grouped.sum()
+Out[12]: 
+1    11
+2    22
+3    33
+dtype: int64
+</pre> <p>Note that <strong>no splitting occurs</strong> until it’s needed. Creating the GroupBy object only verifies that you’ve passed a valid mapping.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Many kinds of complicated data manipulations can be expressed in terms of GroupBy operations (though can’t be guaranteed to be the most efficient). You can get quite creative with the label mapping functions.</p> </div>  <h3 id="id1">GroupBy sorting</h3> <p id="groupby-sorting">By default the group keys are sorted during the <code>groupby</code> operation. You may however pass <code>sort=False</code> for potential speedups:</p> <pre data-language="python">In [13]: df2 = pd.DataFrame({'X' : ['B', 'B', 'A', 'A'], 'Y' : [1, 2, 3, 4]})
+
+In [14]: df2.groupby(['X']).sum()
+Out[14]: 
+   Y
+X   
+A  7
+B  3
+
+In [15]: df2.groupby(['X'], sort=False).sum()
+Out[15]: 
+   Y
+X   
+B  3
+A  7
+</pre> <p>Note that <code>groupby</code> will preserve the order in which <em>observations</em> are sorted <em>within</em> each group. For example, the groups created by <code>groupby()</code> below are in the order they appeared in the original <code>DataFrame</code>:</p> <pre data-language="python">In [16]: df3 = pd.DataFrame({'X' : ['A', 'B', 'A', 'B'], 'Y' : [1, 4, 3, 2]})
+
+In [17]: df3.groupby(['X']).get_group('A')
+Out[17]: 
+   X  Y
+0  A  1
+2  A  3
+
+In [18]: df3.groupby(['X']).get_group('B')
+Out[18]: 
+   X  Y
+1  B  4
+3  B  2
+</pre>   <h3 id="groupby-attributes">GroupBy object attributes</h3> <p id="groupby-object-attributes">The <code>groups</code> attribute is a dict whose keys are the computed unique groups and corresponding values being the axis labels belonging to each group. In the above example we have:</p> <pre data-language="python">In [19]: df.groupby('A').groups
+Out[19]: 
+{'bar': Int64Index([1, 3, 5], dtype='int64'),
+ 'foo': Int64Index([0, 2, 4, 6, 7], dtype='int64')}
+
+In [20]: df.groupby(get_letter_type, axis=1).groups
+Out[20]: 
+{'consonant': Index([u'B', u'C', u'D'], dtype='object'),
+ 'vowel': Index([u'A'], dtype='object')}
+</pre> <p>Calling the standard Python <code>len</code> function on the GroupBy object just returns the length of the <code>groups</code> dict, so it is largely just a convenience:</p> <pre data-language="python">In [21]: grouped = df.groupby(['A', 'B'])
+
+In [22]: grouped.groups
+Out[22]: 
+{('bar', 'one'): Int64Index([1], dtype='int64'),
+ ('bar', 'three'): Int64Index([3], dtype='int64'),
+ ('bar', 'two'): Int64Index([5], dtype='int64'),
+ ('foo', 'one'): Int64Index([0, 6], dtype='int64'),
+ ('foo', 'three'): Int64Index([7], dtype='int64'),
+ ('foo', 'two'): Int64Index([2, 4], dtype='int64')}
+
+In [23]: len(grouped)
+Out[23]: 6
+</pre> <p id="groupby-tabcompletion"><code>GroupBy</code> will tab complete column names (and other attributes)</p> <pre data-language="python">In [24]: df
+Out[24]: 
+            gender     height      weight
+2000-01-01    male  42.849980  157.500553
+2000-01-02    male  49.607315  177.340407
+2000-01-03    male  56.293531  171.524640
+2000-01-04  female  48.421077  144.251986
+2000-01-05    male  46.556882  152.526206
+2000-01-06  female  68.448851  168.272968
+2000-01-07    male  70.757698  136.431469
+2000-01-08  female  58.909500  176.499753
+2000-01-09  female  76.435631  174.094104
+2000-01-10    male  45.306120  177.540920
+
+In [25]: gb = df.groupby('gender')
+</pre> <pre data-language="python">In [26]: gb.&lt;TAB&gt;
+gb.agg        gb.boxplot    gb.cummin     gb.describe   gb.filter     gb.get_group  gb.height     gb.last       gb.median     gb.ngroups    gb.plot       gb.rank       gb.std        gb.transform
+gb.aggregate  gb.count      gb.cumprod    gb.dtype      gb.first      gb.groups     gb.hist       gb.max        gb.min        gb.nth        gb.prod       gb.resample   gb.sum        gb.var
+gb.apply      gb.cummax     gb.cumsum     gb.fillna     gb.gender     gb.head       gb.indices    gb.mean       gb.name       gb.ohlc       gb.quantile   gb.size       gb.tail       gb.weight
+</pre>   <h3 id="groupby-multiindex">GroupBy with MultiIndex</h3> <p id="groupby-with-multiindex">With <a class="reference internal" href="../advanced/#advanced-hierarchical"><span class="std std-ref">hierarchically-indexed data</span></a>, it’s quite natural to group by one of the levels of the hierarchy.</p> <p>Let’s create a Series with a two-level <code>MultiIndex</code>.</p> <pre data-language="python">In [27]: arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
+   ....:           ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
+   ....: 
+
+In [28]: index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
+
+In [29]: s = pd.Series(np.random.randn(8), index=index)
+
+In [30]: s
+Out[30]: 
+first  second
+bar    one      -0.575247
+       two       0.254161
+baz    one      -1.143704
+       two       0.215897
+foo    one       1.193555
+       two      -0.077118
+qux    one      -0.408530
+       two      -0.862495
+dtype: float64
+</pre> <p>We can then group by one of the levels in <code>s</code>.</p> <pre data-language="python">In [31]: grouped = s.groupby(level=0)
+
+In [32]: grouped.sum()
+Out[32]: 
+first
+bar   -0.321085
+baz   -0.927807
+foo    1.116437
+qux   -1.271025
+dtype: float64
+</pre> <p>If the MultiIndex has names specified, these can be passed instead of the level number:</p> <pre data-language="python">In [33]: s.groupby(level='second').sum()
+Out[33]: 
+second
+one   -0.933926
+two   -0.469555
+dtype: float64
+</pre> <p>The aggregation functions such as <code>sum</code> will take the level parameter directly. Additionally, the resulting index will be named according to the chosen level:</p> <pre data-language="python">In [34]: s.sum(level='second')
+Out[34]: 
+second
+one   -0.933926
+two   -0.469555
+dtype: float64
+</pre> <p>Also as of v0.6, grouping with multiple levels is supported.</p> <pre data-language="python">In [35]: s
+Out[35]: 
+first  second  third
+bar    doo     one      1.346061
+               two      1.511763
+baz    bee     one      1.627081
+               two     -0.990582
+foo    bop     one     -0.441652
+               two      1.211526
+qux    bop     one      0.268520
+               two      0.024580
+dtype: float64
+
+In [36]: s.groupby(level=['first', 'second']).sum()
+Out[36]: 
+first  second
+bar    doo       2.857824
+baz    bee       0.636499
+foo    bop       0.769873
+qux    bop       0.293100
+dtype: float64
+</pre> <p>More on the <code>sum</code> function and aggregation later.</p>   <h3 id="dataframe-column-selection-in-groupby">DataFrame column selection in GroupBy</h3> <p>Once you have created the GroupBy object from a DataFrame, for example, you might want to do something different for each of the columns. Thus, using <code>[]</code> similar to getting a column from a DataFrame, you can do:</p> <pre data-language="python">In [37]: grouped = df.groupby(['A'])
+
+In [38]: grouped_C = grouped['C']
+
+In [39]: grouped_D = grouped['D']
+</pre> <p>This is mainly syntactic sugar for the alternative and much more verbose:</p> <pre data-language="python">In [40]: df['C'].groupby(df['A'])
+Out[40]: &lt;pandas.core.groupby.SeriesGroupBy object at 0x7ff26f58b810&gt;
+</pre> <p>Additionally this method avoids recomputing the internal grouping information derived from the passed key.</p>    <h2 id="groupby-iterating">Iterating through groups</h2> <p id="iterating-through-groups">With the GroupBy object in hand, iterating through the grouped data is very natural and functions similarly to <code>itertools.groupby</code>:</p> <pre data-language="python">In [41]: grouped = df.groupby('A')
+
+In [42]: for name, group in grouped:
+   ....:        print(name)
+   ....:        print(group)
+   ....: 
+bar
+     A      B         C         D
+1  bar    one -0.042379 -0.089329
+3  bar  three -0.009920 -0.945867
+5  bar    two  0.495767  1.956030
+foo
+     A      B         C         D
+0  foo    one -0.919854 -1.131345
+2  foo    two  1.247642  0.337863
+4  foo    two  0.290213 -0.932132
+6  foo    one  0.362949  0.017587
+7  foo  three  1.548106 -0.016692
+</pre> <p>In the case of grouping by multiple keys, the group name will be a tuple:</p> <pre data-language="python">In [43]: for name, group in df.groupby(['A', 'B']):
+   ....:        print(name)
+   ....:        print(group)
+   ....: 
+('bar', 'one')
+     A    B         C         D
+1  bar  one -0.042379 -0.089329
+('bar', 'three')
+     A      B        C         D
+3  bar  three -0.00992 -0.945867
+('bar', 'two')
+     A    B         C        D
+5  bar  two  0.495767  1.95603
+('foo', 'one')
+     A    B         C         D
+0  foo  one -0.919854 -1.131345
+6  foo  one  0.362949  0.017587
+('foo', 'three')
+     A      B         C         D
+7  foo  three  1.548106 -0.016692
+('foo', 'two')
+     A    B         C         D
+2  foo  two  1.247642  0.337863
+4  foo  two  0.290213 -0.932132
+</pre> <p>It’s standard Python-fu but remember you can unpack the tuple in the for loop statement if you wish: <code>for (k1, k2), group in grouped:</code>.</p>   <h2 id="selecting-a-group">Selecting a group</h2> <p>A single group can be selected using <code>GroupBy.get_group()</code>:</p> <pre data-language="python">In [44]: grouped.get_group('bar')
+Out[44]: 
+     A      B         C         D
+1  bar    one -0.042379 -0.089329
+3  bar  three -0.009920 -0.945867
+5  bar    two  0.495767  1.956030
+</pre> <p>Or for an object grouped on multiple columns:</p> <pre data-language="python">In [45]: df.groupby(['A', 'B']).get_group(('bar', 'one'))
+Out[45]: 
+     A    B         C         D
+1  bar  one -0.042379 -0.089329
+</pre>   <h2 id="groupby-aggregate">Aggregation</h2> <p id="aggregation">Once the GroupBy object has been created, several methods are available to perform a computation on the grouped data.</p> <p>An obvious one is aggregation via the <code>aggregate</code> or equivalently <code>agg</code> method:</p> <pre data-language="python">In [46]: grouped = df.groupby('A')
+
+In [47]: grouped.aggregate(np.sum)
+Out[47]: 
+            C         D
+A                      
+bar  0.443469  0.920834
+foo  2.529056 -1.724719
+
+In [48]: grouped = df.groupby(['A', 'B'])
+
+In [49]: grouped.aggregate(np.sum)
+Out[49]: 
+                  C         D
+A   B                        
+bar one   -0.042379 -0.089329
+    three -0.009920 -0.945867
+    two    0.495767  1.956030
+foo one   -0.556905 -1.113758
+    three  1.548106 -0.016692
+    two    1.537855 -0.594269
+</pre> <p>As you can see, the result of the aggregation will have the group names as the new index along the grouped axis. In the case of multiple keys, the result is a <a class="reference internal" href="../advanced/#advanced-hierarchical"><span class="std std-ref">MultiIndex</span></a> by default, though this can be changed by using the <code>as_index</code> option:</p> <pre data-language="python">In [50]: grouped = df.groupby(['A', 'B'], as_index=False)
+
+In [51]: grouped.aggregate(np.sum)
+Out[51]: 
+     A      B         C         D
+0  bar    one -0.042379 -0.089329
+1  bar  three -0.009920 -0.945867
+2  bar    two  0.495767  1.956030
+3  foo    one -0.556905 -1.113758
+4  foo  three  1.548106 -0.016692
+5  foo    two  1.537855 -0.594269
+
+In [52]: df.groupby('A', as_index=False).sum()
+Out[52]: 
+     A         C         D
+0  bar  0.443469  0.920834
+1  foo  2.529056 -1.724719
+</pre> <p>Note that you could use the <code>reset_index</code> DataFrame function to achieve the same result as the column names are stored in the resulting <code>MultiIndex</code>:</p> <pre data-language="python">In [53]: df.groupby(['A', 'B']).sum().reset_index()
+Out[53]: 
+     A      B         C         D
+0  bar    one -0.042379 -0.089329
+1  bar  three -0.009920 -0.945867
+2  bar    two  0.495767  1.956030
+3  foo    one -0.556905 -1.113758
+4  foo  three  1.548106 -0.016692
+5  foo    two  1.537855 -0.594269
+</pre> <p>Another simple aggregation example is to compute the size of each group. This is included in GroupBy as the <code>size</code> method. It returns a Series whose index are the group names and whose values are the sizes of each group.</p> <pre data-language="python">In [54]: grouped.size()
+Out[54]: 
+A    B    
+bar  one      1
+     three    1
+     two      1
+foo  one      2
+     three    1
+     two      2
+dtype: int64
+</pre> <pre data-language="python">In [55]: grouped.describe()
+Out[55]: 
+                C         D
+0 count  1.000000  1.000000
+  mean  -0.042379 -0.089329
+  std         NaN       NaN
+  min   -0.042379 -0.089329
+  25%   -0.042379 -0.089329
+  50%   -0.042379 -0.089329
+  75%   -0.042379 -0.089329
+...           ...       ...
+5 mean   0.768928 -0.297134
+  std    0.677005  0.898022
+  min    0.290213 -0.932132
+  25%    0.529570 -0.614633
+  50%    0.768928 -0.297134
+  75%    1.008285  0.020364
+  max    1.247642  0.337863
+
+[48 rows x 2 columns]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Aggregation functions <strong>will not</strong> return the groups that you are aggregating over if they are named <em>columns</em>, when <code>as_index=True</code>, the default. The grouped columns will be the <strong>indices</strong> of the returned object.</p> <p>Passing <code>as_index=False</code> <strong>will</strong> return the groups that you are aggregating over, if they are named <em>columns</em>.</p> <p>Aggregating functions are ones that reduce the dimension of the returned objects, for example: <code>mean, sum, size, count, std, var, sem, describe, first, last, nth, min, max</code>. This is what happens when you do for example <code>DataFrame.sum()</code> and get back a <code>Series</code>.</p> <p class="last"><code>nth</code> can act as a reducer <em>or</em> a filter, see <a class="reference internal" href="#groupby-nth"><span class="std std-ref">here</span></a></p> </div>  <h3 id="groupby-aggregate-multifunc">Applying multiple functions at once</h3> <p id="applying-multiple-functions-at-once">With grouped Series you can also pass a list or dict of functions to do aggregation with, outputting a DataFrame:</p> <pre data-language="python">In [56]: grouped = df.groupby('A')
+
+In [57]: grouped['C'].agg([np.sum, np.mean, np.std])
+Out[57]: 
+          sum      mean       std
+A                                
+bar  0.443469  0.147823  0.301765
+foo  2.529056  0.505811  0.966450
+</pre> <p>If a dict is passed, the keys will be used to name the columns. Otherwise the function’s name (stored in the function object) will be used.</p> <pre data-language="python">In [58]: grouped['D'].agg({'result1' : np.sum,
+   ....:                   'result2' : np.mean})
+   ....: 
+Out[58]: 
+      result2   result1
+A                      
+bar  0.306945  0.920834
+foo -0.344944 -1.724719
+</pre> <p>On a grouped DataFrame, you can pass a list of functions to apply to each column, which produces an aggregated result with a hierarchical index:</p> <pre data-language="python">In [59]: grouped.agg([np.sum, np.mean, np.std])
+Out[59]: 
+            C                             D                    
+          sum      mean       std       sum      mean       std
+A                                                              
+bar  0.443469  0.147823  0.301765  0.920834  0.306945  1.490982
+foo  2.529056  0.505811  0.966450 -1.724719 -0.344944  0.645875
+</pre> <p>Passing a dict of functions has different behavior by default, see the next section.</p>   <h3 id="applying-different-functions-to-dataframe-columns">Applying different functions to DataFrame columns</h3> <p>By passing a dict to <code>aggregate</code> you can apply a different aggregation to the columns of a DataFrame:</p> <pre data-language="python">In [60]: grouped.agg({'C' : np.sum,
+   ....:              'D' : lambda x: np.std(x, ddof=1)})
+   ....: 
+Out[60]: 
+            C         D
+A                      
+bar  0.443469  1.490982
+foo  2.529056  0.645875
+</pre> <p>The function names can also be strings. In order for a string to be valid it must be either implemented on GroupBy or available via <a class="reference internal" href="#groupby-dispatch"><span class="std std-ref">dispatching</span></a>:</p> <pre data-language="python">In [61]: grouped.agg({'C' : 'sum', 'D' : 'std'})
+Out[61]: 
+            C         D
+A                      
+bar  0.443469  1.490982
+foo  2.529056  0.645875
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">If you pass a dict to <code>aggregate</code>, the ordering of the output colums is non-deterministic. If you want to be sure the output columns will be in a specific order, you can use an <code>OrderedDict</code>. Compare the output of the following two commands:</p> </div> <pre data-language="python">In [62]: grouped.agg({'D': 'std', 'C': 'mean'})
+Out[62]: 
+            C         D
+A                      
+bar  0.147823  1.490982
+foo  0.505811  0.645875
+
+In [63]: grouped.agg(OrderedDict([('D', 'std'), ('C', 'mean')]))
+Out[63]: 
+            D         C
+A                      
+bar  1.490982  0.147823
+foo  0.645875  0.505811
+</pre>   <h3 id="groupby-aggregate-cython">Cython-optimized aggregation functions</h3> <p id="cython-optimized-aggregation-functions">Some common aggregations, currently only <code>sum</code>, <code>mean</code>, <code>std</code>, and <code>sem</code>, have optimized Cython implementations:</p> <pre data-language="python">In [64]: df.groupby('A').sum()
+Out[64]: 
+            C         D
+A                      
+bar  0.443469  0.920834
+foo  2.529056 -1.724719
+
+In [65]: df.groupby(['A', 'B']).mean()
+Out[65]: 
+                  C         D
+A   B                        
+bar one   -0.042379 -0.089329
+    three -0.009920 -0.945867
+    two    0.495767  1.956030
+foo one   -0.278452 -0.556879
+    three  1.548106 -0.016692
+    two    0.768928 -0.297134
+</pre> <p>Of course <code>sum</code> and <code>mean</code> are implemented on pandas objects, so the above code would work even without the special versions via dispatching (see below).</p>    <h2 id="groupby-transform">Transformation</h2> <p id="transformation">The <code>transform</code> method returns an object that is indexed the same (same size) as the one being grouped. Thus, the passed transform function should return a result that is the same size as the group chunk. For example, suppose we wished to standardize the data within each group:</p> <pre data-language="python">In [66]: index = pd.date_range('10/1/1999', periods=1100)
+
+In [67]: ts = pd.Series(np.random.normal(0.5, 2, 1100), index)
+
+In [68]: ts = ts.rolling(window=100,min_periods=100).mean().dropna()
+
+In [69]: ts.head()
+Out[69]: 
+2000-01-08    0.779333
+2000-01-09    0.778852
+2000-01-10    0.786476
+2000-01-11    0.782797
+2000-01-12    0.798110
+Freq: D, dtype: float64
+
+In [70]: ts.tail()
+Out[70]: 
+2002-09-30    0.660294
+2002-10-01    0.631095
+2002-10-02    0.673601
+2002-10-03    0.709213
+2002-10-04    0.719369
+Freq: D, dtype: float64
+
+In [71]: key = lambda x: x.year
+
+In [72]: zscore = lambda x: (x - x.mean()) / x.std()
+
+In [73]: transformed = ts.groupby(key).transform(zscore)
+</pre> <p>We would expect the result to now have mean 0 and standard deviation 1 within each group, which we can easily check:</p> <pre data-language="python"># Original Data
+In [74]: grouped = ts.groupby(key)
+
+In [75]: grouped.mean()
+Out[75]: 
+2000    0.442441
+2001    0.526246
+2002    0.459365
+dtype: float64
+
+In [76]: grouped.std()
+Out[76]: 
+2000    0.131752
+2001    0.210945
+2002    0.128753
+dtype: float64
+
+# Transformed Data
+In [77]: grouped_trans = transformed.groupby(key)
+
+In [78]: grouped_trans.mean()
+Out[78]: 
+2000    1.168208e-15
+2001    1.454544e-15
+2002    1.726657e-15
+dtype: float64
+
+In [79]: grouped_trans.std()
+Out[79]: 
+2000    1.0
+2001    1.0
+2002    1.0
+dtype: float64
+</pre> <p>We can also visually compare the original and transformed data sets.</p> <pre data-language="python">In [80]: compare = pd.DataFrame({'Original': ts, 'Transformed': transformed})
+
+In [81]: compare.plot()
+Out[81]: &lt;matplotlib.axes._subplots.AxesSubplot at 0x7ff26ffe62d0&gt;
+</pre> <img alt="_images/groupby_transform_plot.png" src="http://pandas.pydata.org/pandas-docs/version/0.19.2/_images/groupby_transform_plot.png"> <p>Another common data transform is to replace missing data with the group mean.</p> <pre data-language="python">In [82]: data_df
+Out[82]: 
+            A         B         C
+0    1.539708 -1.166480  0.533026
+1    1.302092 -0.505754       NaN
+2   -0.371983  1.104803 -0.651520
+3   -1.309622  1.118697 -1.161657
+4   -1.924296  0.396437  0.812436
+5    0.815643  0.367816 -0.469478
+6   -0.030651  1.376106 -0.645129
+..        ...       ...       ...
+993  0.012359  0.554602 -1.976159
+994  0.042312 -1.628835  1.013822
+995 -0.093110  0.683847 -0.774753
+996 -0.185043  1.438572       NaN
+997 -0.394469 -0.642343  0.011374
+998 -1.174126  1.857148       NaN
+999  0.234564  0.517098  0.393534
+
+[1000 rows x 3 columns]
+
+In [83]: countries = np.array(['US', 'UK', 'GR', 'JP'])
+
+In [84]: key = countries[np.random.randint(0, 4, 1000)]
+
+In [85]: grouped = data_df.groupby(key)
+
+# Non-NA count in each group
+In [86]: grouped.count()
+Out[86]: 
+      A    B    C
+GR  209  217  189
+JP  240  255  217
+UK  216  231  193
+US  239  250  217
+
+In [87]: f = lambda x: x.fillna(x.mean())
+
+In [88]: transformed = grouped.transform(f)
+</pre> <p>We can verify that the group means have not changed in the transformed data and that the transformed data contains no NAs.</p> <pre data-language="python">In [89]: grouped_trans = transformed.groupby(key)
+
+In [90]: grouped.mean() # original group means
+Out[90]: 
+           A         B         C
+GR -0.098371 -0.015420  0.068053
+JP  0.069025  0.023100 -0.077324
+UK  0.034069 -0.052580 -0.116525
+US  0.058664 -0.020399  0.028603
+
+In [91]: grouped_trans.mean() # transformation did not change group means
+Out[91]: 
+           A         B         C
+GR -0.098371 -0.015420  0.068053
+JP  0.069025  0.023100 -0.077324
+UK  0.034069 -0.052580 -0.116525
+US  0.058664 -0.020399  0.028603
+
+In [92]: grouped.count() # original has some missing data points
+Out[92]: 
+      A    B    C
+GR  209  217  189
+JP  240  255  217
+UK  216  231  193
+US  239  250  217
+
+In [93]: grouped_trans.count() # counts after transformation
+Out[93]: 
+      A    B    C
+GR  228  228  228
+JP  267  267  267
+UK  247  247  247
+US  258  258  258
+
+In [94]: grouped_trans.size() # Verify non-NA count equals group size
+Out[94]: 
+GR    228
+JP    267
+UK    247
+US    258
+dtype: int64
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Some functions when applied to a groupby object will automatically transform the input, returning an object of the same shape as the original. Passing <code>as_index=False</code> will not affect these transformation methods.</p> <p>For example: <code>fillna, ffill, bfill, shift</code>.</p> <pre data-language="python">In [95]: grouped.ffill()
+Out[95]: 
+            A         B         C
+0    1.539708 -1.166480  0.533026
+1    1.302092 -0.505754  0.533026
+2   -0.371983  1.104803 -0.651520
+3   -1.309622  1.118697 -1.161657
+4   -1.924296  0.396437  0.812436
+5    0.815643  0.367816 -0.469478
+6   -0.030651  1.376106 -0.645129
+..        ...       ...       ...
+993  0.012359  0.554602 -1.976159
+994  0.042312 -1.628835  1.013822
+995 -0.093110  0.683847 -0.774753
+996 -0.185043  1.438572 -0.774753
+997 -0.394469 -0.642343  0.011374
+998 -1.174126  1.857148 -0.774753
+999  0.234564  0.517098  0.393534
+
+[1000 rows x 3 columns]
+</pre> </div>  <h3 id="groupby-transform-window-resample">New syntax to window and resample operations</h3> <div class="versionadded" id="new-syntax-to-window-and-resample-operations"> <p><span class="versionmodified">New in version 0.18.1.</span></p> </div> <p>Working with the resample, expanding or rolling operations on the groupby level used to require the application of helper functions. However, now it is possible to use <code>resample()</code>, <code>expanding()</code> and <code>rolling()</code> as methods on groupbys.</p> <p>The example below will apply the <code>rolling()</code> method on the samples of the column B based on the groups of column A.</p> <pre data-language="python">In [96]: df_re = pd.DataFrame({'A': [1] * 10 + [5] * 10,
+   ....:                       'B': np.arange(20)})
+   ....: 
+
+In [97]: df_re
+Out[97]: 
+    A   B
+0   1   0
+1   1   1
+2   1   2
+3   1   3
+4   1   4
+5   1   5
+6   1   6
+.. ..  ..
+13  5  13
+14  5  14
+15  5  15
+16  5  16
+17  5  17
+18  5  18
+19  5  19
+
+[20 rows x 2 columns]
+
+In [98]: df_re.groupby('A').rolling(4).B.mean()
+Out[98]: 
+A    
+1  0      NaN
+   1      NaN
+   2      NaN
+   3      1.5
+   4      2.5
+   5      3.5
+   6      4.5
+         ... 
+5  13    11.5
+   14    12.5
+   15    13.5
+   16    14.5
+   17    15.5
+   18    16.5
+   19    17.5
+Name: B, dtype: float64
+</pre> <p>The <code>expanding()</code> method will accumulate a given operation (<code>sum()</code> in the example) for all the members of each particular group.</p> <pre data-language="python">In [99]: df_re.groupby('A').expanding().sum()
+Out[99]: 
+         A      B
+A                
+1 0    1.0    0.0
+  1    2.0    1.0
+  2    3.0    3.0
+  3    4.0    6.0
+  4    5.0   10.0
+  5    6.0   15.0
+  6    7.0   21.0
+...    ...    ...
+5 13  20.0   46.0
+  14  25.0   60.0
+  15  30.0   75.0
+  16  35.0   91.0
+  17  40.0  108.0
+  18  45.0  126.0
+  19  50.0  145.0
+
+[20 rows x 2 columns]
+</pre> <p>Suppose you want to use the <code>resample()</code> method to get a daily frequency in each group of your dataframe and wish to complete the missing values with the <code>ffill()</code> method.</p> <pre data-language="python">In [100]: df_re = pd.DataFrame({'date': pd.date_range(start='2016-01-01',
+   .....:                               periods=4,
+   .....:                       freq='W'),
+   .....:                      'group': [1, 1, 2, 2],
+   .....:                      'val': [5, 6, 7, 8]}).set_index('date')
+   .....: 
+
+In [101]: df_re
+Out[101]: 
+            group  val
+date                  
+2016-01-03      1    5
+2016-01-10      1    6
+2016-01-17      2    7
+2016-01-24      2    8
+
+In [102]: df_re.groupby('group').resample('1D').ffill()
+Out[102]: 
+                  group  val
+group date                  
+1     2016-01-03      1    5
+      2016-01-04      1    5
+      2016-01-05      1    5
+      2016-01-06      1    5
+      2016-01-07      1    5
+      2016-01-08      1    5
+      2016-01-09      1    5
+...                 ...  ...
+2     2016-01-18      2    7
+      2016-01-19      2    7
+      2016-01-20      2    7
+      2016-01-21      2    7
+      2016-01-22      2    7
+      2016-01-23      2    7
+      2016-01-24      2    8
+
+[16 rows x 2 columns]
+</pre>    <h2 id="groupby-filter">Filtration</h2> <div class="versionadded" id="filtration"> <p><span class="versionmodified">New in version 0.12.</span></p> </div> <p>The <code>filter</code> method returns a subset of the original object. Suppose we want to take only elements that belong to groups with a group sum greater than 2.</p> <pre data-language="python">In [103]: sf = pd.Series([1, 1, 2, 3, 3, 3])
+
+In [104]: sf.groupby(sf).filter(lambda x: x.sum() &gt; 2)
+Out[104]: 
+3    3
+4    3
+5    3
+dtype: int64
+</pre> <p>The argument of <code>filter</code> must be a function that, applied to the group as a whole, returns <code>True</code> or <code>False</code>.</p> <p>Another useful operation is filtering out elements that belong to groups with only a couple members.</p> <pre data-language="python">In [105]: dff = pd.DataFrame({'A': np.arange(8), 'B': list('aabbbbcc')})
+
+In [106]: dff.groupby('B').filter(lambda x: len(x) &gt; 2)
+Out[106]: 
+   A  B
+2  2  b
+3  3  b
+4  4  b
+5  5  b
+</pre> <p>Alternatively, instead of dropping the offending groups, we can return a like-indexed objects where the groups that do not pass the filter are filled with NaNs.</p> <pre data-language="python">In [107]: dff.groupby('B').filter(lambda x: len(x) &gt; 2, dropna=False)
+Out[107]: 
+     A    B
+0  NaN  NaN
+1  NaN  NaN
+2  2.0    b
+3  3.0    b
+4  4.0    b
+5  5.0    b
+6  NaN  NaN
+7  NaN  NaN
+</pre> <p>For DataFrames with multiple columns, filters should explicitly specify a column as the filter criterion.</p> <pre data-language="python">In [108]: dff['C'] = np.arange(8)
+
+In [109]: dff.groupby('B').filter(lambda x: len(x['C']) &gt; 2)
+Out[109]: 
+   A  B  C
+2  2  b  2
+3  3  b  3
+4  4  b  4
+5  5  b  5
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Some functions when applied to a groupby object will act as a <strong>filter</strong> on the input, returning a reduced shape of the original (and potentially eliminating groups), but with the index unchanged. Passing <code>as_index=False</code> will not affect these transformation methods.</p> <p>For example: <code>head, tail</code>.</p> <pre data-language="python">In [110]: dff.groupby('B').head(2)
+Out[110]: 
+   A  B  C
+0  0  a  0
+1  1  a  1
+2  2  b  2
+3  3  b  3
+6  6  c  6
+7  7  c  7
+</pre> </div>   <h2 id="groupby-dispatch">Dispatching to instance methods</h2> <p id="dispatching-to-instance-methods">When doing an aggregation or transformation, you might just want to call an instance method on each data group. This is pretty easy to do by passing lambda functions:</p> <pre data-language="python">In [111]: grouped = df.groupby('A')
+
+In [112]: grouped.agg(lambda x: x.std())
+Out[112]: 
+            C         D
+A                      
+bar  0.301765  1.490982
+foo  0.966450  0.645875
+</pre> <p>But, it’s rather verbose and can be untidy if you need to pass additional arguments. Using a bit of metaprogramming cleverness, GroupBy now has the ability to “dispatch” method calls to the groups:</p> <pre data-language="python">In [113]: grouped.std()
+Out[113]: 
+            C         D
+A                      
+bar  0.301765  1.490982
+foo  0.966450  0.645875
+</pre> <p>What is actually happening here is that a function wrapper is being generated. When invoked, it takes any passed arguments and invokes the function with any arguments on each group (in the above example, the <code>std</code> function). The results are then combined together much in the style of <code>agg</code> and <code>transform</code> (it actually uses <code>apply</code> to infer the gluing, documented next). This enables some operations to be carried out rather succinctly:</p> <pre data-language="python">In [114]: tsdf = pd.DataFrame(np.random.randn(1000, 3),
+   .....:                     index=pd.date_range('1/1/2000', periods=1000),
+   .....:                     columns=['A', 'B', 'C'])
+   .....: 
+
+In [115]: tsdf.ix[::2] = np.nan
+
+In [116]: grouped = tsdf.groupby(lambda x: x.year)
+
+In [117]: grouped.fillna(method='pad')
+Out[117]: 
+                   A         B         C
+2000-01-01       NaN       NaN       NaN
+2000-01-02 -0.353501 -0.080957 -0.876864
+2000-01-03 -0.353501 -0.080957 -0.876864
+2000-01-04  0.050976  0.044273 -0.559849
+2000-01-05  0.050976  0.044273 -0.559849
+2000-01-06  0.030091  0.186460 -0.680149
+2000-01-07  0.030091  0.186460 -0.680149
+...              ...       ...       ...
+2002-09-20  2.310215  0.157482 -0.064476
+2002-09-21  2.310215  0.157482 -0.064476
+2002-09-22  0.005011  0.053897 -1.026922
+2002-09-23  0.005011  0.053897 -1.026922
+2002-09-24 -0.456542 -1.849051  1.559856
+2002-09-25 -0.456542 -1.849051  1.559856
+2002-09-26  1.123162  0.354660  1.128135
+
+[1000 rows x 3 columns]
+</pre> <p>In this example, we chopped the collection of time series into yearly chunks then independently called <a class="reference internal" href="../missing_data/#missing-data-fillna"><span class="std std-ref">fillna</span></a> on the groups.</p> <div class="versionadded"> <p><span class="versionmodified">New in version 0.14.1.</span></p> </div> <p>The <code>nlargest</code> and <code>nsmallest</code> methods work on <code>Series</code> style groupbys:</p> <pre data-language="python">In [118]: s = pd.Series([9, 8, 7, 5, 19, 1, 4.2, 3.3])
+
+In [119]: g = pd.Series(list('abababab'))
+
+In [120]: gb = s.groupby(g)
+
+In [121]: gb.nlargest(3)
+Out[121]: 
+a  4    19.0
+   0     9.0
+   2     7.0
+b  1     8.0
+   3     5.0
+   7     3.3
+dtype: float64
+
+In [122]: gb.nsmallest(3)
+Out[122]: 
+a  6    4.2
+   2    7.0
+   0    9.0
+b  5    1.0
+   7    3.3
+   3    5.0
+dtype: float64
+</pre>   <h2 id="groupby-apply">Flexible <code>apply</code>
+</h2> <p id="flexible-apply">Some operations on the grouped data might not fit into either the aggregate or transform categories. Or, you may simply want GroupBy to infer how to combine the results. For these, use the <code>apply</code> function, which can be substituted for both <code>aggregate</code> and <code>transform</code> in many standard use cases. However, <code>apply</code> can handle some exceptional use cases, for example:</p> <pre data-language="python">In [123]: df
+Out[123]: 
+     A      B         C         D
+0  foo    one -0.919854 -1.131345
+1  bar    one -0.042379 -0.089329
+2  foo    two  1.247642  0.337863
+3  bar  three -0.009920 -0.945867
+4  foo    two  0.290213 -0.932132
+5  bar    two  0.495767  1.956030
+6  foo    one  0.362949  0.017587
+7  foo  three  1.548106 -0.016692
+
+In [124]: grouped = df.groupby('A')
+
+# could also just call .describe()
+In [125]: grouped['C'].apply(lambda x: x.describe())
+Out[125]: 
+A         
+bar  count    3.000000
+     mean     0.147823
+     std      0.301765
+     min     -0.042379
+     25%     -0.026149
+     50%     -0.009920
+     75%      0.242924
+                ...   
+foo  mean     0.505811
+     std      0.966450
+     min     -0.919854
+     25%      0.290213
+     50%      0.362949
+     75%      1.247642
+     max      1.548106
+Name: C, dtype: float64
+</pre> <p>The dimension of the returned result can also change:</p> <pre data-language="python">In [126]: grouped = df.groupby('A')['C']
+
+In [127]: def f(group):
+   .....:     return pd.DataFrame({'original' : group,
+   .....:                          'demeaned' : group - group.mean()})
+   .....: 
+
+In [128]: grouped.apply(f)
+Out[128]: 
+   demeaned  original
+0 -1.425665 -0.919854
+1 -0.190202 -0.042379
+2  0.741831  1.247642
+3 -0.157743 -0.009920
+4 -0.215598  0.290213
+5  0.347944  0.495767
+6 -0.142862  0.362949
+7  1.042295  1.548106
+</pre> <p><code>apply</code> on a Series can operate on a returned value from the applied function, that is itself a series, and possibly upcast the result to a DataFrame</p> <pre data-language="python">In [129]: def f(x):
+   .....:   return pd.Series([ x, x**2 ], index = ['x', 'x^2'])
+   .....: 
+
+In [130]: s
+Out[130]: 
+0     9.0
+1     8.0
+2     7.0
+3     5.0
+4    19.0
+5     1.0
+6     4.2
+7     3.3
+dtype: float64
+
+In [131]: s.apply(f)
+Out[131]: 
+      x     x^2
+0   9.0   81.00
+1   8.0   64.00
+2   7.0   49.00
+3   5.0   25.00
+4  19.0  361.00
+5   1.0    1.00
+6   4.2   17.64
+7   3.3   10.89
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last"><code>apply</code> can act as a reducer, transformer, <em>or</em> filter function, depending on exactly what is passed to it. So depending on the path taken, and exactly what you are grouping. Thus the grouped columns(s) may be included in the output as well as set the indices.</p> </div> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p>In the current implementation apply calls func twice on the first group to decide whether it can take a fast or slow code path. This can lead to unexpected behavior if func has side-effects, as they will take effect twice for the first group.</p> <pre data-language="python">In [132]: d = pd.DataFrame({"a":["x", "y"], "b":[1,2]})
+
+In [133]: def identity(df):
+   .....:     print df
+   .....:     return df
+   .....: 
+
+In [134]: d.groupby("a").apply(identity)
+   a  b
+0  x  1
+   a  b
+0  x  1
+   a  b
+1  y  2
+Out[134]: 
+   a  b
+0  x  1
+1  y  2
+</pre> </div>   <h2 id="other-useful-features">Other useful features</h2>  <h3 id="automatic-exclusion-of-nuisance-columns">Automatic exclusion of “nuisance” columns</h3> <p>Again consider the example DataFrame we’ve been looking at:</p> <pre data-language="python">In [135]: df
+Out[135]: 
+     A      B         C         D
+0  foo    one -0.919854 -1.131345
+1  bar    one -0.042379 -0.089329
+2  foo    two  1.247642  0.337863
+3  bar  three -0.009920 -0.945867
+4  foo    two  0.290213 -0.932132
+5  bar    two  0.495767  1.956030
+6  foo    one  0.362949  0.017587
+7  foo  three  1.548106 -0.016692
+</pre> <p>Suppose we wish to compute the standard deviation grouped by the <code>A</code> column. There is a slight problem, namely that we don’t care about the data in column <code>B</code>. We refer to this as a “nuisance” column. If the passed aggregation function can’t be applied to some columns, the troublesome columns will be (silently) dropped. Thus, this does not pose any problems:</p> <pre data-language="python">In [136]: df.groupby('A').std()
+Out[136]: 
+            C         D
+A                      
+bar  0.301765  1.490982
+foo  0.966450  0.645875
+</pre>   <h3 id="groupby-missing">NA and NaT group handling</h3> <p id="na-and-nat-group-handling">If there are any NaN or NaT values in the grouping key, these will be automatically excluded. So there will never be an “NA group” or “NaT group”. This was not the case in older versions of pandas, but users were generally discarding the NA group anyway (and supporting it was an implementation headache).</p>   <h3 id="grouping-with-ordered-factors">Grouping with ordered factors</h3> <p>Categorical variables represented as instance of pandas’s <code>Categorical</code> class can be used as group keys. If so, the order of the levels will be preserved:</p> <pre data-language="python">In [137]: data = pd.Series(np.random.randn(100))
+
+In [138]: factor = pd.qcut(data, [0, .25, .5, .75, 1.])
+
+In [139]: data.groupby(factor).mean()
+Out[139]: 
+[-2.617, -0.684]    -1.331461
+(-0.684, -0.0232]   -0.272816
+(-0.0232, 0.541]     0.263607
+(0.541, 2.369]       1.166038
+dtype: float64
+</pre>   <h3 id="groupby-specify">Grouping with a Grouper specification</h3> <p id="grouping-with-a-grouper-specification">You may need to specify a bit more data to properly group. You can use the <code>pd.Grouper</code> to provide this local control.</p> <pre data-language="python">In [140]: import datetime
+
+In [141]: df = pd.DataFrame({
+   .....:          'Branch' : 'A A A A A A A B'.split(),
+   .....:          'Buyer': 'Carl Mark Carl Carl Joe Joe Joe Carl'.split(),
+   .....:          'Quantity': [1,3,5,1,8,1,9,3],
+   .....:          'Date' : [
+   .....:              datetime.datetime(2013,1,1,13,0),
+   .....:              datetime.datetime(2013,1,1,13,5),
+   .....:              datetime.datetime(2013,10,1,20,0),
+   .....:              datetime.datetime(2013,10,2,10,0),
+   .....:              datetime.datetime(2013,10,1,20,0),
+   .....:              datetime.datetime(2013,10,2,10,0),
+   .....:              datetime.datetime(2013,12,2,12,0),
+   .....:              datetime.datetime(2013,12,2,14,0),
+   .....:              ]
+   .....:          })
+   .....: 
+
+In [142]: df
+Out[142]: 
+  Branch Buyer                Date  Quantity
+0      A  Carl 2013-01-01 13:00:00         1
+1      A  Mark 2013-01-01 13:05:00         3
+2      A  Carl 2013-10-01 20:00:00         5
+3      A  Carl 2013-10-02 10:00:00         1
+4      A   Joe 2013-10-01 20:00:00         8
+5      A   Joe 2013-10-02 10:00:00         1
+6      A   Joe 2013-12-02 12:00:00         9
+7      B  Carl 2013-12-02 14:00:00         3
+</pre> <p>Groupby a specific column with the desired frequency. This is like resampling.</p> <pre data-language="python">In [143]: df.groupby([pd.Grouper(freq='1M',key='Date'),'Buyer']).sum()
+Out[143]: 
+                  Quantity
+Date       Buyer          
+2013-01-31 Carl          1
+           Mark          3
+2013-10-31 Carl          6
+           Joe           9
+2013-12-31 Carl          3
+           Joe           9
+</pre> <p>You have an ambiguous specification in that you have a named index and a column that could be potential groupers.</p> <pre data-language="python">In [144]: df = df.set_index('Date')
+
+In [145]: df['Date'] = df.index + pd.offsets.MonthEnd(2)
+
+In [146]: df.groupby([pd.Grouper(freq='6M',key='Date'),'Buyer']).sum()
+Out[146]: 
+                  Quantity
+Date       Buyer          
+2013-02-28 Carl          1
+           Mark          3
+2014-02-28 Carl          9
+           Joe          18
+
+In [147]: df.groupby([pd.Grouper(freq='6M',level='Date'),'Buyer']).sum()
+Out[147]: 
+                  Quantity
+Date       Buyer          
+2013-01-31 Carl          1
+           Mark          3
+2014-01-31 Carl          9
+           Joe          18
+</pre>   <h3 id="taking-the-first-rows-of-each-group">Taking the first rows of each group</h3> <p>Just like for a DataFrame or Series you can call head and tail on a groupby:</p> <pre data-language="python">In [148]: df = pd.DataFrame([[1, 2], [1, 4], [5, 6]], columns=['A', 'B'])
+
+In [149]: df
+Out[149]: 
+   A  B
+0  1  2
+1  1  4
+2  5  6
+
+In [150]: g = df.groupby('A')
+
+In [151]: g.head(1)
+Out[151]: 
+   A  B
+0  1  2
+2  5  6
+
+In [152]: g.tail(1)
+Out[152]: 
+   A  B
+1  1  4
+2  5  6
+</pre> <p>This shows the first or last n rows from each group.</p> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p>Before 0.14.0 this was implemented with a fall-through apply, so the result would incorrectly respect the as_index flag:</p> <pre data-language="python">&gt;&gt;&gt; g.head(1):  # was equivalent to g.apply(lambda x: x.head(1))
+      A  B
+ A
+ 1 0  1  2
+ 5 2  5  6
+</pre> </div>   <h3 id="groupby-nth">Taking the nth row of each group</h3> <p id="taking-the-nth-row-of-each-group">To select from a DataFrame or Series the nth item, use the nth method. This is a reduction method, and will return a single row (or no row) per group if you pass an int for n:</p> <pre data-language="python">In [153]: df = pd.DataFrame([[1, np.nan], [1, 4], [5, 6]], columns=['A', 'B'])
+
+In [154]: g = df.groupby('A')
+
+In [155]: g.nth(0)
+Out[155]: 
+     B
+A     
+1  NaN
+5  6.0
+
+In [156]: g.nth(-1)
+Out[156]: 
+     B
+A     
+1  4.0
+5  6.0
+
+In [157]: g.nth(1)
+Out[157]: 
+     B
+A     
+1  4.0
+</pre> <p>If you want to select the nth not-null item, use the <code>dropna</code> kwarg. For a DataFrame this should be either <code>'any'</code> or <code>'all'</code> just like you would pass to dropna, for a Series this just needs to be truthy.</p> <pre data-language="python"># nth(0) is the same as g.first()
+In [158]: g.nth(0, dropna='any')
+Out[158]: 
+     B
+A     
+1  4.0
+5  6.0
+
+In [159]: g.first()
+Out[159]: 
+     B
+A     
+1  4.0
+5  6.0
+
+# nth(-1) is the same as g.last()
+In [160]: g.nth(-1, dropna='any')  # NaNs denote group exhausted when using dropna
+Out[160]: 
+     B
+A     
+1  4.0
+5  6.0
+
+In [161]: g.last()
+Out[161]: 
+     B
+A     
+1  4.0
+5  6.0
+
+In [162]: g.B.nth(0, dropna=True)
+Out[162]: 
+A
+1    4.0
+5    6.0
+Name: B, dtype: float64
+</pre> <p>As with other methods, passing <code>as_index=False</code>, will achieve a filtration, which returns the grouped row.</p> <pre data-language="python">In [163]: df = pd.DataFrame([[1, np.nan], [1, 4], [5, 6]], columns=['A', 'B'])
+
+In [164]: g = df.groupby('A',as_index=False)
+
+In [165]: g.nth(0)
+Out[165]: 
+   A    B
+0  1  NaN
+2  5  6.0
+
+In [166]: g.nth(-1)
+Out[166]: 
+   A    B
+1  1  4.0
+2  5  6.0
+</pre> <p>You can also select multiple rows from each group by specifying multiple nth values as a list of ints.</p> <pre data-language="python">In [167]: business_dates = pd.date_range(start='4/1/2014', end='6/30/2014', freq='B')
+
+In [168]: df = pd.DataFrame(1, index=business_dates, columns=['a', 'b'])
+
+# get the first, 4th, and last date index for each month
+In [169]: df.groupby((df.index.year, df.index.month)).nth([0, 3, -1])
+Out[169]: 
+        a  b
+2014 4  1  1
+     4  1  1
+     4  1  1
+     5  1  1
+     5  1  1
+     5  1  1
+     6  1  1
+     6  1  1
+     6  1  1
+</pre>   <h3 id="enumerate-group-items">Enumerate group items</h3> <div class="versionadded"> <p><span class="versionmodified">New in version 0.13.0.</span></p> </div> <p>To see the order in which each row appears within its group, use the <code>cumcount</code> method:</p> <pre data-language="python">In [170]: df = pd.DataFrame(list('aaabba'), columns=['A'])
+
+In [171]: df
+Out[171]: 
+   A
+0  a
+1  a
+2  a
+3  b
+4  b
+5  a
+
+In [172]: df.groupby('A').cumcount()
+Out[172]: 
+0    0
+1    1
+2    2
+3    0
+4    1
+5    3
+dtype: int64
+
+In [173]: df.groupby('A').cumcount(ascending=False)  # kwarg only
+Out[173]: 
+0    3
+1    2
+2    1
+3    1
+4    0
+5    0
+dtype: int64
+</pre>   <h3 id="plotting">Plotting</h3> <p>Groupby also works with some plotting methods. For example, suppose we suspect that some features in a DataFrame may differ by group, in this case, the values in column 1 where the group is “B” are 3 higher on average.</p> <pre data-language="python">In [174]: np.random.seed(1234)
+
+In [175]: df = pd.DataFrame(np.random.randn(50, 2))
+
+In [176]: df['g'] = np.random.choice(['A', 'B'], size=50)
+
+In [177]: df.loc[df['g'] == 'B', 1] += 3
+</pre> <p>We can easily visualize this with a boxplot:</p> <pre data-language="python">In [178]: df.groupby('g').boxplot()
+Out[178]: 
+A         Axes(0.1,0.15;0.363636x0.75)
+B    Axes(0.536364,0.15;0.363636x0.75)
+dtype: object
+</pre> <img alt="_images/groupby_boxplot.png" src="http://pandas.pydata.org/pandas-docs/version/0.19.2/_images/groupby_boxplot.png"> <p>The result of calling <code>boxplot</code> is a dictionary whose keys are the values of our grouping column <code>g</code> (“A” and “B”). The values of the resulting dictionary can be controlled by the <code>return_type</code> keyword of <code>boxplot</code>. See the <a class="reference internal" href="../visualization/#visualization-box"><span class="std std-ref">visualization documentation</span></a> for more.</p> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p class="last">For historical reasons, <code>df.groupby("g").boxplot()</code> is not equivalent to <code>df.boxplot(by="g")</code>. See <a class="reference internal" href="../visualization/#visualization-box-return"><span class="std std-ref">here</span></a> for an explanation.</p> </div>    <h2 id="examples">Examples</h2>  <h3 id="regrouping-by-factor">Regrouping by factor</h3> <p>Regroup columns of a DataFrame according to their sum, and sum the aggregated ones.</p> <pre data-language="python">In [179]: df = pd.DataFrame({'a':[1,0,0], 'b':[0,1,0], 'c':[1,0,0], 'd':[2,3,4]})
+
+In [180]: df
+Out[180]: 
+   a  b  c  d
+0  1  0  1  2
+1  0  1  0  3
+2  0  0  0  4
+
+In [181]: df.groupby(df.sum(), axis=1).sum()
+Out[181]: 
+   1  9
+0  2  2
+1  1  3
+2  0  4
+</pre>   <h3 id="groupby-by-indexer-to-resample-data">Groupby by Indexer to ‘resample’ data</h3> <p>Resampling produces new hypothetical samples(resamples) from already existing observed data or from a model that generates data. These new samples are similar to the pre-existing samples.</p> <p>In order to resample to work on indices that are non-datetimelike , the following procedure can be utilized.</p> <p>In the following examples, <strong>df.index // 5</strong> returns a binary array which is used to determine what get’s selected for the groupby operation.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The below example shows how we can downsample by consolidation of samples into fewer samples. Here by using <strong>df.index // 5</strong>, we are aggregating the samples in bins. By applying <strong>std()</strong> function, we aggregate the information contained in many samples into a small subset of values which is their standard deviation thereby reducing the number of samples.</p> </div> <pre data-language="python">In [182]: df = pd.DataFrame(np.random.randn(10,2))
+
+In [183]: df
+Out[183]: 
+          0         1
+0 -0.832423  0.114059
+1  1.218203 -0.890593
+2  0.165445 -1.127470
+3 -1.192185  0.818644
+4  0.237185 -0.336384
+5  0.694727  0.750161
+6  0.247055  0.645433
+7 -1.366120  0.313160
+8  0.205207  0.089987
+9  0.186062  1.314182
+
+In [184]: df.index // 5
+Out[184]: Int64Index([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype='int64')
+
+In [185]: df.groupby(df.index // 5).std()
+Out[185]: 
+          0         1
+0  0.955154  0.783648
+1  0.788428  0.467576
+</pre>   <h3 id="returning-a-series-to-propagate-names">Returning a Series to propagate names</h3> <p>Group DataFrame columns, compute a set of metrics and return a named Series. The Series name is used as the name for the column index. This is especially useful in conjunction with reshaping operations such as stacking in which the column index name will be used as the name of the inserted column:</p> <pre data-language="python">In [186]: df = pd.DataFrame({
+   .....:          'a':  [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
+   .....:          'b':  [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+   .....:          'c':  [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+   .....:          'd':  [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+   .....:          })
+   .....: 
+
+In [187]: def compute_metrics(x):
+   .....:     result = {'b_sum': x['b'].sum(), 'c_mean': x['c'].mean()}
+   .....:     return pd.Series(result, name='metrics')
+   .....: 
+
+In [188]: result = df.groupby('a').apply(compute_metrics)
+
+In [189]: result
+Out[189]: 
+metrics  b_sum  c_mean
+a                     
+0          2.0     0.5
+1          2.0     0.5
+2          2.0     0.5
+
+In [190]: result.stack()
+Out[190]: 
+a  metrics
+0  b_sum      2.0
+   c_mean     0.5
+1  b_sum      2.0
+   c_mean     0.5
+2  b_sum      2.0
+   c_mean     0.5
+dtype: float64
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2012 Lambda Foundry, Inc. and PyData Development Team<br>© 2008–2011 AQR Capital Management, LLC<br>© 2008–2014 the pandas development team<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://pandas.pydata.org/pandas-docs/version/0.19.2/groupby.html" class="_attribution-link" target="_blank">http://pandas.pydata.org/pandas-docs/version/0.19.2/groupby.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
