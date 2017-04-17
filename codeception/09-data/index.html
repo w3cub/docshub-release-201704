@@ -1,0 +1,145 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>9. Working With Data - Codeception - W3cubDocs</title>
+  
+  <meta name="description" content="Tests should not affect each other. That’s a rule of thumb. When tests interact with a database, they may change the data inside it, which would &hellip;">
+  <meta name="keywords" content="working, with, data, -, codeception">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/codeception/09-data/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/codeception.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/codeception/" class="_nav-link" title="" style="margin-left:0;">Codeception</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _codeception">
+				
+<h1 id="working-with-data">Working with Data</h1> <p>Tests should not affect each other. That’s a rule of thumb. When tests interact with a database, they may change the data inside it, which would eventually lead to data inconsistency. A test may try to insert a record that has already been inserted, or retrieve a deleted record. To avoid test failures, the database should be brought back to its initial state before each test. Codeception has different methods and approaches to get your data cleaned.</p> <p>This chapter summarizes all of the notices on clean-ups from the previous chapters and suggests the best strategies of how to choose data storage backends.</p> <p>When we decide to clean up a database, we should make this cleaning as fast as possible. Tests should always run fast. Rebuilding the database from scratch is not the best way, but might be the only one. In any case, you should use a special test database for testing. <strong>Do not ever run tests on development or production databases!</strong></p> <h2 id="db">Db</h2> <p>Codeception has a <code class="highlighter-rouge">Db</code> module, which takes on most of the tasks of database interaction. By default it will try to repopulate the database from a dump and clean it up after each test. This module expects a database dump in SQL format. It’s already prepared for configuration in <code class="highlighter-rouge">codeception.yml</code>:</p> <pre data-language="yaml">modules:
+    config:
+        Db:
+            dsn: 'PDO DSN HERE'
+            user: 'root'
+            password:
+            dump: tests/_data/your-dump-name.sql</pre> <div class="alert alert-notice"> Use <a href="../06-modulesandhelpers/#Dynamic-Configuration-With-Params">module parameters</a> to set the database credentials from environment variables or from application configuration files. </div> <p>After you enable this module in your test suite, it will automatically populate the database from a dump and repopulate it on each test run. These settings can be changed through the <code class="highlighter-rouge">populate</code> and <code class="highlighter-rouge">cleanup</code> options, which may be set to <code class="highlighter-rouge">false</code>.</p> <div class="alert alert-notice"> A full database clean-up can be painfully slow if you use large database dumps. It is recommended to do more data testing on the functional and integration levels, this way you can get performance bonuses from using ORM. </div> <p>In acceptance tests, your tests are interacting with the application through a web server. This means that the test and the application work with the same database. You should provide the same credentials in the Db module that your application uses, then you can access the database for assertions (<code class="highlighter-rouge">seeInDatabase</code> actions) and to perform automatic clean-ups.</p> <p>The Db module provides actions to create and verify data inside a database.</p> <p>If you want to create a special database record for one test, you can use <a href="../modules/db/#haveInDatabase"><code class="highlighter-rouge">haveInDatabase</code></a> method of <code class="highlighter-rouge">Db</code> module:</p> <pre data-language="php">&lt;?php
+$I-&gt;haveInDatabase('posts', [
+  'title' =&gt; 'Top 10 Testing Frameworks',
+  'body' =&gt; '1. Codeception'
+]);
+$I-&gt;amOnPage('/posts');
+$I-&gt;see('Top 10 Testing Frameworks');</pre> <p><code class="highlighter-rouge">haveInDatabase</code> inserts a row with the provided values into the database. All added records will be deleted at the end of the test.</p> <p>If you want to check that a table record was created use <a href="../modules/db/#haveInDatabase"><code class="highlighter-rouge">seeInDatabase</code></a> method:</p> <pre data-language="php">&lt;?php
+$I-&gt;amOnPage('/posts/1');
+$I-&gt;fillField('comment', 'This is nice!');
+$I-&gt;click('Submit');
+$I-&gt;seeInDatabase('comments', ['body' =&gt; 'This is nice!']);</pre> <p>See the module <a href="../modules/db/">reference</a> for other methods you can use for database testing.</p> <p>There are also modules for <a href="../modules/mongodb/">MongoDb</a>, <a href="../modules/redis/">Redis</a>, and <a href="../modules/memcache/">Memcache</a> which behave in a similar manner.</p> <h3 id="sequence">Sequence</h3> <p>If the database clean-up takes too long, you can follow a different strategy: create new data for each test. This way, the only problem you might face is duplication of data records. <a href="../modules/sequence/">Sequence</a> was created to solve this. It provides the <code class="highlighter-rouge">sq()</code> function which generates unique suffixes for creating data in tests.</p> <h2 id="orm-modules">ORM modules</h2> <p>Your application is most likely using object-relational mapping (ORM) to work with the database. In this case, Codeception allows you to use the ORM methods to work with the database, instead of accessing the database directly. This way you can work with models and entities of a domain, and not on tables and rows.</p> <p>By using ORM in functional and integration tests, you can also improve performance of your tests. Instead of cleaning up the database after each test, the ORM module will wrap all the database actions into transactions and roll it back at the end. This way, no actual data will be written to the database. This clean-up strategy is enabled by default, you can disable it by setting <code class="highlighter-rouge">cleanup: false</code> in the configuration of any ORM module.</p> <h3 id="activerecord">ActiveRecord</h3> <p>Popular frameworks like Laravel, Yii, and Phalcon include an ActiveRecord data layer by default. Because of this tight integration, you just need to enable the framework module, and use its configuration for database access.</p> <p>Corresponding framework modules provide similar methods for ORM access:</p> <ul> <li><code class="highlighter-rouge">haveRecord</code></li> <li><code class="highlighter-rouge">seeRecord</code></li> <li><code class="highlighter-rouge">dontSeeRecord</code></li> <li><code class="highlighter-rouge">grabRecord</code></li> </ul> <p>They allow you to create and check data by model name and field names in the model. Here is the example in Laravel:</p> <pre data-language="php">&lt;?php
+// create record and get its id
+$id = $I-&gt;haveRecord('posts', ['body' =&gt; 'My first blogpost', 'user_id' =&gt; 1]);
+$I-&gt;amOnPage('/posts/'.$id);
+$I-&gt;see('My first blogpost', 'article');
+// check record exists
+$I-&gt;seeRecord('posts', ['id' =&gt; $id]);
+$I-&gt;click('Delete');
+// record was deleted
+$I-&gt;dontSeeRecord('posts', ['id' =&gt; $id]);</pre> <div class="alert alert-notice"> Laravel5 module also provides `haveModel`, `makeModel` methods which use factories to generate models with fake data. </div> <p>If you want to use ORM for integration testing only, you should enable the framework module with only the <code class="highlighter-rouge">ORM</code> part enabled:</p> <pre data-language="yaml">modules:
+    enabled:
+        - Laravel5:
+            - part: ORM</pre> <pre data-language="yaml">modules:
+    enabled:
+        - Yii2:
+            - part: ORM</pre> <p>This way no web actions will be added to <code class="highlighter-rouge">$I</code> object.</p> <p>If you want to use ORM to work with data inside acceptance tests, you should also include only the ORM part of a module. Please note that inside acceptance tests, web applications work inside a webserver, so any test data can’t be cleaned up by rolling back transactions. You will need to disable cleaning up, and use the <code class="highlighter-rouge">Db</code> module to clean the database up between tests. Here is a sample config:</p> <pre data-language="yaml">modules:
+    enabled:
+        - WebDriver:
+            url: http://localhost
+            browser: firefox
+        - Laravel5:
+            cleanup: false
+        - Db</pre> <h3 id="datamapper">DataMapper</h3> <p>Doctrine is also a popular ORM, unlike some others it implements the DataMapper pattern and is not bound to any framework. The <a href="../modules/doctrine2/">Doctrine2</a> module requires an <code class="highlighter-rouge">EntityManager</code> instance to work with. It can be obtained from a Symfony framework or Zend Framework (configured with Doctrine):</p> <pre data-language="yaml">modules:
+    enabled:
+        - Symfony
+        - Doctrine2:
+            depends: Symfony</pre> <pre data-language="yaml">modules:
+    enabled:
+        - ZF2
+        - Doctrine2:
+            depends: ZF2</pre> <p>If no framework is used with Doctrine you should provide the <code class="highlighter-rouge">connection_callback</code> option with a valid callback to a function which returns an <code class="highlighter-rouge">EntityManager</code> instance.</p> <p>Doctrine2 also provides methods to create and check data:</p> <ul> <li><code class="highlighter-rouge">haveInRepository</code></li> <li><code class="highlighter-rouge">grabFromRepository</code></li> <li><code class="highlighter-rouge">seeInRepository</code></li> <li><code class="highlighter-rouge">dontSeeInRepository</code></li> </ul> <h3 id="datafactory">DataFactory</h3> <p>Preparing data for testing is a very creative, although boring, task. If you create a record, you need to fill in all the fields of the model. It is much easier to use <a href="https://github.com/fzaninotto/Faker" target="_blank">Faker</a> for this task, which is more effective to set up data generation rules for models. Such a set of rules is called <em>factories</em> and are provided by the <a href="../modules/datafactory/">DataFactory</a> module.</p> <p>Once configured, it can create records with ease:</p> <pre data-language="php">&lt;?php
+// creates a new user
+$user_id = $I-&gt;have('App\Model\User');
+// creates 3 posts
+$I-&gt;haveMultiple('App\Model\Post', 3);</pre> <p>Created records will be deleted at the end of a test. The DataFactory module only works with ORM, so it requires one of the ORM modules to be enabled:</p> <pre data-language="yaml">modules:
+    enabled:
+        - Yii2:
+            configFile: path/to/config.php
+        - DataFactory:
+            depends: Yii2</pre> <pre data-language="yaml">modules:
+    enabled:
+        - Symfony
+        - Doctrine2:
+            depends: Symfony
+        - DataFactory:
+            depends: Doctrine2</pre> <p>DataFactory provides a powerful solution for managing data in integration/functional/acceptance tests. Read the <a href="../modules/datafactory/">full reference</a> to learn how to set this module up.</p> <h2 id="conclusion">Conclusion</h2> <p>Codeception also assists the developer when dealing with data. Tools for database population and cleaning up are bundled within the <code class="highlighter-rouge">Db</code> module. If you use ORM, you can use one of the provided framework modules to operate with database through a data abstraction layer, and use the DataFactory module to generate new records with ease.</p> <ul> <li><strong>Next Chapter: <a href="../10-webservices/">WebServices &gt;</a></strong></li> <li><strong>Previous Chapter: <a href="../08-customization/">&lt; Customization</a></strong></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2017 Michael Bodnarchuk and contributors<br>Licensed under the MIT License.<br>
+    <a href="http://codeception.com/docs/09-Data" class="_attribution-link" target="_blank">http://codeception.com/docs/09-Data</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

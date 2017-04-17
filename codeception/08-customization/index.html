@@ -1,0 +1,162 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>8. Customization - Codeception - W3cubDocs</title>
+  
+  <meta name="description" content=" In this chapter we will explain how you can extend and customize the file structure and test execution routines. ">
+  <meta name="keywords" content="customization, -, codeception">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/codeception/08-customization/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/codeception.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/codeception/" class="_nav-link" title="" style="margin-left:0;">Codeception</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _codeception">
+				
+<h1 id="customization">Customization</h1> <p>In this chapter we will explain how you can extend and customize the file structure and test execution routines.</p> <h2 id="one-runner-for-multiple-applications">One Runner for Multiple Applications</h2> <p>If your project consists of several applications (frontend, admin, api) or you are using the Symfony framework with its bundles, you may be interested in having all tests for all applications (bundles) executed in one runner. In this case you will get one report that covers the whole project.</p> <p>Place the <code class="highlighter-rouge">codeception.yml</code> file into the root folder of your project and specify the paths to the other <code class="highlighter-rouge">codeception.yml</code> configurations that you want to include:</p> <pre data-language="yaml">include:
+  - frontend/src/*Bundle
+  - admin
+  - api/rest
+paths:
+  log: log
+settings:
+  colors: false</pre> <p>You should also specify the path to the <code class="highlighter-rouge">log</code> directory, where the reports and logs will be saved.</p> <div class="alert alert-notice"> Wildcards (*) can be used to specify multiple directories at once. </div> <h3 id="namespaces">Namespaces</h3> <p>To avoid naming conflicts between Actor classes and Helper classes, they should be separated into namespaces. To create test suites with namespaces you can add <code class="highlighter-rouge">--namespace</code> option to the bootstrap command:</p> <pre data-language="bash">php codecept bootstrap --namespace frontend</pre> <p>This will bootstrap a new project with the <code class="highlighter-rouge">namespace: frontend</code> parameter in the <code class="highlighter-rouge">codeception.yml</code> file. Helpers will be in the <code class="highlighter-rouge">frontend\Codeception\Module</code> namespace and Actor classes will be in the <code class="highlighter-rouge">frontend</code> namespace. The newly generated tests will look like this:</p> <pre data-language="php">&lt;?php use frontend\AcceptanceTester;
+$I = new AcceptanceTester($scenario);
+//...</pre> <p>Once each of your applications (bundles) has its own namespace and different Helper or Actor classes, you can execute all the tests in a single runner. Run the Codeception tests as usual, using the meta-config we created earlier:</p> <pre data-language="bash">php codecept run</pre> <p>This will launch the test suites for all three applications and merge the reports from all of them. This is very useful when you run your tests on a Continuous Integration server and you want to get a single report in JUnit and HTML format. The code coverage report will be merged too.</p> <p>If you want to run a specific suite from the application you can execute:</p> <pre data-language="php"> codecept run unit -c frontend</pre> <p>Where <code class="highlighter-rouge">unit</code> is the name of suite and the <code class="highlighter-rouge">-c</code> option specifies the path to the <code class="highlighter-rouge">codeception.yml</code> configuration file to use. In this example we will assume that there is <code class="highlighter-rouge">frontend/codeception.yml</code> configuration file and that we will execute the unit tests for only that app.</p> <h2 id="extension">Extension</h2> <p>Codeception has limited capabilities to extend its core features. Extensions are not supposed to override current functionality, but can be useful if you are an experienced developer and you want to hook into the testing flow.</p> <p>By default, one <code class="highlighter-rouge">RunFailed</code> Extension is already enabled in your global <code class="highlighter-rouge">codeception.yml</code>. It allows you to rerun failed tests by using the <code class="highlighter-rouge">-g failed</code> option:</p> <pre data-language="php"> codecept run -g failed</pre> <p>Codeception comes with bundled extensions located in <code class="highlighter-rouge">ext</code> directory. For instance, you can enable the Logger extension to log the test execution with Monolog:</p> <pre data-language="yaml">extensions:
+    enabled:
+        - Codeception\Extension\RunFailed # default extension
+        - Codeception\Extension\Logger: # enabled extension
+            max_files: 5 # logger configuration</pre> <p>But what are extensions, anyway? Basically speaking, extensions are nothing more than event listeners based on the <a href="http://symfony.com/doc/current/components/event_dispatcher/introduction.html" target="_blank">Symfony Event Dispatcher</a> component.</p> <p>Here are the events and event classes. The events are listed in the order in which they happen during execution. Each event has a corresponding class, which is passed to a listener, and contains specific objects.</p> <h3 id="events">Events</h3> <table> <thead> <tr> <th style="text-align: center">Event</th> <th>When?</th> <th style="text-align: right">Triggered by</th> </tr> </thead> <tbody> <tr> <td style="text-align: center"><code class="highlighter-rouge">suite.before</code></td> <td>Before suite is executed</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/SuiteEvent.php" target="_blank">Suite, Settings</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.start</code></td> <td>Before test is executed</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/TestEvent.php" target="_blank">Test</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.before</code></td> <td>At the very beginning of test execution</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/TestEvent.php" target="_blank">Codeception Test</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">step.before</code></td> <td>Before step</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/StepEvent.php" target="_blank">Step</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">step.after</code></td> <td>After step</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/StepEvent.php" target="_blank">Step</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">step.fail</code></td> <td>After failed step</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/StepEvent.php" target="_blank">Step</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.fail</code></td> <td>After failed test</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/FailEvent.php" target="_blank">Test, Fail</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.error</code></td> <td>After test ended with error</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/FailEvent.php" target="_blank">Test, Fail</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.incomplete</code></td> <td>After executing incomplete test</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/FailEvent.php" target="_blank">Test, Fail</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.skipped</code></td> <td>After executing skipped test</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/FailEvent.php" target="_blank">Test, Fail</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.success</code></td> <td>After executing successful test</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/TestEvent.php" target="_blank">Test</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.after</code></td> <td>At the end of test execution</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/TestEvent.php" target="_blank">Codeception Test</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.end</code></td> <td>After test execution</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/TestEvent.php" target="_blank">Test</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">suite.after</code></td> <td>After suite was executed</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/SuiteEvent.php" target="_blank">Suite, Result, Settings</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">test.fail.print</code></td> <td>When test fails are printed</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/FailEvent.php" target="_blank">Test, Fail</a></td> </tr> <tr> <td style="text-align: center"><code class="highlighter-rouge">result.print.after</code></td> <td>After result was printed</td> <td style="text-align: right"><a href="https://github.com/Codeception/Codeception/blob/master/src/Codeception/Event/PrintResultEvent.php" target="_blank">Result, Printer</a></td> </tr> </tbody> </table> <p>There may be some confusion between <code class="highlighter-rouge">test.start</code>/<code class="highlighter-rouge">test.before</code> and <code class="highlighter-rouge">test.after</code>/<code class="highlighter-rouge">test.end</code>. The start and end events are triggered by PHPUnit, but the before and after events are triggered by Codeception. Thus, when you are using classical PHPUnit tests (extended from <code class="highlighter-rouge">PHPUnit_Framework_TestCase</code>), the before/after events won’t be triggered for them. During the <code class="highlighter-rouge">test.before</code> event you can mark a test as skipped or incomplete, which is not possible in <code class="highlighter-rouge">test.start</code>. You can learn more from <a href="https://github.com/Codeception/Codeception/tree/master/src/Codeception/Subscriber" target="_blank">Codeception internal event listeners</a>.</p> <p>The extension class itself is inherited from <code class="highlighter-rouge">Codeception\Extension</code>:</p> <pre data-language="php">&lt;?php
+class MyCustomExtension extends \Codeception\Extension
+{
+    // list events to listen to
+    public static $events = array(
+        'suite.after' =&gt; 'afterSuite',
+        'test.before' =&gt; 'beforeTest',
+        'step.before' =&gt; 'beforeStep',
+        'test.fail' =&gt; 'testFailed',
+        'result.print.after' =&gt; 'print',
+    );
+
+    // methods that handle events
+
+    public function afterSuite(\Codeception\Event\SuiteEvent $e) {}
+
+    public function beforeTest(\Codeception\Event\TestEvent $e) {}
+
+    public function beforeStep(\Codeception\Event\StepEvent $e) {}
+
+    public function testFailed(\Codeception\Event\FailEvent $e) {}
+
+    public function print(\Codeception\Event\PrintResultEvent $e) {}
+}</pre> <p>By implementing event handling methods you can listen for events and even update passed objects. Extensions have some basic methods you can use:</p> <ul> <li>
+<code class="highlighter-rouge">write</code> - prints to the screen</li> <li>
+<code class="highlighter-rouge">writeln</code> - prints to the screen with a new-line character at the end</li> <li>
+<code class="highlighter-rouge">getModule</code> - allows you to access a module</li> <li>
+<code class="highlighter-rouge">hasModule</code> - checks if a module is enabled</li> <li>
+<code class="highlighter-rouge">getModuleNames</code> - list all enabled modules</li> <li>
+<code class="highlighter-rouge">_reconfigure</code> - can be implemented instead of overriding the constructor</li> </ul> <h3 id="enabling-extension">Enabling Extension</h3> <p>Once you’ve implemented a simple extension class, you can require it in <code class="highlighter-rouge">tests/_bootstrap.php</code>, load it with Composer’s autoloader defined in <code class="highlighter-rouge">composer.json</code>, or store the class inside <code class="highlighter-rouge">tests/_support</code>dir.</p> <p>You can then enable it in <code class="highlighter-rouge">codeception.yml</code></p> <pre data-language="yaml">extensions:
+    enabled: [MyCustomExtension]</pre> <p>Extensions can also be enabled per suite inside suite configs (like <code class="highlighter-rouge">acceptance.suite.yml</code>) and for a specific environment.</p> <h3 id="configuring-extension">Configuring Extension</h3> <p>In the extension, you can access the currently passed options via the <code class="highlighter-rouge">options</code> property. You also can access the global configuration via the <code class="highlighter-rouge">\Codeception\Configuration::config()</code> method. If you want to have custom options for your extension, you can pass them in the <code class="highlighter-rouge">codeception.yml</code> file:</p> <pre data-language="yaml">extensions:
+    enabled: [MyCustomExtension]
+    config:
+        MyCustomExtension:
+            param: value</pre> <p>The passed in configuration is accessible via the <code class="highlighter-rouge">config</code> property: <code class="highlighter-rouge">$this-&gt;config['param']</code>.</p> <p>Check out a very basic extension <a href="https://github.com/Codeception/Notifier" target="_blank">Notifier</a>.</p> <h3 id="custom-commands">Custom Commands</h3> <p>You can add your own commands to Codeception.</p> <p>Your custom commands have to implement the interface Codeception\CustomCommandInterface, because there has to be a function to get the name of the command.</p> <p>You have to register your command in the file <code class="highlighter-rouge">codeception.yml</code>:</p> <pre data-language="yaml">extensions:
+    commands: [Project\Command\MyCustomCommand]</pre> <p>If you want to activate the Command globally, because you are using more then one <code class="highlighter-rouge">codeception.yml</code> file, you have to register your command in the <code class="highlighter-rouge">codeception.dist.yml</code> in the root folder of your project.</p> <p>Please see a <a href="https://gist.github.com/sd-tm/37d5f9bca871c72648cb" target="_blank">complete example</a></p> <h2 id="group-objects">Group Objects</h2> <p>Group Objects are extensions listening for the events of tests belonging to a specific group. When a test is added to a group:</p> <pre data-language="php">&lt;?php
+$scenario-&gt;group('admin');
+$I = new AcceptanceTester($scenario);</pre> <p>This test will trigger the following events:</p> <ul> <li><code class="highlighter-rouge">test.before.admin</code></li> <li><code class="highlighter-rouge">step.before.admin</code></li> <li><code class="highlighter-rouge">step.after.admin</code></li> <li><code class="highlighter-rouge">test.success.admin</code></li> <li><code class="highlighter-rouge">test.fail.admin</code></li> <li><code class="highlighter-rouge">test.after.admin</code></li> </ul> <p>A group object is built to listen for these events. It is useful when an additional setup is required for some of your tests. Let’s say you want to load fixtures for tests that belong to the <code class="highlighter-rouge">admin</code> group:</p> <pre data-language="php">&lt;?php
+namespace Group;
+
+class Admin extends \Codeception\GroupObject
+{
+    public static $group = 'admin';
+
+    public function _before(\Codeception\Event\TestEvent $e)
+    {
+        $this-&gt;writeln('inserting additional admin users...');
+
+        $db = $this-&gt;getModule('Db');
+        $db-&gt;haveInDatabase('users', array('name' =&gt; 'bill', 'role' =&gt; 'admin'));
+        $db-&gt;haveInDatabase('users', array('name' =&gt; 'john', 'role' =&gt; 'admin'));
+        $db-&gt;haveInDatabase('users', array('name' =&gt; 'mark', 'role' =&gt; 'banned'));
+    }
+
+    public function _after(\Codeception\Event\TestEvent $e)
+    {
+        $this-&gt;writeln('cleaning up admin users...');
+        // ...
+    }
+}</pre> <p>A group class can be created with <code class="highlighter-rouge">php codecept generate:group groupname</code> command. Group classes will be stored in the <code class="highlighter-rouge">tests/_support/Group</code> directory.</p> <p>A group class can be enabled just like you enable an extension class. In the file <code class="highlighter-rouge">codeception.yml</code>:</p> <pre data-language="yaml">extensions:
+    enabled: [Group\Admin]</pre> <p>Now the Admin group class will listen for all events of tests that belong to the <code class="highlighter-rouge">admin</code> group.</p> <h2 id="custom-reporters">Custom Reporters</h2> <p>In order to customize the output, you can use Extensions, the way it is done in <a href="https://github.com/Codeception/Codeception/blob/master/ext%2FSimpleOutput.php" target="_blank">SimpleOutput Extension</a>. But what if you need to change the output format of the XML or JSON results triggered with the <code class="highlighter-rouge">--xml</code> or <code class="highlighter-rouge">--json</code> options? Codeception uses printers from PHPUnit and overrides some of them. If you need to customize one of the standard reporters you can override them too. If you are thinking on implementing your own reporter you should add a <code class="highlighter-rouge">reporters</code> section to <code class="highlighter-rouge">codeception.yml</code> and override one of the standard printer classes with one of your own:</p> <pre data-language="yaml">reporters:
+    xml: Codeception\PHPUnit\Log\JUnit
+    html: Codeception\PHPUnit\ResultPrinter\HTML
+    tap: PHPUnit_Util_Log_TAP
+    json: PHPUnit_Util_Log_JSON
+    report: Codeception\PHPUnit\ResultPrinter\Report</pre> <p>All reporters implement the <a href="https://phpunit.de/manual/current/en/extending-phpunit.html#extending-phpunit.PHPUnit_Framework_TestListener" target="_blank">PHPUnit_Framework_TestListener</a> interface. It is recommended to read the code of the original reporter before overriding it.</p> <h2 id="conclusion">Conclusion</h2> <p>Each feature mentioned above may help dramatically when using Codeception to automate the testing of large projects, although some features may require advanced knowledge of PHP. There is no “best practice” or “use cases” when we talk about groups, extensions, or other powerful features of Codeception. If you see you have a problem that can be solved using these extensions, then give them a try.</p> <ul> <li><strong>Next Chapter: <a href="../09-data/">Data &gt;</a></strong></li> <li><strong>Previous Chapter: <a href="../07-bdd/">&lt; BDD</a></strong></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2017 Michael Bodnarchuk and contributors<br>Licensed under the MIT License.<br>
+    <a href="http://codeception.com/docs/08-Customization" class="_attribution-link" target="_blank">http://codeception.com/docs/08-Customization</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

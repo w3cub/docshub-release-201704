@@ -1,0 +1,153 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4. Functional Tests - Codeception - W3cubDocs</title>
+  
+  <meta name="description" content="Now that we’ve written some acceptance tests, functional tests are almost the same, with one major difference&#58; functional tests don’t require a &hellip;">
+  <meta name="keywords" content="functional, tests, -, codeception">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/codeception/04-functionaltests/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/codeception.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/codeception/" class="_nav-link" title="" style="margin-left:0;">Codeception</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _codeception">
+				
+<h1 id="functional-tests">Functional Tests</h1> <p>Now that we’ve written some acceptance tests, functional tests are almost the same, with one major difference: functional tests don’t require a web server to run tests.</p> <p>In simple terms we set the <code class="highlighter-rouge">$_REQUEST</code>, <code class="highlighter-rouge">$_GET</code> and <code class="highlighter-rouge">$_POST</code> variables and then we execute the application from a test. This may be valuable as functional tests are faster and provide detailed stack traces on failures.</p> <p>Codeception can connect to different web frameworks that support functional testing: Symfony2, Laravel5, Yii2, Zend Framework and others. You just need to enable the desired module in your functional suite configuration to start.</p> <p>Modules for all of these frameworks share the same interface, and thus your tests are not bound to any one of them. This is a sample functional test:</p> <pre data-language="php">&lt;?php
+$I = new FunctionalTester($scenario);
+$I-&gt;amOnPage('/');
+$I-&gt;click('Login');
+$I-&gt;fillField('Username', 'Miles');
+$I-&gt;fillField('Password', 'Davis');
+$I-&gt;click('Enter');
+$I-&gt;see('Hello, Miles', 'h1');
+// $I-&gt;seeEmailIsSent() - special for Symfony2</pre> <p>As you see, you can use same tests for functional and acceptance testing.</p> <h2 id="pitfalls">Pitfalls</h2> <p>Acceptance tests are usually much slower than functional tests. But functional tests are less stable as they run Codeception and the application in the one environment. If your application was not designed to run in long lived processes, for instance you use the <code class="highlighter-rouge">exit</code> operator or global variables, then probably functional tests are not for you.</p> <h4 id="headers-cookies-sessions">Headers, Cookies, Sessions</h4> <p>One of the common issues with functional tests is the use of PHP functions that deal with <code class="highlighter-rouge">headers</code>, <code class="highlighter-rouge">sessions</code> and <code class="highlighter-rouge">cookies</code>. As you may already know, the <code class="highlighter-rouge">header</code> function triggers an error if it is executed after PHP has already output something. In functional tests we run the application multiple times, thus we will get lots of irrelevant errors in the result.</p> <h4 id="shared-memory">Shared Memory</h4> <p>In functional testing, unlike running the application the traditional way, the PHP application does not stop after it has finished processing a request. Since all requests are run in the one memory container, they are not isolated. So <strong>if you see that your tests are mysteriously failing when they shouldn’t - try to execute a single test.</strong> This will see if the tests were failing because they weren’t isolated during the run. Keep your memory clean, avoid memory leaks and clean global and static variables.</p> <h2 id="enabling-framework-modules">Enabling Framework Modules</h2> <p>You have a functional testing suite in the <code class="highlighter-rouge">tests/functional</code> directory. To start, you need to include one of the framework modules in the suite configuration file: <code class="highlighter-rouge">tests/functional.suite.yml</code>. Bellow we provide simple instructions for setting up functional tests with some of the most popular PHP frameworks.</p> <h3 id="symfony">Symfony</h3> <p>To perform Symfony integrations you don’t need to install any bundles or do any configuration changes. You just need to include the <code class="highlighter-rouge">Symfony</code> module into your test suite. If you also use Doctrine2, don’t forget to include it too. To make the Doctrine2 module connect using the <code class="highlighter-rouge">doctrine</code> service from Symfony DIC, you should specify the Symfony module as a dependency for Doctrine2:</p> <p>Example of <code class="highlighter-rouge">functional.suite.yml</code></p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - Symfony
+        - Doctrine2:
+            depends: Symfony # connect to Symfony
+        - \Helper\Functional</pre> <p>By default this module will search for App Kernel in the <code class="highlighter-rouge">app</code> directory.</p> <p>The module uses the Symfony Profiler to provide additional information and assertions.</p> <p><a href="../modules/symfony/">See the full reference</a></p> <h3 id="laravel5">Laravel5</h3> <p>The <a href="../modules/laravel5/">Laravel5</a> module is included and requires no configuration:</p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - Laravel5
+        - \Helper\Functional</pre> <h3 id="yii2">Yii2</h3> <p>Yii2 tests are included in <a href="https://github.com/yiisoft/yii2-app-basic" target="_blank">Basic</a> and <a href="https://github.com/yiisoft/yii2-app-advanced" target="_blank">Advanced</a> application templates. Follow the Yii2 guides to start.</p> <h3 id="yii">Yii</h3> <p>By itself Yii framework does not have an engine for functional testing. So Codeception is the first and the only functional testing framework for Yii. To use it with Yii include <code class="highlighter-rouge">Yii1</code> module into config:</p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - Yii1
+        - \Helper\Functional</pre> <p>To avoid the common pitfalls we discussed earlier, Codeception provides basic hooks over the Yii engine. Please set them up following <a href="../modules/yii1/">the installation steps in the module reference</a>.</p> <h3 id="zend-framework-2">Zend Framework 2</h3> <p>Use <a href="../modules/zf2/">the ZF2 module</a> to run functional tests inside Zend Framework 2:</p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - ZF2
+        - \Helper\Functional</pre> <h3 id="zend-framework-1x">Zend Framework 1.x</h3> <p>The module for Zend Framework is highly inspired by the ControllerTestCase class, used for functional testing with PHPUnit. It follows similar approaches for bootstrapping and cleaning up. To start using Zend Framework in your functional tests, include the <code class="highlighter-rouge">ZF1</code> module:</p> <p>Example of <code class="highlighter-rouge">functional.suite.yml</code></p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - ZF1
+        - \Helper\Functional</pre> <p><a href="../modules/zf1/">See the full reference</a></p> <h3 id="phalcon">Phalcon</h3> <p>The <code class="highlighter-rouge">Phalcon</code> module requires creating a bootstrap file which returns an instance of <code class="highlighter-rouge">\Phalcon\Mvc\Application</code>. To start writing functional tests with Phalcon support you should enable the <code class="highlighter-rouge">Phalcon</code> module and provide the path to this bootstrap file:</p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - Phalcon:
+            bootstrap: 'app/config/bootstrap.php'
+             cleanup: true
+             savepoints: true
+        - \Helper\Functional</pre> <p><a href="../modules/phalcon/">See the full reference</a></p> <h2 id="writing-functional-tests">Writing Functional Tests</h2> <p>Functional tests are written in the same manner as <a href="../03-acceptancetests/">Acceptance Tests</a> with the <code class="highlighter-rouge">PhpBrowser</code> module enabled. All framework modules and the <code class="highlighter-rouge">PhpBrowser</code> module share the same methods and the same engine.</p> <p>Therefore we can open a web page with <code class="highlighter-rouge">amOnPage</code> command:</p> <pre data-language="php">&lt;?php
+$I = new FunctionalTester($scenario);
+$I-&gt;amOnPage('/login');</pre> <p>We can click links to open web pages of application:</p> <pre data-language="php">&lt;?php
+$I-&gt;click('Logout');
+// click link inside .nav element
+$I-&gt;click('Logout', '.nav');
+// click by CSS
+$I-&gt;click('a.logout');
+// click with strict locator
+$I-&gt;click(['class' =&gt; 'logout']);</pre> <p>We can submit forms as well:</p> <pre data-language="php">&lt;?php
+$I-&gt;submitForm('form#login', ['name' =&gt; 'john', 'password' =&gt; '123456']);
+// alternatively
+$I-&gt;fillField('#login input[name=name]', 'john');
+$I-&gt;fillField('#login input[name=password]', '123456');
+$I-&gt;click('Submit', '#login');</pre> <p>And do assertions:</p> <pre data-language="php">&lt;?php
+$I-&gt;see('Welcome, john');
+$I-&gt;see('Logged in successfully', '.notice');
+$I-&gt;seeCurrentUrlEquals('/profile/john');</pre> <p>Framework modules also contain additional methods to access framework internals. For instance, <code class="highlighter-rouge">Laravel5</code>, <code class="highlighter-rouge">Phalcon</code>, and <code class="highlighter-rouge">Yii2</code> modules have <code class="highlighter-rouge">seeRecord</code> method which uses ActiveRecord layer to check that record exists in database.</p> <p>Take a look at the complete reference for module you are using. Most of its methods are common for all modules but some of them are unique.</p> <p>You can also access framework globals inside a test or access dependency injection containers inside the <code class="highlighter-rouge">Helper\Functional</code> class:</p> <pre data-language="php">&lt;?php
+namespace Helper;
+
+class Functional extends \Codeception\Module
+{
+    function doSomethingWithMyService()
+    {
+        $service = $this-&gt;getModule('Symfony')-&gt;grabServiceFromContainer('myservice');
+        $service-&gt;doSomething();
+    }
+}</pre> <p>Also check all available <em>Public Properties</em> of the used modules to get full access to their data.</p> <h2 id="error-reporting">Error Reporting</h2> <p>By default Codeception uses the <code class="highlighter-rouge">E_ALL &amp; ~E_STRICT &amp; ~E_DEPRECATED</code> error reporting level. In functional tests you might want to change this level depending on your framework’s error policy. The error reporting level can be set in the suite configuration file:</p> <pre data-language="yaml">class_name: FunctionalTester
+modules:
+    enabled:
+        - Yii1
+        - \Helper\Functional
+error_level: "E_ALL &amp; ~E_STRICT &amp; ~E_DEPRECATED"</pre> <p><code class="highlighter-rouge">error_level</code> can be set globally in <code class="highlighter-rouge">codeception.yml</code> file.</p> <h2 id="conclusion">Conclusion</h2> <p>Functional tests are great if you are using powerful frameworks. By using functional tests you can access and manipulate their internal state. This makes your tests shorter and faster. In other cases, if you don’t use frameworks there is no practical reason to write functional tests. If you are using a framework other than the ones listed here, create a module for it and share it with community.</p> <ul> <li><strong>Next Chapter: <a href="../05-unittests/">UnitTests &gt;</a></strong></li> <li><strong>Previous Chapter: <a href="../03-acceptancetests/">&lt; AcceptanceTests</a></strong></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2017 Michael Bodnarchuk and contributors<br>Licensed under the MIT License.<br>
+    <a href="http://codeception.com/docs/04-FunctionalTests" class="_attribution-link" target="_blank">http://codeception.com/docs/04-FunctionalTests</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
