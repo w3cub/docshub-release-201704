@@ -1,0 +1,600 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>9. Dependency Injection - Angular 4 TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content=" Angular&#39;s dependency injection system creates and delivers dependent services &#34;just-in-time&#34;. ">
+  <meta name="keywords" content="dependency, injection, contents, -, angular, typescript, angular~4_typescript">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/angular~4_typescript/guide/dependency-injection/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/angular~4_typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/angular~4_typescript/" class="_nav-link" title="" style="margin-left:0;">Angular 4 TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _angular">
+				
+<h1 class="hero-title ">Dependency Injection </h1>
+
+<div class="banner"><p class="text-body">Angular's dependency injection system creates and delivers dependent services "just-in-time".</p></div>
+<p><strong>Dependency injection</strong> is an important application design pattern. Angular has its own dependency injection framework, and you really can't build an Angular application without it. It's used so widely that almost everyone just calls it <em>DI</em>.</p> <p>This page covers what DI is, why it's so useful, and <a href="#angular-di">how to use it</a> in an Angular app.</p> <h1 id="contents">Contents</h1> <ul> <li><a href="#why-di">Why dependency injection?</a></li> <li>
+<a href="#angular-dependency-injection">Angular dependency injection</a><ul> <li><a href="#injector-config">Configuring the injector</a></li> <li><a href="#register-providers-ngmodule">Registering providers in an <code>NgModule</code></a></li> <li><a href="#register-providers-component">Registering providers in a component</a></li> <li><a href="#ngmodule-vs-comp">When to use <code>NgModule</code> versus an application component</a></li> <li><a href="#prep-for-injection">Preparing the <code>HeroListComponent</code> for injection</a></li> <li><a href="#di-metadata">Implicit injector creation</a></li> <li><a href="#singleton-services">Singleton services</a></li> <li><a href="#testing-the-component">Testing the component</a></li> <li><a href="#service-needs-service">When the service needs a service</a></li> <li><a href="#injectable">Why <code>@Injectable()</code>?</a></li> </ul> </li> <li><a href="#logger-service">Creating and registering a logger service</a></li> <li>
+<a href="#injector-providers">Injector providers</a><ul> <li><a href="#provide">The <code>Provider</code> class and <code>provide</code> object literal</a></li> <li><a href="#class-provider">Alternative class providers</a></li> <li><a href="#class-provider-dependencies">Class provider with dependencies</a></li> <li><a href="#aliased-class-providers">Aliased class providers</a></li> <li><a href="#value-provider">Value providers</a></li> <li><a href="#factory-provider">Factory providers</a></li> </ul> </li> <li>
+<a href="#dependency-injection-tokens">Dependency injection tokens</a><ul> <li><a href="#non-class-dependencies">Non-class dependencies</a></li> <li><a href="#opaquetoken"><code>OpaqueToken</code></a></li> </ul> </li> <li><a href="#optional">Optional dependencies</a></li> <li><a href="#summary">Summary</a></li> <li><a href="#explicit-injector">Appendix: Working with injectors directly</a></li> </ul> <p>Run the live example.</p> <h2 id="why-dependency-injection-">Why dependency injection?</h2> <p>To understand why dependency injection is so important, consider an example without it. Imagine writing the following code:</p> <div class="code-example">
+<h4>src/app/car/car.ts (without DI)</h4>
+<pre language="ts" format="linenums" data-language="typescript">export class Car {
+
+  public engine: Engine;
+  public tires: Tires;
+  public description = 'No DI';
+
+  constructor() {
+    this.engine = new Engine();
+    this.tires = new Tires();
+  }
+
+  // Method using the engine and tires
+  drive() {
+    return `${this.description} car with ` +
+      `${this.engine.cylinders} cylinders and ${this.tires.make} tires.`;
+  }
+}
+</pre>
+</div>
+<p>The <code>Car</code> class creates everything it needs inside its constructor. What's the problem? The problem is that the <code>Car</code> class is brittle, inflexible, and hard to test.</p> <p>This <code>Car</code> needs an engine and tires. Instead of asking for them, the <code>Car</code> constructor instantiates its own copies from the very specific classes <code>Engine</code> and <code>Tires</code>.</p> <p>What if the <code>Engine</code> class evolves and its constructor requires a parameter? That would break the <code>Car</code> class and it would stay broken until you rewrote it along the lines of <code>this.engine = new Engine(theNewParameter)</code>. The <code>Engine</code> constructor parameters weren't even a consideration when you first wrote <code>Car</code>. You may not anticipate them even now. But you'll <em>have</em> to start caring because when the definition of <code>Engine</code> changes, the <code>Car</code> class must change. That makes <code>Car</code> brittle.</p> <p>What if you want to put a different brand of tires on your <code>Car</code>? Too bad. You're locked into whatever brand the <code>Tires</code> class creates. That makes the <code>Car</code> class inflexible.</p> <p>Right now each new car gets its own <code>engine</code>. It can't share an <code>engine</code> with other cars. While that makes sense for an automobile engine, surely you can think of other dependencies that should be shared, such as the onboard wireless connection to the manufacturer's service center. This <code>Car</code> lacks the flexibility to share services that have been created previously for other consumers.</p> <p>When you write tests for <code>Car</code> you're at the mercy of its hidden dependencies. Is it even possible to create a new <code>Engine</code> in a test environment? What does <code>Engine</code> depend upon? What does that dependency depend on? Will a new instance of <code>Engine</code> make an asynchronous call to the server? You certainly don't want that going on during tests.</p> <p>What if the <code>Car</code> should flash a warning signal when tire pressure is low? How do you confirm that it actually does flash a warning if you can't swap in low-pressure tires during the test?</p> <p>You have no control over the car's hidden dependencies. When you can't control the dependencies, a class becomes difficult to test.</p> <p>How can you make <code>Car</code> more robust, flexible, and testable?</p> <p> That's super easy. Change the <code id="ctor-injection">Car</code> constructor to a version with DI:</p> <div class="pre-title">src/app/car/car.ts (excerpt with DI)</div>
+<pre language="ts" name="src/app/car/car.ts (excerpt with DI)" format="." data-language="typescript">public description = 'DI';
+
+constructor(public engine: Engine, public tires: Tires) { }
+</pre>
+<div class="pre-title">src/app/car/car.ts (excerpt without DI)</div>
+<pre language="ts" name="src/app/car/car.ts (excerpt without DI)" format="." data-language="typescript">public engine: Engine;
+public tires: Tires;
+public description = 'No DI';
+
+constructor() {
+  this.engine = new Engine();
+  this.tires = new Tires();
+}
+</pre>
+<p>See what happened? The definition of the dependencies are now in the constructor. The <code>Car</code> class no longer creates an <code>engine</code> or <code>tires</code>. It just consumes them.</p> <div class="l-sub-section">
+<p>This example leverages TypeScript's constructor syntax for declaring parameters and properties simultaneously.</p> </div>
+<p>Now you can create a car by passing the engine and tires to the constructor.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">// Simple car with 4 cylinders and Flintstone tires.
+let car = new Car(new Engine(), new Tires());
+</pre></div>
+<p>How cool is that? The definition of the <code>engine</code> and <code>tire</code> dependencies are decoupled from the <code>Car</code> class. You can pass in any kind of <code>engine</code> or <code>tires</code> you like, as long as they conform to the general API requirements of an <code>engine</code> or <code>tires</code>.</p> <p>Now, if someone extends the <code>Engine</code> class, that is not <code>Car</code>'s problem.</p> <div class="l-sub-section">
+<p>The <em>consumer</em> of <code>Car</code> has the problem. The consumer must update the car creation code to something like this:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">class Engine2 {
+  constructor(public cylinders: number) { }
+}
+// Super car with 12 cylinders and Flintstone tires.
+let bigCylinders = 12;
+let car = <span class="otl">new Car(new Engine2(bigCylinders), new Tires());</span>
+</pre></div>
+<p>The critical point is this: the <code>Car</code> class did not have to change. You'll take care of the consumer's problem shortly.</p> </div>
+<p>The <code>Car</code> class is much easier to test now because you are in complete control of its dependencies. You can pass mocks to the constructor that do exactly what you want them to do during each test:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">class MockEngine extends Engine { cylinders = 8; }
+class MockTires  extends Tires  { make = 'YokoGoodStone'; }
+
+// Test car with 8 cylinders and YokoGoodStone tires.
+let car = <span class="otl">new Car(new MockEngine(), new MockTires());</span>
+</pre></div>
+<p><strong>You just learned what dependency injection is</strong>.</p> <p>It's a coding pattern in which a class receives its dependencies from external sources rather than creating them itself.</p> <p>Cool! But what about that poor consumer? Anyone who wants a <code>Car</code> must now create all three parts: the <code>Car</code>, <code>Engine</code>, and <code>Tires</code>. The <code>Car</code> class shed its problems at the consumer's expense. You need something that takes care of assembling these parts.</p> <p>You <em>could</em> write a giant class to do that:</p> <div class="code-example">
+<h4>src/app/car/car-factory.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">import { Engine, Tires, Car } from './car';
+
+// BAD pattern!
+export class CarFactory {
+  createCar() {
+    let car = new Car(this.createEngine(), this.createTires());
+    car.description = 'Factory';
+    return car;
+  }
+
+  createEngine() {
+    return new Engine();
+  }
+
+  createTires() {
+    return new Tires();
+  }
+}
+</pre>
+</div>
+<p>It's not so bad now with only three creation methods. But maintaining it will be hairy as the application grows. This factory is going to become a huge spiderweb of interdependent factory methods!</p> <p>Wouldn't it be nice if you could simply list the things you want to build without having to define which dependency gets injected into what?</p> <p>This is where the dependency injection framework comes into play. Imagine the framework had something called an <em>injector</em>. You register some classes with this injector, and it figures out how to create them.</p> <p>When you need a <code>Car</code>, you simply ask the injector to get it for you and you're good to go.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">let car = injector.get(Car);
+</pre></div>
+<p>Everyone wins. The <code>Car</code> knows nothing about creating an <code>Engine</code> or <code>Tires</code>. The consumer knows nothing about creating a <code>Car</code>. You don't have a gigantic factory class to maintain. Both <code>Car</code> and consumer simply ask for what they need and the injector delivers.</p> <p>This is what a <strong>dependency injection framework</strong> is all about.</p> <p>Now that you know what dependency injection is and appreciate its benefits, read on to see how it is implemented in Angular.</p> <h2 id="angular-dependency-injection">Angular dependency injection</h2> <p>Angular ships with its own dependency injection framework. This framework can also be used as a standalone module by other applications and frameworks.</p> <p>To see what it can do when building components in Angular, start with a simplified version of the <code>HeroesComponent</code> that from the <a href="../../tutorial/">The Tour of Heroes</a>.</p> <div class="pre-title">src/app/heroes/heroes.component.ts</div>
+<pre language="ts" name="src/app/heroes/heroes.component.ts" format="linenums" data-language="typescript">import { Component }          from '@angular/core';
+
+@Component({
+  selector: 'my-heroes',
+  template: `
+  &lt;h2&gt;Heroes&lt;/h2&gt;
+  &lt;hero-list&gt;&lt;/hero-list&gt;
+  `
+})
+export class HeroesComponent { }
+</pre>
+<div class="pre-title">src/app/heroes/hero-list.component.ts</div>
+<pre language="ts" name="src/app/heroes/hero-list.component.ts" format="linenums" data-language="typescript">import { Component }   from '@angular/core';
+
+import { HEROES }      from './mock-heroes';
+
+@Component({
+  selector: 'hero-list',
+  template: `
+  &lt;div *ngFor="let hero of heroes"&gt;
+    {{hero.id}} - {{hero.name}}
+  &lt;/div&gt;
+  `
+})
+export class HeroListComponent {
+  heroes = HEROES;
+}
+</pre>
+<div class="pre-title">src/app/heroes/hero.ts</div>
+<pre language="ts" name="src/app/heroes/hero.ts" format="linenums" data-language="typescript">export class Hero {
+  id: number;
+  name: string;
+  isSecret = false;
+}
+</pre>
+<div class="pre-title">src/app/heroes/mock-heroes.ts</div>
+<pre language="ts" name="src/app/heroes/mock-heroes.ts" format="linenums" data-language="typescript">import { Hero } from './hero';
+
+export var HEROES: Hero[] = [
+  { id: 11, isSecret: false, name: 'Mr. Nice' },
+  { id: 12, isSecret: false, name: 'Narco' },
+  { id: 13, isSecret: false, name: 'Bombasto' },
+  { id: 14, isSecret: false, name: 'Celeritas' },
+  { id: 15, isSecret: false, name: 'Magneta' },
+  { id: 16, isSecret: false, name: 'RubberMan' },
+  { id: 17, isSecret: false, name: 'Dynama' },
+  { id: 18, isSecret: true,  name: 'Dr IQ' },
+  { id: 19, isSecret: true,  name: 'Magma' },
+  { id: 20, isSecret: true,  name: 'Tornado' }
+];
+</pre>
+<p>The <code>HeroesComponent</code> is the root component of the <em>Heroes</em> feature area. It governs all the child components of this area. This stripped down version has only one child, <code>HeroListComponent</code>, which displays a list of heroes.</p> <p>Right now <code>HeroListComponent</code> gets heroes from <code>HEROES</code>, an in-memory collection defined in another file. That may suffice in the early stages of development, but it's far from ideal. As soon as you try to test this component or want to get your heroes data from a remote server, you'll have to change the implementation of <code>heroes</code> and fix every other use of the <code>HEROES</code> mock data.</p> <p>It's better to make a service that hides how the app gets hero data.</p> <div class="l-sub-section">
+<p>Given that the service is a <a href="https://en.wikipedia.org/wiki/Separation_of_concerns" target="_blank">separate concern</a>, consider writing the service code in its own file.</p> <p>See <a href="#one-class-per-file">this note</a> for details.</p> </div>
+<p>The following <code>HeroService</code> exposes a <code>getHeroes</code> method that returns the same mock data as before, but none of its consumers need to know that.</p> <div class="code-example">
+<h4>src/app/heroes/hero.service.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">import { Injectable } from '@angular/core';
+
+import { HEROES }     from './mock-heroes';
+
+@Injectable()
+export class HeroService {
+  getHeroes() { return HEROES; }
+}
+</pre>
+</div>
+<div class="l-sub-section">
+<p>The <code>@Injectable()</code> decorator above the service class is covered <a href="#injectable">shortly</a>.</p> </div>
+<div class="l-sub-section">
+<p>Of course, this isn't a real service. If the app were actually getting data from a remote server, the API would have to be asynchronous, perhaps returning a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank">Promise</a>. You'd also have to rewrite the way components consume the service. This is important in general, but not in this example.</p> </div>
+<p>A service is nothing more than a class in Angular. It remains nothing more than a class until you register it with an Angular injector.</p> <h3 id="injector-config">Configuring the injector</h3> <p>You don't have to create an Angular injector. Angular creates an application-wide injector for you during the bootstrap process.</p> <div class="code-example">
+<h4>src/main.ts (bootstrap)</h4>
+<pre language="ts" format="" data-language="typescript">platformBrowserDynamic().bootstrapModule(AppModule);
+</pre>
+</div>
+<p>You do have to configure the injector by registering the <strong>providers</strong> that create the services the application requires. This guide explains what <a href="#providers">providers</a> are later.</p> <p>You can either register a provider within an <a href="../ngmodule/">NgModule</a> or in application components.</p> <h3 id="register-providers-ngmodule">Registering providers in an <em>NgModule</em>
+</h3> <p>Here's the <code>AppModule</code> that registers two providers, <code>UserService</code> and an <code>APP_CONFIG</code> provider, in its <code>providers</code> array.</p> <div class="code-example">
+<h4>src/app/app.module.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">@NgModule({
+  imports: [
+    BrowserModule
+  ],
+  declarations: [
+    AppComponent,
+    CarComponent,
+    HeroesComponent,
+    /* . . . */
+  ],
+  providers: [
+    UserService,
+    { provide: APP_CONFIG, useValue: HERO_DI_CONFIG }
+  ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule { }
+</pre>
+</div>
+<p>Because the <code>HeroService</code> is used <em>only</em> within the <code>HeroesComponent</code> and its subcomponents, the top-level <code>HeroesComponent</code> is the ideal place to register it.</p> <h3 id="register-providers-component">Registering providers in a component</h3> <p>Here's a revised <code>HeroesComponent</code> that registers the <code>HeroService</code> in its <code>providers</code> array.</p> <div class="code-example">
+<h4>src/app/heroes/heroes.component.ts</h4>
+<pre language="ts" format="" data-language="typescript">import { Component }          from '@angular/core';
+
+import { HeroService }        from './hero.service';
+
+@Component({
+  selector: 'my-heroes',
+  providers: [HeroService],
+  template: `
+  &lt;h2&gt;Heroes&lt;/h2&gt;
+  &lt;hero-list&gt;&lt;/hero-list&gt;
+  `
+})
+export class HeroesComponent { }
+</pre>
+</div>
+<h3 id="ngmodule-vs-comp">When to use <em>NgModule</em> versus an application component</h3> <p>On the one hand, a provider in an <code>NgModule</code> is registered in the root injector. That means that every provider registered within an <code>NgModule</code> will be accessible in the <em>entire application</em>.</p> <p>On the other hand, a provider registered in an application component is available only on that component and all its children.</p> <p>Here, the <code>APP_CONFIG</code> service needs to be available all across the application, so it's registered in the <code>AppModule</code> <code>@NgModule</code> <code>providers</code> array. But since the <code>HeroService</code> is only used within the <em>Heroes</em> feature area and nowhere else, it makes sense to register it in the <code>HeroesComponent</code>.</p> <div class="l-sub-section">
+<p>Also see <em>"Should I add app-wide providers to the root <code>AppModule</code> or the root <code>AppComponent</code>?"</em> in the <a href="../../cookbook/ngmodule-faq/#q-root-component-or-module">NgModule FAQ</a>.</p> </div>
+<h3 id="prep-for-injection">Preparing the <em>HeroListComponent</em> for injection</h3> <p>The <code>HeroListComponent</code> should get heroes from the injected <code>HeroService</code>. Per the dependency injection pattern, the component must ask for the service in its constructor, <a href="#ctor-injection">as discussed earlier</a>. It's a small change:</p> <div class="pre-title">src/app/heroes/hero-list.component (with DI)</div>
+<pre language="ts" name="src/app/heroes/hero-list.component (with DI)" format="linenums" data-language="typescript">import { Component }   from '@angular/core';
+
+import { Hero }        from './hero';
+import { HeroService } from './hero.service';
+
+@Component({
+  selector: 'hero-list',
+  template: `
+  &lt;div *ngFor="let hero of heroes"&gt;
+    {{hero.id}} - {{hero.name}}
+  &lt;/div&gt;
+  `
+})
+export class HeroListComponent {
+  heroes: Hero[];
+
+  constructor(heroService: HeroService) {
+    this.heroes = heroService.getHeroes();
+  }
+}
+</pre>
+<div class="pre-title">src/app/heroes/hero-list.component (without DI)</div>
+<pre language="ts" name="src/app/heroes/hero-list.component (without DI)" format="linenums" data-language="typescript">import { Component }   from '@angular/core';
+
+import { HEROES }      from './mock-heroes';
+
+@Component({
+  selector: 'hero-list',
+  template: `
+  &lt;div *ngFor="let hero of heroes"&gt;
+    {{hero.id}} - {{hero.name}}
+  &lt;/div&gt;
+  `
+})
+export class HeroListComponent {
+  heroes = HEROES;
+}
+</pre>
+<div class="l-sub-section">
+<h4 id="focus-on-the-constructor">Focus on the constructor</h4> <p>Adding a parameter to the constructor isn't all that's happening here.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">constructor(heroService: HeroService) {
+  this.heroes = heroService.getHeroes();
+}
+</pre></div>
+<p>Note that the constructor parameter has the type <code>HeroService</code>, and that the <code>HeroListComponent</code> class has an <code>@Component</code> decorator (scroll up to confirm that fact). Also recall that the parent component (<code>HeroesComponent</code>) has <code>providers</code> information for <code>HeroService</code>.</p> <p>The constructor parameter type, the <code>@Component</code> decorator, and the parent's <code>providers</code> information combine to tell the Angular injector to inject an instance of <code>HeroService</code> whenever it creates a new <code>HeroListComponent</code>.</p> </div>
+<h3 id="di-metadata">Implicit injector creation</h3> <p>You saw how to use an injector to create a new <code>Car</code> earlier in this guide. You <em>could</em> create such an injector explicitly:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">  injector = ReflectiveInjector.resolveAndCreate([Car, Engine, Tires]);
+  let car = injector.get(Car);
+</pre></div>
+<p>You won't find code like that in the Tour of Heroes or any of the other documentation samples. You <em>could</em> write code that <a href="#explicit-injector">explicitly creates an injector</a> if you <em>had</em> to, but it's not always the best choice. Angular takes care of creating and calling injectors when it creates components for you—whether through HTML markup, as in <code>&lt;hero-list&gt;&lt;/hero-list&gt;</code>, or after navigating to a component with the <a href="../router/">router</a>. If you let Angular do its job, you'll enjoy the benefits of automated dependency injection.</p> <h3 id="singleton-services">Singleton services</h3> <p>Dependencies are singletons within the scope of an injector. In this guide's example, a single <code>HeroService</code> instance is shared among the <code>HeroesComponent</code> and its <code>HeroListComponent</code> children.</p> <p>However, Angular DI is a hierarchical injection system, which means that nested injectors can create their own service instances. For more information, see <a href="../hierarchical-dependency-injection/">Hierarchical Injectors</a>.</p> <h3 id="testing-the-component">Testing the component</h3> <p>Earlier you saw that designing a class for dependency injection makes the class easier to test. Listing dependencies as constructor parameters may be all you need to test application parts effectively.</p> <p>For example, you can create a new <code>HeroListComponent</code> with a mock service that you can manipulate under test:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">let expectedHeroes = [{name: 'A'}, {name: 'B'}]
+let mockService = &lt;HeroService&gt; {getHeroes: () =&gt; expectedHeroes }
+
+it('should have heroes when HeroListComponent created', () =&gt; {
+  let hlc = new HeroListComponent(mockService);
+  expect(hlc.heroes.length).toEqual(expectedHeroes.length);
+});
+</pre></div>
+<div class="l-sub-section">
+<p>Learn more in <a href="../testing/">Testing</a>.</p> </div>
+<h3 id="service-needs-service">When the service needs a service</h3> <p>The <code>HeroService</code> is very simple. It doesn't have any dependencies of its own.</p> <p>What if it had a dependency? What if it reported its activities through a logging service? You'd apply the same <em>constructor injection</em> pattern, adding a constructor that takes a <code>Logger</code> parameter.</p> <p>Here is the revision compared to the original.</p> <div class="pre-title">src/app/heroes/hero.service (v2)</div>
+<pre language="ts" name="src/app/heroes/hero.service (v2)" format="linenums" data-language="typescript">import { Injectable } from '@angular/core';
+
+import { HEROES }     from './mock-heroes';
+import { Logger }     from '../logger.service';
+
+@Injectable()
+export class HeroService {
+
+  constructor(private logger: Logger) {  }
+
+  getHeroes() {
+    this.logger.log('Getting heroes ...');
+    return HEROES;
+  }
+}
+</pre>
+<div class="pre-title">src/app/heroes/hero.service (v1)</div>
+<pre language="ts" name="src/app/heroes/hero.service (v1)" format="linenums" data-language="typescript">import { Injectable } from '@angular/core';
+
+import { HEROES }     from './mock-heroes';
+
+@Injectable()
+export class HeroService {
+  getHeroes() { return HEROES; }
+}
+</pre>
+<p>The constructor now asks for an injected instance of a <code>Logger</code> and stores it in a private property called <code>logger</code>. You call that property within the <code>getHeroes()</code> method when anyone asks for heroes.</p> <h3 id="injectable">Why <em>@Injectable()</em>?</h3> <p><strong><a href="../../api/core/index/injectable-decorator/">@Injectable()</a></strong> marks a class as available to an injector for instantiation. Generally speaking, an injector reports an error when trying to instantiate a class that is not marked as <code>@Injectable()</code>.</p> <div class="l-sub-section">
+<p>As it happens, you could have omitted <code>@Injectable()</code> from the first version of <code>HeroService</code> because it had no injected parameters. But you must have it now that the service has an injected dependency. You need it because Angular requires constructor parameter metadata in order to inject a <code>Logger</code>.</p> </div>
+<div class="callout is-helpful">
+<header>Suggestion: add @Injectable() to every service class</header><p>Consider adding <code>@Injectable()</code> to every service class, even those that don't have dependencies and, therefore, do not technically require it. Here's why:</p> <ul style="font-size:inherit">
+<li>
+<b>Future proofing:</b> No need to remember <code>@Injectable()</code> when you add a dependency later.</li>
+<li>
+<b>Consistency:</b> All services follow the same rules, and you don't have to wonder why a decorator is missing.</li>
+</ul>
+</div>
+<p>Injectors are also responsible for instantiating components like <code>HeroesComponent</code>. So why doesn't <code>HeroesComponent</code> have <code>@Injectable()</code>?</p> <p>You <em>can</em> add it if you really want to. It isn't necessary because the <code>HeroesComponent</code> is already marked with <code>@Component</code>, and this decorator class (like <code>@Directive</code> and <code>@Pipe</code>, which you learn about later) is a subtype of <a href="../../api/core/index/injectable-decorator/">@Injectable()</a>. It is in fact <code>@Injectable()</code> decorators that identify a class as a target for instantiation by an injector.</p> <div class="l-sub-section">
+<p>At runtime, injectors can read class metadata in the transpiled JavaScript code and use the constructor parameter type information to determine what things to inject.</p> <p>Not every JavaScript class has metadata. The TypeScript compiler discards metadata by default. If the <code>emitDecoratorMetadata</code> compiler option is true (as it should be in the <code>tsconfig.json</code>), the compiler adds the metadata to the generated JavaScript for <em>every class with at least one decorator</em>.</p> <p>While any decorator will trigger this effect, mark the service class with the <a href="../../api/core/index/injectable-decorator/">@Injectable()</a> decorator to make the intent clear.</p> </div>
+<div class="callout is-critical">
+<header>Always include the parentheses</header><p>Always write <code>@Injectable()</code>, not just <code>@Injectable</code>. The application will fail mysteriously if you forget the parentheses.</p> </div>
+<h2 id="creating-and-registering-a-logger-service">Creating and registering a logger service</h2> <p>Inject a logger into <code>HeroService</code> in two steps:</p> <ol> <li>Create the logger service.</li> <li>Register it with the application.</li> </ol> <p>The logger service is quite simple:</p> <div class="code-example">
+<h4>src/app/logger.service.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">import { Injectable } from '@angular/core';
+
+@Injectable()
+export class Logger {
+  logs: string[] = []; // capture logs for testing
+
+  log(message: string) {
+    this.logs.push(message);
+    console.log(message);
+  }
+}
+</pre>
+</div>
+<p>You're likely to need the same logger service everywhere in your application, so put it in the project's <code>app</code> folder and register it in the <code>providers</code> array of the application module, <code>AppModule</code>.</p> <div class="code-example">
+<h4>src/app/app.module.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">providers: [Logger]
+</pre>
+</div>
+<p>If you forget to register the logger, Angular throws an exception when it first looks for the logger:</p> <pre format="nocode">EXCEPTION: No provider for Logger! (HeroListComponent -&gt; HeroService -&gt; Logger)
+</pre>
+<p>That's Angular telling you that the dependency injector couldn't find the <em>provider</em> for the logger. It needed that provider to create a <code>Logger</code> to inject into a new <code>HeroService</code>, which it needed to create and inject into a new <code>HeroListComponent</code>.</p> <p>The chain of creations started with the <code>Logger</code> provider. <em>Providers</em> are the subject of the next section.</p> <h2 id="injector-providers">Injector providers</h2> <p>A provider <em>provides</em> the concrete, runtime version of a dependency value. The injector relies on <strong>providers</strong> to create instances of the services that the injector injects into components and other services.</p> <p>You must register a service <em>provider</em> with the injector, or it won't know how to create the service.</p> <p>Earlier you registered the <code>Logger</code> service in the <code>providers</code> array of the metadata for the <code>AppModule</code> like this:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">providers: [Logger]
+</pre></div>
+<p>There are many ways to <em>provide</em> something that looks and behaves like a <code>Logger</code>. The <code>Logger</code> class itself is an obvious and natural provider. But it's not the only way.</p> <p>You can configure the injector with alternative providers that can deliver an object that behaves like a <code>Logger</code>. You could provide a substitute class. You could provide a logger-like object. You could give it a provider that calls a logger factory function. Any of these approaches might be a good choice under the right circumstances.</p> <p>What matters is that the injector has a provider to go to when it needs a <code>Logger</code>.</p> <h3 id="the-provider-class-_andprovidefn-">The <em>Provider</em> class and <i>provide</i> object literal</h3> <p>You wrote the <code>providers</code> array like this:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">providers: [Logger]
+</pre></div>
+<p>This is actually a shorthand expression for a provider registration using a <em>provider</em> object literal with two properties:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[{ provide: Logger, useClass: Logger }]
+</pre></div>
+<p>The first is the <a href="#token">token</a> that serves as the key for both locating a dependency value and registering the provider.</p> <p>The second is a provider definition object, which you can think of as a <em>recipe</em> for creating the dependency value. There are many ways to create dependency values just as there are many ways to write a recipe.</p> <h3 id="alternative-class-providers">Alternative class providers</h3> <p>Occasionally you'll ask a different class to provide the service. The following code tells the injector to return a <code>BetterLogger</code> when something asks for the <code>Logger</code>.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[{ provide: Logger, useClass: BetterLogger }]
+</pre></div>
+<h3 id="class-provider-dependencies">Class provider with dependencies</h3> <p>Maybe an <code>EvenBetterLogger</code> could display the user name in the log message. This logger gets the user from the injected <code>UserService</code>, which is also injected at the application level.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">@Injectable()
+class EvenBetterLogger extends Logger {
+  constructor(private userService: UserService) { super(); }
+
+  log(message: string) {
+    let name = this.userService.user.name;
+    super.log(`Message to ${name}: ${message}`);
+  }
+}
+</pre></div>
+<p>Configure it like <code>BetterLogger</code>.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[ UserService,
+  { provide: Logger, useClass: EvenBetterLogger }]
+</pre></div>
+<h3 id="aliased-class-providers">Aliased class providers</h3> <p>Suppose an old component depends upon an <code>OldLogger</code> class. <code>OldLogger</code> has the same interface as the <code>NewLogger</code>, but for some reason you can't update the old component to use it.</p> <p>When the <em>old</em> component logs a message with <code>OldLogger</code>, you'd like the singleton instance of <code>NewLogger</code> to handle it instead.</p> <p>The dependency injector should inject that singleton instance when a component asks for either the new or the old logger. The <code>OldLogger</code> should be an alias for <code>NewLogger</code>.</p> <p>You certainly do not want two different <code>NewLogger</code> instances in your app. Unfortunately, that's what you get if you try to alias <code>OldLogger</code> to <code>NewLogger</code> with <code>useClass</code>.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[ NewLogger,
+  // Not aliased! Creates two instances of `NewLogger`
+  { provide: OldLogger, useClass: NewLogger}]
+</pre></div>
+<p>The solution: alias with the <code>useExisting</code> option.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[ NewLogger,
+  // Alias OldLogger w/ reference to NewLogger
+  { provide: OldLogger, useExisting: NewLogger}]
+</pre></div>
+<h3 id="value-provider">Value providers</h3> <p>Sometimes it's easier to provide a ready-made object rather than ask the injector to create it from a class.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">// An object in the shape of the logger service
+let silentLogger = {
+  logs: ['Silent logger says "Shhhhh!". Provided via "useValue"'],
+  log: () =&gt; {}
+};
+</pre></div>
+<p>Then you register a provider with the <code>useValue</code> option, which makes this object play the logger role.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">[{ provide: Logger, useValue: silentLogger }]
+</pre></div>
+<p>See more <code>useValue</code> examples in the <a href="#non-class-dependencies">Non-class dependencies</a> and <a href="#opaquetoken">OpaqueToken</a> sections.</p> <h3 id="factory-providers">Factory providers</h3> <p>Sometimes you need to create the dependent value dynamically, based on information you won't have until the last possible moment. Maybe the information changes repeatedly in the course of the browser session.</p> <p>Suppose also that the injectable service has no independent access to the source of this information.</p> <p>This situation calls for a <strong>factory provider</strong>.</p> <p>To illustrate the point, add a new business requirement: the <code>HeroService</code> must hide <em>secret</em> heroes from normal users. Only authorized users should see secret heroes.</p> <p>Like the <code>EvenBetterLogger</code>, the <code>HeroService</code> needs a fact about the user. It needs to know if the user is authorized to see secret heroes. That authorization can change during the course of a single application session, as when you log in a different user.</p> <p>Unlike <code>EvenBetterLogger</code>, you can't inject the <code>UserService</code> into the <code>HeroService</code>. The <code>HeroService</code> won't have direct access to the user information to decide who is authorized and who is not.</p> <p>Instead, the <code>HeroService</code> constructor takes a boolean flag to control display of secret heroes.</p> <div class="code-example">
+<h4>src/app/heroes/hero.service.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">constructor(
+  private logger: Logger,
+  private isAuthorized: boolean) { }
+
+getHeroes() {
+  let auth = this.isAuthorized ? 'authorized ' : 'unauthorized';
+  this.logger.log(`Getting heroes for ${auth} user.`);
+  return HEROES.filter(hero =&gt; this.isAuthorized || !hero.isSecret);
+}
+</pre>
+</div>
+<p>You can inject the <code>Logger</code>, but you can't inject the boolean <code>isAuthorized</code>. You'll have to take over the creation of new instances of this <code>HeroService</code> with a factory provider.</p> <p>A factory provider needs a factory function:</p> <div class="code-example">
+<h4>src/app/heroes/hero.service.provider.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">let heroServiceFactory = (logger: Logger, userService: UserService) =&gt; {
+  return new HeroService(logger, userService.user.isAuthorized);
+};
+</pre>
+</div>
+<p>Although the <code>HeroService</code> has no access to the <code>UserService</code>, the factory function does.</p> <p>You inject both the <code>Logger</code> and the <code>UserService</code> into the factory provider and let the injector pass them along to the factory function:</p> <div class="code-example">
+<h4>src/app/heroes/hero.service.provider.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">export let heroServiceProvider =
+  { provide: HeroService,
+    useFactory: heroServiceFactory,
+    deps: [Logger, UserService]
+  };
+</pre>
+</div>
+<div class="l-sub-section">
+<p>The <code>useFactory</code> field tells Angular that the provider is a factory function whose implementation is the <code>heroServiceFactory</code>.</p> <p>The <code>deps</code> property is an array of <a href="#token">provider tokens</a>. The <code>Logger</code> and <code>UserService</code> classes serve as tokens for their own class providers. The injector resolves these tokens and injects the corresponding services into the matching factory function parameters.</p> </div>
+<p>Notice that you captured the factory provider in an exported variable, <code>heroServiceProvider</code>. This extra step makes the factory provider reusable. You can register the <code>HeroService</code> with this variable wherever you need it.</p> <p>In this sample, you need it only in the <code>HeroesComponent</code>, where it replaces the previous <code>HeroService</code> registration in the metadata <code>providers</code> array. Here you see the new and the old implementation side-by-side:</p> <div class="pre-title">src/app/heroes/heroes.component (v3)</div>
+<pre language="ts" name="src/app/heroes/heroes.component (v3)" format="linenums" data-language="typescript">import { Component }          from '@angular/core';
+
+import { heroServiceProvider } from './hero.service.provider';
+
+@Component({
+  selector: 'my-heroes',
+  template: `
+  &lt;h2&gt;Heroes&lt;/h2&gt;
+  &lt;hero-list&gt;&lt;/hero-list&gt;
+  `,
+  providers: [heroServiceProvider]
+})
+export class HeroesComponent { }
+</pre>
+<div class="pre-title">src/app/heroes/heroes.component (v2)</div>
+<pre language="ts" name="src/app/heroes/heroes.component (v2)" format="linenums" data-language="typescript">import { Component }          from '@angular/core';
+
+import { HeroService }        from './hero.service';
+
+@Component({
+  selector: 'my-heroes',
+  providers: [HeroService],
+  template: `
+  &lt;h2&gt;Heroes&lt;/h2&gt;
+  &lt;hero-list&gt;&lt;/hero-list&gt;
+  `
+})
+export class HeroesComponent { }
+</pre>
+<h2 id="dependency-injection-tokens">Dependency injection tokens</h2> <p>When you register a provider with an injector, you associate that provider with a dependency injection token. The injector maintains an internal <em>token-provider</em> map that it references when asked for a dependency. The token is the key to the map.</p> <p>In all previous examples, the dependency value has been a class <em>instance</em>, and the class <em>type</em> served as its own lookup key. Here you get a <code>HeroService</code> directly from the injector by supplying the <code>HeroService</code> type as the token:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">heroService: HeroService;
+</pre></div>
+<p>You have similar good fortune when you write a constructor that requires an injected class-based dependency. When you define a constructor parameter with the <code>HeroService</code> class type, Angular knows to inject the service associated with that <code>HeroService</code> class token:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">constructor(heroService: HeroService)
+</pre></div>
+<p>This is especially convenient when you consider that most dependency values are provided by classes.</p> <h3 id="non-class-dependencies">Non-class dependencies</h3> <p>What if the dependency value isn't a class? Sometimes the thing you want to inject is aspan string, function, or object.</p>
+<p>Applications often define configuration objects with lots of small facts (like the title of the application or the address of a web API endpoint)but these configuration objects aren't always instances of a class. They can be object literals such as this one:</p>
+<div class="code-example">
+<h4>src/app/app-config.ts (excerpt)</h4>
+<pre language="ts" format="" data-language="typescript">export interface AppConfig {
+  apiEndpoint: string;
+  title: string;
+}
+
+export const HERO_DI_CONFIG: AppConfig = {
+  apiEndpoint: 'api.heroes.com',
+  title: 'Dependency Injection'
+};
+</pre>
+</div>
+<p>What if you'd like to make this configuration object available for injection? You know you can register an object with a <a href="#value-provider">value provider</a>.</p> <p>But what should you use as the token? You don't have a class to serve as a token. There is no <code>AppConfig</code> class.</p> <div id="interface" class="l-sub-section">
+<h3 id="typescript-interfaces-aren-t-valid-tokens">TypeScript interfaces aren't valid tokens</h3> <p>The <code>HERO_DI_CONFIG</code> constant has an interface, <code>AppConfig</code>. Unfortunately, you cannot use a TypeScript interface as a token:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">// FAIL! Can't use interface as provider token
+[{ provide: AppConfig, useValue: HERO_DI_CONFIG })]
+</pre></div>
+<div class="code-example"><pre language="ts" format="" data-language="typescript">// FAIL! Can't inject using the interface as the parameter type
+constructor(private config: AppConfig){ }
+</pre></div>
+<p>That seems strange if you're used to dependency injection in strongly typed languages, where an interface is the preferred dependency lookup key.</p> <p>It's not Angular's doing. An interface is a TypeScript design-time artifact. JavaScript doesn't have interfaces. The TypeScript interface disappears from the generated JavaScript. There is no interface type information left for Angular to find at runtime.</p> </div>
+<h3 id="opaquetoken"><em>OpaqueToken</em></h3> <p>One solution to choosing a provider token for non-class dependencies is to define and use an <a href="../../api/core/index/opaquetoken-class/"><b>OpaqueToken</b></a>. The definition looks like this:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">import { OpaqueToken } from '@angular/core';
+
+export let APP_CONFIG = new OpaqueToken('app.config');
+</pre></div>
+<p>Register the dependency provider using the <code>OpaqueToken</code> object:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">providers: [{ provide: APP_CONFIG, useValue: HERO_DI_CONFIG }]
+</pre></div>
+<p>Now you can inject the configuration object into any constructor that needs it, with the help of an <code>@Inject</code> decorator:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">constructor(@Inject(APP_CONFIG) config: AppConfig) {
+  this.title = config.title;
+}
+</pre></div>
+<div class="l-sub-section">
+<p>Although the <code>AppConfig</code> interface plays no role in dependency injection, it supports typing of the configuration object within the class.</p> </div>
+<p>Aternatively, you can provide and inject the configuration object in an ngModule like <code>AppModule</code>.</p> <div class="code-example">
+<h4>src/app/app.module.ts (ngmodule-providers)</h4>
+<pre language="ts" format="" data-language="typescript">providers: [
+  UserService,
+  { provide: APP_CONFIG, useValue: HERO_DI_CONFIG }
+],
+</pre>
+</div>
+<h2 id="optional-dependencies">Optional dependencies</h2> <p>The <code>HeroService</code> <em>requires</em> a <code>Logger</code>, but what if it could get by without a <code>logger</code>? You can tell Angular that the dependency is optional by annotating the constructor argument with <code>@Optional()</code>:</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">import { Optional } from '@angular/core';
+</pre></div>
+<div class="code-example"><pre language="ts" format="" data-language="typescript">constructor(@Optional() private logger: Logger) {
+  if (this.logger) {
+    this.logger.log(some_message);
+  }
+}
+</pre></div>
+<p>When using <code>@Optional()</code>, your code must be prepared for a null value. If you don't register a <code>logger</code> somewhere up the line, the injector will set the value of <code>logger</code> to null.</p> <h2 id="summary">Summary</h2> <p>You learned the basics of Angular dependency injection in this page. You can register various kinds of providers, and you know how to ask for an injected object (such as a service) by adding a parameter to a constructor.</p> <p>Angular dependency injection is more capable than this guide has described. You can learn more about its advanced features, beginning with its support for nested injectors, in <a href="../hierarchical-dependency-injection/">Hierarchical Dependency Injection</a>.</p> <h2 id="appendix-working-with-injectors-directly">Appendix: Working with injectors directly</h2> <p>Developers rarely work directly with an injector, but here's an <code>InjectorComponent</code> that does.</p> <div class="code-example">
+<h4>src/app/injector.component.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">@Component({
+  selector: 'my-injectors',
+  template: `
+  &lt;h2&gt;Other Injections&lt;/h2&gt;
+  &lt;div id="car"&gt;{{car.drive()}}&lt;/div&gt;
+  &lt;div id="hero"&gt;{{hero.name}}&lt;/div&gt;
+  &lt;div id="rodent"&gt;{{rodent}}&lt;/div&gt;
+  `,
+  providers: [Car, Engine, Tires, heroServiceProvider, Logger]
+})
+export class InjectorComponent implements OnInit {
+  car: Car;
+
+  heroService: HeroService;
+  hero: Hero;
+
+  constructor(private injector: Injector) { }
+
+  ngOnInit() {
+    this.car = this.injector.get(Car);
+    this.heroService = this.injector.get(HeroService);
+    this.hero = this.heroService.getHeroes()[0];
+  }
+
+  get rodent() {
+    let rousDontExist = `R.O.U.S.'s? I don't think they exist!`;
+    return this.injector.get(ROUS, rousDontExist);
+  }
+}
+</pre>
+</div>
+<p>An <code>Injector</code> is itself an injectable service.</p> <p>In this example, Angular injects the component's own <code>Injector</code> into the component's constructor. The component then asks the injected injector for the services it wants.</p> <p>Note that the services themselves are not injected into the component. They are retrieved by calling <code>injector.get()</code>.</p> <p>The <code>get()</code> method throws an error if it can't resolve the requested service. You can call <code>get()</code> with a second parameter, which is the value to return if the service is not found. Angular can't find the service if it's not registered with this or any ancestor injector.</p> <div class="l-sub-section">
+<p>The technique is an example of the <a href="https://en.wikipedia.org/wiki/Service_locator_pattern" target="_blank">service locator pattern</a>.</p> <p><strong>Avoid</strong> this technique unless you genuinely need it. It encourages a careless grab-bag approach such as you see here. It's difficult to explain, understand, and test. You can't know by inspecting the constructor what this class requires or what it will do. It could acquire services from any ancestor component, not just its own. You're forced to spelunk the implementation to discover what it does.</p> <p>Framework developers may take this approach when they must acquire services generically and dynamically.</p> </div>
+<h2 id="appendix-why-have-one-class-per-file">Appendix: Why have one class per file</h2> <p>Having multiple classes in the same file is confusing and best avoided. Developers expect one class per file. Keep them happy.</p> <p>If you combine the <code>HeroService</code> class with the <code>HeroesComponent</code> in the same file, <strong>define the component last</strong>. If you define the component before the service, you'll get a runtime null reference error.</p> <div class="l-sub-section">
+<p>You actually can define the component first with the help of the <code>forwardRef()</code> method as explained in this <a href="http://blog.thoughtram.io/angular/2015/09/03/forward-references-in-angular-2.html" target="_blank">blog post</a>. But why flirt with trouble? Avoid the problem altogether by defining components and services in separate files.</p> </div>
+<div class="l-sub-section">
+<h3>Next Step</h3>
+<a href="../template-syntax/">Template Syntax</a>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 Google, Inc.<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://angular.io/docs/ts/latest/guide/dependency-injection.html" class="_attribution-link" target="_blank">https://angular.io/docs/ts/latest/guide/dependency-injection.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

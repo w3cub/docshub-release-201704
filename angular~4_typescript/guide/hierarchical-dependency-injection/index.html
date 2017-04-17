@@ -1,0 +1,183 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Hierarchical Injectors - Angular 4 TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content=" Angular&#39;s hierarchical dependency injection system supports nested injectors in parallel with the component tree. ">
+  <meta name="keywords" content="hierarchical, dependency, injectors, -, angular, typescript, angular~4_typescript">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/angular~4_typescript/guide/hierarchical-dependency-injection/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/angular~4_typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/angular~4_typescript/" class="_nav-link" title="" style="margin-left:0;">Angular 4 TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _angular">
+				
+<h1 class="hero-title ">Hierarchical Dependency Injectors </h1>
+
+<div class="banner"><p class="text-body">Angular's hierarchical dependency injection system supports nested injectors in parallel with the component tree.</p></div>
+<p>You learned the basics of Angular Dependency injection in the <a href="../dependency-injection/">Dependency Injection</a> guide.</p> <p>Angular has a <em>Hierarchical Dependency Injection</em> system. There is actually a tree of injectors that parallel an application's component tree. You can reconfigure the injectors at any level of that component tree.</p> <p>This guide explores this system and how to use it to your advantage.</p> <p>Try the live example.</p> <h2 id="the-injector-tree">The injector tree</h2> <p>In the <a href="../dependency-injection/">Dependency Injection</a> guide, you learned how to configure a dependency injector and how to retrieve dependencies where you need them.</p> <p>In fact, there is no such thing as <strong><em>the</em></strong> injector. An application may have multiple injectors. An Angular application is a tree of components. Each component instance has its own injector. The tree of components parallels the tree of injectors.</p> <div class="l-sub-section">
+<p>The component's injector may be a <em>proxy</em> for an ancestor injector higher in the component tree. That's an implementation detail that improves efficiency. You won't notice the difference and your mental model should be that every component has its own injector.</p> </div>
+<p>Consider this guide's variation on the Tour of Heroes application. At the top is the <code>AppComponent</code> which has some sub-components. One of them is the <code>HeroesListComponent</code>. The <code>HeroesListComponent</code> holds and manages multiple instances of the <code>HeroTaxReturnComponent</code>. The following diagram represents the state of the this guide's three-level component tree when there are three instances of <code>HeroTaxReturnComponent</code> open simultaneously.</p> <img src="https://angular.io/resources/images/devguide/dependency-injection/component-hierarchy.png" alt="injector tree" width="600"><h3 id="injector-bubbling">Injector bubbling</h3> <p>When a component requests a dependency, Angular tries to satisfy that dependency with a provider registered in that component's own injector. If the component's injector lacks the provider, it passes the request up to its parent component's injector. If that injector can't satisfy the request, it passes it along to <em>its</em> parent injector. The requests keep bubbling up until Angular finds an injector that can handle the request or runs out of ancestor injectors. If it runs out of ancestors, Angular throws an error.</p> <div class="l-sub-section">
+<p>You can cap the bubbling. An intermediate component can declare that it is the "host" component. The hunt for providers will climb no higher than the injector for that host component. This is a topic for another day.</p> </div>
+<h3 id="re-providing-a-service-at-different-levels">Re-providing a service at different levels</h3> <p>You can re-register a provider for a particular dependency token at multiple levels of the injector tree. You don't <em>have</em> to re-register providers. You shouldn't do so unless you have a good reason. But you <em>can</em>.</p> <p>As the resolution logic works upwards, the first provider encountered wins. Thus, a provider in an intermediate injector intercepts a request for a service from something lower in the tree. It effectively "reconfigures" and "shadows" a provider at a higher level in the tree.</p> <p>If you only specify providers at the top level (typically the root <code>AppModule</code>), the tree of injectors appears to be flat. All requests bubble up to the root <span if-docs="ts"><code>NgModule</code></span> injector that you configured with the <code>bootstrapModule</code> method.</p> <h2 id="component-injectors">Component injectors</h2> <p>The ability to configure one or more providers at different levels opens up interesting and useful possibilities.</p> <h3 id="scenario-service-isolation">Scenario: service isolation</h3> <p>Architectural reasons may lead you to restrict access to a service to the application domain where it belongs.</p> <p>The guide sample includes a <code>VillainsListComponent</code> that displays a list of villains. It gets those villains from a <code>VillainsService</code>.</p> <p>While you <em>could</em> provide <code>VillainsService</code> in the root <code>AppModule</code> (that's where you'll find the <code>HeroesService</code>), that would make the <code>VillainsService</code> available everywhere in the application, including the <em>Hero</em> workflows.</p> <p>If you later modified the <code>VillainsService</code>, you could break something in a hero component somewhere. That's not supposed to happen but providing the service in the root <code>AppModule</code> creates that risk.</p> <p>Instead, provide the <code>VillainsService</code> in the <code>providers</code> metadata of the <code>VillainsListComponent</code> like this:</p> <div class="code-example">
+<h4>src/app/villains-list.component.ts (metadata)</h4>
+<pre language="ts" format="" data-language="typescript">@Component({
+  selector: 'villains-list',
+  templateUrl: './villains-list.component.html',
+  providers: [ VillainsService ]
+})
+</pre>
+</div>
+<p>By providing <code>VillainsService</code> in the <code>VillainsListComponent</code> metadata and nowhere else, the service becomes available only in the <code>VillainsListComponent</code> and its sub-component tree. It's still a singleton, but it's a singleton that exist solely in the <em>villain</em> domain.</p> <p>Now you know that a hero component can't access it. You've reduced your exposure to error.</p> <h3 id="scenario-multiple-edit-sessions">Scenario: multiple edit sessions</h3> <p>Many applications allow users to work on several open tasks at the same time. For example, in a tax preparation application, the preparer could be working on several tax returns, switching from one to the other throughout the day.</p> <p>This guide demonstrates that scenario with an example in the Tour of Heroes theme. Imagine an outer <code>HeroListComponent</code> that displays a list of super heroes.</p> <p>To open a hero's tax return, the preparer clicks on a hero name, which opens a component for editing that return. Each selected hero tax return opens in its own component and multiple returns can be open at the same time.</p> <p>Each tax return component has the following characteristics:</p> <ul> <li>Is its own tax return editing session.</li> <li>Can change a tax return without affecting a return in another component.</li> <li>Has the ability to save the changes to its tax return or cancel them.</li> </ul> <img src="https://angular.io/resources/images/devguide/dependency-injection/hid-heroes-anim.gif" width="400" alt="Heroes in action"><p>One might suppose that the <code>HeroTaxReturnComponent</code> has logic to manage and restore changes. That would be a pretty easy task for a simple hero tax return. In the real world, with a rich tax return data model, the change management would be tricky. You might delegate that management to a helper service, as this example does.</p> <p>Here is the <code>HeroTaxReturnService</code>. It caches a single <code>HeroTaxReturn</code>, tracks changes to that return, and can save or restore it. It also delegates to the application-wide singleton <code>HeroService</code>, which it gets by injection.</p> <div class="code-example">
+<h4>src/app/hero-tax-return.service.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">import { Injectable }    from '@angular/core';
+import { HeroTaxReturn } from './hero';
+import { HeroesService } from './heroes.service';
+
+@Injectable()
+export class HeroTaxReturnService {
+  private currentTaxReturn: HeroTaxReturn;
+  private originalTaxReturn: HeroTaxReturn;
+
+  constructor(private heroService: HeroesService) { }
+
+  set taxReturn (htr: HeroTaxReturn) {
+    this.originalTaxReturn = htr;
+    this.currentTaxReturn  = htr.clone();
+  }
+
+  get taxReturn (): HeroTaxReturn {
+    return this.currentTaxReturn;
+  }
+
+  restoreTaxReturn() {
+    this.taxReturn = this.originalTaxReturn;
+  }
+
+  saveTaxReturn() {
+    this.taxReturn = this.currentTaxReturn;
+    this.heroService.saveTaxReturn(this.currentTaxReturn).subscribe();
+  }
+}
+</pre>
+</div>
+<p>Here is the <code>HeroTaxReturnComponent</code> that makes use of it.</p> <div class="code-example">
+<h4>src/app/hero-tax-return.component.ts</h4>
+<pre language="ts" format="linenums" data-language="typescript">import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { HeroTaxReturn }        from './hero';
+import { HeroTaxReturnService } from './hero-tax-return.service';
+
+@Component({
+  selector: 'hero-tax-return',
+  templateUrl: './hero-tax-return.component.html',
+  styleUrls: [ './hero-tax-return.component.css' ],
+  providers: [ HeroTaxReturnService ]
+})
+export class HeroTaxReturnComponent {
+  message = '';
+  @Output() close = new EventEmitter&lt;void&gt;();
+
+  get taxReturn(): HeroTaxReturn {
+    return this.heroTaxReturnService.taxReturn;
+  }
+  @Input()
+  set taxReturn (htr: HeroTaxReturn) {
+    this.heroTaxReturnService.taxReturn = htr;
+  }
+
+  constructor(private heroTaxReturnService: HeroTaxReturnService ) { }
+
+  onCanceled()  {
+    this.flashMessage('Canceled');
+    this.heroTaxReturnService.restoreTaxReturn();
+  };
+
+  onClose()  { this.close.emit(); };
+
+  onSaved() {
+    this.flashMessage('Saved');
+    this.heroTaxReturnService.saveTaxReturn();
+  }
+
+  flashMessage(msg: string) {
+    this.message = msg;
+    setTimeout(() =&gt; this.message = '', 500);
+  }
+}
+</pre>
+</div>
+<p>The <em>tax-return-to-edit</em> arrives via the input property which is implemented with getters and setters. The setter initializes the component's own instance of the <code>HeroTaxReturnService</code> with the incoming return. The getter always returns what that service says is the current state of the hero. The component also asks the service to save and restore this tax return.</p> <p>There'd be big trouble if <em>this</em> service were an application-wide singleton. Every component would share the same service instance. Each component would overwrite the tax return that belonged to another hero. What a mess!</p> <p>Look closely at the metadata for the <code>HeroTaxReturnComponent</code>. Notice the <code>providers</code> property.</p> <div class="code-example"><pre language="ts" format="" data-language="typescript">providers: [ HeroTaxReturnService ]
+</pre></div>
+<p>The <code>HeroTaxReturnComponent</code> has its own provider of the <code>HeroTaxReturnService</code>. Recall that every component <em>instance</em> has its own injector. Providing the service at the component level ensures that <em>every</em> instance of the component gets its own, private instance of the service. No tax return overwriting. No mess.</p> <div class="l-sub-section">
+<p>The rest of the scenario code relies on other Angular features and techniques that you can learn about elsewhere in the documentation. You can review it and download it from the live example.</p> </div>
+<h3 id="scenario-specialized-providers">Scenario: specialized providers</h3> <p>Another reason to re-provide a service is to substitute a <em>more specialized</em> implementation of that service, deeper in the component tree.</p> <p>Consider again the Car example from the <a href="../dependency-injection/">Dependency Injection</a> guide. Suppose you configured the root injector (marked as A) with <em>generic</em> providers for <code>CarService</code>, <code>EngineService</code> and <code>TiresService</code>.</p> <p>You create a car component (A) that displays a car constructed from these three generic services.</p> <p>Then you create a child component (B) that defines its own, <em>specialized</em> providers for <code>CarService</code> and <code>EngineService</code> that have special capabilites suitable for whatever is going on in component (B).</p> <p>Component (B) is the parent of another component (C) that defines its own, even <em>more specialized</em> provider for <code>CarService</code>.</p> <img src="https://angular.io/resources/images/devguide/dependency-injection/car-components.png" alt="car components" width="220"><p>Behind the scenes, each component sets up its own injector with zero, one, or more providers defined for that component itself.</p> <p>When you resolve an instance of <code>Car</code> at the deepest component (C), its injector produces an instance of <code>Car</code> resolved by injector (C) with an <code>Engine</code> resolved by injector (B) and <code>Tires</code> resolved by the root injector (A).</p> <img src="https://angular.io/resources/images/devguide/dependency-injection/injector-tree.png" alt="car injector tree" width="600"><div class="l-sub-section">
+<p>The code for this <em>cars</em> scenario is in the <code>car.components.ts</code> and <code>car.services.ts</code> files of the sample which you can review and download from the live example.</p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 Google, Inc.<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://angular.io/docs/ts/latest/guide/hierarchical-dependency-injection.html" class="_attribution-link" target="_blank">https://angular.io/docs/ts/latest/guide/hierarchical-dependency-injection.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

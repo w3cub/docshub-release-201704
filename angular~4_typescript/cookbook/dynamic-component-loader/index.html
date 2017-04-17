@@ -1,0 +1,292 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dynamic Component Loader - Angular 4 TypeScript - W3cubDocs</title>
+  
+  <meta name="description" content=" Load components dynamically. ">
+  <meta name="keywords" content="dynamic, component, loader, -, angular, typescript, angular~4_typescript">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/angular~4_typescript/cookbook/dynamic-component-loader/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/angular~4_typescript.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/angular~4_typescript/" class="_nav-link" title="" style="margin-left:0;">Angular 4 TypeScript</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _angular">
+				
+<h1 class="hero-title ">Dynamic Component Loader </h1>
+
+<div class="banner"><p class="text-body">Load components dynamically.</p></div>
+<p>Component templates are not always fixed. An application may need to load new components at runtime.</p> <p>In this cookbook we show how to use <code>ComponentFactoryResolver</code> to add components dynamically.</p>  <h2 id="table-of-contents">Table of contents</h2> <p> <a href="#dynamic-loading">Dynamic Component Loading</a></p> <p> <a href="#where-to-load">Where to load the component</a></p> <p> <a href="#loading-components">Loading components</a></p> <h2 id="dynamic-loading">Dynamic Component Loading</h2> <p>The following example shows how to build a dynamic ad banner. </p> <p>The hero agency is planning an ad campaign with several different ads cycling through the banner.</p> <p>New ad components are added frequently by several different teams. This makes it impractical to use a template with a static component structure. </p> <p>Instead we need a way to load a new component without a fixed reference to the component in the ad banner's template.</p> <p>Angular comes with its own API for loading components dynamically. In the following sections you will learn how to use it.</p> <h2 id="where-to-load">Where to load the component</h2> <p>Before components can be added we have to define an anchor point to mark where components can be inserted dynamically.</p> <p>The ad banner uses a helper directive called <code>AdDirective</code> to mark valid insertion points in the template.</p> <div class="code-example">
+<h4>src/app/ad.directive.ts</h4>
+<pre language="ts" format="" data-language="typescript">import { Directive, ViewContainerRef } from '@angular/core';
+
+@Directive({
+  selector: '[ad-host]',
+})
+export class AdDirective {
+  constructor(public viewContainerRef: ViewContainerRef) { }
+}
+</pre>
+</div>
+<p><code>AdDirective</code> injects <code>ViewContainerRef</code> to gain access to the view container of the element that will become the host of the dynamically added component.</p> <h2 id="loading-components">Loading components</h2> <p>The next step is to implement the ad banner. Most of the implementation is in <code>AdBannerComponent</code>.</p> <p>We start by adding a <code>template</code> element with the <code>AdDirective</code> directive applied.</p> <div class="pre-title">ad-banner.component.ts</div>
+<pre language="ts" name="ad-banner.component.ts" format="linenums" data-language="typescript">import { Component, Input, AfterViewInit, ViewChild, ComponentFactoryResolver, OnDestroy } from '@angular/core';
+
+import { AdDirective } from './ad.directive';
+import { AdItem }      from './ad-item';
+import { AdComponent } from './ad.component';
+
+@Component({
+  selector: 'add-banner',
+  template: `
+              &lt;div class="ad-banner"&gt;
+                &lt;h3&gt;Advertisements&lt;/h3&gt;
+                &lt;template ad-host&gt;&lt;/template&gt;
+              &lt;/div&gt;
+            `
+})
+export class AdBannerComponent implements AfterViewInit, OnDestroy {
+  @Input() ads: AdItem[];
+  currentAddIndex: number = -1;
+  @ViewChild(AdDirective) adHost: AdDirective;
+  subscription: any;
+  interval: any;
+
+  constructor(private _componentFactoryResolver: ComponentFactoryResolver) { }
+
+  ngAfterViewInit() {
+    this.loadComponent();
+    this.getAds();
+  }
+
+  ngOnDestroy() {
+    clearInterval(this.interval);
+  }
+
+  loadComponent() {
+    this.currentAddIndex = (this.currentAddIndex + 1) % this.ads.length;
+    let adItem = this.ads[this.currentAddIndex];
+
+    let componentFactory = this._componentFactoryResolver.resolveComponentFactory(adItem.component);
+
+    let viewContainerRef = this.adHost.viewContainerRef;
+    viewContainerRef.clear();
+
+    let componentRef = viewContainerRef.createComponent(componentFactory);
+    (&lt;AdComponent&gt;componentRef.instance).data = adItem.data;
+  }
+
+  getAds() {
+    this.interval = setInterval(() =&gt; {
+      this.loadComponent();
+    }, 3000);
+  }
+}
+</pre>
+<div class="pre-title">ad.service.ts</div>
+<pre language="ts" name="ad.service.ts" format="linenums" data-language="typescript">import { Injectable }           from '@angular/core';
+
+import { HeroJobAdComponent }   from './hero-job-ad.component';
+import { HeroProfileComponent } from './hero-profile.component';
+import { AdItem }               from './ad-item';
+
+@Injectable()
+export class AdService {
+  getAds() {
+    return [
+      new AdItem(HeroProfileComponent, {name: 'Bombasto', bio: 'Brave as they come'}),
+
+      new AdItem(HeroProfileComponent, {name: 'Dr IQ', bio: 'Smart as they come'}),
+
+      new AdItem(HeroJobAdComponent,   {headline: 'Hiring for several positions',
+                                        body: 'Submit your resume today!'}),
+
+      new AdItem(HeroJobAdComponent,   {headline: 'Openings in all departments',
+                                        body: 'Apply today'}),
+    ];
+  }
+}
+</pre>
+<div class="pre-title">ad-item.ts</div>
+<pre language="ts" name="ad-item.ts" format="linenums" data-language="typescript">import { Type } from '@angular/core';
+
+export class AdItem {
+  constructor(public component: Type&lt;any&gt;, public data: any) {}
+}
+</pre>
+<div class="pre-title">app.module.ts</div>
+<pre language="ts" name="app.module.ts" format="linenums" data-language="typescript">import { BrowserModule }        from '@angular/platform-browser';
+import { NgModule }             from '@angular/core';
+import { AppComponent }         from './app.component';
+import { HeroJobAdComponent }   from './hero-job-ad.component';
+import { AdBannerComponent }    from './ad-banner.component';
+import { HeroProfileComponent } from './hero-profile.component';
+import { AdDirective }          from './ad.directive';
+import { AdService }            from './ad.service';
+
+@NgModule({
+  imports: [ BrowserModule ],
+  providers: [AdService],
+  declarations: [ AppComponent,
+                  AdBannerComponent,
+                  HeroJobAdComponent,
+                  HeroProfileComponent,
+                  AdDirective ],
+  entryComponents: [ HeroJobAdComponent, HeroProfileComponent ],
+  bootstrap: [ AppComponent ]
+})
+export class AppModule {
+  constructor() {}
+}
+</pre>
+<div class="pre-title">app.component</div>
+<pre language="ts" name="app.component" format="linenums" data-language="typescript">import { Component, OnInit } from '@angular/core';
+
+import { AdService }         from './ad.service';
+import { AdItem }            from './ad-item';
+
+@Component({
+  selector: 'my-app',
+  template: `
+    &lt;div&gt;
+      &lt;add-banner [ads]="ads"&gt;&lt;/add-banner&gt;
+    &lt;/div&gt;
+  `
+})
+export class AppComponent implements OnInit {
+  ads: AdItem[];
+
+  constructor(private adService: AdService) {}
+
+  ngOnInit() {
+    this.ads = this.adService.getAds();
+  }
+}
+</pre>
+<p>The <code>template</code> element decorated with the <code>ad-host</code> directive marks where dynamically loaded components will be added.</p> <p>Using a <code>template</code> element is recommended since it doesn't render any additional output.</p> <div class="code-example">
+<h4>src/app/ad-banner.component.ts (template)</h4>
+<pre language="ts" format="" data-language="typescript">template: `
+            &lt;div class="ad-banner"&gt;
+              &lt;h3&gt;Advertisements&lt;/h3&gt;
+              &lt;template ad-host&gt;&lt;/template&gt;
+            &lt;/div&gt;
+          `
+</pre>
+</div>
+<h3 id="resolving-components">Resolving Components</h3> <p><code>AdBanner</code> takes an array of <code>AdItem</code> objects as input. <code>AdItem</code> objects specify the type of component to load and any data to bind to the component.</p> <p>The ad components making up the ad campaign are returned from <code>AdService</code>.</p> <p>Passing an array of components to <code>AdBannerComponent</code> allows for a dynamic list of ads without static elements in the template. </p> <p><code>AdBannerComponent</code> cycles through the array of <code>AdItems</code> and loads the corresponding components on an interval. Every 3 seconds a new component is loaded.</p> <p><code>ComponentFactoryResolver</code> is used to resolve a <code>ComponentFactory</code> for each specific component. The component factory is need to create an instance of the component.</p> <p><code>ComponentFactories</code> are generated by the Angular compiler. </p> <p>Generally the compiler will generate a component factory for any component referenced in a template.</p> <p>With dynamically loaded components there are no selector references in the templates since components are loaded at runtime. In order to ensure that the compiler will still generate a factory, dynamically loaded components have to be added to their <code>NgModule</code>'s <code>entryComponents</code> array. </p> <div class="code-example">
+<h4>src/app/app.module.ts (entry components)</h4>
+<pre language="ts" format="" data-language="typescript">entryComponents: [ HeroJobAdComponent, HeroProfileComponent ],
+</pre>
+</div>
+<p>Components are added to the template by calling <code>createComponent</code> on the <code>ViewContainerRef</code> reference. </p> <p><code>createComponent</code> returns a reference to the loaded component. The component reference can be used to pass input data or call methods to interact with the component.</p> <p>In the Ad banner, all components implement a common <code>AdComponent</code> interface to standardize the api for passing data to the components.</p> <p>Two sample components and the <code>AdComponent</code> interface are shown below:</p> <div class="pre-title">hero-job-ad.component.ts</div>
+<pre language="ts" name="hero-job-ad.component.ts" format="linenums" data-language="typescript">import { Component, Input } from '@angular/core';
+
+import { AdComponent }      from './ad.component';
+
+@Component({
+  template: `
+    &lt;div class="job-ad"&gt;
+      &lt;h4&gt;{{data.headline}}&lt;/h4&gt; 
+
+      {{data.body}}
+    &lt;/div&gt;
+  `
+})
+export class HeroJobAdComponent implements AdComponent {
+  @Input() data: any;
+
+}
+</pre>
+<div class="pre-title">hero-profile.component.ts</div>
+<pre language="ts" name="hero-profile.component.ts" format="linenums" data-language="typescript">import { Component, Input }  from '@angular/core';
+
+import { AdComponent }       from './ad.component';
+
+@Component({
+  template: `
+    &lt;div class="hero-profile"&gt;
+      &lt;h3&gt;Featured Hero Profile&lt;/h3&gt;
+      &lt;h4&gt;{{data.name}}&lt;/h4&gt;
+
+      &lt;p&gt;{{data.bio}}&lt;/p&gt;
+
+      &lt;strong&gt;Hire this hero today!&lt;/strong&gt;
+    &lt;/div&gt;
+  `
+})
+export class HeroProfileComponent implements AdComponent {
+  @Input() data: any;
+}
+</pre>
+<div class="pre-title">ad.component.ts</div>
+<pre language="ts" name="ad.component.ts" format="linenums" data-language="typescript">export interface AdComponent {
+  data: any;
+}
+</pre>
+<p>The final ad banner looks like this:</p> <img src="https://angular.io/resources/images/cookbooks/dynamic-component-loader/ads.gif" alt="Ads"><div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 Google, Inc.<br>Licensed under the Creative Commons Attribution License 4.0.<br>
+    <a href="https://angular.io/docs/ts/latest/cookbook/dynamic-component-loader.html" class="_attribution-link" target="_blank">https://angular.io/docs/ts/latest/cookbook/dynamic-component-loader.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
