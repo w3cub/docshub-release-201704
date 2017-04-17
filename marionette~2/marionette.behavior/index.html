@@ -1,0 +1,270 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Behavior - Marionette.js 2 - W3cubDocs</title>
+  
+  <meta name="description" content="A Behavior is an isolated set of DOM &#47; user interactions that can be mixed into any View or another Behavior. Behaviors allow you to blackbox &hellip;">
+  <meta name="keywords" content="marionette, behavior, -, js, marionette~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/marionette~2/marionette.behavior/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/marionette~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/marionette~2/" class="_nav-link" title="" style="margin-left:0;">Marionette.js 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _marionette">
+				
+<h1>
+Marionette.Behavior</h1>
+<p>A <code>Behavior</code> is an isolated set of DOM / user interactions that can be mixed into any <code>View</code> or another <code>Behavior</code>. Behaviors allow you to blackbox <code>View</code>-specific interactions into portable logical chunks, keeping your Views simple and your code DRY.</p> <h2 id="documentation-index">
+Documentation Index</h2>
+<ul> <li><a href="#the-motivation">Motivation</a></li> <li><a href="#using">Using Behaviors</a></li> <li>
+<a href="#api">API</a><ul> <li><a href="#the-event-proxy">Event proxy</a></li> <li><a href="#triggers">Triggers</a></li> <li><a href="#model-events">Model Events</a></li> <li><a href="#model-events">Collection Events</a></li> <li><a href="#grouped-behaviors">Grouped Behaviors</a></li> <li><a href="#%24">$</a></li> <li><a href="#%24el-and-el">$el and el</a></li> <li><a href="#defaults">Defaults</a></li> <li><a href="#view">View</a></li> </ul> </li> </ul> <h2 id="the-motivation">
+The Motivation</h2>
+<p>As you build more and more complex Views, you will find that your <code>View</code> becomes less about displaying model data, and more about interactions.</p> <p>These interactions tend to be chunks of logic that you want to use in multiple views.</p> <h2 id="usage">
+Usage</h2>
+<p>Here is an example of a simple <code>ItemView</code>. Let's take a stab at simplifying it, and abstracting Behaviors from it.</p> <pre data-language="js"><span class="hljs-keyword">var</span> MyView = Marionette.ItemView.extend({
+  ui: {
+    <span class="hljs-string">"destroy"</span>: <span class="hljs-string">".destroy-btn"</span>
+  },
+
+  events: {
+    <span class="hljs-string">"click @ui.destroy"</span>: <span class="hljs-string">"warnBeforeDestroy"</span>
+  },
+
+  warnBeforeDestroy: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    alert(<span class="hljs-string">"You are about to destroy all your data!"</span>);
+    <span class="hljs-keyword">this</span>.destroy();
+  },
+
+  onShow: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">this</span>.ui.destroy.tooltip({
+      text: <span class="hljs-string">"What a nice mouse you have."</span>
+    });
+  }
+});
+</pre> <p>Interaction points, such as tooltips and warning messages, are generic concepts. There is no need to recode them within your Views. They are prime candidates for abstraction into a higher level, non-coupled concept, which is exactly what Behaviors provide you with.</p> <p>Here is the syntax for declaring which behaviors get used within a View:</p> <ul> <li>The keys in the hash are passed to <code>getBehaviorClass</code>, which looks up the correct <code>Behavior</code> class.</li> <li>The options for each <code>Behavior</code> are also passed through to the <code>Behavior</code> during initialization.</li> <li>The options are then stored within each <code>Behavior</code> under <code>options</code>.</li> </ul> <pre data-language="js"><span class="hljs-keyword">var</span> MyView = Marionette.ItemView.extend({
+  ui: {
+    <span class="hljs-string">"destroy"</span>: <span class="hljs-string">".destroy-btn"</span>
+  },
+
+  behaviors: {
+    DestroyWarn: {
+      message: <span class="hljs-string">"you are destroying all your data is now gone!"</span>
+    },
+    ToolTip: {
+      text: <span class="hljs-string">"what a nice mouse you have"</span>
+    }
+  }
+});
+</pre> <p>Now let's create the <code>DestroyWarn</code> <code>Behavior</code>.</p> <pre data-language="js"><span class="hljs-keyword">var</span> DestroyWarn = Marionette.Behavior.extend({
+  <span class="hljs-comment">// You can set default options</span>
+  <span class="hljs-comment">// just like you can in your Backbone Models.</span>
+  <span class="hljs-comment">// They will be overridden if you pass in an option with the same key.</span>
+  defaults: {
+    <span class="hljs-string">"message"</span>: <span class="hljs-string">"You are destroying!"</span>
+  },
+
+  <span class="hljs-comment">// Behaviors have events that are bound to the views DOM.</span>
+  events: {
+    <span class="hljs-string">"click @ui.destroy"</span>: <span class="hljs-string">"warnBeforeDestroy"</span>
+  },
+
+  warnBeforeDestroy: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    alert(<span class="hljs-keyword">this</span>.options.message);
+    <span class="hljs-comment">// Every Behavior has a hook into the</span>
+    <span class="hljs-comment">// view that it is attached to.</span>
+    <span class="hljs-keyword">this</span>.view.destroy();
+  }
+});
+</pre> <p>And onto the <code>Tooltip</code> behavior.</p> <pre data-language="js"><span class="hljs-keyword">var</span> ToolTip = Marionette.Behavior.extend({
+  ui: {
+    tooltip: <span class="hljs-string">'.tooltip'</span>
+  },
+
+  onShow: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">this</span>.ui.tooltip.tooltip({
+      text: <span class="hljs-keyword">this</span>.options.text
+    });
+  }
+});
+</pre> <p>Finally, the user must define a location where their Behaviors are stored. Here is a simple example:</p> <pre data-language="js">  Marionette.Behaviors.behaviorsLookup = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+      <span class="hljs-keyword">return</span> <span class="hljs-built_in">window</span>.Behaviors;
+  }
+</pre> <p>In this example, you would then store your Behaviors like this:</p> <pre data-language="js"><span class="hljs-built_in">window</span>.Behaviors.ToolTip = ToolTip;
+<span class="hljs-built_in">window</span>.Behaviors.DestroyWarn = DestroyWarn;
+</pre> <p>Note that in addition to extending a <code>View</code> with <code>Behavior</code>, a <code>Behavior</code> can itself use other Behaviors. The syntax is identical to that used for a <code>View</code>:</p> <pre data-language="js"><span class="hljs-keyword">var</span> Modal = Marionette.Behavior.extend({
+  behaviors: {
+    DestroyWarn: {
+      message: <span class="hljs-string">"Whoa! You sure about this?"</span>
+    }
+  }
+});
+</pre> <p>Nested Behaviors act as if they were direct Behaviors of the parent <code>Behavior</code>'s view instance.</p> <h2 id="api">
+API</h2>
+<h3 id="the-event-proxy">
+The Event Proxy</h3>
+<p>Behaviors are powered by an event proxy. This means that any events that are triggered by the view's <code>triggerMethod</code> function are passed to each <code>Behavior</code> on the <code>View</code> as well.</p> <p>As a real world example, whenever you would define a click event in your <code>View</code>'s <code>events</code> hash, you can define the same event listeners and callbacks in the <code>Behavior</code>'s <code>events</code> hash. The same follows for <code>modelEvents</code> and <code>collectionEvents</code>. Think of your <code>Behavior</code> as a receiver for all of the events on your <code>View</code> instance.</p> <p>This concept also allows for a nice decoupled method to communicate to Behaviors from your <code>View</code> instance. You can just call the following from within your <code>View</code>: <code>this.triggerMethod("SomeEvent", {some: "data"})</code>. Then your <code>Behavior</code> class would look like this:</p> <pre data-language="js">Marionette.Behavior.extend({
+  onSomeEvent: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(data)</span> </span>{
+        <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"wow such data"</span>, data);
+    }
+});
+</pre> <h3 id="model-events">
+Model Events</h3>
+<p><code>modelEvents</code> will respond to the <code>View</code>'s model events.</p> <pre data-language="js">  Marionette.Behavior.extend({
+    modelEvents: {
+      <span class="hljs-string">"change:doge"</span>: <span class="hljs-string">"onDogeChange"</span>
+    },
+
+    onDogeChange: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+      <span class="hljs-comment">// buy more doge...</span>
+    }
+  });
+</pre> <h3 id="collection-events">
+Collection Events</h3>
+<p><code>collectionEvents</code> will respond to the <code>View</code>'s collection events.</p> <pre data-language="js">  Marionette.Behavior.extend({
+    collectionEvents: {
+      add: <span class="hljs-string">"onCollectionAdd"</span>
+    },
+
+    onCollectionAdd: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    }
+  });
+</pre> <h3 id="life-cycle-methods">
+Life Cycle Methods</h3>
+<p>In addition to providing the same event hashes as Views, Behaviors allow you to use the same life cycle functions that you find on Views. That means methods like <code>initialize</code>, <code>onRender</code>, <code>onBeforeShow</code>, and <code>onBeforeDestroy</code> are all valid as long as the <code>View</code> that implements the <code>Behavior</code> fires the relevant events.</p> <pre data-language="js">  Marionette.Behavior.extend({
+
+    onRender: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-comment">//Apply a jQuery plugin to every .foo item within the view</span>
+        <span class="hljs-keyword">this</span>.$(<span class="hljs-string">'.foo'</span>).bar();
+    }
+  });
+</pre> <h3 id="triggers">
+Triggers</h3>
+<p>Any <code>triggers</code> you define on the <code>Behavior</code> will be triggered in response to the appropriate event on the <code>View</code>.</p> <pre data-language="js">Marionette.Behavior.extend({
+  triggers: {
+    <span class="hljs-string">'click .label'</span>: <span class="hljs-string">'click:label'</span>
+  }
+});
+</pre> <h3 id="grouped-behaviors">
+Grouped Behaviors</h3>
+<p>The <code>behaviors</code> key allows a <code>Behavior</code> to group multiple behaviors together.</p> <pre data-language="js">  Marionette.Behavior.extend({
+    behaviors: {
+      SomeBehavior: {}
+    }
+  });
+</pre> <h3 id="$">
+$</h3>
+<p><code>$</code> is a direct proxy of the <code>View</code>'s <code>$</code> lookup method.</p> <pre data-language="js">    Marionette.Behavior.extend({
+        onShow: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+            <span class="hljs-keyword">this</span>.$(<span class="hljs-string">'.zerg'</span>)
+        }
+    });
+</pre> <h3 id="$el-and-el">
+$el and el</h3>
+<p><code>el</code> is a direct proxy of the <code>View</code>'s <code>el</code>. Similarly, <code>$el</code> is a direct proxy of the <code>View</code>'s <code>el</code> cached as a jQuery selector.</p> <pre data-language="js">Marionette.Behavior.extend({
+    onShow: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-keyword">this</span>.$el.fadeOut(<span class="hljs-string">'slow'</span>)
+    }
+});
+</pre> <h3 id="defaults">
+defaults</h3>
+<p><code>defaults</code> can be a <code>hash</code> or <code>function</code> to define the default options for your <code>Behavior</code>. The default options will be overridden depending on what you set as the options per <code>Behavior</code>. (This works just like a <code>Backbone.Model</code>.)</p> <pre data-language="js">Marionette.Behavior.extend({
+    defaults: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-keyword">return</span> {
+            <span class="hljs-string">'deepSpace'</span>: <span class="hljs-number">9</span>
+        }
+    }
+});
+</pre> <pre data-language="js">Marionette.Behavior.extend({
+    defaults: {
+        <span class="hljs-string">'dominion'</span>: <span class="hljs-string">'invasion'</span>,
+        <span class="hljs-string">'doge'</span>: <span class="hljs-string">'amaze'</span>
+    }
+});
+</pre> <h3 id="view">
+view</h3>
+<p>The <code>view</code> is a reference to the <code>View</code> instance that the <code>Behavior</code> is attached to.</p> <pre data-language="js">Marionette.Behavior.extend({
+    handleDestroyClick: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-keyword">this</span>.view.destroy();
+    }
+});
+</pre> <h3 id="ui">
+ui</h3>
+<p>Behaviors can have their own <code>ui</code> hash, which will be mixed into the <code>ui</code> hash of its associated <code>View</code> instance. <code>ui</code> elements defined on either the <code>Behavior</code> or the <code>View</code> will be made available within events and triggers. They also are attached directly to the <code>Behavior</code> and can be accessed within <code>Behavior</code> methods as <code>this.ui</code>.</p> <pre data-language="js">Marionette.Behavior.extend({
+    ui: {
+        <span class="hljs-string">'foo'</span> : <span class="hljs-string">'li.foo'</span>
+    },
+
+    doStuff: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-keyword">this</span>.ui.foo.trigger(<span class="hljs-string">'something'</span>);
+    }
+})
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2016 Muted Solutions, LLC<br>Licensed under the MIT License.<br>
+    <a href="https://marionettejs.com/docs/v2.4.7/marionette.behavior.html" class="_attribution-link" target="_blank">https://marionettejs.com/docs/v2.4.7/marionette.behavior.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
