@@ -1,0 +1,252 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>OpenSSL&#58;&#58;OCSP&#58;&#58;Request - Ruby 2.3 - W3cubDocs</title>
+  
+  <meta name="description" content="An OpenSSL&#58;&#58;OCSP&#58;&#58;Request contains the certificate information for determining if a certificate has been revoked or not. A Request &hellip;">
+  <meta name="keywords" content="class, openssl, ocsp, request, -, ruby, ruby~2.3">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.3/openssl/ocsp/request/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.3.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.3/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.3</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-OpenSSL::OCSP::Request" class="class"> class OpenSSL::OCSP::Request </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../../../object/">Object</a></dd>
+</dl> <section class="description"> <p>An <a href="../request/">OpenSSL::OCSP::Request</a> contains the certificate information for determining if a certificate has been revoked or not. A <a href="../request/">Request</a> can be created for a certificate or from a DER-encoded request created elsewhere.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-callseq"> OpenSSL::OCSP::Request.new → request </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> OpenSSL::OCSP::Request.new(request_der) → request </span> </div> <div class="method-description"> <p>Creates a new <a href="../request/">OpenSSL::OCSP::Request</a>. The request may be created empty or from a <code>request_der</code> string.</p> <div class="method-source-code" id="new-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_initialize(int argc, VALUE *argv, VALUE self)
+{
+    VALUE arg;
+    const unsigned char *p;
+
+    rb_scan_args(argc, argv, "01", &amp;arg);
+    if(!NIL_P(arg)){
+        OCSP_REQUEST *req = DATA_PTR(self), *x;
+        arg = ossl_to_der_if_possible(arg);
+        StringValue(arg);
+        p = (unsigned char*)RSTRING_PTR(arg);
+        x = d2i_OCSP_REQUEST(&amp;req, &amp;p, RSTRING_LEN(arg));
+        DATA_PTR(self) = req;
+        if(!x){
+            ossl_raise(eOCSPError, "cannot load DER encoded request");
+        }
+    }
+
+    return self;
+}</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-add_certid"> <span class="method-callseq"> add_certid(certificate_id) → request </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Adds <code>certificate_id</code> to the request.</p> <div class="method-source-code" id="add_certid-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_add_certid(VALUE self, VALUE certid)
+{
+    OCSP_REQUEST *req;
+    OCSP_CERTID *id, *id_new;
+
+    GetOCSPReq(self, req);
+    GetOCSPCertId(certid, id);
+
+    if (!(id_new = OCSP_CERTID_dup(id)))
+        ossl_raise(eOCSPError, "OCSP_CERTID_dup");
+    if (!OCSP_request_add0_id(req, id_new)) {
+        OCSP_CERTID_free(id_new);
+        ossl_raise(eOCSPError, "OCSP_request_add0_id");
+    }
+
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-add_nonce"> <span class="method-callseq"> add_nonce(nonce = nil) → request </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Adds a <code>nonce</code> to the <a href="../../ocsp/">OCSP</a> request. If no nonce is given a random one will be generated.</p> <p>The nonce is used to prevent replay attacks but some servers do not support it.</p> <div class="method-source-code" id="add_nonce-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_add_nonce(int argc, VALUE *argv, VALUE self)
+{
+    OCSP_REQUEST *req;
+    VALUE val;
+    int ret;
+
+    rb_scan_args(argc, argv, "01", &amp;val);
+    if(NIL_P(val)) {
+        GetOCSPReq(self, req);
+        ret = OCSP_request_add1_nonce(req, NULL, -1);
+    }
+    else{
+        StringValue(val);
+        GetOCSPReq(self, req);
+        ret = OCSP_request_add1_nonce(req, (unsigned char *)RSTRING_PTR(val), RSTRING_LENINT(val));
+    }
+    if(!ret) ossl_raise(eOCSPError, NULL);
+
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-certid"> <span class="method-callseq"> certid → [certificate_id, ...] </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns all certificate IDs in this request.</p> <div class="method-source-code" id="certid-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_get_certid(VALUE self)
+{
+    OCSP_REQUEST *req;
+    OCSP_ONEREQ *one;
+    OCSP_CERTID *id;
+    VALUE ary, tmp;
+    int i, count;
+
+    GetOCSPReq(self, req);
+    count = OCSP_request_onereq_count(req);
+    ary = (count &gt; 0) ? rb_ary_new() : Qnil;
+    for(i = 0; i &lt; count; i++){
+        one = OCSP_request_onereq_get0(req, i);
+        tmp = NewOCSPCertId(cOCSPCertId);
+        if(!(id = OCSP_CERTID_dup(OCSP_onereq_get0_id(one))))
+            ossl_raise(eOCSPError, NULL);
+        SetOCSPCertId(tmp, id);
+        rb_ary_push(ary, tmp);
+    }
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-check_nonce"> <span class="method-callseq"> check_nonce(response) → result </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Checks the nonce validity for this request and <code>response</code>.</p> <p>The return value is one of the following:</p> <dl class="rdoc-list note-list">
+<dt>-1 </dt>
+<dd> <p>nonce in request only.</p> </dd>
+<dt>0 </dt>
+<dd> <p>nonces both present and not equal.</p> </dd>
+<dt>1 </dt>
+<dd> <p>nonces present and equal.</p> </dd>
+<dt>2 </dt>
+<dd> <p>nonces both absent.</p> </dd>
+<dt>3 </dt>
+<dd> <p>nonce present in response only.</p> </dd>
+</dl> <p>For most responses, clients can check <code>result</code> &gt; 0. If a responder doesn't handle nonces <code>result.nonzero?</code> may be necessary. A result of <code>0</code> is always an error.</p> <div class="method-source-code" id="check_nonce-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_check_nonce(VALUE self, VALUE basic_resp)
+{
+    OCSP_REQUEST *req;
+    OCSP_BASICRESP *bs;
+    int res;
+
+    GetOCSPReq(self, req);
+    SafeGetOCSPBasicRes(basic_resp, bs);
+    res = OCSP_check_nonce(req, bs);
+
+    return INT2NUM(res);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-sign"> <span class="method-callseq"> sign(signer_cert, signer_key) → self </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> sign(signer_cert, signer_key, certificates) → self </span> </div> <div class="method-heading"> <span class="method-callseq"> sign(signer_cert, signer_key, certificates, flags) → self </span> </div> <div class="method-description"> <p>Signs this <a href="../../ocsp/">OCSP</a> request using <code>signer_cert</code> and <code>signer_key</code>. <code>certificates</code> is an optional Array of certificates that may be included in the request.</p> <div class="method-source-code" id="sign-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_sign(int argc, VALUE *argv, VALUE self)
+{
+    VALUE signer_cert, signer_key, certs, flags;
+    OCSP_REQUEST *req;
+    X509 *signer;
+    EVP_PKEY *key;
+    STACK_OF(X509) *x509s;
+    unsigned long flg;
+    int ret;
+
+    rb_scan_args(argc, argv, "22", &amp;signer_cert, &amp;signer_key, &amp;certs, &amp;flags);
+    signer = GetX509CertPtr(signer_cert);
+    key = GetPrivPKeyPtr(signer_key);
+    flg = NIL_P(flags) ? 0 : NUM2INT(flags);
+    if(NIL_P(certs)){
+        x509s = sk_X509_new_null();
+        flags |= OCSP_NOCERTS;
+    }
+    else x509s = ossl_x509_ary2sk(certs);
+    GetOCSPReq(self, req);
+    ret = OCSP_request_sign(req, signer, key, EVP_sha1(), x509s, flg);
+    sk_X509_pop_free(x509s, X509_free);
+    if(!ret) ossl_raise(eOCSPError, NULL);
+
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_der"> <span class="method-name">to_der</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns this request as a DER-encoded string</p> <div class="method-source-code" id="to_der-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_to_der(VALUE self)
+{
+    OCSP_REQUEST *req;
+    VALUE str;
+    unsigned char *p;
+    long len;
+
+    GetOCSPReq(self, req);
+    if((len = i2d_OCSP_REQUEST(req, NULL)) &lt;= 0)
+        ossl_raise(eOCSPError, NULL);
+    str = rb_str_new(0, len);
+    p = (unsigned char *)RSTRING_PTR(str);
+    if(i2d_OCSP_REQUEST(req, &amp;p) &lt;= 0)
+        ossl_raise(eOCSPError, NULL);
+    ossl_str_adjust(str, p);
+
+    return str;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-verify"> <span class="method-callseq"> verify(certificates, store) → true or false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> verify(certificates, store, flags) → true or false </span> </div> <div class="method-description"> <p>Verifies this request using the given <code>certificates</code> and <a href="../../x509/">X509</a> <code>store</code>.</p> <div class="method-source-code" id="verify-source"> <pre class="c" data-language="c">static VALUE
+ossl_ocspreq_verify(int argc, VALUE *argv, VALUE self)
+{
+    VALUE certs, store, flags;
+    OCSP_REQUEST *req;
+    STACK_OF(X509) *x509s;
+    X509_STORE *x509st;
+    int flg, result;
+
+    rb_scan_args(argc, argv, "21", &amp;certs, &amp;store, &amp;flags);
+    x509st = GetX509StorePtr(store);
+    flg = NIL_P(flags) ? 0 : NUM2INT(flags);
+    x509s = ossl_x509_ary2sk(certs);
+    GetOCSPReq(self, req);
+    result = OCSP_request_verify(req, x509s, x509st, flg);
+    sk_X509_pop_free(x509s, X509_free);
+    if(!result) rb_warn("%s", ERR_error_string(ERR_peek_error(), NULL));
+
+    return result ? Qtrue : Qfalse;
+}</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

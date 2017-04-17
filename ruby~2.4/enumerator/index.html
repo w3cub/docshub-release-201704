@@ -1,0 +1,484 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Enumerator - Ruby 2.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" A class which allows both internal and external iteration. ">
+  <meta name="keywords" content="class, enumerator, -, ruby, ruby~2.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.4/enumerator/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.4/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-Enumerator" class="class"> class Enumerator </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../object/">Object</a></dd>
+<dt>Included modules:</dt>
+<dd class="meta-includes"><a class="include" href="../enumerable/">Enumerable</a></dd>
+</dl> <section class="description"> <p>A class which allows both internal and external iteration.</p> <p>An <a href="../enumerator/">Enumerator</a> can be created by the following methods.</p> <ul>
+<li> <p>Kernel#to_enum</p> </li>
+<li> <p>Kernel#enum_for</p> </li>
+<li> <p><a href="../enumerator/#method-c-new">::new</a></p> </li>
+</ul> <p>Most methods have two forms: a block form where the contents are evaluated for each item in the enumeration, and a non-block form which returns a new <a href="../enumerator/">Enumerator</a> wrapping the iteration.</p> <pre class="ruby" data-language="ruby">enumerator = %w(one two three).each
+puts enumerator.class # =&gt; Enumerator
+
+enumerator.each_with_object("foo") do |item, obj|
+  puts "#{obj}: #{item}"
+end
+
+# foo: one
+# foo: two
+# foo: three
+
+enum_with_obj = enumerator.each_with_object("foo")
+puts enum_with_obj.class # =&gt; Enumerator
+
+enum_with_obj.each do |item, obj|
+  puts "#{obj}: #{item}"
+end
+
+# foo: one
+# foo: two
+# foo: three
+</pre> <p>This allows you to chain Enumerators together. For example, you can map a list's elements to strings containing the index and the element as a string via:</p> <pre class="ruby" data-language="ruby">puts %w[foo bar baz].map.with_index { |w, i| "#{i}:#{w}" }
+# =&gt; ["0:foo", "1:bar", "2:baz"]
+</pre> <p>An <a href="../enumerator/">Enumerator</a> can also be used as an external iterator. For example, <a href="../enumerator/#method-i-next">#next</a> returns the next value of the iterator or raises <a href="../stopiteration/">StopIteration</a> if the <a href="../enumerator/">Enumerator</a> is at the end.</p> <pre class="ruby" data-language="ruby">e = [1,2,3].each   # returns an enumerator object.
+puts e.next   # =&gt; 1
+puts e.next   # =&gt; 2
+puts e.next   # =&gt; 3
+puts e.next   # raises StopIteration
+</pre> <p>You can use this to implement an internal iterator as follows:</p> <pre class="ruby" data-language="ruby">def ext_each(e)
+  while true
+    begin
+      vs = e.next_values
+    rescue StopIteration
+      return $!.result
+    end
+    y = yield(*vs)
+    e.feed y
+  end
+end
+
+o = Object.new
+
+def o.each
+  puts yield
+  puts yield(1)
+  puts yield(1, 2)
+  3
+end
+
+# use o.each as an internal iterator directly.
+puts o.each {|*x| puts x; [:b, *x] }
+# =&gt; [], [:b], [1], [:b, 1], [1, 2], [:b, 1, 2], 3
+
+# convert o.each to an external iterator for
+# implementing an internal iterator.
+puts ext_each(o.to_enum) {|*x| puts x; [:b, *x] }
+# =&gt; [], [:b], [1], [:b, 1], [1, 2], [:b, 1, 2], 3
+</pre> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-callseq"> new(size = nil) { |yielder| ... } </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> new(obj, method = :each, *args) </span> </div> <div class="method-description"> <p>Creates a new <a href="../enumerator/">Enumerator</a> object, which can be used as an <a href="../enumerable/">Enumerable</a>.</p> <p>In the first form, iteration is defined by the given block, in which a “yielder” object, given as block parameter, can be used to yield a value by calling the <code>yield</code> method (aliased as +&lt;&lt;+):</p> <pre class="ruby" data-language="ruby">fib = Enumerator.new do |y|
+  a = b = 1
+  loop do
+    y &lt;&lt; a
+    a, b = b, a + b
+  end
+end
+
+p fib.take(10) # =&gt; [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+</pre> <p>The optional parameter can be used to specify how to calculate the size in a lazy fashion (see <a href="../enumerator/#method-i-size">#size</a>). It can either be a value or a callable object.</p> <p>In the second, deprecated, form, a generated <a href="../enumerator/">Enumerator</a> iterates over the given object using the given method with the given arguments passed.</p> <p>Use of this form is discouraged. Use Kernel#enum_for or Kernel#to_enum instead.</p> <pre class="ruby" data-language="ruby">e = Enumerator.new(ObjectSpace, :each_object)
+    #-&gt; ObjectSpace.enum_for(:each_object)
+
+e.select { |obj| obj.is_a?(Class) }  #=&gt; array of all classes
+</pre> <div class="method-source-code" id="new-source"> <pre class="c" data-language="c">static VALUE
+enumerator_initialize(int argc, VALUE *argv, VALUE obj)
+{
+    VALUE recv, meth = sym_each;
+    VALUE size = Qnil;
+
+    if (rb_block_given_p()) {
+        rb_check_arity(argc, 0, 1);
+        recv = generator_init(generator_allocate(rb_cGenerator), rb_block_proc());
+        if (argc) {
+            if (NIL_P(argv[0]) || rb_respond_to(argv[0], id_call) ||
+                (RB_TYPE_P(argv[0], T_FLOAT) &amp;&amp; RFLOAT_VALUE(argv[0]) == INFINITY)) {
+                size = argv[0];
+            }
+            else {
+                size = rb_to_int(argv[0]);
+            }
+            argc = 0;
+        }
+    }
+    else {
+        rb_check_arity(argc, 1, UNLIMITED_ARGUMENTS);
+        rb_warn("Enumerator.new without a block is deprecated; use Object#to_enum");
+        recv = *argv++;
+        if (--argc) {
+            meth = *argv++;
+            --argc;
+        }
+    }
+
+    return enumerator_init(obj, recv, meth, argc, argv, 0, size);
+}</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-each"> <span class="method-callseq"> each { |elm| block } → obj </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> each → enum </span> </div> <div class="method-heading"> <span class="method-callseq"> each(*appending_args) { |elm| block } → obj </span> </div> <div class="method-heading"> <span class="method-callseq"> each(*appending_args) → an_enumerator </span> </div> <div class="method-description"> <p>Iterates over the block according to how this <a href="../enumerator/">Enumerator</a> was constructed. If no block and no arguments are given, returns self.</p> <h3 id="method-i-each-label-Examples">Examples</h3> <pre class="ruby" data-language="ruby">"Hello, world!".scan(/\w+/)                     #=&gt; ["Hello", "world"]
+"Hello, world!".to_enum(:scan, /\w+/).to_a      #=&gt; ["Hello", "world"]
+"Hello, world!".to_enum(:scan).each(/\w+/).to_a #=&gt; ["Hello", "world"]
+
+obj = Object.new
+
+def obj.each_arg(a, b=:b, *rest)
+  yield a
+  yield b
+  yield rest
+  :method_returned
+end
+
+enum = obj.to_enum :each_arg, :a, :x
+
+enum.each.to_a                  #=&gt; [:a, :x, []]
+enum.each.equal?(enum)          #=&gt; true
+enum.each { |elm| elm }         #=&gt; :method_returned
+
+enum.each(:y, :z).to_a          #=&gt; [:a, :x, [:y, :z]]
+enum.each(:y, :z).equal?(enum)  #=&gt; false
+enum.each(:y, :z) { |elm| elm } #=&gt; :method_returned
+</pre> <div class="method-source-code" id="each-source"> <pre class="c" data-language="c">static VALUE
+enumerator_each(int argc, VALUE *argv, VALUE obj)
+{
+    if (argc &gt; 0) {
+        struct enumerator *e = enumerator_ptr(obj = rb_obj_dup(obj));
+        VALUE args = e-&gt;args;
+        if (args) {
+#if SIZEOF_INT &lt; SIZEOF_LONG
+            /* check int range overflow */
+            rb_long2int(RARRAY_LEN(args) + argc);
+#endif
+            args = rb_ary_dup(args);
+            rb_ary_cat(args, argv, argc);
+        }
+        else {
+            args = rb_ary_new4(argc, argv);
+        }
+        e-&gt;args = args;
+    }
+    if (!rb_block_given_p()) return obj;
+    return enumerator_block_call(obj, 0, obj);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-each_with_index"> <span class="method-callseq"> each_with_index {|(*args), idx| ... } </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> each_with_index </span> </div> <div class="method-description"> <p>Same as <a href="../enumerator/#method-i-with_index">#with_index</a>, i.e. there is no starting offset.</p> <p>If no block is given, a new <a href="../enumerator/">Enumerator</a> is returned that includes the index.</p> <div class="method-source-code" id="each_with_index-source"> <pre class="c" data-language="c">static VALUE
+enumerator_each_with_index(VALUE obj)
+{
+    return enumerator_with_index(0, NULL, obj);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-each_with_object"> <span class="method-callseq"> each_with_object(obj) {|(*args), obj| ... } </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> each_with_object(obj) </span> </div> <div class="method-description"> <p>Iterates the given block for each element with an arbitrary object, <code>obj</code>, and returns <code>obj</code></p> <p>If no block is given, returns a new <a href="../enumerator/">Enumerator</a>.</p> <h3 id="method-i-each_with_object-label-Example">Example</h3> <pre class="ruby" data-language="ruby">to_three = Enumerator.new do |y|
+  3.times do |x|
+    y &lt;&lt; x
+  end
+end
+
+to_three_with_string = to_three.with_object("foo")
+to_three_with_string.each do |x,string|
+  puts "#{string}: #{x}"
+end
+
+# =&gt; foo:0
+# =&gt; foo:1
+# =&gt; foo:2
+</pre> <div class="method-source-code" id="each_with_object-source"> <pre class="c" data-language="c">static VALUE
+enumerator_with_object(VALUE obj, VALUE memo)
+{
+    RETURN_SIZED_ENUMERATOR(obj, 1, &amp;memo, enumerator_enum_size);
+    enumerator_block_call(obj, enumerator_with_object_i, memo);
+
+    return memo;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-feed"> <span class="method-callseq"> feed obj → nil </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Sets the value to be returned by the next yield inside <code>e</code>.</p> <p>If the value is not set, the yield returns nil.</p> <p>This value is cleared after being yielded.</p> <pre class="ruby" data-language="ruby"># Array#map passes the array's elements to "yield" and collects the
+# results of "yield" as an array.
+# Following example shows that "next" returns the passed elements and
+# values passed to "feed" are collected as an array which can be
+# obtained by StopIteration#result.
+e = [1,2,3].map
+p e.next           #=&gt; 1
+e.feed "a"
+p e.next           #=&gt; 2
+e.feed "b"
+p e.next           #=&gt; 3
+e.feed "c"
+begin
+  e.next
+rescue StopIteration
+  p $!.result      #=&gt; ["a", "b", "c"]
+end
+
+o = Object.new
+def o.each
+  x = yield         # (2) blocks
+  p x               # (5) =&gt; "foo"
+  x = yield         # (6) blocks
+  p x               # (8) =&gt; nil
+  x = yield         # (9) blocks
+  p x               # not reached w/o another e.next
+end
+
+e = o.to_enum
+e.next              # (1)
+e.feed "foo"        # (3)
+e.next              # (4)
+e.next              # (7)
+                    # (10)
+</pre> <div class="method-source-code" id="feed-source"> <pre class="c" data-language="c">static VALUE
+enumerator_feed(VALUE obj, VALUE v)
+{
+    struct enumerator *e = enumerator_ptr(obj);
+
+    if (e-&gt;feedvalue != Qundef) {
+        rb_raise(rb_eTypeError, "feed value already set");
+    }
+    e-&gt;feedvalue = v;
+
+    return Qnil;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-inspect"> <span class="method-callseq"> inspect → string </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Creates a printable version of <em>e</em>.</p> <div class="method-source-code" id="inspect-source"> <pre class="c" data-language="c">static VALUE
+enumerator_inspect(VALUE obj)
+{
+    return rb_exec_recursive(inspect_enumerator, obj, 0);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-next"> <span class="method-callseq"> next → object </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the next object in the enumerator, and move the internal position forward. When the position reached at the end, <a href="../stopiteration/">StopIteration</a> is raised.</p> <h3 id="method-i-next-label-Example">Example</h3> <pre class="ruby" data-language="ruby">a = [1,2,3]
+e = a.to_enum
+p e.next   #=&gt; 1
+p e.next   #=&gt; 2
+p e.next   #=&gt; 3
+p e.next   #raises StopIteration
+</pre> <p>Note that enumeration sequence by <code>next</code> does not affect other non-external enumeration methods, unless the underlying iteration methods itself has side-effect, e.g. <a href="../io/#method-i-each_line">IO#each_line</a>.</p> <div class="method-source-code" id="next-source"> <pre class="c" data-language="c">static VALUE
+enumerator_next(VALUE obj)
+{
+    VALUE vs = enumerator_next_values(obj);
+    return ary2sv(vs, 0);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-next_values"> <span class="method-callseq"> next_values → array </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the next object as an array in the enumerator, and move the internal position forward. When the position reached at the end, <a href="../stopiteration/">StopIteration</a> is raised.</p> <p>This method can be used to distinguish <code>yield</code> and <code>yield
+nil</code>.</p> <h3 id="method-i-next_values-label-Example">Example</h3> <pre class="ruby" data-language="ruby">o = Object.new
+def o.each
+  yield
+  yield 1
+  yield 1, 2
+  yield nil
+  yield [1, 2]
+end
+e = o.to_enum
+p e.next_values
+p e.next_values
+p e.next_values
+p e.next_values
+p e.next_values
+e = o.to_enum
+p e.next
+p e.next
+p e.next
+p e.next
+p e.next
+
+## yield args       next_values      next
+#  yield            []               nil
+#  yield 1          [1]              1
+#  yield 1, 2       [1, 2]           [1, 2]
+#  yield nil        [nil]            nil
+#  yield [1, 2]     [[1, 2]]         [1, 2]
+</pre> <p>Note that <code>next_values</code> does not affect other non-external enumeration methods unless underlying iteration method itself has side-effect, e.g. <a href="../io/#method-i-each_line">IO#each_line</a>.</p> <div class="method-source-code" id="next_values-source"> <pre class="c" data-language="c">static VALUE
+enumerator_next_values(VALUE obj)
+{
+    struct enumerator *e = enumerator_ptr(obj);
+    VALUE vs;
+
+    if (e-&gt;lookahead != Qundef) {
+        vs = e-&gt;lookahead;
+        e-&gt;lookahead = Qundef;
+        return vs;
+    }
+
+    return get_next_values(obj, e);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-peek"> <span class="method-callseq"> peek → object </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the next object in the enumerator, but doesn't move the internal position forward. If the position is already at the end, <a href="../stopiteration/">StopIteration</a> is raised.</p> <h3 id="method-i-peek-label-Example">Example</h3> <pre class="ruby" data-language="ruby">a = [1,2,3]
+e = a.to_enum
+p e.next   #=&gt; 1
+p e.peek   #=&gt; 2
+p e.peek   #=&gt; 2
+p e.peek   #=&gt; 2
+p e.next   #=&gt; 2
+p e.next   #=&gt; 3
+p e.peek   #raises StopIteration
+</pre> <div class="method-source-code" id="peek-source"> <pre class="c" data-language="c">static VALUE
+enumerator_peek(VALUE obj)
+{
+    VALUE vs = enumerator_peek_values(obj);
+    return ary2sv(vs, 1);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-peek_values"> <span class="method-callseq"> peek_values → array </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the next object as an array, similar to <a href="../enumerator/#method-i-next_values">#next_values</a>, but doesn't move the internal position forward. If the position is already at the end, <a href="../stopiteration/">StopIteration</a> is raised.</p> <h3 id="method-i-peek_values-label-Example">Example</h3> <pre class="ruby" data-language="ruby">o = Object.new
+def o.each
+  yield
+  yield 1
+  yield 1, 2
+end
+e = o.to_enum
+p e.peek_values    #=&gt; []
+e.next
+p e.peek_values    #=&gt; [1]
+p e.peek_values    #=&gt; [1]
+e.next
+p e.peek_values    #=&gt; [1, 2]
+e.next
+p e.peek_values    # raises StopIteration
+</pre> <div class="method-source-code" id="peek_values-source"> <pre class="c" data-language="c">static VALUE
+enumerator_peek_values_m(VALUE obj)
+{
+    return rb_ary_dup(enumerator_peek_values(obj));
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-rewind"> <span class="method-callseq"> rewind → e </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Rewinds the enumeration sequence to the beginning.</p> <p>If the enclosed object responds to a “rewind” method, it is called.</p> <div class="method-source-code" id="rewind-source"> <pre class="c" data-language="c">static VALUE
+enumerator_rewind(VALUE obj)
+{
+    struct enumerator *e = enumerator_ptr(obj);
+
+    rb_check_funcall(e-&gt;obj, id_rewind, 0, 0);
+
+    e-&gt;fib = 0;
+    e-&gt;dst = Qnil;
+    e-&gt;lookahead = Qundef;
+    e-&gt;feedvalue = Qundef;
+    e-&gt;stop_exc = Qfalse;
+    return obj;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-size"> <span class="method-callseq"> size → int, Float::INFINITY or nil </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the size of the enumerator, or <code>nil</code> if it can't be calculated lazily.</p> <pre class="ruby" data-language="ruby">(1..100).to_a.permutation(4).size # =&gt; 94109400
+loop.size # =&gt; Float::INFINITY
+(1..100).drop_while.size # =&gt; nil
+</pre> <div class="method-source-code" id="size-source"> <pre class="c" data-language="c">static VALUE
+enumerator_size(VALUE obj)
+{
+    struct enumerator *e = enumerator_ptr(obj);
+    int argc = 0;
+    const VALUE *argv = NULL;
+    VALUE size;
+
+    if (e-&gt;procs) {
+        struct generator *g = generator_ptr(e-&gt;obj);
+        VALUE receiver = rb_check_funcall(g-&gt;obj, id_size, 0, 0);
+        long i = 0;
+
+        for (i = 0; i &lt; RARRAY_LEN(e-&gt;procs); i++) {
+            VALUE proc = RARRAY_AREF(e-&gt;procs, i);
+            struct proc_entry *entry = proc_entry_ptr(proc);
+            lazyenum_size_func *size = entry-&gt;fn-&gt;size;
+            if (!size) {
+                return Qnil;
+            }
+            receiver = (*size)(proc, receiver);
+        }
+        return receiver;
+    }
+
+    if (e-&gt;size_fn) {
+        return (*e-&gt;size_fn)(e-&gt;obj, e-&gt;args, obj);
+    }
+    if (e-&gt;args) {
+        argc = (int)RARRAY_LEN(e-&gt;args);
+        argv = RARRAY_CONST_PTR(e-&gt;args);
+    }
+    size = rb_check_funcall(e-&gt;size, id_call, argc, argv);
+    if (size != Qundef) return size;
+    return e-&gt;size;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-with_index"> <span class="method-callseq"> with_index(offset = 0) {|(*args), idx| ... } </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> with_index(offset = 0) </span> </div> <div class="method-description"> <p>Iterates the given block for each element with an index, which starts from <code>offset</code>. If no block is given, returns a new <a href="../enumerator/">Enumerator</a> that includes the index, starting from <code>offset</code></p> <dl class="rdoc-list note-list">
+<dt>
+<code>offset</code> </dt>
+<dd> <p>the starting index to use</p> </dd>
+</dl> <div class="method-source-code" id="with_index-source"> <pre class="c" data-language="c">static VALUE
+enumerator_with_index(int argc, VALUE *argv, VALUE obj)
+{
+    VALUE memo;
+
+    rb_scan_args(argc, argv, "01", &amp;memo);
+    RETURN_SIZED_ENUMERATOR(obj, argc, argv, enumerator_enum_size);
+    if (NIL_P(memo))
+        memo = INT2FIX(0);
+    else
+        memo = rb_to_int(memo);
+    return enumerator_block_call(obj, enumerator_with_index_i, (VALUE)MEMO_NEW(memo, 0, 0));
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-with_object"> <span class="method-callseq"> with_object(obj) {|(*args), obj| ... } </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> with_object(obj) </span> </div> <div class="method-description"> <p>Iterates the given block for each element with an arbitrary object, <code>obj</code>, and returns <code>obj</code></p> <p>If no block is given, returns a new <a href="../enumerator/">Enumerator</a>.</p> <h3 id="method-i-with_object-label-Example">Example</h3> <pre class="ruby" data-language="ruby">to_three = Enumerator.new do |y|
+  3.times do |x|
+    y &lt;&lt; x
+  end
+end
+
+to_three_with_string = to_three.with_object("foo")
+to_three_with_string.each do |x,string|
+  puts "#{string}: #{x}"
+end
+
+# =&gt; foo:0
+# =&gt; foo:1
+# =&gt; foo:2
+</pre> <div class="method-source-code" id="with_object-source"> <pre class="c" data-language="c">static VALUE
+enumerator_with_object(VALUE obj, VALUE memo)
+{
+    RETURN_SIZED_ENUMERATOR(obj, 1, &amp;memo, enumerator_enum_size);
+    enumerator_block_call(obj, enumerator_with_object_i, memo);
+
+    return memo;
+}</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

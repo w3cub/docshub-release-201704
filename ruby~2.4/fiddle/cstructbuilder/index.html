@@ -1,0 +1,159 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Fiddle&#58;&#58;CStructBuilder - Ruby 2.4 - W3cubDocs</title>
+  
+  <meta name="description" content=" Used to construct C classes (CUnion, CStruct, etc) ">
+  <meta name="keywords" content="module, fiddle, cstructbuilder, -, ruby, ruby~2.4">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.4/fiddle/cstructbuilder/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.4.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.4/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.4</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-Fiddle::CStructBuilder" class="module"> module Fiddle::CStructBuilder </h1> <section class="description"> <p>Used to construct C classes (CUnion, <a href="../cstruct/">CStruct</a>, etc)</p> <p><a href="../importer/#method-i-struct">Fiddle::Importer#struct</a> and <a href="../importer/#method-i-union">Fiddle::Importer#union</a> wrap this functionality in an easy-to-use manner.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-create"> <span class="method-name">create</span><span class="method-args">(klass, types, members)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Construct a new class given a C:</p> <ul>
+<li> <p>class <code>klass</code> (CUnion, <a href="../cstruct/">CStruct</a>, or other that provide an entity_class)</p> </li>
+<li> <p><code>types</code> (Fiddle::TYPE_INT, Fiddle::TYPE_SIZE_T, etc., see the C types constants)</p> </li>
+<li> <p>corresponding <code>members</code></p> </li>
+</ul> <p><a href="../importer/#method-i-struct">Fiddle::Importer#struct</a> and <a href="../importer/#method-i-union">Fiddle::Importer#union</a> wrap this functionality in an easy-to-use manner.</p> <p>Example:</p> <pre class="ruby" data-language="ruby">require 'fiddle/struct'
+require 'fiddle/cparser'
+
+include Fiddle::CParser
+
+types, members = parse_struct_signature(['int i','char c'])
+
+MyStruct = Fiddle::CStructBuilder.create(Fiddle::CUnion, types, members)
+
+obj = MyStruct.allocate
+</pre> <div class="method-source-code" id="create-source"> <pre class="ruby" data-language="ruby"># File ext/fiddle/lib/fiddle/struct.rb, line 50
+    def create(klass, types, members)
+      new_class = Class.new(klass){
+        define_method(:initialize){|addr|
+          @entity = klass.entity_class.new(addr, types)
+          @entity.assign_names(members)
+        }
+        define_method(:to_ptr){ @entity }
+        define_method(:to_i){ @entity.to_i }
+        members.each{|name|
+          define_method(name){ @entity[name] }
+          define_method(name + "="){|val| @entity[name] = val }
+        }
+      }
+      size = klass.entity_class.size(types)
+      new_class.module_eval("        def new_class.size()
+          #{size}
+        end
+        def new_class.malloc()
+          addr = Fiddle.malloc(#{size})
+          new(addr)
+        end
+", __FILE__, __LINE__+1)
+      return new_class
+    end</pre> </div> </div> </div> </section> <section id="private-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Private Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-create"> <span class="method-name">create</span><span class="method-args">(klass, types, members)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Construct a new class given a C:</p> <ul>
+<li> <p>class <code>klass</code> (CUnion, <a href="../cstruct/">CStruct</a>, or other that provide an entity_class)</p> </li>
+<li> <p><code>types</code> (Fiddle::TYPE_INT, Fiddle::TYPE_SIZE_T, etc., see the C types constants)</p> </li>
+<li> <p>corresponding <code>members</code></p> </li>
+</ul> <p><a href="../importer/#method-i-struct">Fiddle::Importer#struct</a> and <a href="../importer/#method-i-union">Fiddle::Importer#union</a> wrap this functionality in an easy-to-use manner.</p> <p>Example:</p> <pre class="ruby" data-language="ruby">require 'fiddle/struct'
+require 'fiddle/cparser'
+
+include Fiddle::CParser
+
+types, members = parse_struct_signature(['int i','char c'])
+
+MyStruct = Fiddle::CStructBuilder.create(Fiddle::CUnion, types, members)
+
+obj = MyStruct.allocate
+</pre> <div class="method-source-code" id="create-source"> <pre class="ruby" data-language="ruby"># File ext/fiddle/lib/fiddle/struct.rb, line 50
+    def create(klass, types, members)
+      new_class = Class.new(klass){
+        define_method(:initialize){|addr|
+          @entity = klass.entity_class.new(addr, types)
+          @entity.assign_names(members)
+        }
+        define_method(:to_ptr){ @entity }
+        define_method(:to_i){ @entity.to_i }
+        members.each{|name|
+          define_method(name){ @entity[name] }
+          define_method(name + "="){|val| @entity[name] = val }
+        }
+      }
+      size = klass.entity_class.size(types)
+      new_class.module_eval("        def new_class.size()
+          #{size}
+        end
+        def new_class.malloc()
+          addr = Fiddle.malloc(#{size})
+          new(addr)
+        end
+", __FILE__, __LINE__+1)
+      return new_class
+    end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
