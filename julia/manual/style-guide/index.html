@@ -1,0 +1,160 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Style Guide - Julia - W3cubDocs</title>
+  
+  <meta name="description" content="The following sections explain a few aspects of idiomatic Julia coding style. None of these rules are absolute; they are only suggestions to help &hellip;">
+  <meta name="keywords" content="style, guide, -, julia">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/julia/manual/style-guide/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/julia.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/julia/" class="_nav-link" title="" style="margin-left:0;">Julia</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="man-style-guide">Style Guide</h1> <p>The following sections explain a few aspects of idiomatic Julia coding style. None of these rules are absolute; they are only suggestions to help familiarize you with the language and to help you choose among alternative designs.</p>  <h2 id="write-functions-not-just-scripts">Write functions, not just scripts</h2> <p>Writing code as a series of steps at the top level is a quick way to get started solving a problem, but you should try to divide a program into functions as soon as possible. Functions are more reusable and testable, and clarify what steps are being done and what their inputs and outputs are. Furthermore, code inside functions tends to run much faster than top level code, due to how Julia’s compiler works.</p> <p>It is also worth emphasizing that functions should take arguments, instead of operating directly on global variables (aside from constants like <a class="reference internal" href="../../stdlib/numbers/#Base.pi" title="Base.pi"><code>pi</code></a>).</p>   <h2 id="avoid-writing-overly-specific-types">Avoid writing overly-specific types</h2> <p>Code should be as generic as possible. Instead of writing:</p> <pre data-language="julia">convert(Complex{Float64}, x)
+</pre> <p>it’s better to use available generic functions:</p> <pre data-language="julia">complex(float(x))
+</pre> <p>The second version will convert <code>x</code> to an appropriate type, instead of always the same type.</p> <p>This style point is especially relevant to function arguments. For example, don’t declare an argument to be of type <code>Int</code> or <code>Int32</code> if it really could be any integer, expressed with the abstract type <code>Integer</code>. In fact, in many cases you can omit the argument type altogether, unless it is needed to disambiguate from other method definitions, since a <a class="reference internal" href="../../stdlib/base/#Base.MethodError" title="Base.MethodError"><code>MethodError</code></a> will be thrown anyway if a type is passed that does not support any of the requisite operations. (This is known as <a class="reference external" href="https://en.wikipedia.org/wiki/Duck_typing" target="_blank">duck typing</a>.)</p> <p>For example, consider the following definitions of a function <code>addone</code> that returns one plus its argument:</p> <pre data-language="julia">addone(x::Int) = x + 1             # works only for Int
+addone(x::Integer) = x + one(x)    # any integer type
+addone(x::Number) = x + one(x)     # any numeric type
+addone(x) = x + one(x)             # any type supporting + and one
+</pre> <p>The last definition of <code>addone</code> handles any type supporting <a class="reference internal" href="../../stdlib/numbers/#Base.one" title="Base.one"><code>one()</code></a> (which returns 1 in the same type as <code>x</code>, which avoids unwanted type promotion) and the <a class="reference internal" href="../../stdlib/math/#Base.+" title="Base.+"><code>+</code></a> function with those arguments. The key thing to realize is that there is <em>no performance penalty</em> to defining <em>only</em> the general <code>addone(x) = x + one(x)</code>, because Julia will automatically compile specialized versions as needed. For example, the first time you call <code>addone(12)</code>, Julia will automatically compile a specialized <code>addone</code> function for <code>x::Int</code> arguments, with the call to <a class="reference internal" href="../../stdlib/numbers/#Base.one" title="Base.one"><code>one()</code></a> replaced by its inlined value <code>1</code>. Therefore, the first three definitions of <code>addone</code> above are completely redundant.</p>   <h2 id="handle-excess-argument-diversity-in-the-caller">Handle excess argument diversity in the caller</h2> <p>Instead of:</p> <pre data-language="julia">function foo(x, y)
+    x = Int(x); y = Int(y)
+    ...
+end
+foo(x, y)
+</pre> <p>use:</p> <pre data-language="julia">function foo(x::Int, y::Int)
+    ...
+end
+foo(Int(x), Int(y))
+</pre> <p>This is better style because <code>foo</code> does not really accept numbers of all types; it really needs <code>Int</code> s.</p> <p>One issue here is that if a function inherently requires integers, it might be better to force the caller to decide how non-integers should be converted (e.g. floor or ceiling). Another issue is that declaring more specific types leaves more “space” for future method definitions.</p>   <h2 id="append-to-names-of-functions-that-modify-their-arguments">Append <code>!</code> to names of functions that modify their arguments</h2> <p>Instead of:</p> <pre data-language="julia">function double{T&lt;:Number}(a::AbstractArray{T})
+    for i = 1:endof(a); a[i] *= 2; end
+    a
+end
+</pre> <p>use:</p> <pre data-language="julia">function double!{T&lt;:Number}(a::AbstractArray{T})
+    for i = 1:endof(a); a[i] *= 2; end
+    a
+end
+</pre> <p>The Julia standard library uses this convention throughout and contains examples of functions with both copying and modifying forms (e.g., <a class="reference internal" href="../../stdlib/sort/#Base.sort" title="Base.sort"><code>sort()</code></a> and <a class="reference internal" href="../../stdlib/sort/#Base.sort!" title="Base.sort!"><code>sort!()</code></a>), and others which are just modifying (e.g., <a class="reference internal" href="../../stdlib/collections/#Base.push!" title="Base.push!"><code>push!()</code></a>, <a class="reference internal" href="../../stdlib/collections/#Base.pop!" title="Base.pop!"><code>pop!()</code></a>, <a class="reference internal" href="../../stdlib/collections/#Base.splice!" title="Base.splice!"><code>splice!()</code></a>). It is typical for such functions to also return the modified array for convenience.</p>   <h2 id="avoid-strange-type-unions">Avoid strange type Unions</h2> <p>Types such as <code>Union{Function,AbstractString}</code> are often a sign that some design could be cleaner.</p>   <h2 id="avoid-type-unions-in-fields">Avoid type Unions in fields</h2> <p>When creating a type such as:</p> <pre data-language="julia">type MyType
+    ...
+    x::Union{Void,T}
+end
+</pre> <p>ask whether the option for <code>x</code> to be <code>nothing</code> (of type <code>Void</code>) is really necessary. Here are some alternatives to consider:</p> <ul class="simple"> <li>Find a safe default value to initialize <code>x</code> with</li> <li>Introduce another type that lacks <code>x</code>
+</li> <li>If there are many fields like <code>x</code>, store them in a dictionary</li> <li>Determine whether there is a simple rule for when <code>x</code> is <code>nothing</code>. For example, often the field will start as <code>nothing</code> but get initialized at some well-defined point. In that case, consider leaving it undefined at first.</li> <li>If <code>x</code> really needs to hold no value at some times, define it as <code>::Nullable{T}</code> instead, as this guarantees type-stability in the code accessing this field (see <a class="reference internal" href="../types/#man-nullable-types"><span>Nullable types</span></a>)</li> </ul>   <h2 id="avoid-elaborate-container-types">Avoid elaborate container types</h2> <p>It is usually not much help to construct arrays like the following:</p> <pre data-language="julia">a = Array{Union{Int,AbstractString,Tuple,Array}}(n)
+</pre> <p>In this case <code>Array{Any}(n)</code> is better. It is also more helpful to the compiler to annotate specific uses (e.g. <code>a[i]::Int</code>) than to try to pack many alternatives into one type.</p>   <h2 id="use-naming-conventions-consistent-with-julia-s-base">Use naming conventions consistent with Julia’s <code>base/</code>
+</h2> <ul class="simple"> <li>modules and type names use capitalization and camel case: <code>module SparseArrays</code>, <code>immutable UnitRange</code>.</li> <li>functions are lowercase (<a class="reference internal" href="../../stdlib/collections/#Base.maximum" title="Base.maximum"><code>maximum()</code></a>, <a class="reference internal" href="../../stdlib/base/#Base.convert" title="Base.convert"><code>convert()</code></a>) and, when readable, with multiple words squashed together (<a class="reference internal" href="../../stdlib/base/#Base.isequal" title="Base.isequal"><code>isequal()</code></a>, <a class="reference internal" href="../../stdlib/collections/#Base.haskey" title="Base.haskey"><code>haskey()</code></a>). When necessary, use underscores as word separators. Underscores are also used to indicate a combination of concepts (<a class="reference internal" href="../../stdlib/parallel/#Base.remotecall_fetch" title="Base.remotecall_fetch"><code>remotecall_fetch()</code></a> as a more efficient implementation of <code>fetch(remotecall(...))</code>) or as modifiers (<a class="reference internal" href="../../stdlib/arrays/#Base.sum_kbn" title="Base.sum_kbn"><code>sum_kbn()</code></a>).</li> <li>conciseness is valued, but avoid abbreviation (<a class="reference internal" href="../../stdlib/collections/#Base.indexin" title="Base.indexin"><code>indexin()</code></a> rather than <code>indxin()</code>) as it becomes difficult to remember whether and how particular words are abbreviated.</li> </ul> <p>If a function name requires multiple words, consider whether it might represent more than one concept and might be better split into pieces.</p>   <h2 id="don-t-overuse-try-catch">Don’t overuse try-catch</h2> <p>It is better to avoid errors than to rely on catching them.</p>   <h2 id="don-t-parenthesize-conditions">Don’t parenthesize conditions</h2> <p>Julia doesn’t require parens around conditions in <code>if</code> and <code>while</code>. Write:</p> <pre data-language="julia">if a == b
+</pre> <p>instead of:</p> <pre data-language="julia">if (a == b)
+</pre>   <h2 id="don-t-overuse">Don’t overuse ...</h2> <p>Splicing function arguments can be addictive. Instead of <code>[a..., b...]</code>, use simply <code>[a; b]</code>, which already concatenates arrays. <a class="reference internal" href="../../stdlib/collections/#Base.collect" title="Base.collect"><code>collect(a)</code></a> is better than <code>[a...]</code>, but since <code>a</code> is already iterable it is often even better to leave it alone, and not convert it to an array.</p>   <h2 id="don-t-use-unnecessary-static-parameters">Don’t use unnecessary static parameters</h2> <p>A function signature:</p> <pre data-language="julia">foo{T&lt;:Real}(x::T) = ...
+</pre> <p>should be written as:</p> <pre data-language="julia">foo(x::Real) = ...
+</pre> <p>instead, especially if <code>T</code> is not used in the function body. Even if <code>T</code> is used, it can be replaced with <a class="reference internal" href="../../stdlib/base/#Base.typeof" title="Base.typeof"><code>typeof(x)</code></a> if convenient. There is no performance difference. Note that this is not a general caution against static parameters, just against uses where they are not needed.</p> <p>Note also that container types, specifically may need type parameters in function calls. See the FAQ <a class="reference internal" href="../performance-tips/#man-abstract-container-type"><span>Avoid fields with abstract containers</span></a> for more information.</p>   <h2 id="avoid-confusion-about-whether-something-is-an-instance-or-a-type">Avoid confusion about whether something is an instance or a type</h2> <p>Sets of definitions like the following are confusing:</p> <pre data-language="julia">foo(::Type{MyType}) = ...
+foo(::MyType) = foo(MyType)
+</pre> <p>Decide whether the concept in question will be written as <code>MyType</code> or <code>MyType()</code>, and stick to it.</p> <p>The preferred style is to use instances by default, and only add methods involving <code>Type{MyType}</code> later if they become necessary to solve some problem.</p> <p>If a type is effectively an enumeration, it should be defined as a single (ideally <code>immutable</code>) type, with the enumeration values being instances of it. Constructors and conversions can check whether values are valid. This design is preferred over making the enumeration an abstract type, with the “values” as subtypes.</p>   <h2 id="don-t-overuse-macros">Don’t overuse macros</h2> <p>Be aware of when a macro could really be a function instead.</p> <p>Calling <a class="reference internal" href="../../stdlib/base/#Base.eval" title="Base.eval"><code>eval()</code></a> inside a macro is a particularly dangerous warning sign; it means the macro will only work when called at the top level. If such a macro is written as a function instead, it will naturally have access to the run-time values it needs.</p>   <h2 id="don-t-expose-unsafe-operations-at-the-interface-level">Don’t expose unsafe operations at the interface level</h2> <p>If you have a type that uses a native pointer:</p> <pre data-language="julia">type NativeType
+    p::Ptr{UInt8}
+    ...
+end
+</pre> <p>don’t write definitions like the following:</p> <pre data-language="julia">getindex(x::NativeType, i) = unsafe_load(x.p, i)
+</pre> <p>The problem is that users of this type can write <code>x[i]</code> without realizing that the operation is unsafe, and then be susceptible to memory bugs.</p> <p>Such a function should either check the operation to ensure it is safe, or have <code>unsafe</code> somewhere in its name to alert callers.</p>   <h2 id="don-t-overload-methods-of-base-container-types">Don’t overload methods of base container types</h2> <p>It is possible to write definitions like the following:</p> <pre data-language="julia">show(io::IO, v::Vector{MyType}) = ...
+</pre> <p>This would provide custom showing of vectors with a specific new element type. While tempting, this should be avoided. The trouble is that users will expect a well-known type like <code>Vector()</code> to behave in a certain way, and overly customizing its behavior can make it harder to work with.</p>   <h2 id="be-careful-with-type-equality">Be careful with type equality</h2> <p>You generally want to use <a class="reference internal" href="../../stdlib/base/#Base.isa" title="Base.isa"><code>isa()</code></a> and <code>&lt;:</code> (<a class="reference internal" href="../../stdlib/base/#Base.issubtype" title="Base.issubtype"><code>issubtype()</code></a>) for testing types, not <code>==</code>. Checking types for exact equality typically only makes sense when comparing to a known concrete type (e.g. <code>T == Float64</code>), or if you <em>really, really</em> know what you’re doing.</p>   <h2 id="do-not-write-x-f-x">Do not write <code>x-&gt;f(x)</code>
+</h2> <p>Since higher-order functions are often called with anonymous functions, it is easy to conclude that this is desirable or even necessary. But any function can be passed directly, without being “wrapped” in an anonymous function. Instead of writing <code>map(x-&gt;f(x), a)</code>, write <a class="reference internal" href="../../stdlib/collections/#Base.map" title="Base.map"><code>map(f, a)</code></a>.</p>   <h2 id="avoid-using-floats-for-numeric-literals-in-generic-code-when-possible">Avoid using floats for numeric literals in generic code when possible</h2> <p>If you write generic code which handles numbers, and which can be expected to run with many different numeric type arguments, try using literals of a numeric type that will affect the arguments as little as possible through promotion.</p> <p>For example,</p> <pre data-language="julia">julia&gt; f(x) = 2.0 * x
+f (generic function with 1 method)
+
+julia&gt; f(1//2)
+1.0
+
+julia&gt; f(1/2)
+1.0
+
+julia&gt; f(1)
+2.0
+</pre> <p>while</p> <pre data-language="julia">julia&gt; g(x) = 2 * x
+g (generic function with 1 method)
+
+julia&gt; g(1//2)
+1//1
+
+julia&gt; g(1/2)
+1.0
+
+julia&gt; g(2)
+4
+</pre> <p>As you can see, the second version, where we used an <code>Int</code> literal, preserved the type of the input argument, while the first didn’t. This is because e.g. <code>promote_type(Int, Float64) == Float64</code>, and promotion happens with the multiplication. Similarly, <code>Rational</code> literals are less type disruptive than <a class="reference internal" href="../../stdlib/numbers/#Base.Float64" title="Base.Float64"><code>Float64</code></a> literals, but more disruptive than <code>Int</code>s:</p> <pre data-language="julia">julia&gt; h(x) = 2//1 * x
+h (generic function with 1 method)
+
+julia&gt; h(1//2)
+1//1
+
+julia&gt; h(1/2)
+1.0
+
+julia&gt; h(1)
+2//1
+</pre> <p>Thus, use <code>Int</code> literals when possible, with <code>Rational{Int}</code> for literal non-integer numbers, in order to make it easier to use your code.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2016 Jeff Bezanson, Stefan Karpinski, Viral B. Shah, and other contributors<br>Licensed under the MIT License.<br>
+    <a href="http://docs.julialang.org/en/release-0.5/manual/style-guide/" class="_attribution-link" target="_blank">http://docs.julialang.org/en/release-0.5/manual/style-guide/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

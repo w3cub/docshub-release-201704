@@ -1,0 +1,202 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Networking and Streams - Julia - W3cubDocs</title>
+  
+  <meta name="description" content="Julia provides a rich interface to deal with streaming I&#47;O objects such as terminals, pipes and TCP sockets. This interface, though asynchronous &hellip;">
+  <meta name="keywords" content="networking, and, streams, -, julia">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/julia/manual/networking-and-streams/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/julia.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/julia/" class="_nav-link" title="" style="margin-left:0;">Julia</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="man-networking-and-streams">Networking and Streams</h1> <p>Julia provides a rich interface to deal with streaming I/O objects such as terminals, pipes and TCP sockets. This interface, though asynchronous at the system level, is presented in a synchronous manner to the programmer and it is usually unnecessary to think about the underlying asynchronous operation. This is achieved by making heavy use of Julia cooperative threading (<a class="reference internal" href="../control-flow/#man-tasks"><span>coroutine</span></a>) functionality.</p>  <h2 id="basic-stream-i-o">Basic Stream I/O</h2> <p>All Julia streams expose at least a <a class="reference internal" href="../../stdlib/io-network/#Base.read" title="Base.read"><code>read()</code></a> and a <a class="reference internal" href="../../stdlib/io-network/#Base.write" title="Base.write"><code>write()</code></a> method, taking the stream as their first argument, e.g.:</p> <pre data-language="julia">julia&gt; write(STDOUT,"Hello World");  # suppress return value 11 with ;
+Hello World
+julia&gt; read(STDIN,Char)
+
+'\n'
+</pre> <p>Note that <a class="reference internal" href="../../stdlib/io-network/#Base.write" title="Base.write"><code>write()</code></a> returns 11, the number of bytes (in <code>"Hello World"</code>) written to <a class="reference internal" href="../../stdlib/io-network/#Base.STDOUT" title="Base.STDOUT"><code>STDOUT</code></a>, but this return value is suppressed with the <code>;</code>.</p> <p>Here Enter was pressed again so that Julia would read the newline. Now, as you can see from this example, <a class="reference internal" href="../../stdlib/io-network/#Base.write" title="Base.write"><code>write()</code></a> takes the data to write as its second argument, while <a class="reference internal" href="../../stdlib/io-network/#Base.read" title="Base.read"><code>read()</code></a> takes the type of the data to be read as the second argument.</p> <p>For example, to read a simple byte array, we could do:</p> <pre data-language="julia">julia&gt; x = zeros(UInt8,4)
+4-element Array{UInt8,1}:
+ 0x00
+ 0x00
+ 0x00
+ 0x00
+
+julia&gt; read!(STDIN,x)
+abcd
+4-element Array{UInt8,1}:
+ 0x61
+ 0x62
+ 0x63
+ 0x64
+</pre> <p>However, since this is slightly cumbersome, there are several convenience methods provided. For example, we could have written the above as:</p> <pre data-language="julia">julia&gt; read(STDIN,4)
+abcd
+4-element Array{UInt8,1}:
+ 0x61
+ 0x62
+ 0x63
+ 0x64
+</pre> <p>or if we had wanted to read the entire line instead:</p> <pre data-language="julia">julia&gt; readline(STDIN)
+abcd
+"abcd\n"
+</pre> <p>Note that depending on your terminal settings, your TTY may be line buffered and might thus require an additional enter before the data is sent to Julia.</p> <p>To read every line from <a class="reference internal" href="../../stdlib/io-network/#Base.STDIN" title="Base.STDIN"><code>STDIN</code></a> you can use <a class="reference internal" href="../../stdlib/io-network/#Base.eachline" title="Base.eachline"><code>eachline()</code></a>:</p> <pre data-language="julia">for line in eachline(STDIN)
+    print("Found $line")
+end
+</pre> <p>or <a class="reference internal" href="../../stdlib/io-network/#Base.read" title="Base.read"><code>read()</code></a> if you wanted to read by character instead:</p> <pre data-language="julia">while !eof(STDIN)
+    x = read(STDIN, Char)
+    println("Found: $x")
+end
+</pre>   <h2 id="text-i-o">Text I/O</h2> <p>Note that the <a class="reference internal" href="../../stdlib/io-network/#Base.write" title="Base.write"><code>write()</code></a> method mentioned above operates on binary streams. In particular, values do not get converted to any canonical text representation but are written out as is:</p> <pre data-language="julia">julia&gt; write(STDOUT,0x61);  # suppress return value 1 with ;
+a
+</pre> <p>Note that <code>a</code> is written to <a class="reference internal" href="../../stdlib/io-network/#Base.STDOUT" title="Base.STDOUT"><code>STDOUT</code></a> by the <a class="reference internal" href="../../stdlib/io-network/#Base.write" title="Base.write"><code>write()</code></a> function and that the returned value is <code>1</code> (since <code>0x61</code> is one byte).</p> <p>For text I/O, use the <a class="reference internal" href="../../stdlib/io-network/#Base.print" title="Base.print"><code>print()</code></a> or <a class="reference internal" href="../../stdlib/io-network/#Base.show" title="Base.show"><code>show()</code></a> methods, depending on your needs (see the standard library reference for a detailed discussion of the difference between the two):</p> <pre data-language="julia">julia&gt; print(STDOUT,0x61)
+97
+</pre>   <h2 id="io-output-contextual-properties">IO Output Contextual Properties</h2> <p>Sometimes IO output can benefit from the ability to pass contextual information into show methods. The <code>IOContext</code> object provides this framework for associating arbitrary metadata with an IO object. For example, <code>showcompact</code> adds a hinting parameter to the IO object that the invoked show method should print a shorter output (if applicable).</p>   <h2 id="working-with-files">Working with Files</h2> <p>Like many other environments, Julia has an <a class="reference internal" href="../../stdlib/io-network/#Base.open" title="Base.open"><code>open()</code></a> function, which takes a filename and returns an <code>IOStream</code> object that you can use to read and write things from the file. For example if we have a file, <code>hello.txt</code>, whose contents are <code>Hello, World!</code>:</p> <pre data-language="julia">julia&gt; f = open("hello.txt")
+IOStream(&lt;file hello.txt&gt;)
+
+julia&gt; readlines(f)
+1-element Array{String,1}:
+ "Hello, World!\n"
+</pre> <p>If you want to write to a file, you can open it with the write (<code>"w"</code>) flag:</p> <pre data-language="julia">julia&gt; f = open("hello.txt","w")
+IOStream(&lt;file hello.txt&gt;)
+
+julia&gt; write(f,"Hello again.")
+12
+</pre> <p>If you examine the contents of <code>hello.txt</code> at this point, you will notice that it is empty; nothing has actually been written to disk yet. This is because the <code>IOStream</code> must be closed before the write is actually flushed to disk:</p> <pre data-language="julia">julia&gt; close(f)
+</pre> <p>Examining <code>hello.txt</code> again will show its contents have been changed.</p> <p>Opening a file, doing something to its contents, and closing it again is a very common pattern. To make this easier, there exists another invocation of <a class="reference internal" href="../../stdlib/io-network/#Base.open" title="Base.open"><code>open()</code></a> which takes a function as its first argument and filename as its second, opens the file, calls the function with the file as an argument, and then closes it again. For example, given a function:</p> <pre data-language="julia">function read_and_capitalize(f::IOStream)
+    return uppercase(readstring(f))
+end
+</pre> <p>You can call:</p> <pre data-language="julia">julia&gt; open(read_and_capitalize, "hello.txt")
+"HELLO AGAIN."
+</pre> <p>to open <code>hello.txt</code>, call <code>read_and_capitalize on it</code>, close <code>hello.txt</code> and return the capitalized contents.</p> <p>To avoid even having to define a named function, you can use the <code>do</code> syntax, which creates an anonymous function on the fly:</p> <pre data-language="julia">julia&gt; open("hello.txt") do f
+          uppercase(readstring(f))
+       end
+"HELLO AGAIN."
+</pre>   <h2 id="a-simple-tcp-example">A simple TCP example</h2> <p>Let’s jump right in with a simple example involving TCP sockets. Let’s first create a simple server:</p> <pre data-language="julia">julia&gt; @async begin
+         server = listen(2000)
+         while true
+           sock = accept(server)
+           println("Hello World\n")
+         end
+       end
+Task (runnable) @0x00007fd31dc11ae0
+
+julia&gt;
+</pre> <p>To those familiar with the Unix socket API, the method names will feel familiar, though their usage is somewhat simpler than the raw Unix socket API. The first call to <a class="reference internal" href="../../stdlib/io-network/#Base.listen" title="Base.listen"><code>listen()</code></a> will create a server waiting for incoming connections on the specified port (2000) in this case. The same function may also be used to create various other kinds of servers:</p> <pre data-language="julia">julia&gt; listen(2000) # Listens on localhost:2000 (IPv4)
+TCPServer(active)
+
+julia&gt; listen(ip"127.0.0.1",2000) # Equivalent to the first
+TCPServer(active)
+
+julia&gt; listen(ip"::1",2000) # Listens on localhost:2000 (IPv6)
+TCPServer(active)
+
+julia&gt; listen(IPv4(0),2001) # Listens on port 2001 on all IPv4 interfaces
+TCPServer(active)
+
+julia&gt; listen(IPv6(0),2001) # Listens on port 2001 on all IPv6 interfaces
+TCPServer(active)
+
+julia&gt; listen("testsocket") # Listens on a UNIX domain socket/named pipe
+PipeServer(active)
+</pre> <p>Note that the return type of the last invocation is different. This is because this server does not listen on TCP, but rather on a named pipe (Windows) or UNIX domain socket. The difference is subtle and has to do with the <a class="reference internal" href="../../stdlib/io-network/#Base.accept" title="Base.accept"><code>accept()</code></a> and <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> methods. The <a class="reference internal" href="../../stdlib/io-network/#Base.accept" title="Base.accept"><code>accept()</code></a> method retrieves a connection to the client that is connecting on the server we just created, while the <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> function connects to a server using the specified method. The <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> function takes the same arguments as <a class="reference internal" href="../../stdlib/io-network/#Base.listen" title="Base.listen"><code>listen()</code></a>, so, assuming the environment (i.e. host, cwd, etc.) is the same you should be able to pass the same arguments to <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> as you did to listen to establish the connection. So let’s try that out (after having created the server above):</p> <pre data-language="julia">julia&gt; connect(2000)
+TCPSocket(open, 0 bytes waiting)
+
+julia&gt; Hello World
+</pre> <p>As expected we saw “Hello World” printed. So, let’s actually analyze what happened behind the scenes. When we called <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a>, we connect to the server we had just created. Meanwhile, the accept function returns a server-side connection to the newly created socket and prints “Hello World” to indicate that the connection was successful.</p> <p>A great strength of Julia is that since the API is exposed synchronously even though the I/O is actually happening asynchronously, we didn’t have to worry callbacks or even making sure that the server gets to run. When we called <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> the current task waited for the connection to be established and only continued executing after that was done. In this pause, the server task resumed execution (because a connection request was now available), accepted the connection, printed the message and waited for the next client. Reading and writing works in the same way. To see this, consider the following simple echo server:</p> <pre data-language="julia">julia&gt; @async begin
+         server = listen(2001)
+         while true
+           sock = accept(server)
+           @async while isopen(sock)
+             write(sock,readline(sock))
+           end
+         end
+       end
+Task (runnable) @0x00007fd31dc12e60
+
+julia&gt; clientside=connect(2001)
+TCPSocket(open, 0 bytes waiting)
+
+julia&gt; @async while true
+          write(STDOUT,readline(clientside))
+       end
+Task (runnable) @0x00007fd31dc11870
+
+julia&gt; println(clientside,"Hello World from the Echo Server")
+Hello World from the Echo Server
+</pre> <p>As with other streams, use <a class="reference internal" href="../../stdlib/parallel/#Base.close" title="Base.close"><code>close()</code></a> to disconnect the socket:</p> <pre data-language="julia">julia&gt; close(clientside)
+</pre>   <h2 id="resolving-ip-addresses">Resolving IP Addresses</h2> <p>One of the <a class="reference internal" href="../../stdlib/parallel/#Base.connect" title="Base.connect"><code>connect()</code></a> methods that does not follow the <a class="reference internal" href="../../stdlib/io-network/#Base.listen" title="Base.listen"><code>listen()</code></a> methods is <code>connect(host::String,port)</code>, which will attempt to connect to the host given by the <code>host</code> parameter on the port given by the port parameter. It allows you to do things like:</p> <pre data-language="julia">julia&gt; connect("google.com",80)
+TCPSocket(open, 0 bytes waiting)
+</pre> <p>At the base of this functionality is <a class="reference internal" href="../../stdlib/io-network/#Base.getaddrinfo" title="Base.getaddrinfo"><code>getaddrinfo()</code></a>, which will do the appropriate address resolution:</p> <pre data-language="julia">julia&gt; getaddrinfo("google.com")
+ip"74.125.226.225"
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2016 Jeff Bezanson, Stefan Karpinski, Viral B. Shah, and other contributors<br>Licensed under the MIT License.<br>
+    <a href="http://docs.julialang.org/en/release-0.5/manual/networking-and-streams/" class="_attribution-link" target="_blank">http://docs.julialang.org/en/release-0.5/manual/networking-and-streams/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

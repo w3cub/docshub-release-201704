@@ -1,0 +1,292 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Scope of Variables - Julia - W3cubDocs</title>
+  
+  <meta name="description" content="The scope of a variable is the region of code within which a variable is visible. Variable scoping helps avoid variable naming conflicts. The &hellip;">
+  <meta name="keywords" content="scope, variables, -, julia">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/julia/manual/variables-and-scoping/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/julia.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/julia/" class="_nav-link" title="" style="margin-left:0;">Julia</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx_simple">
+				
+<h1 id="man-variables-and-scoping">Scope of Variables</h1> <p>The <em>scope</em> of a variable is the region of code within which a variable is visible. Variable scoping helps avoid variable naming conflicts. The concept is intuitive: two functions can both have arguments called <code>x</code> without the two <code>x</code>‘s referring to the same thing. Similarly there are many other cases where different blocks of code can use the same name without referring to the same thing. The rules for when the same variable name does or doesn’t refer to the same thing are called scope rules; this section spells them out in detail.</p> <p>Certain constructs in the language introduce <em>scope blocks</em>, which are regions of code that are eligible to be the scope of some set of variables. The scope of a variable cannot be an arbitrary set of source lines; instead, it will always line up with one of these blocks. There are two main types of scopes in Julia, <em>global scope</em> and <em>local scope</em>, the latter can be nested. The constructs introducing scope blocks are:</p> <table class="docutils" id="man-scope-table">  <thead valign="bottom"> <tr class="row-odd">
+<th class="head">Scope name</th> <th class="head" colspan="2">block/construct introducing this kind of scope</th> </tr> </thead>  <tr class="row-even">
+<td><a class="reference internal" href="#man-global"><span>global</span></a></td> <td colspan="2">module, baremodule, at interactive prompt (REPL)</td> </tr> <tr class="row-odd">
+<td rowspan="2"><a class="reference internal" href="#man-local-scope"><span>local</span></a></td> <td><a class="reference internal" href="#man-soft-scope"><span>soft</span></a></td> <td>for, while, comprehensions, try-catch-finally, let</td> </tr> <tr class="row-even">
+<td><a class="reference internal" href="#man-hard-scope"><span>hard</span></a></td> <td>functions (either syntax, anonymous &amp; do-blocks), type, immutable, macro</td> </tr>  </table> <p>Notably missing from this table are <a class="reference internal" href="../control-flow/#man-compound-expressions"><span>begin blocks</span></a> and <a class="reference internal" href="../control-flow/#man-conditional-evaluation"><span>if blocks</span></a>, which do <em>not</em> introduce new scope blocks. All three types of scopes follow somewhat different rules which will be explained below as well as some extra rules for certain blocks.</p> <p>Julia uses <a class="reference external" href="https://en.wikipedia.org/wiki/Scope_%28computer_science%29#Lexical_scoping_vs._dynamic_scoping" target="_blank">lexical scoping</a>, meaning that a function’s scope does not inherit from its caller’s scope, but from the scope in which the function was defined. For example, in the following code the <code>x</code> inside <code>foo</code> refers to the <code>x</code> in the global scope of its module <code>Bar</code>:</p> <pre data-language="julia">module Bar
+x = 1
+foo() = x
+end
+</pre> <p>and not a <code>x</code> in the scope where <code>foo</code> is used:</p> <pre data-language="julia">julia&gt; import Bar
+
+julia&gt; x = -1;
+
+julia&gt; Bar.foo()
+1
+</pre> <p>Thus <em>lexical scope</em> means that the scope of variables can be inferred from the source code alone.</p>  <h2 id="man-global">Global Scope</h2> <p id="global-scope"><em>Each module introduces a new global scope</em>, separate from the global scope of all other modules; there is no all-encompassing global scope. Modules can introduce variables of other modules into their scope through the <a class="reference internal" href="../modules/#man-modules"><span>using or import</span></a> statements or through qualified access using the dot-notation, i.e. each module is a so-called <em>namespace</em>. Note that variable bindings can only be changed within their global scope and not from an outside module.</p> <pre data-language="julia">module A
+a = 1 # a global in A's scope
+end
+
+module B
+# b = a # would error as B's global scope is separate from A's
+    module C
+    c = 2
+    end
+b = C.c # can access the namespace of a nested global scope
+        # through a qualified access
+import A # makes module A available
+d = A.a
+# A.a = 2 # would error with: "ERROR: cannot assign variables in other modules"
+end
+</pre> <p>Note that the interactive prompt (aka REPL) is in the global scope of the module <code>Main</code>.</p>   <h2 id="man-local-scope">Local Scope</h2> <p id="local-scope">A new local scope is introduced by most code-blocks, see above <a class="reference internal" href="#man-scope-table"><span>table</span></a> for a complete list. A local scope <em>usually</em> inherits all the variables from its parent scope, both for reading and writing. There are two subtypes of local scopes, hard and soft, with slightly different rules concerning what variables are inherited. Unlike global scopes, local scopes are not namespaces, thus variables in an inner scope cannot be retrieved from the parent scope through some sort of qualified access.</p> <p>The following rules and examples pertain to both hard and soft local scopes. A newly introduced variable in a local scope does not back-propagate to its parent scope. For example, here the <code>z</code> is not introduced into the top-level scope:</p> <pre data-language="julia">for i=1:10
+    z = i
+end
+
+julia&gt; z
+ERROR: UndefVarError: z not defined
+</pre> <p>(Note, in this and all following examples it is assumed that their top-level is a global scope with a clean workspace, for instance a newly started REPL.)</p> <p>Inside a local scope a variable can be forced to be a local variable using the <code>local</code> keyword:</p> <pre data-language="julia">x = 0
+for i=1:10
+    local x
+    x = i + 1
+end
+
+julia&gt; x
+0
+</pre> <p>Inside a local scope a new global variable can be defined using the keyword <code>global</code>:</p> <pre data-language="julia">for i=1:10
+    global z
+    z = i
+end
+
+julia&gt; z
+10
+</pre> <p>The location of both the <code>local</code> and <code>global</code> keywords within the scope block is irrelevant. The following is equivalent to the last example (although stylistically worse):</p> <pre data-language="julia">for i=1:10
+    z = i
+    global z
+end
+
+julia&gt; z
+10
+</pre> <p>Multiple global or local definitions can be on one line and can also be paired with assignments:</p> <pre data-language="julia">for i=1:10
+    global x=i, y, z
+    local a=4, b , c=1
+end
+</pre>  <h3 id="man-soft-scope">Soft Local Scope</h3>  In a soft local scope, all variables are inherited from its parent scope unless a variable is specifically marked with the keyword <code>local</code>. <p>Soft local scopes are introduced by for-loops, while-loops, comprehensions, try-catch-finally-blocks, and let-blocks. There are some extra rules for <a class="reference internal" href="#man-let-blocks"><span>let-blocks</span></a> and for <a class="reference internal" href="#man-for-loops-scope"><span>for-loops and comprehensions</span></a>.</p> <p>In the following example the <code>x</code> and <code>y</code> refer always to the same variables as the soft local scope inherits both read and write variables:</p> <pre data-language="julia">x,y = 0, 1
+for i = 1:10
+    x = i + y + 1
+end
+
+julia&gt; x
+12
+</pre> <p>Within soft scopes, the <code>global</code> keyword is never necessary, although allowed. The only case when it would change the semantics is (currently) a syntax error:</p> <pre data-language="julia">let
+    local x = 2
+    let
+        global x = 3
+    end
+end
+
+# ERROR: syntax: `global x`: x is local variable in the enclosing scope
+</pre>   <h3 id="man-hard-scope">Hard Local Scope</h3> <p id="hard-local-scope">Hard local scopes are introduced by function definitions (in all their forms), type &amp; immutable-blocks, and macro-definitions.</p>  <p>In a hard local scope, all variables are inherited from its parent scope unless:</p> <ul class="simple"> <li>an assignment would result in a modified <em>global</em> variable, or</li> <li>a variable is specifically marked with the keyword <code>local</code>.</li> </ul>  <p>Thus global variables are only inherited for reading but not for writing:</p> <pre data-language="julia">x,y = 1,2
+function foo()
+    x = 2 # assignment introduces a new local
+    return x + y # y refers to the global
+end
+
+julia&gt; foo()
+4
+
+julia&gt; x
+1
+</pre> <p>An explicit <code>global</code> is needed to assign to a global variable:</p> <pre data-language="julia">x = 1
+function foo()
+    global x = 2
+end
+foo()
+
+julia&gt; x
+2
+</pre> <p>Note that <em>nested functions</em> can behave differently to functions defined in the global scope as they can modify their parent scope’s <em>local</em> variables:</p> <pre data-language="julia">x,y = 1,2
+function foo()
+    x = 2 # introduces a new local
+    function bar()
+        x = 10 # modifies the parent's x
+        return x+y # y is global
+    end
+    return bar() + x # 12 + 10 (x is modified in call of bar())
+end
+
+julia&gt; foo()
+22  # (x,y unchanged)
+</pre> <p>The distinction between inheriting global and local variables for assignment can lead to some slight differences between functions defined in local vs. global scopes. Consider the modification of the last example by moving <code>bar</code> to the global scope:</p> <pre data-language="julia">x,y = 1,2
+function bar()
+    x = 10 # local
+    return x+y
+end
+function foo()
+    x = 2 # local
+    return bar() + x # 12 + 2 (x is not modified)
+end
+
+julia&gt; foo()
+14 # as x is not modified anymore.
+   # (x,y unchanged)
+</pre> <p>Note that above subtlety does not pertain to type and macro definitions as they can only appear at the global scope. There are special scoping rules concerning the evaluation of default and keyword function arguments which are described in the <a class="reference internal" href="../functions/#man-evaluation-scope-default-values"><span>Function section</span></a>.</p> <p>An assignment introducing a variable used inside a function, type or macro definition need not come before its inner usage:</p> <pre data-language="julia">julia&gt; f = y -&gt; x + y
+(::#1) (generic function with 1 method)
+
+julia&gt; f(3)
+ERROR: UndefVarError: x not defined
+ in (::##1#2)(::Int64) at ./none:1
+ ...
+
+julia&gt; x = 1
+1
+
+julia&gt; f(3)
+4
+</pre> <p>This behavior may seem slightly odd for a normal variable, but allows for named functions — which are just normal variables holding function objects — to be used before they are defined. This allows functions to be defined in whatever order is intuitive and convenient, rather than forcing bottom up ordering or requiring forward declarations, as long as they are defined by the time they are actually called. As an example, here is an inefficient, mutually recursive way to test if positive integers are even or odd:</p> <pre data-language="julia">even(n) = n == 0 ? true  :  odd(n-1)
+odd(n)  = n == 0 ? false : even(n-1)
+
+julia&gt; even(3)
+false
+
+julia&gt; odd(3)
+true
+</pre> <p>Julia provides built-in, efficient functions to test for oddness and evenness called <a class="reference internal" href="../../stdlib/numbers/#Base.iseven" title="Base.iseven"><code>iseven()</code></a> and <a class="reference internal" href="../../stdlib/numbers/#Base.isodd" title="Base.isodd"><code>isodd()</code></a> so the above definitions should only be taken as examples.</p>   <h3 id="hard-vs-soft-local-scope">Hard vs. Soft Local Scope</h3> <p>Blocks which introduce a soft local scope, such as loops, are generally used to manipulate the variables in their parent scope. Thus their default is to fully access all variables in their parent scope.</p> <p>Conversely, the code inside blocks which introduce a hard local scope (function, type, and macro definitions) can be executed at any place in a program. Remotely changing the state of global variables in other modules should be done with care and thus this is an opt-in feature requiring the <code>global</code> keyword.</p> <p>The reason to allow <em>modifying local</em> variables of parent scopes in nested functions is to allow constructing <a class="reference external" href="https://en.wikipedia.org/wiki/Closure_%28computer_programming%29" target="_blank">closures</a> which have a private state, for instance the <code>state</code> variable in the following example:</p> <pre data-language="julia">let
+    state = 0
+    global counter
+    counter() = state += 1
+end
+
+julia&gt; counter()
+1
+
+julia&gt; counter()
+2
+</pre> <p>See also the closures in the examples in the next two sections.</p>   <h3 id="man-let-blocks">Let Blocks</h3> <p id="let-blocks">Unlike assignments to local variables, <code>let</code> statements allocate new variable bindings each time they run. An assignment modifies an existing value location, and <code>let</code> creates new locations. This difference is usually not important, and is only detectable in the case of variables that outlive their scope via closures. The <code>let</code> syntax accepts a comma-separated series of assignments and variable names:</p> <pre data-language="julia">let var1 = value1, var2, var3 = value3
+    code
+end
+</pre> <p>The assignments are evaluated in order, with each right-hand side evaluated in the scope before the new variable on the left-hand side has been introduced. Therefore it makes sense to write something like <code>let x = x</code> since the two <code>x</code> variables are distinct and have separate storage. Here is an example where the behavior of <code>let</code> is needed:</p> <pre data-language="julia">Fs = Array{Any}(2)
+i = 1
+while i &lt;= 2
+    Fs[i] = ()-&gt;i
+    i += 1
+end
+
+julia&gt; Fs[1]()
+3
+
+julia&gt; Fs[2]()
+3
+</pre> <p>Here we create and store two closures that return variable <code>i</code>. However, it is always the same variable <code>i</code>, so the two closures behave identically. We can use <code>let</code> to create a new binding for <code>i</code>:</p> <pre data-language="julia">Fs = Array{Any}(2)
+i = 1
+while i &lt;= 2
+    let i = i
+        Fs[i] = ()-&gt;i
+    end
+    i += 1
+end
+
+julia&gt; Fs[1]()
+1
+
+julia&gt; Fs[2]()
+2
+</pre> <p>Since the <code>begin</code> construct does not introduce a new scope, it can be useful to use a zero-argument <code>let</code> to just introduce a new scope block without creating any new bindings:</p> <pre data-language="julia">julia&gt; let
+           local x = 1
+           let
+               local x = 2
+           end
+           x
+       end
+1
+</pre> <p>Since <code>let</code> introduces a new scope block, the inner local <code>x</code> is a different variable than the outer local <code>x</code>.</p>   <h3 id="man-for-loops-scope">For Loops and Comprehensions</h3> <p id="for-loops-and-comprehensions"><code>for</code> loops and <a class="reference internal" href="../arrays/#comprehensions"><span>comprehensions</span></a> have the following behavior: any new variables introduced in their body scopes are freshly allocated for each loop iteration. This is in contrast to <code>while</code> loops which reuse the variables for all iterations. Therefore these constructs are similar to <code>while</code> loops with <code>let</code> blocks inside:</p> <pre data-language="julia">Fs = Array{Any}(2)
+for i = 1:2
+    Fs[i] = ()-&gt;i
+end
+
+julia&gt; Fs[1]()
+1
+
+julia&gt; Fs[2]()
+2
+</pre> <p><code>for</code> loops will reuse existing variables for its iteration variable:</p> <pre data-language="julia">i = 0
+for i = 1:3
+end
+i  # here equal to 3
+</pre> <p>However, comprehensions do not do this, and always freshly allocate their iteration variables:</p> <pre data-language="julia">x = 0
+[ x for x=1:3 ]
+x  # here still equal to 0
+</pre>    <h2 id="constants">Constants</h2> <p>A common use of variables is giving names to specific, unchanging values. Such variables are only assigned once. This intent can be conveyed to the compiler using the <code>const</code> keyword:</p> <pre data-language="julia">const e  = 2.71828182845904523536
+const pi = 3.14159265358979323846
+</pre> <p>The <code>const</code> declaration is allowed on both global and local variables, but is especially useful for globals. It is difficult for the compiler to optimize code involving global variables, since their values (or even their types) might change at almost any time. If a global variable will not change, adding a <code>const</code> declaration solves this performance problem.</p> <p>Local constants are quite different. The compiler is able to determine automatically when a local variable is constant, so local constant declarations are not necessary for performance purposes.</p> <p>Special top-level assignments, such as those performed by the <code>function</code> and <code>type</code> keywords, are constant by default.</p> <p>Note that <code>const</code> only affects the variable binding; the variable may be bound to a mutable object (such as an array), and that object may still be modified.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2016 Jeff Bezanson, Stefan Karpinski, Viral B. Shah, and other contributors<br>Licensed under the MIT License.<br>
+    <a href="http://docs.julialang.org/en/release-0.5/manual/variables-and-scoping/" class="_attribution-link" target="_blank">http://docs.julialang.org/en/release-0.5/manual/variables-and-scoping/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
