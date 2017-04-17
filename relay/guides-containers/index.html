@@ -1,0 +1,271 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Containers - Relay - W3cubDocs</title>
+  
+  <meta name="description" content="The primary way to declare data requirements is via Relay.Container — a higher-order React component that lets React components encode their data &hellip;">
+  <meta name="keywords" content="containers, -, relay">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/relay/guides-containers/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/relay.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/relay/" class="_nav-link" title="" style="margin-left:0;">Relay</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>Containers</h1>
+<p>The primary way to declare data requirements is via <code>Relay.Container</code> — a higher-order React component that lets React components encode their data requirements.</p>
+<p>Similar to how a React component's <code>render</code> method does not directly modify native views, Relay containers do not directly fetch data. Instead, containers declare a <em>specification</em> of the data needed to render. Relay guarantees that this data is available <em>before</em> rendering.</p>
+<h2 id="a-complete-example">
+A Complete Example </h2>
+<p>To start, let's build the plain React version of a <code>&lt;ProfilePicture&gt;</code> component that displays the user's profile photo and a slider to adjust the photo's size.</p>
+<h3 id="base-react-component">
+Base React Component </h3>
+<p>Here's a basic implementation of <code>&lt;ProfilePicture&gt;</code> that ignores styling in order to highlight the functionality:</p>
+<pre class="prism language-javascript" data-language="javascript">
+class ProfilePicture extends React.Component {
+  render() {
+    // Expects the `user` prop to have the following shape:
+    // {
+    //   profilePhoto: {
+    //     uri,
+    //   }
+    // }
+    var user = this.props.user;
+    return (
+      &lt;View&gt;
+        &lt;Image uri={user.profilePhoto.uri} width={...} /&gt;
+        &lt;Slider onChange={value =&gt; this.setSize(value)} /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  // Update the size of the photo
+  setSize(photoSize) {
+    // TODO: Fetch the profile photo URI for the given size...
+  }
+}</pre>
+<h3 id="data-dependencies-with-graphql">
+Data Dependencies With GraphQL </h3>
+<p>In Relay, data dependencies are described using <a href="https://github.com/facebook/graphql" target="_blank">GraphQL</a>. For <code>&lt;ProfilePicture&gt;</code>, the dependency can be expressed as follows. Note that this exactly matches the shape that the component expected for the <code>user</code> prop.</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.QL`
+  # This fragment only applies to objects of type 'User'.
+  fragment on User {
+    # Set the 'size' argument to a GraphQL variable named '$size' so that we can
+    # later change its value via the slider.
+    profilePhoto(size: $size) {
+      # Get the appropriate URI for the given size, for example on a CDN.
+      uri,
+    },
+  }
+`</pre>
+<h3 id="relay-containers">
+Relay Containers </h3>
+<p>Given the plain React component and a GraphQL fragment, we can now define a <code>Container</code> to tell Relay about this component's data requirements. Let's look at the code first and then see what's happening:</p>
+<pre class="prism language-javascript" data-language="javascript">
+class ProfilePicture extends React.Component {/* as above */}
+
+// Export a *new* React component that wraps the original `&lt;ProfilePicture&gt;`.
+module.exports = Relay.createContainer(ProfilePicture, {
+  // Specify the initial value of the `$size` variable.
+  initialVariables: {
+    size: 32
+  },
+  // For each of the props that depend on server data, we define a corresponding
+  // key in `fragments`. Here, the component expects server data to populate the
+  // `user` prop, so we'll specify the fragment from above as `fragments.user`.
+  fragments: {
+    user: () =&gt; Relay.QL`
+      fragment on User {
+        profilePhoto(size: $size) {
+          uri,
+        },
+      }
+    `,
+  },
+});</pre>
+<h2 id="containers-are-higher-order-components">
+Containers are Higher-Order Components </h2>
+<p>Relay containers are higher-order components — <code>Relay.createContainer</code> is a function that takes a React component as input and returns a new component as output. This means that the container can manage data fetching and resolution logic without interfering with the <code>state</code> of the inner component.</p>
+<p>Here's what happens when the container is rendered:</p>
+<div class="diagram"> <img src="https://facebook.github.io/relay/img/Guides-Containers-HOC-Relay.png" title="Relay Containers"> </div> <p>In the diagram above:</p>
+<ul>
+<li>A parent component will pass in a reference to some <code>User</code> "record".</li>
+<li>The container — named <code>Relay(ProfilePicture)</code> for debugging — will retrieve the response for each GraphQL fragment from the local store.</li>
+<li>The container passes the results of each fragment (along with the other props) to the <code>&lt;ProfilePicture&gt;</code> component.</li>
+<li>
+<code>&lt;ProfilePicture&gt;</code> receives a <code>user</code> prop with plain JavaScript data - objects, arrays, strings - and renders as usual.</li>
+</ul>
+<h2 id="requesting-different-data">
+Requesting Different Data </h2>
+<p>One thing is left in the example above — implementing <code>setSize()</code>, which should change the photo's size when the slider values changes. In addition to passing the results of each query to the component, Relay also provides a <code>relay</code> prop that has Relay-specific methods and metadata. These include <code>variables</code> — the active variables used to fetch the current <code>props</code> — and <code>setVariables()</code> — a callback that can be used to request data for different variable values.</p>
+<pre class="prism language-javascript" data-language="javascript">
+class ProfilePicture extends React.Component {
+  render() {
+    // Access the resolved data for the `user` fragment.
+    var user = this.props.user;
+    // Access the current `variables` that were used to fetch the `user`.
+    var variables = this.props.relay.variables;
+    return (
+      &lt;View&gt;
+        &lt;Image
+          uri={user.profilePhoto.uri}
+          width={variables.size}
+        /&gt;
+        &lt;Slider onChange={value =&gt; this.setSize(value)} /&gt;
+      &lt;/View&gt;
+    );
+  }
+
+  // Update the size of the photo.
+  setSize(photoSize) {
+    // `setVariables()` tells Relay that the component's data requirements have
+    // changed. The value of `props.relay.variables` and `props.user` will
+    // continue to reflect their previous values until the data for the new
+    // variables has been fetched from the server. As soon as data for the new
+    // variables becomes available, the component will re-render with an updated
+    // `user` prop and `variables.size`.
+    this.props.relay.setVariables({
+      size: photoSize,
+    });
+  }
+}</pre>
+<h2 id="container-composition">
+Container Composition </h2>
+<p>React and Relay support creating arbitrarily complex applications through <em>composition</em>. Larger components can be created by composing smaller components, helping us to create modular, robust applications. There are two aspects to composing components in Relay:</p>
+<ul>
+<li>Composing the view logic, and</li>
+<li>Composing the data descriptions.</li>
+</ul>
+<p>Let's explore how this works via a <code>&lt;Profile&gt;</code> component that composes the <code>&lt;ProfilePicture&gt;</code> from above.</p>
+<h3 id="composing-views-it-s-plain-react">
+Composing Views - It's Plain React </h3>
+<p>View composition is <em>exactly</em> what you're used to — Relay containers are standard React components. Here's the <code>&lt;Profile&gt;</code> component:</p>
+<pre class="prism language-javascript" data-language="javascript">
+class Profile extends React.Component {
+  render() {
+    // Expects a `user` with a string `name`, as well as the information
+    // for `&lt;ProfilePicture&gt;` (we'll get that next).
+    var user = this.props.user;
+    return (
+      &lt;View&gt;
+        {/* It works just like a React component, because it is one! */}
+        &lt;ProfilePicture user={user} /&gt;
+        &lt;Text&gt;{user.name}&lt;/Text&gt;
+      &lt;/View&gt;
+    );
+  }
+}</pre>
+<h3 id="composing-fragments">
+Composing Fragments </h3>
+<p>Fragment composition works similarly — a parent container's fragment composes the fragment for each of its children. In this case, <code>&lt;Profile&gt;</code> needs to fetch information about the <code>User</code> that is required by <code>&lt;ProfilePicture&gt;</code>.</p>
+<p>Relay containers provide a static <code>getFragment()</code> method that returns a reference to that component's fragment:</p>
+<pre class="prism language-javascript" data-language="javascript">
+class Profile extends React.Component {/* as above */}
+
+module.exports = Relay.createContainer(Profile, {
+  fragments: {
+    // This `user` fragment name corresponds to the prop named `user` that is
+    // expected to be populated with server data by the `&lt;Profile&gt;` component.
+    user: () =&gt; Relay.QL`
+      fragment on User {
+        # Specify any fields required by '&lt;Profile&gt;' itself.
+        name,
+
+        # Include a reference to the fragment from the child component. Here,
+        # the 'user' is the name of the fragment specified on the child
+        # "&lt;ProfilePicture&gt;'s" 'fragments' definition.
+        ${ProfilePicture.getFragment('user')},
+      }
+    `,
+  }
+});</pre>
+<p>The final data declaration is equivalent to the following plain GraphQL:</p>
+<pre class="prism language-javascript" data-language="javascript">
+`
+  fragment Profile on User {
+    name,
+    ...ProfilePhoto,
+  }
+
+  fragment ProfilePhoto on User {
+    profilePhoto(size: $size) {
+      uri,
+    },
+  }
+`</pre>
+<p>Note that when composing fragments, the type of the composed fragment must match the field on the parent in which it is embedded. For example, it wouldn't make sense to embed a fragment of type <code>Story</code> into a parent's field of type <code>User</code>. Relay and GraphQL will provide helpful error messages if you get this wrong (and if they aren't helpful, let us know!).</p>
+<h2 id="rendering-containers">
+Rendering Containers </h2>
+<p>As we've learned, Relay containers declare data requirements as GraphQL fragments. This means that, for example, <code>&lt;ProfilePicture&gt;</code> can be embedded not only in <code>&lt;Profile&gt;</code>, but any container that fetches a field of type <code>User</code>.</p>
+<p>We're almost ready to let Relay fulfill the data requirements for these components and render them. However, there is one problem. In order to actually fetch data with GraphQL, we need a query root. For example, we need to ground the <code>&lt;Profile&gt;</code> fragment in a concrete node of type <code>User</code>.</p>
+<p>In Relay, the root of a query is defined by a <strong>Route</strong>. Continue to learn about Relay routes.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://facebook.github.io/relay/docs/guides-containers.html" class="_attribution-link" target="_blank">https://facebook.github.io/relay/docs/guides-containers.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

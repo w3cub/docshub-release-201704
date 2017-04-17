@@ -1,0 +1,440 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Implementing Undo History - Redux - W3cubDocs</title>
+  
+  <meta name="description" content="Building an Undo and Redo functionality into an app has traditionally required conscious effort from the developer. It is not an easy problem with &hellip;">
+  <meta name="keywords" content="implementing, undo, history, -, redux">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/redux/recipes/implementingundohistory/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/redux.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/redux/" class="_nav-link" title="" style="margin-left:0;">Redux</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _redux">
+				
+<h1 id="implementing-undo-history">Implementing Undo History</h1>
+<p>Building an Undo and Redo functionality into an app has traditionally required conscious effort from the developer. It is not an easy problem with classical MVC frameworks because you need to keep track of every past state by cloning all relevant models. In addition, you need to be mindful of the undo stack because the user-initiated changes should be undoable.</p>
+<p>This means that implementing Undo and Redo in an MVC application usually forces you to rewrite parts of your application to use a specific data mutation pattern like <a href="https://en.wikipedia.org/wiki/Command_pattern" target="_blank">Command</a>.</p>
+<p>With Redux, however, implementing undo history is a breeze. There are three reasons for this:</p>
+<ul>
+<li>There are no multiple models—just a state subtree that you want to keep track of. </li> <li>The state is already immutable, and mutations are already described as discrete actions, which is close to the undo stack mental model. </li> <li>The reducer <code>(state, action) =&gt; state</code> signature makes it natural to implement generic “reducer enhancers” or “higher order reducers”. They are functions that take your reducer and enhance it with some additional functionality while preserving its signature. Undo history is exactly such a case. </li>
+</ul> <p>Before proceeding, make sure you have worked through the <a href="../../basics/">basics tutorial</a> and understand <a href="../../basics/reducers/">reducer composition</a> well. This recipe will build on top of the example described in the <a href="../../basics/">basics tutorial</a>.</p>
+<p>In the first part of this recipe, we will explain the underlying concepts that make Undo and Redo possible to implement in a generic way.</p>
+<p>In the second part of this recipe, we will show how to use <a href="https://github.com/omnidan/redux-undo" target="_blank">Redux Undo</a> package that provides this functionality out of the box.</p>
+<p><a href="https://twitter.com/dan_abramov/status/647038407286390784" target="_blank"><img alt="demo of todos-with-undo" src="http://i.imgur.com/lvDFHkH.gif"></a></p>
+<h2 id="understanding-undo-history">Understanding Undo History</h2>
+<h3 id="designing-the-state-shape">Designing the State Shape</h3>
+<p>Undo history is also part of your app's state, and there is no reason why we should approach it differently. Regardless of the type of the state changing over time, when you implement Undo and Redo, you want to keep track of the <em>history</em> of this state at different points in time.</p>
+<p>For example, the state shape of a counter app might look like this:</p>
+<pre data-language="js">{
+  counter: 10
+}</pre> <p>If we wanted to implement Undo and Redo in such an app, we'd need to store more state so we can answer the following questions:</p>
+<ul>
+<li>Is there anything left to undo or redo? </li> <li>What is the current state? </li> <li>What are the past (and future) states in the undo stack? </li>
+</ul> <p>It is reasonable to suggest that our state shape should change to answer these questions:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ],
+    present: 10,
+    future: []
+  }
+}</pre> <p>Now, if user presses “Undo”, we want it to change to move into the past:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2, 3, 4, 5, 6, 7, 8 ],
+    present: 9,
+    future: [ 10 ]
+  }
+}</pre> <p>And further yet:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2, 3, 4, 5, 6, 7 ],
+    present: 8,
+    future: [ 9, 10 ]
+  }
+}</pre> <p>When the user presses “Redo”, we want to move one step back into the future:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2, 3, 4, 5, 6, 7, 8 ],
+    present: 9,
+    future: [ 10 ]
+  }
+}</pre> <p>Finally, if the user performs an action (e.g. decrement the counter) while we're in the middle of the undo stack, we're going to discard the existing future:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ],
+    present: 8,
+    future: []
+  }
+}</pre> <p>The interesting part here is that it does not matter whether we want to keep an undo stack of numbers, strings, arrays, or objects. The structure will always be the same:</p>
+<pre data-language="js">{
+  counter: {
+    past: [ 0, 1, 2 ],
+    present: 3,
+    future: [ 4 ]
+  }
+}</pre> <pre data-language="js">{
+  todos: {
+    past: [
+      [],
+      [ { text: 'Use Redux' } ],
+      [ { text: 'Use Redux', complete: true } ]
+    ],
+    present: [ { text: 'Use Redux', complete: true }, { text: 'Implement Undo' } ],
+    future: [
+      [ { text: 'Use Redux', complete: true }, { text: 'Implement Undo', complete: true } ]
+    ]
+  }
+}</pre> <p>In general, it looks like this:</p>
+<pre data-language="js">{
+  past: Array&lt;T&gt;,
+  present: T,
+  future: Array&lt;T&gt;
+}</pre> <p>It is also up to us whether to keep a single top-level history:</p>
+<pre data-language="js">{
+  past: [
+    { counterA: 1, counterB: 1 },
+    { counterA: 1, counterB: 0 },
+    { counterA: 0, counterB: 0 }
+  ],
+  present: { counterA: 2, counterB: 1 },
+  future: []
+}</pre> <p>Or many granular histories so user can undo and redo actions in them independently:</p>
+<pre data-language="js">{
+  counterA: {
+    past: [ 1, 0 ],
+    present: 2,
+    future: []
+  },
+  counterB: {
+    past: [ 0 ],
+    present: 1,
+    future: []
+  }
+}</pre> <p>We will see later how the approach we take lets us choose how granular Undo and Redo need to be.</p>
+<h3 id="designing-the-algorithm">Designing the Algorithm</h3>
+<p>Regardless of the specific data type, the shape of the undo history state is the same:</p>
+<pre data-language="js">{
+  past: Array&lt;T&gt;,
+  present: T,
+  future: Array&lt;T&gt;
+}</pre> <p>Let's talk through the algorithm to manipulate the state shape described above. We can define two actions to operate on this state: <code>UNDO</code> and <code>REDO</code>. In our reducer, we will do the following steps to handle these actions:</p>
+<h4 id="handling-undo">Handling Undo</h4>
+<ul>
+<li>Remove the <em>last</em> element from the <code>past</code>. </li> <li>Set the <code>present</code> to the element we removed in the previous step. </li> <li>Insert the old <code>present</code> state at the <em>beginning</em> of the <code>future</code>. </li>
+</ul> <h4 id="handling-redo">Handling Redo</h4>
+<ul>
+<li>Remove the <em>first</em> element from the <code>future</code>. </li> <li>Set the <code>present</code> to the element we removed in the previous step. </li> <li>Insert the old <code>present</code> state at the <em>end</em> of the <code>past</code>. </li>
+</ul> <h4 id="handling-other-actions">Handling Other Actions</h4>
+<ul>
+<li>Insert the <code>present</code> at the end of the <code>past</code>. </li> <li>Set the <code>present</code> to the new state after handling the action. </li> <li>Clear the <code>future</code>. </li>
+</ul> <h3 id="first-attempt-writing-a-reducer">First Attempt: Writing a Reducer</h3>
+<pre data-language="js">const initialState = {
+  past: [],
+  present: null, // (?) How do we initialize the present?
+  future: []
+}
+
+function undoable(state = initialState, action) {
+  const { past, present, future } = state
+
+  switch (action.type) {
+    case 'UNDO':
+      const previous = past[past.length - 1]
+      const newPast = past.slice(0, past.length - 1)
+      return {
+        past: newPast,
+        present: previous,
+        future: [ present, ...future ]
+      }
+    case 'REDO':
+      const next = future[0]
+      const newFuture = future.slice(1)
+      return {
+        past: [ ...past, present ],
+        present: next,
+        future: newFuture
+      }
+    default:
+      // (?) How do we handle other actions?
+      return state
+  }
+}</pre> <p>This implementation isn't usable because it leaves out three important questions:</p>
+<ul>
+<li>Where do we get the initial <code>present</code> state from? We don't seem to know it beforehand. </li> <li>Where do we react to the external actions to save the <code>present</code> to the <code>past</code>? </li> <li>How do we actually delegate the control over the <code>present</code> state to a custom reducer? </li>
+</ul> <p>It seems that reducer isn't the right abstraction, but we're very close.</p>
+<h3 id="meet-reducer-enhancers">Meet Reducer Enhancers</h3>
+<p>You might be familiar with <a href="https://en.wikipedia.org/wiki/Higher-order_function" target="_blank">higher order functions</a>. If you use React, you might be familiar with <a href="https://medium.com/@dan_abramov/mixins-are-dead-long-live-higher-order-components-94a0d2f9e750" target="_blank">higher order components</a>. Here is a variation on the same pattern, applied to reducers.</p>
+<p>A <em>reducer enhancer</em> (or a <em>higher order reducer</em>) is a function that takes a reducer, and returns a new reducer that is able to handle new actions, or to hold more state, delegating control to the inner reducer for the actions it doesn't understand. This isn't a new pattern—technically, <a href="../../api/combinereducers/"><code>combineReducers()</code></a> is also a reducer enhancer because it takes reducers and returns a new reducer.</p>
+<p>A reducer enhancer that doesn't do anything looks like this:</p>
+<pre data-language="js">function doNothingWith(reducer) {
+  return function (state, action) {
+    // Just call the passed reducer
+    return reducer(state, action)
+  }
+}</pre> <p>A reducer enhancer that combines other reducers might look like this:</p>
+<pre data-language="js">function combineReducers(reducers) {
+  return function (state = {}, action) {
+    return Object.keys(reducers).reduce((nextState, key) =&gt; {
+      // Call every reducer with the part of the state it manages
+      nextState[key] = reducers[key](state[key], action)
+      return nextState
+    }, {})
+  }
+}</pre> <h3 id="second-attempt-writing-a-reducer-enhancer">Second Attempt: Writing a Reducer Enhancer</h3>
+<p>Now that we have a better understanding of reducer enhancers, we can see that this is exactly what <code>undoable</code> should have been:</p>
+<pre data-language="js">function undoable(reducer) {
+  // Call the reducer with empty action to populate the initial state
+  const initialState = {
+    past: [],
+    present: reducer(undefined, {}),
+    future: []
+  }
+
+  // Return a reducer that handles undo and redo
+  return function (state = initialState, action) {
+    const { past, present, future } = state
+
+    switch (action.type) {
+      case 'UNDO':
+        const previous = past[past.length - 1]
+        const newPast = past.slice(0, past.length - 1)
+        return {
+          past: newPast,
+          present: previous,
+          future: [ present, ...future ]
+        }
+      case 'REDO':
+        const next = future[0]
+        const newFuture = future.slice(1)
+        return {
+          past: [ ...past, present ],
+          present: next,
+          future: newFuture
+        }
+      default:
+        // Delegate handling the action to the passed reducer
+        const newPresent = reducer(present, action)
+        if (present === newPresent) {
+          return state
+        }
+        return {
+          past: [ ...past, present ],
+          present: newPresent,
+          future: []
+        }
+    }
+  }
+}</pre> <p>We can now wrap any reducer into <code>undoable</code> reducer enhancer to teach it to react to <code>UNDO</code> and <code>REDO</code> actions.</p>
+<pre data-language="js">// This is a reducer
+function todos(state = [], action) {
+  /* ... */
+}
+
+// This is also a reducer!
+const undoableTodos = undoable(todos)
+
+import { createStore } from 'redux'
+const store = createStore(undoableTodos)
+
+store.dispatch({
+  type: 'ADD_TODO',
+  text: 'Use Redux'
+})
+
+store.dispatch({
+  type: 'ADD_TODO',
+  text: 'Implement Undo'
+})
+
+store.dispatch({
+  type: 'UNDO'
+})</pre> <p>There is an important gotcha: you need to remember to append <code>.present</code> to the current state when you retrieve it. You may also check <code>.past.length</code> and <code>.future.length</code> to determine whether to enable or to disable the Undo and Redo buttons, respectively.</p>
+<p>You might have heard that Redux was influenced by <a href="https://github.com/evancz/elm-architecture-tutorial/" target="_blank">Elm Architecture</a>. It shouldn't come as a surprise that this example is very similar to <a href="http://package.elm-lang.org/packages/TheSeamau5/elm-undo-redo/2.0.0" target="_blank">elm-undo-redo package</a>.</p>
+<h2 id="using-redux-undo">Using Redux Undo</h2>
+<p>This was all very informative, but can't we just drop a library and use it instead of implementing <code>undoable</code> ourselves? Sure, we can! Meet <a href="https://github.com/omnidan/redux-undo" target="_blank">Redux Undo</a>, a library that provides simple Undo and Redo functionality for any part of your Redux tree.</p>
+<p>In this part of the recipe, you will learn how to make the <a href="../../basics/exampletodolist/" target="_blank">Todo List example</a> undoable. You can find the full source of this recipe in the <a href="https://github.com/reactjs/redux/tree/master/examples/todos-with-undo" target="_blank"><code>todos-with-undo</code> example that comes with Redux</a>.</p>
+<h3 id="installation">Installation</h3>
+<p>First of all, you need to run</p>
+<pre>npm install --save redux-undo</pre> <p>This installs the package that provides the <code>undoable</code> reducer enhancer.</p>
+<h3 id="wrapping-the-reducer">Wrapping the Reducer</h3>
+<p>You will need to wrap the reducer you wish to enhance with <code>undoable</code> function. For example, if you exported a <code>todos</code> reducer from a dedicated file, you will want to change it to export the result of calling <code>undoable()</code> with the reducer you wrote:</p>
+<h4 id="reducerstodosjs"><code>reducers/todos.js</code></h4>
+<pre data-language="js">import undoable, { distinctState } from 'redux-undo'
+
+/* ... */
+
+const todos = (state = [], action) =&gt; {
+  /* ... */
+}
+
+const undoableTodos = undoable(todos, {
+  filter: distinctState()
+})
+
+export default undoableTodos</pre> <p>The <code>distinctState()</code> filter serves to ignore the actions that didn't result in a state change. There are <a href="https://github.com/omnidan/redux-undo#configuration" target="_blank">many other options</a> to configure your undoable reducer, like setting the action type for Undo and Redo actions.</p>
+<p>Note that your <code>combineReducers()</code> call will stay exactly as it was, but the <code>todos</code> reducer will now refer to the reducer enhanced with Redux Undo:</p>
+<h4 id="reducersindexjs"><code>reducers/index.js</code></h4>
+<pre data-language="js">import { combineReducers } from 'redux'
+import todos from './todos'
+import visibilityFilter from './visibilityFilter'
+
+const todoApp = combineReducers({
+  todos,
+  visibilityFilter
+})
+
+export default todoApp</pre> <p>You may wrap one or more reducers in <code>undoable</code> at any level of the reducer composition hierarchy. We choose to wrap <code>todos</code> instead of the top-level combined reducer so that changes to <code>visibilityFilter</code> are not reflected in the undo history.</p>
+<h3 id="updating-the-selectors">Updating the Selectors</h3>
+<p>Now the <code>todos</code> part of the state looks like this:</p>
+<pre data-language="js">{
+  visibilityFilter: 'SHOW_ALL',
+  todos: {
+    past: [
+      [],
+      [ { text: 'Use Redux' } ],
+      [ { text: 'Use Redux', complete: true } ]
+    ],
+    present: [ { text: 'Use Redux', complete: true }, { text: 'Implement Undo' } ],
+    future: [
+      [ { text: 'Use Redux', complete: true }, { text: 'Implement Undo', complete: true } ]
+    ]
+  }
+}</pre> <p>This means you need to access your state with <code>state.todos.present</code> instead of just <code>state.todos</code>:</p>
+<h4 id="containersvisibletodolistjs"><code>containers/VisibleTodoList.js</code></h4>
+<pre data-language="js">const mapStateToProps = (state) =&gt; {
+  return {
+    todos: getVisibleTodos(state.todos.present, state.visibilityFilter)
+  }
+}</pre> <h3 id="adding-the-buttons">Adding the Buttons</h3>
+<p>Now all you need to do is add the buttons for the Undo and Redo actions.</p>
+<p>First, create a new container component called <code>UndoRedo</code> for these buttons. We won't bother to split the presentational part into a separate file because it is very small:</p>
+<h4 id="containersundoredojs"><code>containers/UndoRedo.js</code></h4>
+<pre data-language="js">import React from 'react'
+
+/* ... */
+
+let UndoRedo = ({ canUndo, canRedo, onUndo, onRedo }) =&gt; (
+  &lt;p&gt;
+    &lt;button onClick={onUndo} disabled={!canUndo}&gt;
+      Undo
+    &lt;/button&gt;
+    &lt;button onClick={onRedo} disabled={!canRedo}&gt;
+      Redo
+    &lt;/button&gt;
+  &lt;/p&gt;
+)</pre> <p>You will use <code>connect()</code> from <a href="https://github.com/reactjs/react-redux" target="_blank">React Redux</a> to generate a container component. To determine whether to enable Undo and Redo buttons, you can check <code>state.todos.past.length</code> and <code>state.todos.future.length</code>. You won't need to write action creators for performing undo and redo because Redux Undo already provides them:</p>
+<h4 id="containersundoredojs"><code>containers/UndoRedo.js</code></h4>
+<pre data-language="js">/* ... */
+
+import { ActionCreators as UndoActionCreators } from 'redux-undo'
+import { connect } from 'react-redux'
+
+/* ... */
+
+const mapStateToProps = (state) =&gt; {
+  return {
+    canUndo: state.todos.past.length &gt; 0,
+    canRedo: state.todos.future.length &gt; 0
+  }
+}
+
+const mapDispatchToProps = (dispatch) =&gt; {
+  return {
+    onUndo: () =&gt; dispatch(UndoActionCreators.undo()),
+    onRedo: () =&gt; dispatch(UndoActionCreators.redo())
+  }
+}
+
+UndoRedo = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(UndoRedo)
+
+export default UndoRedo</pre> <p>Now you can add <code>UndoRedo</code> component to the <code>App</code> component:</p>
+<h4 id="componentsappjs"><code>components/App.js</code></h4>
+<pre data-language="js">import React from 'react'
+import Footer from './Footer'
+import AddTodo from '../containers/AddTodo'
+import VisibleTodoList from '../containers/VisibleTodoList'
+import UndoRedo from '../containers/UndoRedo'
+
+const App = () =&gt; (
+  &lt;div&gt;
+    &lt;AddTodo /&gt;
+    &lt;VisibleTodoList /&gt;
+    &lt;Footer /&gt;
+    &lt;UndoRedo /&gt;
+  &lt;/div&gt;
+)
+
+export default App</pre> <p>This is it! Run <code>npm install</code> and <code>npm start</code> in the <a href="https://github.com/reactjs/redux/tree/master/examples/todos-with-undo" target="_blank">example folder</a> and try it out!</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015–2016 Dan Abramov<br>Licensed under the MIT License.<br>
+    <a href="http://redux.js.org/docs/recipes/ImplementingUndoHistory.html" class="_attribution-link" target="_blank">http://redux.js.org/docs/recipes/ImplementingUndoHistory.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

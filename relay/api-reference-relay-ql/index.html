@@ -1,0 +1,191 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Relay.QL - Relay - W3cubDocs</title>
+  
+  <meta name="description" content=" Relay fragments, mutations, and queries must be specified using ES6 template literals tagged with Relay.QL. For example&#58; ">
+  <meta name="keywords" content="relay, ql, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/relay/api-reference-relay-ql/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/relay.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/relay/" class="_nav-link" title="" style="margin-left:0;">Relay</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>Relay.QL</h1>
+<p>Relay fragments, mutations, and queries must be specified using ES6 template literals tagged with <code>Relay.QL</code>. For example:</p>
+<pre class="prism language-javascript" data-language="javascript">
+var fragment = Relay.QL`
+  fragment on User {
+    name
+  }
+`;</pre>
+<p>To execute this code, Relay needs access to the schema - which can be too large to bundle inside the application. Instead, these <code>Relay.QL</code> template expressions are transpiled into JavaScript descriptions via the <code>babel-relay-plugin</code>. This schema information allows Relay to understand things like the types of field arguments, which fields are connections or lists, and how to efficiently refetch records from the server.</p>
+<h2 id="related-apis">
+Related APIs </h2>
+<p><code>Relay.QL</code> objects are used by the following APIs:</p>
+<ul class="apiIndex"> <li> <pre>() =&gt; Relay.QL`fragment on ...`</pre> Specify the data dependencies of a `Relay.Container` as GraphQL fragments. </li> <li> <pre>(Component) =&gt; Relay.QL`query ...`</pre> Specify the queries of a `Relay.Route`. </li> <li> <pre>Relay.QL`mutation { fieldName }`</pre> Specify the mutation field in a `Relay.Mutation`. </li> <li> <pre>var fragment = Relay.QL`fragment on ...`;</pre> Reusable fragments to compose within the above use cases. </li> </ul> <h2 id="fragment-composition">
+Fragment Composition </h2>
+<p>Fragments can be composed in one of two ways:</p>
+<ul>
+<li>Composing child component fragments in a parent fragment.</li>
+<li>Composing fragments defined as local variables.</li>
+</ul>
+<h3 id="container-getfragment">
+Container.getFragment() </h3>
+<p>Composing the fragments of child components is discussed in detail in the <a href="../guides-containers/">Containers Guide</a>, but here's a quick example:</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.createContainer(Foo, {
+  fragments: {
+    bar: () =&gt; Relay.QL`
+      fragment on Bar {
+        ${ChildComponent.getFragment('childFragmentName')},
+      }
+    `,
+  }
+});</pre>
+<h3 id="inline-fragments">
+Inline Fragments </h3>
+<p>Fragments may also compose other fragments that are assigned to local variables:</p>
+<pre class="prism language-javascript" data-language="javascript">
+// An inline fragment - useful in small quantities, but best not to share
+// between modules.
+var userFragment = Relay.QL`
+  fragment on User {
+    name,
+  }
+`;
+Relay.createContainer(Story, {
+  fragments: {
+    bar: () =&gt; Relay.QL`
+      fragment on Story {
+        author {
+          # Fetch the same information about the story's author ...
+          ${userFragment},
+        },
+        comments {
+          edges {
+            node {
+              author {
+                # ... and the authors of the comments.
+                ${userFragment},
+              },
+            },
+          },
+        },
+      }
+    `,
+  }
+});</pre>
+<p>Note that it is <em>highly</em> recommended that <code>Relay.Container</code>s define their own fragments and avoid sharing inline <code>var fragment = Relay.QL...</code> values between containers or files. If you find yourself wanting to share inline fragments, it's likely a sign that it's time to refactor and introduce a new container.</p>
+<h3 id="conditional-fields">
+Conditional fields </h3>
+<p>You can conditionally include or skip a field based on the value of a boolean variable.</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.createContainer(Story, {
+  initialVariables: {
+    numCommentsToShow: 10,
+    showComments: false,
+  },
+  fragments: {
+    story: (variables) =&gt; Relay.QL`
+      fragment on Story {
+        comments(first: $numCommentsToShow) @include(if: $showComments) {
+          edges {
+            node {
+              author { name },
+              id,
+              text,
+            },
+          },
+        },
+      }
+    `,
+  }
+});</pre>
+<p>Wherever the inverse grammar serves you better, you can use <code>@skip(if: ...)</code> instead of <code>@include(if: ...)</code>.</p>
+<h3 id="array-fields">
+Array fields </h3>
+<p>In order to resolve a fragment into an array of objects you have to use the <code>@relay(plural: true)</code> directive.</p>
+<p>This will inform <code>Relay.QL</code> that this particular field is an array. This will also allow you to use a plural name for the fragment (i.e. <code>bars</code> instead of <code>bar</code>).</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.createContainer(Story, {
+  fragments: {
+    bars: () =&gt; Relay.QL`
+      fragment on Bar @relay(plural: true) {
+        id
+        name
+      }
+    `,
+  }
+});</pre>
+<p>On the Relay Container the prop <code>bars</code> will be an array instead of an object.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://facebook.github.io/relay/docs/api-reference-relay-ql.html" class="_attribution-link" target="_blank">https://facebook.github.io/relay/docs/api-reference-relay-ql.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

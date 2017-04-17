@@ -1,0 +1,408 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Reddit API - Redux - W3cubDocs</title>
+  
+  <meta name="description" content=" This is the complete source code of the Reddit headline fetching example we built during the advanced tutorial. ">
+  <meta name="keywords" content="example, reddit, api, -, redux">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/redux/advanced/exampleredditapi/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/redux.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/redux/" class="_nav-link" title="" style="margin-left:0;">Redux</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _redux">
+				
+<h1 id="example-reddit-api">Example: Reddit API</h1>
+<p>This is the complete source code of the Reddit headline fetching example we built during the <a href="../">advanced tutorial</a>.</p>
+<h2 id="entry-point">Entry Point</h2>
+<h4 id="indexjs"><code>index.js</code></h4>
+<pre data-language="js">import 'babel-polyfill'
+
+import React from 'react'
+import { render } from 'react-dom'
+import Root from './containers/Root'
+
+render(
+  &lt;Root /&gt;,
+  document.getElementById('root')
+)</pre> <h2 id="action-creators-and-constants">Action Creators and Constants</h2>
+<h4 id="actionsjs"><code>actions.js</code></h4>
+<pre data-language="js">import fetch from 'isomorphic-fetch'
+
+export const REQUEST_POSTS = 'REQUEST_POSTS'
+export const RECEIVE_POSTS = 'RECEIVE_POSTS'
+export const SELECT_SUBREDDIT = 'SELECT_SUBREDDIT'
+export const INVALIDATE_SUBREDDIT = 'INVALIDATE_SUBREDDIT'
+
+export function selectSubreddit(subreddit) {
+  return {
+    type: SELECT_SUBREDDIT,
+    subreddit
+  }
+}
+
+export function invalidateSubreddit(subreddit) {
+  return {
+    type: INVALIDATE_SUBREDDIT,
+    subreddit
+  }
+}
+
+function requestPosts(subreddit) {
+  return {
+    type: REQUEST_POSTS,
+    subreddit
+  }
+}
+
+function receivePosts(subreddit, json) {
+  return {
+    type: RECEIVE_POSTS,
+    subreddit,
+    posts: json.data.children.map(child =&gt; child.data),
+    receivedAt: Date.now()
+  }
+}
+
+function fetchPosts(subreddit) {
+  return dispatch =&gt; {
+    dispatch(requestPosts(subreddit))
+    return fetch(`http://www.reddit.com/r/${subreddit}.json`)
+      .then(response =&gt; response.json())
+      .then(json =&gt; dispatch(receivePosts(subreddit, json)))
+  }
+}
+
+function shouldFetchPosts(state, subreddit) {
+  const posts = state.postsBySubreddit[subreddit]
+  if (!posts) {
+    return true
+  } else if (posts.isFetching) {
+    return false
+  } else {
+    return posts.didInvalidate
+  }
+}
+
+export function fetchPostsIfNeeded(subreddit) {
+  return (dispatch, getState) =&gt; {
+    if (shouldFetchPosts(getState(), subreddit)) {
+      return dispatch(fetchPosts(subreddit))
+    }
+  }
+}</pre> <h2 id="reducers">Reducers</h2>
+<h4 id="reducersjs"><code>reducers.js</code></h4>
+<pre data-language="js">import { combineReducers } from 'redux'
+import {
+  SELECT_SUBREDDIT, INVALIDATE_SUBREDDIT,
+  REQUEST_POSTS, RECEIVE_POSTS
+} from './actions'
+
+function selectedSubreddit(state = 'reactjs', action) {
+  switch (action.type) {
+  case SELECT_SUBREDDIT:
+    return action.subreddit
+  default:
+    return state
+  }
+}
+
+function posts(state = {
+  isFetching: false,
+  didInvalidate: false,
+  items: []
+}, action) {
+  switch (action.type) {
+    case INVALIDATE_SUBREDDIT:
+      return Object.assign({}, state, {
+        didInvalidate: true
+      })
+    case REQUEST_POSTS:
+      return Object.assign({}, state, {
+        isFetching: true,
+        didInvalidate: false
+      })
+    case RECEIVE_POSTS:
+      return Object.assign({}, state, {
+        isFetching: false,
+        didInvalidate: false,
+        items: action.posts,
+        lastUpdated: action.receivedAt
+      })
+    default:
+      return state
+  }
+}
+
+function postsBySubreddit(state = { }, action) {
+  switch (action.type) {
+    case INVALIDATE_SUBREDDIT:
+    case RECEIVE_POSTS:
+    case REQUEST_POSTS:
+      return Object.assign({}, state, {
+        [action.subreddit]: posts(state[action.subreddit], action)
+      })
+    default:
+      return state
+  }
+}
+
+const rootReducer = combineReducers({
+  postsBySubreddit,
+  selectedSubreddit
+})
+
+export default rootReducer</pre> <h2 id="store">Store</h2>
+<h4 id="configurestorejs"><code>configureStore.js</code></h4>
+<pre data-language="js">import { createStore, applyMiddleware } from 'redux'
+import thunkMiddleware from 'redux-thunk'
+import createLogger from 'redux-logger'
+import rootReducer from './reducers'
+
+const loggerMiddleware = createLogger()
+
+export default function configureStore(preloadedState) {
+  return createStore(
+    rootReducer,
+    preloadedState,
+    applyMiddleware(
+      thunkMiddleware,
+      loggerMiddleware
+    )
+  )
+}</pre> <h2 id="container-components">Container Components</h2>
+<h4 id="containersrootjs"><code>containers/Root.js</code></h4>
+<pre data-language="js">import React, { Component } from 'react'
+import { Provider } from 'react-redux'
+import configureStore from '../configureStore'
+import AsyncApp from './AsyncApp'
+
+const store = configureStore()
+
+export default class Root extends Component {
+  render() {
+    return (
+      &lt;Provider store={store}&gt;
+        &lt;AsyncApp /&gt;
+      &lt;/Provider&gt;
+    )
+  }
+}</pre> <h4 id="containersasyncappjs"><code>containers/AsyncApp.js</code></h4>
+<pre data-language="js">import React, { Component, PropTypes } from 'react'
+import { connect } from 'react-redux'
+import { selectSubreddit, fetchPostsIfNeeded, invalidateSubreddit } from '../actions'
+import Picker from '../components/Picker'
+import Posts from '../components/Posts'
+
+class AsyncApp extends Component {
+  constructor(props) {
+    super(props)
+    this.handleChange = this.handleChange.bind(this)
+    this.handleRefreshClick = this.handleRefreshClick.bind(this)
+  }
+
+  componentDidMount() {
+    const { dispatch, selectedSubreddit } = this.props
+    dispatch(fetchPostsIfNeeded(selectedSubreddit))
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.selectedSubreddit !== this.props.selectedSubreddit) {
+      const { dispatch, selectedSubreddit } = nextProps
+      dispatch(fetchPostsIfNeeded(selectedSubreddit))
+    }
+  }
+
+  handleChange(nextSubreddit) {
+    this.props.dispatch(selectSubreddit(nextSubreddit))
+  }
+
+  handleRefreshClick(e) {
+    e.preventDefault()
+
+    const { dispatch, selectedSubreddit } = this.props
+    dispatch(invalidateSubreddit(selectedSubreddit))
+    dispatch(fetchPostsIfNeeded(selectedSubreddit))
+  }
+
+  render() {
+    const { selectedSubreddit, posts, isFetching, lastUpdated } = this.props
+    return (
+      &lt;div&gt;
+        &lt;Picker value={selectedSubreddit}
+                onChange={this.handleChange}
+                options={[ 'reactjs', 'frontend' ]} /&gt;
+        &lt;p&gt;
+          {lastUpdated &amp;&amp;
+            &lt;span&gt;
+              Last updated at {new Date(lastUpdated).toLocaleTimeString()}.
+              {' '}
+            &lt;/span&gt;
+          }
+          {!isFetching &amp;&amp;
+            &lt;a href='#'
+               onClick={this.handleRefreshClick}&gt;
+              Refresh
+            &lt;/a&gt;
+          }
+        &lt;/p&gt;
+        {isFetching &amp;&amp; posts.length === 0 &amp;&amp;
+          &lt;h2&gt;Loading...&lt;/h2&gt;
+        }
+        {!isFetching &amp;&amp; posts.length === 0 &amp;&amp;
+          &lt;h2&gt;Empty.&lt;/h2&gt;
+        }
+        {posts.length &gt; 0 &amp;&amp;
+          &lt;div style={{ opacity: isFetching ? 0.5 : 1 }}&gt;
+            &lt;Posts posts={posts} /&gt;
+          &lt;/div&gt;
+        }
+      &lt;/div&gt;
+    )
+  }
+}
+
+AsyncApp.propTypes = {
+  selectedSubreddit: PropTypes.string.isRequired,
+  posts: PropTypes.array.isRequired,
+  isFetching: PropTypes.bool.isRequired,
+  lastUpdated: PropTypes.number,
+  dispatch: PropTypes.func.isRequired
+}
+
+function mapStateToProps(state) {
+  const { selectedSubreddit, postsBySubreddit } = state
+  const {
+    isFetching,
+    lastUpdated,
+    items: posts
+  } = postsBySubreddit[selectedSubreddit] || {
+    isFetching: true,
+    items: []
+  }
+
+  return {
+    selectedSubreddit,
+    posts,
+    isFetching,
+    lastUpdated
+  }
+}
+
+export default connect(mapStateToProps)(AsyncApp)</pre> <h2 id="presentational-components">Presentational Components</h2>
+<h4 id="componentspickerjs"><code>components/Picker.js</code></h4>
+<pre data-language="js">import React, { Component, PropTypes } from 'react'
+
+export default class Picker extends Component {
+  render() {
+    const { value, onChange, options } = this.props
+
+    return (
+      &lt;span&gt;
+        &lt;h1&gt;{value}&lt;/h1&gt;
+        &lt;select onChange={e =&gt; onChange(e.target.value)}
+                value={value}&gt;
+          {options.map(option =&gt;
+            &lt;option value={option} key={option}&gt;
+              {option}
+            &lt;/option&gt;)
+          }
+        &lt;/select&gt;
+      &lt;/span&gt;
+    )
+  }
+}
+
+Picker.propTypes = {
+  options: PropTypes.arrayOf(
+    PropTypes.string.isRequired
+  ).isRequired,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired
+}</pre> <h4 id="componentspostsjs"><code>components/Posts.js</code></h4>
+<pre data-language="js">import React, { PropTypes, Component } from 'react'
+
+export default class Posts extends Component {
+  render() {
+    return (
+      &lt;ul&gt;
+        {this.props.posts.map((post, i) =&gt;
+          &lt;li key={i}&gt;{post.title}&lt;/li&gt;
+        )}
+      &lt;/ul&gt;
+    )
+  }
+}
+
+Posts.propTypes = {
+  posts: PropTypes.array.isRequired
+}</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015–2016 Dan Abramov<br>Licensed under the MIT License.<br>
+    <a href="http://redux.js.org/docs/advanced/ExampleRedditAPI.html" class="_attribution-link" target="_blank">http://redux.js.org/docs/advanced/ExampleRedditAPI.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

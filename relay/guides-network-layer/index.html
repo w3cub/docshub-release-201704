@@ -1,0 +1,139 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Network Layer - Relay - W3cubDocs</title>
+  
+  <meta name="description" content="Relay has a network layer abstraction that separates mutations and queries from the actual machinery that sends requests to the GraphQL server. This &hellip;">
+  <meta name="keywords" content="network, layer, -, relay">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/relay/guides-network-layer/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/relay.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/relay/" class="_nav-link" title="" style="margin-left:0;">Relay</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1>Network Layer</h1>
+<p>Relay has a network layer abstraction that separates mutations and queries from the actual machinery that sends requests to the GraphQL server. This gives us the flexibility to configure or even completely replace the default network layer via injection.</p>
+<h2 id="default-network-layer">
+Default Network Layer </h2>
+<p>Relay is pre-configured to use a default network layer that works with <a href="https://github.com/graphql/express-graphql" target="_blank">express-graphql</a>. This default network layer is exposed via <code>Relay.DefaultNetworkLayer</code>.</p>
+<p>By default, Relay assumes that GraphQL is served at <code>/graphql</code> relative to the origin where our application is served. This can be re-configured by injecting a custom instantiation of the default network layer.</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.injectNetworkLayer(
+  new Relay.DefaultNetworkLayer('http://example.com/graphql')
+);</pre>
+<p>Underneath the hood, the default network layer uses <code>fetch</code> (<a href="https://fetch.spec.whatwg.org" target="_blank">Living Standard</a>). The constructor for <code>Relay.DefaultNetworkLayer</code> takes an optional second argument that accepts any valid initialization property that <code>fetch</code> accepts.</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.injectNetworkLayer(
+  new Relay.DefaultNetworkLayer('http://example.com/graphql', {
+    credentials: 'same-origin',
+  })
+);</pre>
+<p>When it sends queries, it will automatically fail requests after a 15 second timeout. Also, failed requests are automatically retried twice, with a 1 second delay and a 3 second delay, respectively.</p>
+<p>Like the GraphQL URI, the timeout and retry behavior can be configured:</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.injectNetworkLayer(
+  new Relay.DefaultNetworkLayer('http://example.com/graphql', {
+    fetchTimeout: 30000,   // Timeout after 30s.
+    retryDelays: [5000],   // Only retry once after a 5s delay.
+  })
+);</pre>
+<p>Unlike queries, failed requests for mutations are not automatically retried.</p>
+<p>Custom HTTP headers can be configured by providing a <code>headers</code> object:</p>
+<pre class="prism language-javascript" data-language="javascript">
+Relay.injectNetworkLayer(
+  new Relay.DefaultNetworkLayer('http://example.com/graphql', {
+    headers: {
+      Authorization: 'Basic SSdsbCBmaW5kIHNvbWV0aGluZyB0byBwdXQgaGVyZQ==',
+    },
+  })
+);</pre>
+<h2 id="custom-network-layers">
+Custom Network Layers </h2>
+<p>Relay also lets us completely replace the default network layer.</p>
+<p>Custom network layers must conform to the following <a href="../interfaces-relay-network-layer/">RelayNetworkLayer</a> interface. Although the default network layer is an instantiable class that accepts some configuration, this is not a requirement of an injected network layer.</p>
+<p>For example, a network layer can be a simple object that conforms to the interface:</p>
+<pre class="prism language-javascript" data-language="javascript">
+var myNetworkLayer = {
+  sendMutation(mutationRequest) {
+    // ...
+  },
+  sendQueries(queryRequests) {
+    // ...
+  },
+  supports(...options) {
+    // ...
+  },
+};
+
+Relay.injectNetworkLayer(myNetworkLayer);</pre>
+<p>You can read more about the API <a href="../interfaces-relay-network-layer/">RelayNetworkLayer</a> interface.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Facebook Inc.<br>Licensed under the BSD License.<br>
+    <a href="https://facebook.github.io/relay/docs/guides-network-layer.html" class="_attribution-link" target="_blank">https://facebook.github.io/relay/docs/guides-network-layer.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
