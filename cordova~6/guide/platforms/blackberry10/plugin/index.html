@@ -1,0 +1,184 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>BlackBerry 10 Plugins - Cordova 6 - W3cubDocs</title>
+  
+  <meta name="description" content="This section provides details for how to implement native plugin code on the BlackBerry 10 platform. Before reading this, see Application Plugins &hellip;">
+  <meta name="keywords" content="blackberry, plugins, -, cordova, cordova~6">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/cordova~6/guide/platforms/blackberry10/plugin/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/cordova~6.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/cordova~6/" class="_nav-link" title="" style="margin-left:0;">Cordova 6</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _cordova">
+				
+<h1 id="blackberry-10-plugins">BlackBerry 10 Plugins</h1> <p>This section provides details for how to implement native plugin code on the BlackBerry 10 platform. Before reading this, see Application Plugins for an overview of the plugin's structure and its common JavaScript interface. This section continues to demonstrate the sample <em>echo</em> plugin that communicates from the Cordova webview to the native platform and back.</p> <p>The Echo plugin basically returns whatever string the <code>window.echo</code> function sends from JavaScript:</p> <pre data-language="javascript">window.echo = function(str, callback) {
+    cordova.exec(callback, function(err) {
+        callback('Nothing to echo.');
+    }, "Echo", "echo", [str]);
+};
+</pre> <p>A Cordova plugin for BlackBerry 10 contains both JavaScript and native code, which communicate with each other through a framework provided by JNEXT. Every plugin must also include a <code>plugin.xml</code> file.</p> <h2 id="creating-the-native-class">Creating the Native Class</h2> <p>To create the native portion of your plugin, open the BlackBerry 10 NDK IDE and select <strong>File → New → BlackBerry Project → Native Extension → BlackBerry 10</strong>. Enter the desired project name and location, then press <strong>Finish</strong>.</p> <p>The project created by the IDE contains sample code for a memory plugin. You may replace or modify these files to implement your own functionality:</p> <ul> <li><p><code>*name*_js.hpp</code>: C++ header for the JNEXT code.</p></li> <li><p><code>*name*_js.cpp</code>: C++ code for JNEXT.</p></li> </ul> <p>The native interface for the JNEXT extension can be viewed in the plugin header file located in the project's public directory. It also features constants and utility functions available from within native code. The plugin must be derived from <code>JSExt</code>, which is defined in <code>plugin.h</code>. That is, you must implement the following class:</p> <pre data-language="cpp">class JSExt
+{
+public:
+    virtual ~JSExt() {};
+    virtual string InvokeMethod( const string&amp; strCommand ) = 0;
+    virtual bool CanDelete( void ) = 0;
+private:
+    std::string m_id;
+};
+</pre> <p>The extension should include the <code>plugin.h</code> header file. In the <code>Echo</code> example, you use <code>JSExt</code> as follows in the <code>echo_js.hpp</code> file:</p> <pre data-language="cpp">#include "../public/plugin.h"
+#include &lt;string&gt;
+
+#ifndef ECHO_JS_H_
+#define ECHO_JS_H_
+
+class Echo : public JSExt
+{
+public:
+    explicit Echo(const std::string&amp; id);
+    virtual ~Echo();
+    virtual std::string InvokeMethod(const std::string&amp; command);
+    virtual bool CanDelete();
+private:
+    std::string m_id;
+};
+
+#endif // ECHO_JS_H_
+</pre> <p>The <code>m_id</code> attribute contains the <code>JNEXT</code> id for the object, which is passed to the class as an argument to the constructor. It is needed for the native side to trigger events on the JavaScript side. The <code>CanDelete</code> method determines whether the native object can be deleted. The <code>InvokeMethod</code> function is called as a result from a request from JavaScript to invoke a method of this particular object. The only argument to this function is a string passed from JavaScript that this method parses to determine which of the native object's methods should execute. These methods are implemented in <code>echo_js.cpp</code>. Here is the <code>InvokeMethod</code> function for the <code>Echo</code> example:</p> <pre data-language="cpp">string Echo::InvokeMethod(const string&amp; command) {
+
+    //parse command and args from string
+    int index = command.find_first_of(" ");
+    string strCommand = command.substr(0, index);
+    string strValue = command.substr(index + 1, command.length());
+
+    // Determine which function should be executed
+    if (strCommand == "echo") {
+        return strValue;
+    } else {
+        return "Unsupported Method";
+    }
+}
+</pre> <p>The native plugin must also implement the following callback functions:</p> <ul> <li><p><code>extern char* onGetObjList( void );</code></p></li> <li><p><code>extern JSExt* onCreateObject( const string&amp; strClassName, const string&amp; strObjId );</code></p></li> </ul> <p>The <code>onGetObjList</code> function returns a comma-separated list of classes supported by JNEXT. JNEXT uses this function to determine the set of classes that JNEXT can instantiate. The <code>Echo</code> plugin implements the following in <code>echo_js.cpp</code>:</p> <pre data-language="cpp">char* onGetObjList() {
+    static char name[] = "Echo";
+    return name;
+}
+</pre> <p>The <code>onCreateObject</code> function takes two parameters. The first is the name of the requested class to be created from the JavaScript side, with valid names as those returned in <code>onGetObjList</code>. The second parameter is the class's unique object id. This method returns a pointer to the created plugin object. The <code>Echo</code> plugin implements the following in <code>echo_js.cpp</code>:</p> <pre data-language="cpp">JSExt* onCreateObject(const string&amp; className, const string&amp; id) {
+    if (className == "Echo") {
+        return new Echo(id);
+    }
+    return NULL;
+}
+</pre> <h2 id="creating-the-plugin-s-javascript">Creating the Plugin's JavaScript</h2> <p>The plugin must contain the following JavaScript files:</p> <ul> <li><p><code>client.js</code>: This is considered the client side and contains the API available to a Cordova application. The API in <code>client.js</code> calls makes calls to <code>index.js</code>. The API in <code>client.js</code> also connects callback functions to the events that fire the callbacks.</p></li> <li><p><code>index.js</code>: Cordova loads <code>index.js</code> and makes it accessible through the cordova.exec bridge. The <code>client.js</code> file makes calls to the API in the <code>index.js</code> file, which in turn makes call to JNEXT to communicate with the native side.</p></li> </ul> <p>The client and server side (<code>client.js</code> and <code>index.js</code>) interacts through the <code>Cordova.exec</code> function. The <code>client.js</code> needs to invoke the <code>exec</code> function and provide the necessary arguments. The <code>Echo</code> plugin implements the following in the <code>client.js</code> file:</p> <pre data-language="javascript">var service = "org.apache.cordova.blackberry.echo",
+    exec = cordova.require("cordova/exec");
+
+module.exports = {
+    echo: function (data, success, fail) {
+        exec(success, fail, service, "echo", { data: data });
+    }
+};
+</pre> <p>The <code>index.js</code> component uses JNEXT to interact with the native side. Attaching a constructor function named <code>Echo</code> to JNEXT allows you to perform the following key operations using the <code>init</code> function:</p> <ul> <li>
+<p>Specify the required module exported by the native side. The name of the required module must match the name of a shared library file (<code>.so</code> file):</p> <pre data-language="javascript">JNEXT.require("libecho")
+</pre>
+</li> <li>
+<p>Create an object by using an acquired module and save the ID that's returned by the call:</p> <pre data-language="javascript">self.m_id = JNEXT.createObject("libecho.Echo");
+</pre>
+</li> </ul> <p>When the application calls the <code>echo</code> function in <code>client.js</code>, that call in turn calls the <code>echo</code> function in <code>index.js</code>, where the <code>PluginResult</code> object sends data as a response back to <code>client.js</code>. Since the <code>args</code> argument passed into the functions was converted by <code>JSON.stringfy()</code> and encoded as a <code>URIcomponent</code>, you must call the following:</p> <pre data-language="javascript">data = JSON.parse(decodeURIComponent(args.data));
+</pre> <p>You can now send the data back, as in the following:</p> <pre data-language="javascript">module.exports = {
+    echo: function (success, fail, args, env) {
+        var result = new PluginResult(args, env),
+        data = JSON.parse(decodeURIComponent(args.data)),
+        response = echo.getInstance().echo(data);
+        result.ok(response, false);
+    }
+};
+</pre> <h2 id="plugin-architecture">Plugin Architecture</h2> <p>You can place the plugin's artifacts, including the <code>plugin.xml</code> file, the JavaScript and C++ source files, and the <code>.so</code> binary files within any directory structure, as long as you correctly specify the file locations in the <code>plugin.xml</code> file. Here is a typical structure:</p> <p><strong><em>project_directory</em></strong> (&gt;plugin.xml)</p> <ul> <li>
+<strong>www</strong> (&gt;client.js)</li> <li>
+<strong>src</strong> <ul> <li>
+<strong>blackberry10</strong> (&gt;index.js, <strong>native</strong> &gt;*.cpp, *.hpp)</li> <li>
+<strong>device</strong> (&gt;<em>binary file</em> *.so)</li> <li>
+<strong>simulator</strong> (&gt;<em>binary file</em> *.so)</li> </ul>
+</li> </ul> <p>The list shows the hierarchical relationship among the top-level folders. The parenthesis shows the contents of a given directory. All directory names appear in bold text. File names are preceded by the <code>&gt;</code> sign.</p> <h2 id="the-plugin-xml-file">The <em>plugin.xml</em> file</h2> <p>The <code>plugin.xml</code> file contains the extension's namespace and other metadata. Set up the <code>Echo</code> plugin as follows:</p> <pre data-language="xml">&lt;plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
+    id="org.apache.cordova.blackberry.echo"
+    version="1.0.0"&gt;
+    &lt;js-module src="www/client.js"&gt;
+        &lt;merges target="navigator" /&gt;
+    &lt;/js-module&gt;
+    &lt;platform name="blackberry10"&gt;
+        &lt;source-file src="src/blackberry10/index.js" /&gt;
+        &lt;lib-file src="src/blackberry10/native/device/libecho.so" arch="device" /&gt;
+        &lt;lib-file src="src/blackberry10/native/simulator/libecho.so" arch="simulator" /&gt;
+        &lt;config-file target="www/config.xml" parent="/widget"&gt;
+            &lt;feature name="org.apache.cordova.blackberry.echo" value="org.apache.cordova.blackberry.echo" /&gt;
+        &lt;/config-file&gt;
+    &lt;/platform&gt;
+&lt;/plugin&gt;
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 The Apache Software Foundation<br>Licensed under the Apache License 2.0.<br>
+    <a href="https://cordova.apache.org/docs/en/6.x/guide/platforms/blackberry10/plugin.html" class="_attribution-link" target="_blank">https://cordova.apache.org/docs/en/6.x/guide/platforms/blackberry10/plugin.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
