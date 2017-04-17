@@ -1,0 +1,201 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>OverlayFS Storage in Practice (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content=" OverlayFS is a modern union filesystem that is similar to AUFS. In comparison to AUFS, OverlayFS&#58; ">
+  <meta name="keywords" content="docker, and, overlayfs, practice, storage, engine, -, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/userguide/storagedriver/overlayfs-driver/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Docker and OverlayFS in practice</h1>  <p>OverlayFS is a modern <em>union filesystem</em> that is similar to AUFS. In comparison to AUFS, OverlayFS:</p> <ul> <li>has a simpler design</li> <li>has been in the mainline Linux kernel since version 3.18</li> <li>is potentially faster</li> </ul> <p>As a result, OverlayFS is rapidly gaining popularity in the Docker community and is seen by many as a natural successor to AUFS. As promising as OverlayFS is, it is still relatively young. Therefore caution should be taken before using it in production Docker environments.</p> <p>Docker’s <code class="highlighter-rouge">overlay</code> storage driver leverages several OverlayFS features to build and manage the on-disk structures of images and containers.</p> <p>Since version 1.12, Docker also provides <code class="highlighter-rouge">overlay2</code> storage driver which is much more efficient than <code class="highlighter-rouge">overlay</code> in terms of inode utilization. The <code class="highlighter-rouge">overlay2</code> driver is only compatible with Linux kernel 4.0 and later.</p> <p>For comparison between <code class="highlighter-rouge">overlay</code> vs <code class="highlighter-rouge">overlay2</code>, please also refer to <a href="../selectadriver/#overlay-vs-overlay2">Select a storage driver</a>.</p> <blockquote> <p><strong>Note</strong>: Since it was merged into the mainline kernel, the OverlayFS <em>kernel module</em> was renamed from “overlayfs” to “overlay”. As a result you may see the two terms used interchangeably in some documentation. However, this document uses “OverlayFS” to refer to the overall filesystem, and <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> to refer to Docker’s storage-drivers.</p> </blockquote> <h2 id="image-layering-and-sharing-with-overlayfs-overlay">Image layering and sharing with OverlayFS (<code class="highlighter-rouge">overlay</code>)</h2> <p>OverlayFS takes two directories on a single Linux host, layers one on top of the other, and provides a single unified view. These directories are often referred to as <em>layers</em> and the technology used to layer them is known as a <em>union mount</em>. The OverlayFS terminology is “lowerdir” for the bottom layer and “upperdir” for the top layer. The unified view is exposed through its own directory called “merged”.</p> <p>The diagram below shows how a Docker image and a Docker container are layered. The image layer is the “lowerdir” and the container layer is the “upperdir”. The unified view is exposed through a directory called “merged” which is effectively the containers mount point. The diagram shows how Docker constructs map to OverlayFS constructs.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/overlay_constructs.jpg" alt=""></p> <p>Notice how the image layer and container layer can contain the same files. When this happens, the files in the container layer (“upperdir”) are dominant and obscure the existence of the same files in the image layer (“lowerdir”). The container mount (“merged”) presents the unified view.</p> <p>The <code class="highlighter-rouge">overlay</code> driver only works with two layers. This means that multi-layered images cannot be implemented as multiple OverlayFS layers. Instead, each image layer is implemented as its own directory under <code class="highlighter-rouge">/var/lib/docker/overlay</code>. Hard links are then used as a space-efficient way to reference data shared with lower layers. As of Docker 1.10, image layer IDs no longer correspond to directory names in <code class="highlighter-rouge">/var/lib/docker/</code></p> <p>To create a container, the <code class="highlighter-rouge">overlay</code> driver combines the directory representing the image’s top layer plus a new directory for the container. The image’s top layer is the “lowerdir” in the overlay and read-only. The new directory for the container is the “upperdir” and is writable.</p> <h3 id="example-image-and-container-on-disk-constructs-overlay">Example: Image and container on-disk constructs (<code class="highlighter-rouge">overlay</code>)</h3> <p>The following <code class="highlighter-rouge">docker pull</code> command shows a Docker host with downloading a Docker image comprising five layers.</p> <pre class="highlight" data-language="">$ sudo docker pull ubuntu
+
+Using default tag: latest
+latest: Pulling from library/ubuntu
+
+5ba4f30e5bea: Pull complete
+9d7d19c9dc56: Pull complete
+ac6ad7efd0f9: Pull complete
+e7491a747824: Pull complete
+a3ed95caeb02: Pull complete
+Digest: sha256:46fb5d001b88ad904c5c732b086b596b92cfb4a4840a3abd0e35dbb6870585e4
+Status: Downloaded newer image for ubuntu:latest
+</pre>  <p>Each image layer has its own directory under <code class="highlighter-rouge">/var/lib/docker/overlay/</code>. This is where the contents of each image layer are stored.</p> <p>The output of the command below shows the five directories that store the contents of each image layer just pulled. However, as can be seen, the image layer IDs do not match the directory names in <code class="highlighter-rouge">/var/lib/docker/overlay</code>. This is normal behavior in Docker 1.10 and later.</p> <pre class="highlight" data-language="">$ ls -l /var/lib/docker/overlay/
+
+total 20
+drwx------ 3 root root 4096 Jun 20 16:11 38f3ed2eac129654acef11c32670b534670c3a06e483fce313d72e3e0a15baa8
+drwx------ 3 root root 4096 Jun 20 16:11 55f1e14c361b90570df46371b20ce6d480c434981cbda5fd68c6ff61aa0a5358
+drwx------ 3 root root 4096 Jun 20 16:11 824c8a961a4f5e8fe4f4243dab57c5be798e7fd195f6d88ab06aea92ba931654
+drwx------ 3 root root 4096 Jun 20 16:11 ad0fe55125ebf599da124da175174a4b8c1878afe6907bf7c78570341f308461
+drwx------ 3 root root 4096 Jun 20 16:11 edab9b5e5bf73f2997524eebeac1de4cf9c8b904fa8ad3ec43b3504196aa3801
+</pre>  <p>The image layer directories contain the files unique to that layer as well as hard links to the data that is shared with lower layers. This allows for efficient use of disk space.</p> <pre class="highlight" data-language="">$ ls -i /var/lib/docker/overlay/38f3ed2eac129654acef11c32670b534670c3a06e483fce313d72e3e0a15baa8/root/bin/ls
+
+19793696 /var/lib/docker/overlay/38f3ed2eac129654acef11c32670b534670c3a06e483fce313d72e3e0a15baa8/root/bin/ls
+
+$ ls -i /var/lib/docker/overlay/55f1e14c361b90570df46371b20ce6d480c434981cbda5fd68c6ff61aa0a5358/root/bin/ls
+
+19793696 /var/lib/docker/overlay/55f1e14c361b90570df46371b20ce6d480c434981cbda5fd68c6ff61aa0a5358/root/bin/ls
+</pre>  <p>Containers also exist on-disk in the Docker host’s filesystem under <code class="highlighter-rouge">/var/lib/docker/overlay/</code>. If you inspect the directory relating to a running container using the <code class="highlighter-rouge">ls -l</code> command, you find the following file and directories.</p> <pre class="highlight" data-language="">$ ls -l /var/lib/docker/overlay/&lt;directory-of-running-container&gt;
+
+total 16
+-rw-r--r-- 1 root root   64 Jun 20 16:39 lower-id
+drwxr-xr-x 1 root root 4096 Jun 20 16:39 merged
+drwxr-xr-x 4 root root 4096 Jun 20 16:39 upper
+drwx------ 3 root root 4096 Jun 20 16:39 work
+</pre>  <p>These four filesystem objects are all artifacts of OverlayFS. The “lower-id” file contains the ID of the top layer of the image the container is based on. This is used by OverlayFS as the “lowerdir”.</p> <pre class="highlight" data-language="">$ cat /var/lib/docker/overlay/ec444863a55a9f1ca2df72223d459c5d940a721b2288ff86a3f27be28b53be6c/lower-id
+
+55f1e14c361b90570df46371b20ce6d480c434981cbda5fd68c6ff61aa0a5358
+</pre>  <p>The “upper” directory is the containers read-write layer. Any changes made to the container are written to this directory.</p> <p>The “merged” directory is effectively the containers mount point. This is where the unified view of the image (“lowerdir”) and container (“upperdir”) is exposed. Any changes written to the container are immediately reflected in this directory.</p> <p>The “work” directory is required for OverlayFS to function. It is used for things such as <em>copy_up</em> operations.</p> <p>You can verify all of these constructs from the output of the <code class="highlighter-rouge">mount</code> command. (Ellipses and line breaks are used in the output below to enhance readability.)</p> <pre class="highlight" data-language="">$ mount | grep overlay
+
+overlay on /var/lib/docker/overlay/ec444863a55a.../merged
+type overlay (rw,relatime,lowerdir=/var/lib/docker/overlay/55f1e14c361b.../root,
+upperdir=/var/lib/docker/overlay/ec444863a55a.../upper,
+workdir=/var/lib/docker/overlay/ec444863a55a.../work)
+</pre>  <p>The output reflects that the overlay is mounted as read-write (“rw”).</p> <h2 id="image-layering-and-sharing-with-overlayfs-overlay2">Image layering and sharing with OverlayFS (<code class="highlighter-rouge">overlay2</code>)</h2> <p>While the <code class="highlighter-rouge">overlay</code> driver only works with a single lower OverlayFS layer and hence requires hard links for implementation of multi-layered images, the <code class="highlighter-rouge">overlay2</code> driver natively supports multiple lower OverlayFS layers (up to 128).</p> <p>Hence the <code class="highlighter-rouge">overlay2</code> driver offers better performance for layer-related docker commands (e.g. <code class="highlighter-rouge">docker build</code> and <code class="highlighter-rouge">docker commit</code>), and consumes fewer inodes than the <code class="highlighter-rouge">overlay</code> driver.</p> <h3 id="example-image-and-container-on-disk-constructs-overlay2">Example: Image and container on-disk constructs (<code class="highlighter-rouge">overlay2</code>)</h3> <p>After downloading a five-layer image using <code class="highlighter-rouge">docker pull ubuntu</code>, you can see six directories under <code class="highlighter-rouge">/var/lib/docker/overlay2</code>.</p> <pre class="highlight" data-language="">$ ls -l /var/lib/docker/overlay2
+
+total 24
+drwx------ 5 root root 4096 Jun 20 07:36 223c2864175491657d238e2664251df13b63adb8d050924fd1bfcdb278b866f7
+drwx------ 3 root root 4096 Jun 20 07:36 3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b
+drwx------ 5 root root 4096 Jun 20 07:36 4e9fa83caff3e8f4cc83693fa407a4a9fac9573deaf481506c102d484dd1e6a1
+drwx------ 5 root root 4096 Jun 20 07:36 e8876a226237217ec61c4baf238a32992291d059fdac95ed6303bdff3f59cff5
+drwx------ 5 root root 4096 Jun 20 07:36 eca1e4e1694283e001f200a667bb3cb40853cf2d1b12c29feda7422fed78afed
+drwx------ 2 root root 4096 Jun 20 07:36 l
+</pre>  <p>The “l” directory contains shortened layer identifiers as symbolic links. These shortened identifiers are used for avoid hitting the page size limitation on mount arguments.</p> <pre class="highlight" data-language="">$ ls -l /var/lib/docker/overlay2/l
+
+total 20
+lrwxrwxrwx 1 root root 72 Jun 20 07:36 6Y5IM2XC7TSNIJZZFLJCS6I4I4 -&gt; ../3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/diff
+lrwxrwxrwx 1 root root 72 Jun 20 07:36 B3WWEFKBG3PLLV737KZFIASSW7 -&gt; ../4e9fa83caff3e8f4cc83693fa407a4a9fac9573deaf481506c102d484dd1e6a1/diff
+lrwxrwxrwx 1 root root 72 Jun 20 07:36 JEYMODZYFCZFYSDABYXD5MF6YO -&gt; ../eca1e4e1694283e001f200a667bb3cb40853cf2d1b12c29feda7422fed78afed/diff
+lrwxrwxrwx 1 root root 72 Jun 20 07:36 NFYKDW6APBCCUCTOUSYDH4DXAT -&gt; ../223c2864175491657d238e2664251df13b63adb8d050924fd1bfcdb278b866f7/diff
+lrwxrwxrwx 1 root root 72 Jun 20 07:36 UL2MW33MSE3Q5VYIKBRN4ZAGQP -&gt; ../e8876a226237217ec61c4baf238a32992291d059fdac95ed6303bdff3f59cff5/diff
+</pre>  <p>The lowerest layer contains the “link” file which contains the name of the shortened identifier, and the “diff” directory which contains the contents.</p> <pre class="highlight" data-language="">$ ls /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/
+
+diff  link
+
+$ cat /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/link
+
+6Y5IM2XC7TSNIJZZFLJCS6I4I4
+
+$ ls  /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/diff
+
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+</pre>  <p>The second layer contains the “lower” file for denoting the layer composition, and the “diff” directory for the layer contents. It also contains the “merged” and the “work” directories.</p> <pre class="highlight" data-language="">$ ls /var/lib/docker/overlay2/223c2864175491657d238e2664251df13b63adb8d050924fd1bfcdb278b866f7
+
+diff  link  lower  merged  work
+
+$ cat /var/lib/docker/overlay2/223c2864175491657d238e2664251df13b63adb8d050924fd1bfcdb278b866f7/lower
+
+l/6Y5IM2XC7TSNIJZZFLJCS6I4I4
+
+$ ls /var/lib/docker/overlay2/223c2864175491657d238e2664251df13b63adb8d050924fd1bfcdb278b866f7/diff/
+
+etc  sbin  usr  var
+</pre>  <p>A directory for running container have similar files and directories as well. Note that the lower list is separated by ‘:’, and ordered from highest layer to lower.</p> <pre class="highlight" data-language="">$ ls -l /var/lib/docker/overlay/&lt;directory-of-running-container&gt;
+
+$ cat /var/lib/docker/overlay/&lt;directory-of-running-container&gt;/lower
+
+l/DJA75GUWHWG7EWICFYX54FIOVT:l/B3WWEFKBG3PLLV737KZFIASSW7:l/JEYMODZYFCZFYSDABYXD5MF6YO:l/UL2MW33MSE3Q5VYIKBRN4ZAGQP:l/NFYKDW6APBCCUCTOUSYDH4DXAT:l/6Y5IM2XC7TSNIJZZFLJCS6I4I4
+</pre>  <p>The result of <code class="highlighter-rouge">mount</code> is as follows:</p> <pre class="highlight" data-language="">$ mount | grep overlay
+
+overlay on /var/lib/docker/overlay2/9186877cdf386d0a3b016149cf30c208f326dca307529e646afce5b3f83f5304/merged
+type overlay (rw,relatime,
+lowerdir=l/DJA75GUWHWG7EWICFYX54FIOVT:l/B3WWEFKBG3PLLV737KZFIASSW7:l/JEYMODZYFCZFYSDABYXD5MF6YO:l/UL2MW33MSE3Q5VYIKBRN4ZAGQP:l/NFYKDW6APBCCUCTOUSYDH4DXAT:l/6Y5IM2XC7TSNIJZZFLJCS6I4I4,
+upperdir=9186877cdf386d0a3b016149cf30c208f326dca307529e646afce5b3f83f5304/diff,
+workdir=9186877cdf386d0a3b016149cf30c208f326dca307529e646afce5b3f83f5304/work)
+</pre>  <h2 id="container-reads-and-writes-with-overlay">Container reads and writes with overlay</h2> <p>Consider three scenarios where a container opens a file for read access with overlay.</p> <ul> <li> <p><strong>The file does not exist in the container layer</strong>. If a container opens a file for read access and the file does not already exist in the container (“upperdir”) it is read from the image (“lowerdir”). This should incur very little performance overhead.</p> </li> <li> <p><strong>The file only exists in the container layer</strong>. If a container opens a file for read access and the file exists in the container (“upperdir”) and not in the image (“lowerdir”), it is read directly from the container.</p> </li> <li> <p><strong>The file exists in the container layer and the image layer</strong>. If a container opens a file for read access and the file exists in the image layer and the container layer, the file’s version in the container layer is read. This is because files in the container layer (“upperdir”) obscure files with the same name in the image layer (“lowerdir”).</p> </li> </ul> <p>Consider some scenarios where files in a container are modified.</p> <ul> <li> <p><strong>Writing to a file for the first time</strong>. The first time a container writes to an existing file, that file does not exist in the container (“upperdir”). The <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> driver performs a <em>copy_up</em> operation to copy the file from the image (“lowerdir”) to the container (“upperdir”). The container then writes the changes to the new copy of the file in the container layer.</p> <p>However, OverlayFS works at the file level not the block level. This means that all OverlayFS copy-up operations copy entire files, even if the file is very large and only a small part of it is being modified. This can have a noticeable impact on container write performance. However, two things are worth noting:</p> <ul> <li> <p>The copy_up operation only occurs the first time any given file is written to. Subsequent writes to the same file will operate against the copy of the file already copied up to the container.</p> </li> <li> <p>OverlayFS only works with two layers. This means that performance should be better than AUFS which can suffer noticeable latencies when searching for files in images with many layers.</p> </li> </ul> </li> <li> <p><strong>Deleting files and directories</strong>. When files are deleted within a container a <em>whiteout</em> file is created in the containers “upperdir”. The version of the file in the image layer (“lowerdir”) is not deleted. However, the whiteout file in the container obscures it.</p> <p>Deleting a directory in a container results in <em>opaque directory</em> being created in the “upperdir”. This has the same effect as a whiteout file and effectively masks the existence of the directory in the image’s “lowerdir”.</p> </li> <li> <p><strong>Renaming directories</strong>. Calling <code class="highlighter-rouge">rename(2)</code> for a directory is allowed only when both of the source and the destination path are on the top layer. Otherwise, it returns <code class="highlighter-rouge">EXDEV</code> (“cross-device link not permitted”).</p> </li> </ul> <p>So your application has to be designed so that it can handle <code class="highlighter-rouge">EXDEV</code> and fall back to a “copy and unlink” strategy.</p> <h2 id="configure-docker-with-the-overlayoverlay2-storage-driver">Configure Docker with the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> storage driver</h2> <p>To configure Docker to use the <code class="highlighter-rouge">overlay</code> storage driver your Docker host must be running version 3.18 of the Linux kernel (preferably newer) with the overlay kernel module loaded. For the <code class="highlighter-rouge">overlay2</code> driver, the version of your kernel must be 4.0 or newer. OverlayFS can operate on top of most supported Linux filesystems. However, ext4 is currently recommended for use in production environments.</p> <p>The following procedure shows you how to configure your Docker host to use OverlayFS. The procedure assumes that the Docker daemon is in a stopped state.</p> <blockquote> <p><strong>Caution:</strong> If you have already run the Docker daemon on your Docker host and have images you want to keep, <code class="highlighter-rouge">push</code> them Docker Hub or your private Docker Trusted Registry before attempting this procedure.</p> </blockquote> <ol> <li> <p>If it is running, stop the Docker <code class="highlighter-rouge">daemon</code>.</p> </li> <li> <p>Verify your kernel version and that the overlay kernel module is loaded.</p> <pre class="highlight" data-language=""> $ uname -r
+
+ 3.19.0-21-generic
+
+ $ lsmod | grep overlay
+
+ overlay
+</pre>  </li> <li> <p>Start the Docker daemon with the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> storage driver.</p> <pre class="highlight" data-language=""> $ dockerd --storage-driver=overlay &amp;
+
+ [1] 29403
+ root@ip-10-0-0-174:/home/ubuntu# INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
+ INFO[0000] Option DefaultDriver: bridge
+ INFO[0000] Option DefaultNetwork: bridge
+ &lt;output truncated&gt;
+</pre>  <p>Alternatively, you can force the Docker daemon to automatically start with the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> driver by editing the Docker config file and adding the <code class="highlighter-rouge">--storage-driver=overlay</code> flag to the <code class="highlighter-rouge">DOCKER_OPTS</code> line. Once this option is set you can start the daemon using normal startup scripts without having to manually pass in the <code class="highlighter-rouge">--storage-driver</code> flag.</p> </li> <li> <p>Verify that the daemon is using the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> storage driver</p> <pre class="highlight" data-language=""> $ docker info
+
+ Containers: 0
+ Images: 0
+ Storage Driver: overlay
+  Backing Filesystem: extfs
+ &lt;output truncated&gt;
+</pre>  <p>Notice that the <em>Backing filesystem</em> in the output above is showing as <code class="highlighter-rouge">extfs</code>. Multiple backing filesystems are supported but <code class="highlighter-rouge">extfs</code> (ext4) is recommended for production use cases.</p> </li> </ol> <p>Your Docker host is now using the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> storage driver. If you run the <code class="highlighter-rouge">mount</code> command, you’ll find Docker has automatically created the <code class="highlighter-rouge">overlay</code> mount with the required “lowerdir”, “upperdir”, “merged” and “workdir” constructs.</p> <h2 id="overlayfs-and-docker-performance">OverlayFS and Docker Performance</h2> <p>As a general rule, the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> drivers should be fast. Almost certainly faster than <code class="highlighter-rouge">aufs</code> and <code class="highlighter-rouge">devicemapper</code>. In certain circumstances it may also be faster than <code class="highlighter-rouge">btrfs</code>. That said, there are a few things to be aware of relative to the performance of Docker using the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> storage drivers.</p> <ul> <li> <p><strong>Page Caching</strong>. OverlayFS supports page cache sharing. This means multiple containers accessing the same file can share a single page cache entry (or entries). This makes the <code class="highlighter-rouge">overlay</code>/<code class="highlighter-rouge">overlay2</code> drivers efficient with memory and a good option for PaaS and other high density use cases.</p> </li> <li> <p><strong>copy_up</strong>. As with AUFS, OverlayFS has to perform copy-up operations any time a container writes to a file for the first time. This can insert latency into the write operation — especially if the file being copied up is large. However, once the file has been copied up, all subsequent writes to that file occur without the need for further copy-up operations.</p> <p>The OverlayFS copy_up operation should be faster than the same operation with AUFS. This is because AUFS supports more layers than OverlayFS and it is possible to incur far larger latencies if searching through many AUFS layers.</p> </li> <li> <p><strong>Inode limits</strong>. Use of the <code class="highlighter-rouge">overlay</code> storage driver can cause excessive inode consumption. This is especially so as the number of images and containers on the Docker host grows. A Docker host with a large number of images and lots of started and stopped containers can quickly run out of inodes. The <code class="highlighter-rouge">overlay2</code> does not have such an issue.</p> </li> </ul> <p>Unfortunately you can only specify the number of inodes in a filesystem at the time of creation. For this reason, you may wish to consider putting <code class="highlighter-rouge">/var/lib/docker</code> on a separate device with its own filesystem, or manually specifying the number of inodes when creating the filesystem.</p> <p>The following generic performance best practices also apply to OverlayFS.</p> <ul> <li> <p><strong>Solid State Devices (SSD)</strong>. For best performance it is always a good idea to use fast storage media such as solid state devices (SSD).</p> </li> <li> <p><strong>Use Data Volumes</strong>. Data volumes provide the best and most predictable performance. This is because they bypass the storage driver and do not incur any of the potential overheads introduced by thin provisioning and copy-on-write. For this reason, you should place heavy write workloads on data volumes.</p> </li> </ul> <h2 id="overlayfs-compatibility">OverlayFS compatibility</h2> <p>To summarize the OverlayFS’s aspect which is incompatible with other filesystems:</p> <ul> <li>
+<strong>open(2)</strong>. OverlayFS only implements a subset of the POSIX standards. This can result in certain OverlayFS operations breaking POSIX standards. One such operation is the <em>copy-up</em> operation. Suppose that your application calls <code class="highlighter-rouge">fd1=open("foo", O_RDONLY)</code> and then <code class="highlighter-rouge">fd2=open("foo", O_RDWR)</code>. In this case, your application expects <code class="highlighter-rouge">fd1</code> and <code class="highlighter-rouge">fd2</code> to refer to the same file. However, due to a copy-up operation that occurs after the first calling to <code class="highlighter-rouge">open(2)</code>, the descriptors refer to different files.</li> </ul> <p><code class="highlighter-rouge">yum</code> is known to be affected unless the <code class="highlighter-rouge">yum-plugin-ovl</code> package is installed. If the <code class="highlighter-rouge">yum-plugin-ovl</code> package is not available in your distribution (e.g. RHEL/CentOS prior to 6.8 or 7.2), you may need to run <code class="highlighter-rouge">touch /var/lib/rpm/*</code> before running <code class="highlighter-rouge">yum install</code>.</p> <ul> <li>
+<strong>rename(2)</strong>. OverlayFS does not fully support the <code class="highlighter-rouge">rename(2)</code> system call. Your application needs to detect its failure and fall back to a “copy and unlink” strategy.</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/storagedriver/overlayfs-driver/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/storagedriver/overlayfs-driver/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

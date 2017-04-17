@@ -1,0 +1,125 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Build Your Own Bridge (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="This section explains how to build your own bridge to replace the Docker default bridge. This is a bridge network named bridge created automatically &hellip;">
+  <meta name="keywords" content="build, your, own, bridge, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/userguide/networking/default_network/build-bridges/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="build-your-own-bridge">Build your own bridge</h1> <p>This section explains how to build your own bridge to replace the Docker default bridge. This is a <code>bridge</code> network named <code>bridge</code> created automatically when you install Docker.</p> <blockquote> <p><strong>Note</strong>: The <a href="../../">Docker networks feature</a> allows you to create user-defined networks in addition to the default bridge network.</p> </blockquote> <p>You can set up your own bridge before starting Docker and use <code>-b BRIDGE</code> or <code>--bridge=BRIDGE</code> to tell Docker to use your bridge instead. If you already have Docker up and running with its default <code>docker0</code> still configured, you can directly create your bridge and restart Docker with it or want to begin by stopping the service and removing the interface:</p> <pre># Stopping Docker and removing docker0
+
+$ sudo service docker stop
+
+$ sudo ip link set dev docker0 down
+
+$ sudo brctl delbr docker0
+
+$ sudo iptables -t nat -F POSTROUTING
+</pre> <p>Then, before starting the Docker service, create your own bridge and give it whatever configuration you want. Here we will create a simple enough bridge that we really could just have used the options in the previous section to customize <code>docker0</code>, but it will be enough to illustrate the technique.</p> <pre># Create our own bridge
+
+$ sudo brctl addbr bridge0
+
+$ sudo ip addr add 192.168.5.1/24 dev bridge0
+
+$ sudo ip link set dev bridge0 up
+
+# Confirming that our bridge is up and running
+
+$ ip addr show bridge0
+
+4: bridge0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc noop state UP group default
+    link/ether 66:38:d0:0d:76:18 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.5.1/24 scope global bridge0
+       valid_lft forever preferred_lft forever
+
+# Tell Docker about it and restart (on Ubuntu)
+
+$ echo 'DOCKER_OPTS="-b=bridge0"' &gt;&gt; /etc/default/docker
+
+$ sudo service docker start
+
+# Confirming new outgoing NAT masquerade is set up
+
+$ sudo iptables -t nat -L -n
+
+...
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination
+MASQUERADE  all  --  192.168.5.0/24      0.0.0.0/0
+</pre> <p>The result should be that the Docker server starts successfully and is now prepared to bind containers to the new bridge. After pausing to verify the bridge’s configuration, try creating a container -- you will see that its IP address is in your new IP address range, which Docker will have auto-detected.</p> <p>You can use the <code>brctl show</code> command to see Docker add and remove interfaces from the bridge as you start and stop containers, and can run <code>ip addr</code> and <code>ip
+route</code> inside a container to see that it has been given an address in the bridge’s IP address range and has been told to use the Docker host’s IP address on the bridge as its default gateway to the rest of the Internet.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/networking/default_network/build-bridges/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/networking/default_network/build-bridges/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

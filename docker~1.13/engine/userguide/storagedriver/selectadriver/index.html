@@ -1,0 +1,144 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Select a Storage Driver (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="This page describes Docker’s storage driver feature. It lists the storage drivers that Docker supports and the basic commands associated with &hellip;">
+  <meta name="keywords" content="select, storage, driver, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/userguide/storagedriver/selectadriver/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Select a storage driver</h1>  <p>This page describes Docker’s storage driver feature. It lists the storage drivers that Docker supports and the basic commands associated with managing them. Finally, this page provides guidance on choosing a storage driver.</p> <p>The material on this page is intended for readers who already have an <a href="../imagesandcontainers/">understanding of the storage driver technology</a>.</p> <h2 id="a-pluggable-storage-driver-architecture">A pluggable storage driver architecture</h2> <p>Docker has a pluggable storage driver architecture. This gives you the flexibility to “plug in” the storage driver that is best for your environment and use-case. Each Docker storage driver is based on a Linux filesystem or volume manager. Further, each storage driver is free to implement the management of image layers and the container layer in its own unique way. This means some storage drivers perform better than others in different circumstances.</p> <p>Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and their driver names:</p> <table> <thead> <tr> <th>Technology</th> <th>Storage driver name</th> </tr> </thead> <tbody> <tr> <td>OverlayFS</td> <td>
+<code class="highlighter-rouge">overlay</code> or <code class="highlighter-rouge">overlay2</code>
+</td> </tr> <tr> <td>AUFS</td> <td><code class="highlighter-rouge">aufs</code></td> </tr> <tr> <td>Btrfs</td> <td><code class="highlighter-rouge">btrfs</code></td> </tr> <tr> <td>Device Mapper</td> <td><code class="highlighter-rouge">devicemapper</code></td> </tr> <tr> <td>VFS</td> <td><code class="highlighter-rouge">vfs</code></td> </tr> <tr> <td>ZFS</td> <td><code class="highlighter-rouge">zfs</code></td> </tr> </tbody> </table> <p>To find out which storage driver is set on the daemon, you use the <code class="highlighter-rouge">docker info</code> command:</p> <pre class="highlight" data-language="">$ docker info
+
+Containers: 0
+Images: 0
+Storage Driver: overlay
+ Backing Filesystem: extfs
+Execution Driver: native-0.2
+Logging Driver: json-file
+Kernel Version: 3.19.0-15-generic
+Operating System: Ubuntu 15.04
+... output truncated ...
+</pre>  <p>The <code class="highlighter-rouge">info</code> subcommand reveals that the Docker daemon is using the <code class="highlighter-rouge">overlay</code> storage driver with a <code class="highlighter-rouge">Backing Filesystem</code> value of <code class="highlighter-rouge">extfs</code>. The <code class="highlighter-rouge">extfs</code> value means that the <code class="highlighter-rouge">overlay</code> storage driver is operating on top of an existing (ext) filesystem. The backing filesystem refers to the filesystem that was used to create the Docker host’s local storage area under <code class="highlighter-rouge">/var/lib/docker</code>.</p> <p>Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host’s local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the <code class="highlighter-rouge">btrfs</code> storage driver on a Btrfs backing filesystem. The following table lists each storage driver and whether it must match the host’s backing filesystem:</p> <table> <thead> <tr> <th>Storage driver</th> <th>Commonly used on</th> <th>Disabled on</th> </tr> </thead> <tbody> <tr> <td><code class="highlighter-rouge">overlay</code></td> <td>
+<code class="highlighter-rouge">ext4</code> <code class="highlighter-rouge">xfs</code>
+</td> <td>
+<code class="highlighter-rouge">btrfs</code> <code class="highlighter-rouge">aufs</code> <code class="highlighter-rouge">overlay</code> <code class="highlighter-rouge">overlay2</code> <code class="highlighter-rouge">zfs</code> <code class="highlighter-rouge">eCryptfs</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">overlay2</code></td> <td>
+<code class="highlighter-rouge">ext4</code> <code class="highlighter-rouge">xfs</code>
+</td> <td>
+<code class="highlighter-rouge">btrfs</code> <code class="highlighter-rouge">aufs</code> <code class="highlighter-rouge">overlay</code> <code class="highlighter-rouge">overlay2</code> <code class="highlighter-rouge">zfs</code> <code class="highlighter-rouge">eCryptfs</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">aufs</code></td> <td>
+<code class="highlighter-rouge">ext4</code> <code class="highlighter-rouge">xfs</code>
+</td> <td>
+<code class="highlighter-rouge">btrfs</code> <code class="highlighter-rouge">aufs</code> <code class="highlighter-rouge">eCryptfs</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">btrfs</code></td> <td>
+<code class="highlighter-rouge">btrfs</code> <em>only</em>
+</td> <td>N/A</td> </tr> <tr> <td><code class="highlighter-rouge">devicemapper</code></td> <td><code class="highlighter-rouge">direct-lvm</code></td> <td>N/A</td> </tr> <tr> <td><code class="highlighter-rouge">vfs</code></td> <td>debugging only</td> <td>N/A</td> </tr> <tr> <td><code class="highlighter-rouge">zfs</code></td> <td>
+<code class="highlighter-rouge">zfs</code> <em>only</em>
+</td> <td>N/A</td> </tr> </tbody> </table> <blockquote> <p><strong>Note</strong> “Disabled on” means some storage drivers can not run over certain backing filesystem.</p> </blockquote> <p>You can set the storage driver by passing the <code class="highlighter-rouge">--storage-driver=&lt;name&gt;</code> option to the <code class="highlighter-rouge">dockerd</code> command line, or by setting the option on the <code class="highlighter-rouge">DOCKER_OPTS</code> line in the <code class="highlighter-rouge">/etc/default/docker</code> file.</p> <p>The following command shows how to start the Docker daemon with the <code class="highlighter-rouge">devicemapper</code> storage driver using the <code class="highlighter-rouge">dockerd</code> command:</p> <pre class="highlight" data-language="">$ dockerd --storage-driver=devicemapper &amp;
+
+$ docker info
+
+Containers: 0
+Images: 0
+Storage Driver: devicemapper
+ Pool Name: docker-252:0-147544-pool
+ Pool Blocksize: 65.54 kB
+ Backing Filesystem: extfs
+ Data file: /dev/loop0
+ Metadata file: /dev/loop1
+ Data Space Used: 1.821 GB
+ Data Space Total: 107.4 GB
+ Data Space Available: 3.174 GB
+ Metadata Space Used: 1.479 MB
+ Metadata Space Total: 2.147 GB
+ Metadata Space Available: 2.146 GB
+ Thin Pool Minimum Free Space: 10.74 GB
+ Udev Sync Supported: true
+ Deferred Removal Enabled: false
+ Data loop file: /var/lib/docker/devicemapper/devicemapper/data
+ Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
+ Library Version: 1.02.90 (2014-09-01)
+Execution Driver: native-0.2
+Logging Driver: json-file
+Kernel Version: 3.19.0-15-generic
+Operating System: Ubuntu 15.04
+&lt;output truncated&gt;
+</pre>  <p>Your choice of storage driver can affect the performance of your containerized applications. So it’s important to understand the different storage driver options available and select the right one for your application. Later, in this page you’ll find some advice for choosing an appropriate driver.</p> <h2 id="shared-storage-systems-and-the-storage-driver">Shared storage systems and the storage driver</h2> <p>Many enterprises consume storage from shared storage systems such as SAN and NAS arrays. These often provide increased performance and availability, as well as advanced features such as thin provisioning, deduplication and compression.</p> <p>The Docker storage driver and data volumes can both operate on top of storage provided by shared storage systems. This allows Docker to leverage the increased performance and availability these systems provide. However, Docker does not integrate with these underlying systems.</p> <p>Remember that each Docker storage driver is based on a Linux filesystem or volume manager. Be sure to follow existing best practices for operating your storage driver (filesystem or volume manager) on top of your shared storage system. For example, if using the ZFS storage driver on top of <em>XYZ</em> shared storage system, be sure to follow best practices for operating ZFS filesystems on top of XYZ shared storage system.</p> <h2 id="which-storage-driver-should-you-choose">Which storage driver should you choose?</h2> <p>Several factors influence the selection of a storage driver. However, these two facts must be kept in mind:</p> <ol> <li>No single driver is well suited to every use-case</li> <li>Storage drivers are improving and evolving all of the time</li> </ol> <p>With these factors in mind, the following points, coupled with the table below, should provide some guidance.</p> <h3 id="stability">Stability</h3> <p>For the most stable and hassle-free Docker experience, you should consider the following:</p> <ul> <li>
+<strong>Use the default storage driver for your distribution</strong>. When Docker installs, it chooses a default storage driver based on the configuration of your system. Stability is an important factor influencing which storage driver is used by default. Straying from this default may increase your chances of encountering bugs and nuances.</li> <li>
+<strong>Follow the configuration specified on the CS Engine <a href="https://success.docker.com/Help/Compatibility_Matrix" target="_blank">compatibility matrix</a></strong>. The CS Engine is the commercially supported version of the Docker Engine. It’s code-base is identical to the open source Engine, but it has a limited set of supported configurations. These <em>supported configurations</em> use the most stable and mature storage drivers. Straying from these configurations may also increase your chances of encountering bugs and nuances.</li> </ul> <h3 id="experience-and-expertise">Experience and expertise</h3> <p>Choose a storage driver that you and your team/organization have experience with. For example, if you use RHEL or one of its downstream forks, you may already have experience with LVM and Device Mapper. If so, you may wish to use the <code class="highlighter-rouge">devicemapper</code> driver.</p> <p>If you do not feel you have expertise with any of the storage drivers supported by Docker, and you want an easy-to-use stable Docker experience, you should consider using the default driver installed by your distribution’s Docker package.</p> <h3 id="future-proofing">Future-proofing</h3> <p>Many people consider OverlayFS as the future of the Docker storage driver. However, it is less mature, and potentially less stable than some of the more mature drivers such as <code class="highlighter-rouge">aufs</code> and <code class="highlighter-rouge">devicemapper</code>. For this reason, you should use the OverlayFS driver with caution and expect to encounter more bugs and nuances than if you were using a more mature driver.</p> <p>The following diagram lists each storage driver and provides insight into some of their pros and cons. When selecting which storage driver to use, consider the guidance offered by the table below along with the points mentioned above.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/driver-pros-cons.png" alt=""></p> <h3 id="overlay-vs-overlay2">Overlay vs Overlay2</h3> <p>OverlayFS has 2 storage drivers which both make use of the same OverlayFS technology but with different implementations and incompatible on disk storage. Since the storage is incompatible, switching between the two will require re-creating all image content. The <code class="highlighter-rouge">overlay</code> driver is the original implementation and the only option in Docker 1.11 and before. The <code class="highlighter-rouge">overlay</code> driver has known limitations with inode exhaustion and commit performance. The <code class="highlighter-rouge">overlay2</code> driver addresses this limitation, but is only compatible with Linux kernel 4.0 and later. For users on a pre-4.0 kernel or with an existing <code class="highlighter-rouge">overlay</code> graph, it is recommended to stay on <code class="highlighter-rouge">overlay</code>. For users with at least a 4.0 kernel and no existing or required <code class="highlighter-rouge">overlay</code> graph data, then <code class="highlighter-rouge">overlay2</code> may be used.</p> <blockquote> <p><strong>Note</strong> <code class="highlighter-rouge">overlay2</code> graph data will not interfere with <code class="highlighter-rouge">overlay</code> graph data. However when switching to <code class="highlighter-rouge">overlay2</code>, the user is responsible for removing <code class="highlighter-rouge">overlay</code> graph data to avoid storage duplication.</p> </blockquote> <h2 id="related-information">Related information</h2> <ul> <li><a href="../imagesandcontainers/">Understand images, containers, and storage drivers</a></li> <li><a href="../aufs-driver/">AUFS storage driver in practice</a></li> <li><a href="../btrfs-driver/">Btrfs storage driver in practice</a></li> <li><a href="../device-mapper-driver/">Device Mapper storage driver in practice</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/storagedriver/selectadriver/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/storagedriver/selectadriver/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

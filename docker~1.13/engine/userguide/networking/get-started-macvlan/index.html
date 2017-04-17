@@ -1,0 +1,205 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Get Started With Macvlan Network Driver (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="The Macvlan driver is in order to make Docker users use cases and vet the implementation to ensure a hardened, production ready driver. Libnetwork &hellip;">
+  <meta name="keywords" content="get, started, with, macvlan, network, driver, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/userguide/networking/get-started-macvlan/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Get started with Macvlan network driver</h1>  <p>The Macvlan driver is in order to make Docker users use cases and vet the implementation to ensure a hardened, production ready driver. Libnetwork now gives users total control over both IPv4 and IPv6 addressing. The VLAN drivers build on top of that in giving operators complete control of layer 2 VLAN tagging for users interested in underlay network integration. For overlay deployments that abstract away physical constraints see the <a href="../get-started-overlay/">multi-host overlay </a> driver.</p> <p>Macvlan is a new twist on the tried and true network virtualization technique. The Linux implementations are extremely lightweight because rather than using the traditional Linux bridge for isolation, they are simply associated to a Linux Ethernet interface or sub-interface to enforce separation between networks and connectivity to the physical network.</p> <p>Macvlan offers a number of unique features and plenty of room for further innovations with the various modes. Two high level advantages of these approaches are, the positive performance implications of bypassing the Linux bridge and the simplicity of having less moving parts. Removing the bridge that traditionally resides in between the Docker host NIC and container interface leaves a very simple setup consisting of container interfaces, attached directly to the Docker host interface. This result is easy access for external facing services as there is no port mappings in these scenarios.</p> <h2 id="pre-requisites">Pre-Requisites</h2> <ul> <li> <p>The examples on this page are all single host and setup using Docker 1.12.0+</p> </li> <li> <p>All of the examples can be performed on a single host running Docker. Any examples using a sub-interface like <code class="highlighter-rouge">eth0.10</code> can be replaced with <code class="highlighter-rouge">eth0</code> or any other valid parent interface on the Docker host. Sub-interfaces with a <code class="highlighter-rouge">.</code> are created on the fly. <code class="highlighter-rouge">-o parent</code> interfaces can also be left out of the <code class="highlighter-rouge">docker network create</code> all together and the driver will create a <code class="highlighter-rouge">dummy</code> interface that will enable local host connectivity to perform the examples.</p> </li> <li> <p>Kernel requirements:</p> </li> <li>To check your current kernel version, use <code class="highlighter-rouge">uname -r</code> to display your kernel version</li> <li>Macvlan Linux kernel v3.9–3.19 and 4.0+</li> </ul> <h2 id="macvlan-bridge-mode-example-usage">Macvlan Bridge Mode Example Usage</h2> <p>Macvlan Bridge mode has a unique MAC address per container used to track MAC to port mappings by the Docker host.</p> <ul> <li> <p>Macvlan driver networks are attached to a parent Docker host interface. Examples are a physical interface such as <code class="highlighter-rouge">eth0</code>, a sub-interface for 802.1q VLAN tagging like <code class="highlighter-rouge">eth0.10</code> (<code class="highlighter-rouge">.10</code> representing VLAN <code class="highlighter-rouge">10</code>) or even bonded host adaptors which bundle two Ethernet interfaces into a single logical interface.</p> </li> <li> <p>The specified gateway is external to the host provided by the network infrastructure.</p> </li> <li> <p>Each Macvlan Bridge mode Docker network is isolated from one another and there can be only one network attached to a parent interface at a time. There is a theoretical limit of 4,094 sub-interfaces per host adaptor that a Docker network could be attached to.</p> </li> <li> <p>Any container inside the same subnet can talk to any other container in the same network without a gateway in <code class="highlighter-rouge">macvlan bridge</code>.</p> </li> <li> <p>The same <code class="highlighter-rouge">docker network</code> commands apply to the vlan drivers.</p> </li> <li> <p>In Macvlan mode, containers on separate networks cannot reach one another without an external process routing between the two networks/subnets. This also applies to multiple subnets within the same docker network.</p> </li> </ul> <p>In the following example, <code class="highlighter-rouge">eth0</code> on the docker host has an IP on the <code class="highlighter-rouge">172.16.86.0/24</code> network and a default gateway of <code class="highlighter-rouge">172.16.86.1</code>. The gateway is an external router with an address of <code class="highlighter-rouge">172.16.86.1</code>. An IP address is not required on the Docker host interface <code class="highlighter-rouge">eth0</code> in <code class="highlighter-rouge">bridge</code> mode, it merely needs to be on the proper upstream network to get forwarded by a network switch or network router.</p> <p><img src="https://docs.docker.com/engine/userguide/networking/images/macvlan_bridge_simple.png" alt="Simple Macvlan Bridge Mode Example"></p> <p><strong>Note</strong> For Macvlan bridge mode the subnet values need to match the NIC’s interface of the Docker host. For example, Use the same subnet and gateway of the Docker host ethernet interface that is specified by the <code class="highlighter-rouge">-o parent=</code> option.</p> <ul> <li> <p>The parent interface used in this example is <code class="highlighter-rouge">eth0</code> and it is on the subnet <code class="highlighter-rouge">172.16.86.0/24</code>. The containers in the <code class="highlighter-rouge">docker network</code> will also need to be on this same subnet as the parent <code class="highlighter-rouge">-o parent=</code>. The gateway is an external router on the network, not any ip masquerading or any other local proxy.</p> </li> <li> <p>The driver is specified with <code class="highlighter-rouge">-d driver_name</code> option. In this case <code class="highlighter-rouge">-d macvlan</code></p> </li> <li> <p>The parent interface <code class="highlighter-rouge">-o parent=eth0</code> is configured as followed:</p> </li> </ul> <pre class="highlight" data-language="">ip addr show eth0
+3: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    inet 172.16.86.250/24 brd 172.16.86.255 scope global eth0
+</pre>  <p>Create the macvlan network and run a couple of containers attached to it:</p> <pre class="highlight" data-language=""># Macvlan  (-o macvlan_mode= Defaults to Bridge mode if not specified)
+docker network create -d macvlan \
+    --subnet=172.16.86.0/24 \
+    --gateway=172.16.86.1  \
+    -o parent=eth0 pub_net
+
+# Run a container on the new network specifying the --ip address.
+docker  run --net=pub_net --ip=172.16.86.10 -itd alpine /bin/sh
+
+# Start a second container and ping the first
+docker  run --net=pub_net -it --rm alpine /bin/sh
+ping -c 4 172.16.86.10
+
+</pre>  <p>Take a look at the containers ip and routing table:</p> <pre class="highlight" data-language="">
+ip a show eth0
+    eth0@if3: &lt;BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN&gt; mtu 1500 qdisc noqueue state UNKNOWN
+    link/ether 46:b2:6b:26:2f:69 brd ff:ff:ff:ff:ff:ff
+    inet 172.16.86.2/24 scope global eth0
+
+ip route
+    default via 172.16.86.1 dev eth0
+    172.16.86.0/24 dev eth0  src 172.16.86.2
+
+# NOTE: the containers can NOT ping the underlying host interfaces as
+# they are intentionally filtered by Linux for additional isolation.
+# In this case the containers cannot ping the -o parent=172.16.86.250
+</pre>  <p>You can explicitly specify the <code class="highlighter-rouge">bridge</code> mode option <code class="highlighter-rouge">-o macvlan_mode=bridge</code>. It is the default so will be in <code class="highlighter-rouge">bridge</code> mode either way.</p> <p>While the <code class="highlighter-rouge">eth0</code> interface does not need to have an IP address in Macvlan Bridge it is not uncommon to have an IP address on the interface. Addresses can be excluded from getting an address from the default built in IPAM by using the <code class="highlighter-rouge">--aux-address=x.x.x.x</code> flag. This will blacklist the specified address from being handed out to containers. The same network example above blocking the <code class="highlighter-rouge">-o parent=eth0</code> address from being handed out to a container.</p> <pre class="highlight" data-language="">docker network create -d macvlan \
+    --subnet=172.16.86.0/24 \
+    --gateway=172.16.86.1  \
+    --aux-address="exclude_host=172.16.86.250" \
+    -o parent=eth0 pub_net
+</pre>  <p>Another option for subpool IP address selection in a network provided by the default Docker IPAM driver is to use <code class="highlighter-rouge">--ip-range=</code>. This specifies the driver to allocate container addresses from this pool rather then the broader range from the <code class="highlighter-rouge">--subnet=</code> argument from a network create as seen in the following example that will allocate addresses beginning at <code class="highlighter-rouge">192.168.32.128</code> and increment upwards from there.</p> <pre class="highlight" data-language="">docker network create -d macvlan  \
+    --subnet=192.168.32.0/24  \
+    --ip-range=192.168.32.128/25 \
+    --gateway=192.168.32.254  \
+    -o parent=eth0 macnet32
+
+# Start a container and verify the address is 192.168.32.128
+docker run --net=macnet32 -it --rm alpine /bin/sh
+</pre>  <p>The network can then be deleted with:</p> <pre class="highlight" data-language="">docker network rm &lt;network_name or id&gt;
+</pre>  <ul> <li>
+<strong>Note:</strong> In Macvlan you are not able to ping or communicate with the default namespace IP address. For example, if you create a container and try to ping the Docker host’s <code class="highlighter-rouge">eth0</code> it will <strong>not</strong> work. That traffic is explicitly filtered by the kernel modules themselves to offer additional provider isolation and security.</li> </ul> <p>For more on Docker networking commands see <a href="../work-with-networks/">Working with Docker network commands</a></p> <h2 id="macvlan-8021q-trunk-bridge-mode-example-usage">Macvlan 802.1q Trunk Bridge Mode Example Usage</h2> <p>VLANs (Virtual Local Area Networks) have long been a primary means of virtualizing data center networks and are still in virtually all existing networks today. VLANs work by tagging a Layer-2 isolation domain with a 12-bit identifier ranging from 1-4094 that is inserted into a packet header that enables a logical grouping of a single or multiple subnets of both IPv4 and IPv6. It is very common for network operators to separate traffic using VLANs based on a subnet(s) function or security profile such as <code class="highlighter-rouge">web</code>, <code class="highlighter-rouge">db</code> or any other isolation needs.</p> <p>It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by its standard 802.1q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs, by creating Linux sub-interfaces, each one dedicated to a unique VLAN ID.</p> <p><img src="https://docs.docker.com/engine/userguide/networking/images/multi_tenant_8021q_vlans.png" alt="Multi Tenant 802.1q Vlans"></p> <p>Trunking 802.1q to a Linux host is notoriously painful for many in operations. It requires configuration file changes in order to be persistent through a reboot. If a bridge is involved, a physical NIC needs to be moved into the bridge and the bridge then gets the IP address. This has lead to many a stranded servers since the risk of cutting off access during that convoluted process is high.</p> <p>Like all of the Docker network drivers, the overarching goal is to alleviate the operational pains of managing network resources. To that end, when a network receives a sub-interface as the parent that does not exist, the drivers create the VLAN tagged interfaces while creating the network.</p> <p>In the case of a host reboot, instead of needing to modify often complex network configuration files the driver will recreate all network links when the Docker daemon restarts. The driver tracks if it created the VLAN tagged sub-interface originally with the network create and will <strong>only</strong> recreate the sub-interface after a restart or delete <code class="highlighter-rouge">docker network rm</code> the link if it created it in the first place with <code class="highlighter-rouge">docker network create</code>.</p> <p>If the user doesn’t want Docker to modify the <code class="highlighter-rouge">-o parent</code> sub-interface, the user simply needs to pass an existing link that already exists as the parent interface. Parent interfaces such as <code class="highlighter-rouge">eth0</code> are not deleted, only sub-interfaces that are not master links.</p> <p>For the driver to add/delete the vlan sub-interfaces the format needs to be <code class="highlighter-rouge">interface_name.vlan_tag</code>.</p> <p>For example: <code class="highlighter-rouge">eth0.50</code> denotes a parent interface of <code class="highlighter-rouge">eth0</code> with a slave of <code class="highlighter-rouge">eth0.50</code> tagged with vlan id <code class="highlighter-rouge">50</code>. The equivalent <code class="highlighter-rouge">ip link</code> command would be <code class="highlighter-rouge">ip link add link eth0 name eth0.50 type vlan id 50</code>.</p> <p><strong>Vlan ID 50</strong></p> <p>In the first network tagged and isolated by the Docker host, <code class="highlighter-rouge">eth0.50</code> is the parent interface tagged with vlan id <code class="highlighter-rouge">50</code> specified with <code class="highlighter-rouge">-o parent=eth0.50</code>. Other naming formats can be used, but the links need to be added and deleted manually using <code class="highlighter-rouge">ip link</code> or Linux configuration files. As long as the <code class="highlighter-rouge">-o parent</code> exists anything can be used if compliant with Linux netlink.</p> <pre class="highlight" data-language=""># now add networks and hosts as you would normally by attaching to the master (sub)interface that is tagged
+docker network  create  -d macvlan \
+    --subnet=192.168.50.0/24 \
+    --gateway=192.168.50.1 \
+    -o parent=eth0.50 macvlan50
+
+# In two separate terminals, start a Docker container and the containers can now ping one another.
+docker run --net=macvlan50 -it --name macvlan_test5 --rm alpine /bin/sh
+docker run --net=macvlan50 -it --name macvlan_test6 --rm alpine /bin/sh
+</pre>  <p><strong>Vlan ID 60</strong></p> <p>In the second network, tagged and isolated by the Docker host, <code class="highlighter-rouge">eth0.60</code> is the parent interface tagged with vlan id <code class="highlighter-rouge">60</code> specified with <code class="highlighter-rouge">-o parent=eth0.60</code>. The <code class="highlighter-rouge">macvlan_mode=</code> defaults to <code class="highlighter-rouge">macvlan_mode=bridge</code>. It can also be explicitly set with the same result as shown in the next example.</p> <pre class="highlight" data-language=""># now add networks and hosts as you would normally by attaching to the master (sub)interface that is tagged.
+docker network  create  -d macvlan \
+    --subnet=192.168.60.0/24 \
+    --gateway=192.168.60.1 \
+    -o parent=eth0.60 -o \
+    -o macvlan_mode=bridge macvlan60
+
+# In two separate terminals, start a Docker container and the containers can now ping one another.
+docker run --net=macvlan60 -it --name macvlan_test7 --rm alpine /bin/sh
+docker run --net=macvlan60 -it --name macvlan_test8 --rm alpine /bin/sh
+</pre>  <p><strong>Example:</strong> Multi-Subnet Macvlan 802.1q Trunking</p> <p>The same as the example before except there is an additional subnet bound to the network that the user can choose to provision containers on. In MacVlan/Bridge mode, containers can only ping one another if they are on the same subnet/broadcast domain unless there is an external router that routes the traffic (answers ARP etc) between the two subnets.</p> <pre class="highlight" data-language="">### Create multiple L2 subnets
+docker network create -d ipvlan \
+    --subnet=192.168.210.0/24 \
+    --subnet=192.168.212.0/24 \
+    --gateway=192.168.210.254  \
+    --gateway=192.168.212.254  \
+     -o ipvlan_mode=l2 ipvlan210
+
+# Test 192.168.210.0/24 connectivity between containers
+docker run --net=ipvlan210 --ip=192.168.210.10 -itd alpine /bin/sh
+docker run --net=ipvlan210 --ip=192.168.210.9 -it --rm alpine ping -c 2 192.168.210.10
+
+# Test 192.168.212.0/24 connectivity between containers
+docker run --net=ipvlan210 --ip=192.168.212.10 -itd alpine /bin/sh
+docker run --net=ipvlan210 --ip=192.168.212.9 -it --rm alpine ping -c 2 192.168.212.10
+</pre>  <h2 id="dual-stack-ipv4-ipv6-macvlan-bridge-mode">Dual Stack IPv4 IPv6 Macvlan Bridge Mode</h2> <p><strong>Example:</strong> Macvlan Bridge mode, 802.1q trunk, VLAN ID: 218, Multi-Subnet, Dual Stack</p> <pre class="highlight" data-language=""># Create multiple bridge subnets with a gateway of x.x.x.1:
+docker network  create  -d macvlan \
+    --subnet=192.168.216.0/24 --subnet=192.168.218.0/24 \
+    --gateway=192.168.216.1  --gateway=192.168.218.1 \
+    --subnet=2001:db8:abc8::/64 --gateway=2001:db8:abc8::10 \
+     -o parent=eth0.218 \
+     -o macvlan_mode=bridge macvlan216
+
+# Start a container on the first subnet 192.168.216.0/24
+docker run --net=macvlan216 --name=macnet216_test --ip=192.168.216.10 -itd alpine /bin/sh
+
+# Start a container on the second subnet 192.168.218.0/24
+docker run --net=macvlan216 --name=macnet216_test --ip=192.168.218.10 -itd alpine /bin/sh
+
+# Ping the first container started on the 192.168.216.0/24 subnet
+docker run --net=macvlan216 --ip=192.168.216.11 -it --rm alpine /bin/sh
+ping 192.168.216.10
+
+# Ping the first container started on the 192.168.218.0/24 subnet
+docker run --net=macvlan216 --ip=192.168.218.11 -it --rm alpine /bin/sh
+ping 192.168.218.10
+</pre>  <p>View the details of one of the containers:</p> <pre class="highlight" data-language="">docker run --net=macvlan216 --ip=192.168.216.11 -it --rm alpine /bin/sh
+
+root@526f3060d759:/# ip a show eth0
+    eth0@if92: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UNKNOWN group default
+    link/ether 8e:9a:99:25:b6:16 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.216.11/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:abc4::8c9a:99ff:fe25:b616/64 scope link tentative
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:abc8::2/64 scope link nodad
+       valid_lft forever preferred_lft forever
+
+# Specified v4 gateway of 192.168.216.1
+root@526f3060d759:/# ip route
+  default via 192.168.216.1 dev eth0
+  192.168.216.0/24 dev eth0  proto kernel  scope link  src 192.168.216.11
+
+# Specified v6 gateway of 2001:db8:abc8::10
+root@526f3060d759:/# ip -6 route
+  2001:db8:abc4::/64 dev eth0  proto kernel  metric 256
+  2001:db8:abc8::/64 dev eth0  proto kernel  metric 256
+  default via 2001:db8:abc8::10 dev eth0  metric 1024
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/networking/get-started-macvlan/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/networking/get-started-macvlan/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

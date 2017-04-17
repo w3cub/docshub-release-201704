@@ -1,0 +1,233 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Understand Images, Containers, and Storage Drivers (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="To use storage drivers effectively, you must understand how Docker builds and stores images. Then, you need an understanding of how these images are &hellip;">
+  <meta name="keywords" content="understand, images, containers, and, storage, drivers, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/userguide/storagedriver/imagesandcontainers/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="understand-images-containers-and-storage-drivers">Understand images, containers, and storage drivers</h1> <p>To use storage drivers effectively, you must understand how Docker builds and stores images. Then, you need an understanding of how these images are used by containers. Finally, you’ll need a short introduction to the technologies that enable both images and container operations.</p> <h2 id="images-and-layers">Images and layers</h2> <p>Each Docker image references a list of read-only layers that represent filesystem differences. Layers are stacked on top of each other to form a base for a container’s root filesystem. The diagram below shows the Ubuntu 15.04 image comprising 4 stacked image layers.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/image-layers.jpg" alt=""></p> <p>The Docker storage driver is responsible for stacking these layers and providing a single unified view.</p> <p>When you create a new container, you add a new, thin, writable layer on top of the underlying stack. This layer is often called the “container layer”. All changes made to the running container - such as writing new files, modifying existing files, and deleting files - are written to this thin writable container layer. The diagram below shows a container based on the Ubuntu 15.04 image.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/container-layers.jpg" alt=""></p> <h3 id="content-addressable-storage">Content addressable storage</h3> <p>Docker 1.10 introduced a new content addressable storage model. This is a completely new way to address image and layer data on disk. Previously, image and layer data was referenced and stored using a randomly generated UUID. In the new model this is replaced by a secure <em>content hash</em>.</p> <p>The new model improves security, provides a built-in way to avoid ID collisions, and guarantees data integrity after pull, push, load, and save operations. It also enables better sharing of layers by allowing many images to freely share their layers even if they didn’t come from the same build.</p> <p>The diagram below shows an updated version of the previous diagram, highlighting the changes implemented by Docker 1.10.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/container-layers-cas.jpg" alt=""></p> <p>As can be seen, all image layer IDs are cryptographic hashes, whereas the container ID is still a randomly generated UUID.</p> <p>There are several things to note regarding the new model. These include:</p> <ol> <li>Migration of existing images</li> <li>Image and layer filesystem structures</li> </ol> <p>Existing images, those created and pulled by earlier versions of Docker, need to be migrated before they can be used with the new model. This migration involves calculating new secure checksums and is performed automatically the first time you start an updated Docker daemon. After the migration is complete, all images and tags will have brand new secure IDs.</p> <p>Although the migration is automatic and transparent, it is computationally intensive. This means it can take time if you have lots of image data. During this time your Docker daemon will not respond to other requests.</p> <p>A migration tool exists that allows you to migrate existing images to the new format before upgrading your Docker daemon. This means that upgraded Docker daemons do not need to perform the migration in-band, and therefore avoids any associated downtime. It also provides a way to manually migrate existing images so that they can be distributed to other Docker daemons in your environment that are already running the latest versions of Docker.</p> <p>The migration tool is provided by Docker, Inc., and runs as a container. You can download it from <a href="https://github.com/docker/v1.10-migrator/releases" target="_blank">https://github.com/docker/v1.10-migrator/releases</a>.</p> <p>While running the “migrator” image you need to expose your Docker host’s data directory to the container. If you are using the default Docker data path, the command to run the container will look like this</p> <pre>$ sudo docker run --rm -v /var/lib/docker:/var/lib/docker docker/v1.10-migrator
+</pre> <p>If you use the <code>devicemapper</code> storage driver, you will need to include the <code>--privileged</code> option so that the container has access to your storage devices.</p> <h4 id="migration-example">Migration example</h4> <p>The following example shows the migration tool in use on a Docker host running version 1.9.1 of the Docker daemon and the AUFS storage driver. The Docker host is running on a <strong>t2.micro</strong> AWS EC2 instance with 1 vCPU, 1GB RAM, and a single 8GB general purpose SSD EBS volume. The Docker data directory (<code>/var/lib/docker</code>) was consuming 2GB of space.</p> <pre>$ docker images
+
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+jenkins             latest              285c9f0f9d3d        17 hours ago        708.5 MB
+mysql               latest              d39c3fa09ced        8 days ago          360.3 MB
+mongo               latest              a74137af4532        13 days ago         317.4 MB
+postgres            latest              9aae83d4127f        13 days ago         270.7 MB
+redis               latest              8bccd73928d9        2 weeks ago         151.3 MB
+centos              latest              c8a648134623        4 weeks ago         196.6 MB
+ubuntu              15.04               c8be1ac8145a        7 weeks ago         131.3 MB
+
+$ sudo du -hs /var/lib/docker
+
+2.0G    /var/lib/docker
+
+$ time docker run --rm -v /var/lib/docker:/var/lib/docker docker/v1.10-migrator
+
+Unable to find image 'docker/v1.10-migrator:latest' locally
+latest: Pulling from docker/v1.10-migrator
+ed1f33c5883d: Pull complete
+b3ca410aa2c1: Pull complete
+2b9c6ed9099e: Pull complete
+dce7e318b173: Pull complete
+Digest: sha256:bd2b245d5d22dd94ec4a8417a9b81bb5e90b171031c6e216484db3fe300c2097
+Status: Downloaded newer image for docker/v1.10-migrator:latest
+time="2016-01-27T12:31:06Z" level=debug msg="Assembling tar data for 01e70da302a553ba13485ad020a0d77dbb47575a31c4f48221137bb08f45878d from /var/lib/docker/aufs/diff/01e70da302a553ba13485ad020a0d77dbb47575a31c4f48221137bb08f45878d"
+time="2016-01-27T12:31:06Z" level=debug msg="Assembling tar data for 07ac220aeeef9febf1ac16a9d1a4eff7ef3c8cbf5ed0be6b6f4c35952ed7920d from /var/lib/docker/aufs/diff/07ac220aeeef9febf1ac16a9d1a4eff7ef3c8cbf5ed0be6b6f4c35952ed7920d"
+&lt;snip&gt;
+time="2016-01-27T12:32:00Z" level=debug msg="layer dbacfa057b30b1feaf15937c28bd8ca0d6c634fc311ccc35bd8d56d017595d5b took 10.80 seconds"
+
+real    0m59.583s
+user    0m0.046s
+sys     0m0.008s
+</pre> <p>The Unix <code>time</code> command prepends the <code>docker run</code> command to produce timings for the operation. As can be seen, the overall time taken to migrate 7 images comprising 2GB of disk space took approximately 1 minute. However, this included the time taken to pull the <code>docker/v1.10-migrator</code> image (approximately 3.5 seconds). The same operation on an m4.10xlarge EC2 instance with 40 vCPUs, 160GB RAM and an 8GB provisioned IOPS EBS volume resulted in the following improved timings:</p> <pre>real    0m9.871s
+user    0m0.094s
+sys     0m0.021s
+</pre> <p>This shows that the migration operation is affected by the hardware spec of the machine performing the migration.</p> <h2 id="container-and-layers">Container and layers</h2> <p>The major difference between a container and an image is the top writable layer. All writes to the container that add new or modify existing data are stored in this writable layer. When the container is deleted the writable layer is also deleted. The underlying image remains unchanged.</p> <p>Because each container has its own thin writable container layer, and all changes are stored in this container layer, this means that multiple containers can share access to the same underlying image and yet have their own data state. The diagram below shows multiple containers sharing the same Ubuntu 15.04 image.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/sharing-layers.jpg" alt=""></p> <p>The Docker storage driver is responsible for enabling and managing both the image layers and the writable container layer. How a storage driver accomplishes these can vary between drivers. Two key technologies behind Docker image and container management are stackable image layers and copy-on-write (CoW).</p> <h2 id="the-copy-on-write-strategy">The copy-on-write strategy</h2> <p>Sharing is a good way to optimize resources. People do this instinctively in daily life. For example, twins Jane and Joseph taking an Algebra class at different times from different teachers can share the same exercise book by passing it between each other. Now, suppose Jane gets an assignment to complete the homework on page 11 in the book. At that point, Jane copies page 11, completes the homework, and hands in her copy. The original exercise book is unchanged and only Jane has a copy of the changed page 11.</p> <p>Copy-on-write is a similar strategy of sharing and copying. In this strategy, system processes that need the same data share the same instance of that data rather than having their own copy. At some point, if one process needs to modify or write to the data, only then does the operating system make a copy of the data for that process to use. Only the process that needs to write has access to the data copy. All the other processes continue to use the original data.</p> <p>Docker uses a copy-on-write technology with both images and containers. This CoW strategy optimizes both image disk space usage and the performance of container start times. The next sections look at how copy-on-write is leveraged with images and containers through sharing and copying.</p> <h3 id="sharing-promotes-smaller-images">Sharing promotes smaller images</h3> <p>This section looks at image layers and copy-on-write technology. All image and container layers exist inside the Docker host’s <em>local storage area</em> and are managed by the storage driver. On Linux-based Docker hosts this is usually located under <code>/var/lib/docker/</code>.</p> <p>The Docker client reports on image layers when instructed to pull and push images with <code>docker pull</code> and <code>docker push</code>. The command below pulls the <code>ubuntu:15.04</code> Docker image from Docker Hub.</p> <pre>$ docker pull ubuntu:15.04
+
+15.04: Pulling from library/ubuntu
+1ba8ac955b97: Pull complete
+f157c4e5ede7: Pull complete
+0b7e98f84c4c: Pull complete
+a3ed95caeb02: Pull complete
+Digest: sha256:5e279a9df07990286cce22e1b0f5b0490629ca6d187698746ae5e28e604a640e
+Status: Downloaded newer image for ubuntu:15.04
+</pre> <p>From the output, you’ll see that the command actually pulls 4 image layers. Each of the above lines lists an image layer and its UUID or cryptographic hash. The combination of these four layers makes up the <code>ubuntu:15.04</code> Docker image.</p> <p>Each of these layers is stored in its own directory inside the Docker host’s local storage are.</p> <p>Versions of Docker prior to 1.10 stored each layer in a directory with the same name as the image layer ID. However, this is not the case for images pulled with Docker version 1.10 and later. For example, the command below shows an image being pulled from Docker Hub, followed by a directory listing on a host running version 1.9.1 of the Docker Engine.</p> <pre>$  docker pull ubuntu:15.04
+
+15.04: Pulling from library/ubuntu
+47984b517ca9: Pull complete
+df6e891a3ea9: Pull complete
+e65155041eed: Pull complete
+c8be1ac8145a: Pull complete
+Digest: sha256:5e279a9df07990286cce22e1b0f5b0490629ca6d187698746ae5e28e604a640e
+Status: Downloaded newer image for ubuntu:15.04
+
+$ ls /var/lib/docker/aufs/layers
+
+47984b517ca9ca0312aced5c9698753ffa964c2015f2a5f18e5efa9848cf30e2
+c8be1ac8145a6e59a55667f573883749ad66eaeef92b4df17e5ea1260e2d7356
+df6e891a3ea9cdce2a388a2cf1b1711629557454fd120abd5be6d32329a0e0ac
+e65155041eed7ec58dea78d90286048055ca75d41ea893c7246e794389ecf203
+</pre> <p>Notice how the four directories match up with the layer IDs of the downloaded image. Now compare this with the same operations performed on a host running version 1.10 of the Docker Engine.</p> <pre>$ docker pull ubuntu:15.04
+15.04: Pulling from library/ubuntu
+1ba8ac955b97: Pull complete
+f157c4e5ede7: Pull complete
+0b7e98f84c4c: Pull complete
+a3ed95caeb02: Pull complete
+Digest: sha256:5e279a9df07990286cce22e1b0f5b0490629ca6d187698746ae5e28e604a640e
+Status: Downloaded newer image for ubuntu:15.04
+
+$ ls /var/lib/docker/aufs/layers/
+1d6674ff835b10f76e354806e16b950f91a191d3b471236609ab13a930275e24
+5dbb0cbe0148cf447b9464a358c1587be586058d9a4c9ce079320265e2bb94e7
+bef7199f2ed8e86fa4ada1309cfad3089e0542fec8894690529e4c04a7ca2d73
+ebf814eccfe98f2704660ca1d844e4348db3b5ccc637eb905d4818fbfb00a06a
+</pre> <p>See how the four directories do not match up with the image layer IDs pulled in the previous step.</p> <p>Despite the differences between image management before and after version 1.10, all versions of Docker still allow images to share layers. For example, If you <code>pull</code> an image that shares some of the same image layers as an image that has already been pulled, the Docker daemon recognizes this, and only pulls the layers it doesn’t already have stored locally. After the second pull, the two images will share any common image layers.</p> <p>You can illustrate this now for yourself. Starting with the <code>ubuntu:15.04</code> image that you just pulled, make a change to it, and build a new image based on the change. One way to do this is using a <code>Dockerfile</code> and the <code>docker build</code> command.</p> <ol> <li>
+<p>In an empty directory, create a simple <code>Dockerfile</code> that starts with the ubuntu:15.04 image.</p> <pre>FROM ubuntu:15.04
+</pre>
+</li> <li>
+<p>Add a new file called “newfile” in the image’s <code>/tmp</code> directory with the text “Hello world” in it.</p> <p>When you are done, the <code>Dockerfile</code> contains two lines:</p> <pre>FROM ubuntu:15.04
+
+RUN echo "Hello world" &gt; /tmp/newfile
+</pre>
+</li> <li><p>Save and close the file.</p></li> <li>
+<p>From a terminal in the same folder as your <code>Dockerfile</code>, run the following command:</p> <pre>$ docker build -t changed-ubuntu .
+
+Sending build context to Docker daemon 2.048 kB
+Step 1 : FROM ubuntu:15.04
+ ---&gt; 3f7bcee56709
+Step 2 : RUN echo "Hello world" &gt; /tmp/newfile
+ ---&gt; Running in d14acd6fad4e
+ ---&gt; 94e6b7d2c720
+Removing intermediate container d14acd6fad4e
+Successfully built 94e6b7d2c720
+</pre> <blockquote> <p><strong>Note:</strong> The period (.) at the end of the above command is important. It tells the <code>docker build</code> command to use the current working directory as its build context.</p> </blockquote> <p>The output above shows a new image with image ID <code>94e6b7d2c720</code>.</p>
+</li> <li>
+<p>Run the <code>docker images</code> command to verify the new <code>changed-ubuntu</code> image is in the Docker host’s local storage area.</p> <pre>REPOSITORY       TAG      IMAGE ID       CREATED           SIZE
+changed-ubuntu   latest   03b964f68d06   33 seconds ago    131.4 MB
+ubuntu           15.04    013f3d01d247   6 weeks ago       131.3 MB
+</pre>
+</li> <li>
+<p>Run the <code>docker history</code> command to see which image layers were used to create the new <code>changed-ubuntu</code> image.</p> <pre>$ docker history changed-ubuntu
+IMAGE               CREATED              CREATED BY                                      SIZE        COMMENT
+94e6b7d2c720        2 minutes ago       /bin/sh -c echo "Hello world" &gt; /tmp/newfile    12 B 
+3f7bcee56709        6 weeks ago         /bin/sh -c #(nop) CMD ["/bin/bash"]             0 B  
+&lt;missing&gt;           6 weeks ago         /bin/sh -c sed -i 's/^#\s*\(deb.*universe\)$/   1.879 kB
+&lt;missing&gt;           6 weeks ago         /bin/sh -c echo '#!/bin/sh' &gt; /usr/sbin/polic   701 B
+&lt;missing&gt;           6 weeks ago         /bin/sh -c #(nop) ADD file:8e4943cd86e9b2ca13   131.3 MB
+</pre> <p>The <code>docker history</code> output shows the new <code>94e6b7d2c720</code> image layer at the top. You know that this is the new image layer added because it was created by the <code>echo "Hello world" &gt; /tmp/newfile</code> command in your <code>Dockerfile</code>. The 4 image layers below it are the exact same image layers that make up the <code>ubuntu:15.04</code> image.</p>
+</li> </ol> <blockquote> <p><strong>Note:</strong> Under the content addressable storage model introduced with Docker 1.10, image history data is no longer stored in a config file with each image layer. It is now stored as a string of text in a single config file that relates to the overall image. This can result in some image layers showing as “missing” in the output of the <code>docker history</code> command. This is normal behaviour and can be ignored.</p> <p>You may hear images like these referred to as <em>flat images</em>.</p> </blockquote> <p>Notice the new <code>changed-ubuntu</code> image does not have its own copies of every layer. As can be seen in the diagram below, the new image is sharing its four underlying layers with the <code>ubuntu:15.04</code> image.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/saving-space.jpg" alt=""></p> <p>The <code>docker history</code> command also shows the size of each image layer. As you can see, the <code>94e6b7d2c720</code> layer is only consuming 12 Bytes of disk space. This means that the <code>changed-ubuntu</code> image we just created is only consuming an additional 12 Bytes of disk space on the Docker host - all layers below the <code>94e6b7d2c720</code> layer already exist on the Docker host and are shared by other images.</p> <p>This sharing of image layers is what makes Docker images and containers so space efficient.</p> <h3 id="copying-makes-containers-efficient">Copying makes containers efficient</h3> <p>You learned earlier that a container is a Docker image with a thin writable, container layer added. The diagram below shows the layers of a container based on the <code>ubuntu:15.04</code> image:</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/container-layers-cas.jpg" alt=""></p> <p>All writes made to a container are stored in the thin writable container layer. The other layers are read-only (RO) image layers and can’t be changed. This means that multiple containers can safely share a single underlying image. The diagram below shows multiple containers sharing a single copy of the <code>ubuntu:15.04</code> image. Each container has its own thin RW layer, but they all share a single instance of the ubuntu:15.04 image:</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/sharing-layers.jpg" alt=""></p> <p>When an existing file in a container is modified, Docker uses the storage driver to perform a copy-on-write operation. The specifics of operation depends on the storage driver. For the AUFS and OverlayFS storage drivers, the copy-on-write operation is pretty much as follows:</p> <ul> <li>Search through the image layers for the file to update. The process starts at the top, newest layer and works down to the base layer one layer at a time.</li> <li>Perform a “copy-up” operation on the first copy of the file that is found. A “copy up” copies the file up to the container’s own thin writable layer.</li> <li>Modify the <em>copy of the file</em> in container’s thin writable layer.</li> </ul> <p>Btrfs, ZFS, and other drivers handle the copy-on-write differently. You can read more about the methods of these drivers later in their detailed descriptions.</p> <p>Containers that write a lot of data will consume more space than containers that do not. This is because most write operations consume new space in the container’s thin writable top layer. If your container needs to write a lot of data, you should consider using a data volume.</p> <p>A copy-up operation can incur a noticeable performance overhead. This overhead is different depending on which storage driver is in use. However, large files, lots of layers, and deep directory trees can make the impact more noticeable. Fortunately, the operation only occurs the first time any particular file is modified. Subsequent modifications to the same file do not cause a copy-up operation and can operate directly on the file’s existing copy already present in the container layer.</p> <p>Let’s see what happens if we spin up 5 containers based on our <code>changed-ubuntu</code> image we built earlier:</p> <ol> <li>
+<p>From a terminal on your Docker host, run the following <code>docker run</code> command 5 times.</p> <pre>$ docker run -dit changed-ubuntu bash
+
+75bab0d54f3cf193cfdc3a86483466363f442fba30859f7dcd1b816b6ede82d4
+
+$ docker run -dit changed-ubuntu bash
+
+9280e777d109e2eb4b13ab211553516124a3d4d4280a0edfc7abf75c59024d47
+
+$ docker run -dit changed-ubuntu bash
+
+a651680bd6c2ef64902e154eeb8a064b85c9abf08ac46f922ad8dfc11bb5cd8a
+
+$ docker run -dit changed-ubuntu bash
+
+8eb24b3b2d246f225b24f2fca39625aaad71689c392a7b552b78baf264647373
+
+$ docker run -dit changed-ubuntu bash
+
+0ad25d06bdf6fca0dedc38301b2aff7478b3e1ce3d1acd676573bba57cb1cfef
+</pre> <p>This launches 5 containers based on the <code>changed-ubuntu</code> image. As each container is created, Docker adds a writable layer and assigns it a random UUID. This is the value returned from the <code>docker run</code> command.</p>
+</li> <li>
+<p>Run the <code>docker ps</code> command to verify the 5 containers are running.</p> <pre>$ docker ps
+CONTAINER ID    IMAGE             COMMAND    CREATED              STATUS              PORTS    NAMES
+0ad25d06bdf6    changed-ubuntu    "bash"     About a minute ago   Up About a minute            stoic_ptolemy
+8eb24b3b2d24    changed-ubuntu    "bash"     About a minute ago   Up About a minute            pensive_bartik
+a651680bd6c2    changed-ubuntu    "bash"     2 minutes ago        Up 2 minutes                 hopeful_turing
+9280e777d109    changed-ubuntu    "bash"     2 minutes ago        Up 2 minutes                 backstabbing_mahavira
+75bab0d54f3c    changed-ubuntu    "bash"     2 minutes ago        Up 2 minutes                 boring_pasteur
+</pre> <p>The output above shows 5 running containers, all sharing the <code>changed-ubuntu</code> image. Each <code>CONTAINER ID</code> is derived from the UUID when creating each container.</p>
+</li> <li>
+<p>List the contents of the local storage area.</p> <pre>$ sudo ls /var/lib/docker/containers
+
+0ad25d06bdf6fca0dedc38301b2aff7478b3e1ce3d1acd676573bba57cb1cfef
+9280e777d109e2eb4b13ab211553516124a3d4d4280a0edfc7abf75c59024d47
+75bab0d54f3cf193cfdc3a86483466363f442fba30859f7dcd1b816b6ede82d4
+a651680bd6c2ef64902e154eeb8a064b85c9abf08ac46f922ad8dfc11bb5cd8a
+8eb24b3b2d246f225b24f2fca39625aaad71689c392a7b552b78baf264647373
+</pre>
+</li> </ol> <p>Docker’s copy-on-write strategy not only reduces the amount of space consumed by containers, it also reduces the time required to start a container. At start time, Docker only has to create the thin writable layer for each container. The diagram below shows these 5 containers sharing a single read-only (RO) copy of the <code>changed-ubuntu</code> image.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/shared-uuid.jpg" alt=""></p> <p>If Docker had to make an entire copy of the underlying image stack each time it started a new container, container start times and disk space used would be significantly increased.</p> <h2 id="data-volumes-and-the-storage-driver">Data volumes and the storage driver</h2> <p>When a container is deleted, any data written to the container that is not stored in a <em>data volume</em> is deleted along with the container.</p> <p>A data volume is a directory or file in the Docker host’s filesystem that is mounted directly into a container. Data volumes are not controlled by the storage driver. Reads and writes to data volumes bypass the storage driver and operate at native host speeds. You can mount any number of data volumes into a container. Multiple containers can also share one or more data volumes.</p> <p>The diagram below shows a single Docker host running two containers. Each container exists inside of its own address space within the Docker host’s local storage area (<code>/var/lib/docker/...</code>). There is also a single shared data volume located at <code>/data</code> on the Docker host. This is mounted directly into both containers.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/shared-volume.jpg" alt=""></p> <p>Data volumes reside outside of the local storage area on the Docker host, further reinforcing their independence from the storage driver’s control. When a container is deleted, any data stored in data volumes persists on the Docker host.</p> <p>For detailed information about data volumes <a href="https://docs.docker.com/userguide/dockervolumes/" target="_blank">Managing data in containers</a>.</p> <h2 id="related-information">Related information</h2> <ul> <li><a href="../selectadriver/">Select a storage driver</a></li> <li><a href="../aufs-driver/">AUFS storage driver in practice</a></li> <li><a href="../btrfs-driver/">Btrfs storage driver in practice</a></li> <li><a href="../device-mapper-driver/">Device Mapper storage driver in practice</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

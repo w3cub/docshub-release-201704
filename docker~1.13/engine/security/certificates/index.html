@@ -1,0 +1,93 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Using Certificates for Repository Client Verification (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="In Running Docker with HTTPS, you learned that, by default, Docker runs via a non-networked Unix socket and TLS must be enabled in order to have the &hellip;">
+  <meta name="keywords" content="verify, repository, client, with, certificates, using, for, verification, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/security/certificates/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Verify repository client with certificates</h1>  <p>In <a href="../https/">Running Docker with HTTPS</a>, you learned that, by default, Docker runs via a non-networked Unix socket and TLS must be enabled in order to have the Docker client and the daemon communicate securely over HTTPS. TLS ensures authenticity of the registry endpoint and that traffic to/from registry is encrypted.</p> <p>This article demonstrates how to ensure the traffic between the Docker registry (i.e., <em>a server</em>) and the Docker daemon (i.e., <em>a client</em>) traffic is encrypted and a properly authenticated using <em>certificate-based client-server authentication</em>.</p> <p>We will show you how to install a Certificate Authority (CA) root certificate for the registry and how to set the client TLS certificate for verification.</p> <h2 id="understanding-the-configuration">Understanding the configuration</h2> <p>A custom certificate is configured by creating a directory under <code class="highlighter-rouge">/etc/docker/certs.d</code> using the same name as the registry’s hostname (e.g., <code class="highlighter-rouge">localhost</code>). All <code class="highlighter-rouge">*.crt</code> files are added to this directory as CA roots.</p> <blockquote> <p><strong>Note:</strong> As of docker 1.13, on Linux any root certificates authorities will be merged in with the system defaults (i.e., host’s root CA set). Prior to 1.13 and on Windows, the system default certificates will only be used when there are no custom root certificates provided.</p> </blockquote> <p>The presence of one or more <code class="highlighter-rouge">&lt;filename&gt;.key/cert</code> pairs indicates to Docker that there are custom certificates required for access to the desired repository.</p> <blockquote> <p><strong>Note:</strong> If there are multiple certificates, each will be tried in alphabetical order. If there is an authentication error (e.g., 403, 404, 5xx, etc.), Docker will continue to try with the next certificate.</p> </blockquote> <p>The following illustrates a configuration with custom certificates:</p> <pre class="highlight" data-language="">    /etc/docker/certs.d/        &lt;-- Certificate directory
+    └── localhost:5000          &lt;-- Hostname:port
+       ├── client.cert          &lt;-- Client certificate
+       ├── client.key           &lt;-- Client key
+       └── localhost.crt        &lt;-- Certificate authority that signed
+                                    the registry certificate
+</pre>  <p>The preceding example is operating-system specific and is for illustrative purposes only. You should consult your operating system documentation for creating an os-provided bundled certificate chain.</p> <h2 id="creating-the-client-certificates">Creating the client certificates</h2> <p>You will use OpenSSL’s <code class="highlighter-rouge">genrsa</code> and <code class="highlighter-rouge">req</code> commands to first generate an RSA key and then use the key to create the certificate.</p> <pre class="highlight" data-language="">$ openssl genrsa -out client.key 4096
+$ openssl req -new -x509 -text -key client.key -out client.cert
+</pre>  <blockquote> <p><strong>Note:</strong> These TLS commands will only generate a working set of certificates on Linux. The version of OpenSSL in macOS is incompatible with the type of certificate Docker requires.</p> </blockquote> <h2 id="troubleshooting-tips">Troubleshooting tips</h2> <p>The Docker daemon interprets ``.crt<code class="highlighter-rouge">files as CA certificates and</code>.cert<code class="highlighter-rouge">files as client certificates. If a CA certificate is accidentally given the extension</code>.cert<code class="highlighter-rouge">instead of the correct</code>.crt` extension, the Docker daemon logs the following error message:</p> <pre class="highlight" data-language="">Missing key KEY_NAME for client certificate CERT_NAME. Note that CA certificates should use the extension .crt.
+</pre>  <h2 id="related-information">Related Information</h2> <ul> <li><a href="../">Use trusted images</a></li> <li><a href="../https/">Protect the Docker daemon socket</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/security/certificates/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/security/certificates/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

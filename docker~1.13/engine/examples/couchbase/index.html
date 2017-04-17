@@ -1,0 +1,213 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerizing a Couchbase Service (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content=" This example shows how to start a Couchbase server using Docker Compose, configure it using its REST API, and query it. ">
+  <meta name="keywords" content="dockerize, couchbase, service, dockerizing, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/examples/couchbase/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Dockerize a Couchbase service</h1>  <p>This example shows how to start a <a href="http://couchbase.com" target="_blank">Couchbase</a> server using Docker Compose, configure it using its <a href="http://developer.couchbase.com/documentation/server/4.0/rest-api/rest-endpoints-all.html" target="_blank">REST API</a>, and query it.</p> <p>Couchbase is an open source, document-oriented NoSQL database for modern web, mobile, and IoT applications. It is designed for ease of development and Internet-scale performance.</p> <h2 id="start-couchbase-server">Start Couchbase server</h2> <p>Couchbase Docker images are published at <a href="https://hub.docker.com/_/couchbase/" target="_blank">Docker Hub</a>.</p> <p>Start Couchbase server:</p> <pre class="highlight" data-language="bash">$ docker run -d --name db -p 8091-8093:8091-8093 -p 11210:11210 couchbase
+</pre>  <p>The purpose of each port exposed is explained at <a href="http://developer.couchbase.com/documentation/server/4.1/install/install-ports.html" target="_blank">Couchbase Developer Portal - Network Configuration</a>.</p> <p>Logs can be seen using the <code class="highlighter-rouge">docker logs</code> command:</p> <pre class="highlight" data-language="bash">$ docker logs db
+
+Starting Couchbase Server -- Web UI available at http://&lt;ip&gt;:8091
+</pre>  <blockquote> <p><strong>Note</strong>: The examples on this page assume that the Docker Host is reachable on <code class="highlighter-rouge">192.168.99.100</code>. Substitute <code class="highlighter-rouge">192.168.99.100</code> with the actual IP address of your Docker Host. If you’re running Docker using Docker machine, you can obtain the IP address of the Docker host using <code class="highlighter-rouge">docker-machine ip &lt;MACHINE-NAME&gt;</code>.</p> </blockquote> <p>The logs show that Couchbase console can be accessed at <code class="highlighter-rouge">http://192.168.99.100:8091</code>. The default username is <code class="highlighter-rouge">Administrator</code> and the password is <code class="highlighter-rouge">password</code>.</p> <h2 id="configure-couchbase-docker-container">Configure Couchbase Docker container</h2> <p>By default, Couchbase server needs to be configured using the console before it can be used. This can be simplified by configuring it using the REST API.</p> <h3 id="configure-memory-for-data-and-index-service">Configure memory for Data and Index service</h3> <p>Data, Query and Index are three different services that can be configured on a Couchbase instance. Each service has different operating needs. For example, Query is CPU intensive operation and so requires a faster processor. Index is disk heavy and so requires a faster solid state drive. Data needs to be read/written fast and so requires more memory.</p> <p>Memory needs to be configured for Data and Index service only.</p> <pre class="highlight" data-language="bash">$ curl -v -X POST http://192.168.99.100:8091/pools/default -d memoryQuota=300 -d indexMemoryQuota=300
+
+* Hostname was NOT found in DNS cache
+*   Trying 192.168.99.100...
+* Connected to 192.168.99.100 (192.168.99.100) port 8091 (#0)
+
+&gt; POST /pools/default HTTP/1.1
+&gt; User-Agent: curl/7.37.1
+&gt; Host: 192.168.99.100:8091
+&gt; Accept: */*
+&gt; Content-Length: 36
+&gt; Content-Type: application/x-www-form-urlencoded
+&gt;
+* upload completely sent off: 36 out of 36 bytes
+&lt; HTTP/1.1 401 Unauthorized
+&lt; WWW-Authenticate: Basic realm="Couchbase Server Admin / REST"
+* Server Couchbase Server is not blacklisted
+&lt; Server: Couchbase Server
+&lt; Pragma: no-cache
+&lt; Date: Wed, 25 Nov 2015 22:48:16 GMT
+&lt; Content-Length: 0
+&lt; Cache-Control: no-cache
+&lt;
+* Connection #0 to host 192.168.99.100 left intact
+</pre>  <p>The command shows an HTTP POST request to the REST endpoint <code class="highlighter-rouge">/pools/default</code>. The host is the IP address of the Docker machine. The port is the exposed port of Couchbase server. The memory and index quota for the server are passed in the request.</p> <h3 id="configure-data-query-and-index-services">Configure Data, Query, and Index services</h3> <p>All three services, or only one of them, can be configured on each instance. This allows different Couchbase instances to use affinities and setup services accordingly. For example, if Docker host is running a machine with solid-state drive then only Data service can be started.</p> <pre class="highlight" data-language="bash">$ curl -v http://192.168.99.100:8091/node/controller/setupServices -d 'services=kv%2Cn1ql%2Cindex'
+
+* Hostname was NOT found in DNS cache
+*   Trying 192.168.99.100...
+* Connected to 192.168.99.100 (192.168.99.100) port 8091 (#0)
+
+&gt; POST /node/controller/setupServices HTTP/1.1
+&gt; User-Agent: curl/7.37.1
+&gt; Host: 192.168.99.100:8091
+&gt; Accept: */*
+&gt; Content-Length: 26
+&gt; Content-Type: application/x-www-form-urlencoded
+&gt;
+* upload completely sent off: 26 out of 26 bytes
+&lt; HTTP/1.1 200 OK
+* Server Couchbase Server is not blacklisted
+&lt; Server: Couchbase Server
+&lt; Pragma: no-cache
+&lt; Date: Wed, 25 Nov 2015 22:49:51 GMT
+&lt; Content-Length: 0
+&lt; Cache-Control: no-cache
+&lt;
+* Connection #0 to host 192.168.99.100 left intact
+</pre>  <p>The command shows an HTTP POST request to the REST endpoint <code class="highlighter-rouge">/node/controller/setupServices</code>. The command shows that all three services are configured for the Couchbase server. The Data service is identified by <code class="highlighter-rouge">kv</code>, Query service is identified by <code class="highlighter-rouge">n1ql</code> and Index service identified by <code class="highlighter-rouge">index</code>.</p> <h3 id="setup-credentials-for-the-couchbase-server">Setup credentials for the Couchbase server</h3> <p>Sets the username and password credentials that will subsequently be used for managing the Couchbase server.</p> <pre class="highlight" data-language="">curl -v -X POST http://192.168.99.100:8091/settings/web -d port=8091 -d username=Administrator -d password=password
+* Hostname was NOT found in DNS cache
+*   Trying 192.168.99.100...
+* Connected to 192.168.99.100 (192.168.99.100) port 8091 (#0)
+&gt; POST /settings/web HTTP/1.1
+&gt; User-Agent: curl/7.37.1
+&gt; Host: 192.168.99.100:8091
+&gt; Accept: */*
+&gt; Content-Length: 50
+&gt; Content-Type: application/x-www-form-urlencoded
+&gt;
+* upload completely sent off: 50 out of 50 bytes
+&lt; HTTP/1.1 200 OK
+* Server Couchbase Server is not blacklisted
+&lt; Server: Couchbase Server
+&lt; Pragma: no-cache
+&lt; Date: Wed, 25 Nov 2015 22:50:43 GMT
+&lt; Content-Type: application/json
+&lt; Content-Length: 44
+&lt; Cache-Control: no-cache
+&lt;
+* Connection #0 to host 192.168.99.100 left intact
+{"newBaseUri":"http://192.168.99.100:8091/"}
+</pre>  <p>The command shows an HTTP POST request to the REST endpoint <code class="highlighter-rouge">/settings/web</code>. The user name and password credentials are passed in the request.</p> <h3 id="install-sample-data">Install sample data</h3> <p>The Couchbase server can be easily load some sample data in the Couchbase instance.</p> <pre class="highlight" data-language="">curl -v -u Administrator:password -X POST http://192.168.99.100:8091/sampleBuckets/install -d '["travel-sample"]'
+* Hostname was NOT found in DNS cache
+*   Trying 192.168.99.100...
+* Connected to 192.168.99.100 (192.168.99.100) port 8091 (#0)
+* Server auth using Basic with user 'Administrator'
+&gt; POST /sampleBuckets/install HTTP/1.1
+&gt; Authorization: Basic QWRtaW5pc3RyYXRvcjpwYXNzd29yZA==
+&gt; User-Agent: curl/7.37.1
+&gt; Host: 192.168.99.100:8091
+&gt; Accept: */*
+&gt; Content-Length: 17
+&gt; Content-Type: application/x-www-form-urlencoded
+&gt;
+* upload completely sent off: 17 out of 17 bytes
+&lt; HTTP/1.1 202 Accepted
+* Server Couchbase Server is not blacklisted
+&lt; Server: Couchbase Server
+&lt; Pragma: no-cache
+&lt; Date: Wed, 25 Nov 2015 22:51:51 GMT
+&lt; Content-Type: application/json
+&lt; Content-Length: 2
+&lt; Cache-Control: no-cache
+&lt;
+* Connection #0 to host 192.168.99.100 left intact
+[]
+</pre>  <p>The command shows an HTTP POST request to the REST endpoint <code class="highlighter-rouge">/sampleBuckets/install</code>. The name of the sample bucket is passed in the request.</p> <p>Congratulations, you are now running a Couchbase container, fully configured using the REST API.</p> <h2 id="query-couchbase-using-cbq">Query Couchbase using CBQ</h2> <p><a href="http://developer.couchbase.com/documentation/server/4.1/cli/cbq-tool.html" target="_blank">CBQ</a>, short for Couchbase Query, is a CLI tool that allows to create, read, update, and delete JSON documents on a Couchbase server. This tool is installed as part of the Couchbase Docker image.</p> <p>Run CBQ tool:</p> <pre class="highlight" data-language="">docker run -it --link db:db couchbase cbq --engine http://db:8093
+Couchbase query shell connected to http://db:8093/ . Type Ctrl-D to exit.
+cbq&gt;
+</pre>  <p><code class="highlighter-rouge">--engine</code> parameter to CBQ allows to specify the Couchbase server host and port running on the Docker host. For host, typically the host name or IP address of the host where Couchbase server is running is provided. In this case, the container name used when starting the container, <code class="highlighter-rouge">db</code>, can be used. <code class="highlighter-rouge">8093</code> port listens for all incoming queries.</p> <p>Couchbase allows to query JSON documents using <a href="http://developer.couchbase.com/documentation/server/4.1/n1ql/n1ql-language-reference/index.html" target="_blank">N1QL</a>. N1QL is a comprehensive, declarative query language that brings SQL-like query capabilities to JSON documents.</p> <p>Query the database by running a N1QL query:</p> <pre class="highlight" data-language="">cbq&gt; select * from `travel-sample` limit 1;
+{
+    "requestID": "97816771-3c25-4a1d-9ea8-eb6ad8a51919",
+    "signature": {
+        "*": "*"
+    },
+    "results": [
+        {
+            "travel-sample": {
+                "callsign": "MILE-AIR",
+                "country": "United States",
+                "iata": "Q5",
+                "icao": "MLA",
+                "id": 10,
+                "name": "40-Mile Air",
+                "type": "airline"
+            }
+        }
+    ],
+    "status": "success",
+    "metrics": {
+        "elapsedTime": "60.872423ms",
+        "executionTime": "60.792258ms",
+        "resultCount": 1,
+        "resultSize": 300
+    }
+}
+</pre>  <h2 id="couchbase-web-console">Couchbase Web Console</h2> <p><a href="http://developer.couchbase.com/documentation/server/4.1/admin/ui-intro.html" target="_blank">Couchbase Web Console</a> is a console that allows to manage a Couchbase instance. It can be seen at:</p> <p><code class="highlighter-rouge">http://192.168.99.100:8091/</code></p> <p>Make sure to replace the IP address with the IP address of your Docker Machine or <code class="highlighter-rouge">localhost</code> if Docker is running locally.</p> <p><img src="https://docs.docker.com/engine/examples/couchbase/web-console.png" alt="Couchbase Web Console"></p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/examples/couchbase/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/examples/couchbase/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

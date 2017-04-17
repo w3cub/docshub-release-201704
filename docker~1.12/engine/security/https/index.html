@@ -1,0 +1,158 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Protect the Docker Daemon Socket (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content=" By default, Docker runs via a non-networked Unix socket. It can also optionally communicate using an HTTP socket. ">
+  <meta name="keywords" content="protect, docker, daemon, socket, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/security/https/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="protect-the-docker-daemon-socket">Protect the Docker daemon socket</h1> <p>By default, Docker runs via a non-networked Unix socket. It can also optionally communicate using an HTTP socket.</p> <p>If you need Docker to be reachable via the network in a safe manner, you can enable TLS by specifying the <code>tlsverify</code> flag and pointing Docker’s <code>tlscacert</code> flag to a trusted CA certificate.</p> <p>In the daemon mode, it will only allow connections from clients authenticated by a certificate signed by that CA. In the client mode, it will only connect to servers with a certificate signed by that CA.</p> <blockquote> <p><strong>Warning</strong>: Using TLS and managing a CA is an advanced topic. Please familiarize yourself with OpenSSL, x509 and TLS before using it in production.</p> <p><strong>Warning</strong>: These TLS commands will only generate a working set of certificates on Linux. Mac OS X comes with a version of OpenSSL that is incompatible with the certificates that Docker requires.</p> </blockquote> <h2 id="create-a-ca-server-and-client-keys-with-openssl">Create a CA, server and client keys with OpenSSL</h2> <blockquote> <p><strong>Note</strong>: replace all instances of <code>$HOST</code> in the following example with the DNS name of your Docker daemon’s host.</p> </blockquote> <p>First generate CA private and public keys:</p> <pre>$ openssl genrsa -aes256 -out ca-key.pem 4096
+Generating RSA private key, 4096 bit long modulus
+............................................................................................................................................................................................++
+........++
+e is 65537 (0x10001)
+Enter pass phrase for ca-key.pem:
+Verifying - Enter pass phrase for ca-key.pem:
+$ openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
+Enter pass phrase for ca-key.pem:
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:
+State or Province Name (full name) [Some-State]:Queensland
+Locality Name (eg, city) []:Brisbane
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:Docker Inc
+Organizational Unit Name (eg, section) []:Sales
+Common Name (e.g. server FQDN or YOUR name) []:$HOST
+Email Address []:Sven@home.org.au
+</pre> <p>Now that we have a CA, you can create a server key and certificate signing request (CSR). Make sure that “Common Name” (i.e., server FQDN or YOUR name) matches the hostname you will use to connect to Docker:</p> <blockquote> <p><strong>Note</strong>: replace all instances of <code>$HOST</code> in the following example with the DNS name of your Docker daemon’s host.</p> </blockquote> <pre>$ openssl genrsa -out server-key.pem 4096
+Generating RSA private key, 4096 bit long modulus
+.....................................................................++
+.................................................................................................++
+e is 65537 (0x10001)
+$ openssl req -subj "/CN=$HOST" -sha256 -new -key server-key.pem -out server.csr
+</pre> <p>Next, we’re going to sign the public key with our CA:</p> <p>Since TLS connections can be made via IP address as well as DNS name, they need to be specified when creating the certificate. For example, to allow connections using <code>10.10.10.20</code> and <code>127.0.0.1</code>:</p> <pre>$ echo subjectAltName = IP:10.10.10.20,IP:127.0.0.1 &gt; extfile.cnf
+
+$ openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+Signature ok
+subject=/CN=your.host.com
+Getting CA Private Key
+Enter pass phrase for ca-key.pem:
+</pre> <p>For client authentication, create a client key and certificate signing request:</p> <pre>$ openssl genrsa -out key.pem 4096
+Generating RSA private key, 4096 bit long modulus
+.........................................................++
+................++
+e is 65537 (0x10001)
+$ openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+</pre> <p>To make the key suitable for client authentication, create an extensions config file:</p> <pre>$ echo extendedKeyUsage = clientAuth &gt; extfile.cnf
+</pre> <p>Now sign the public key:</p> <pre>$ openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out cert.pem -extfile extfile.cnf
+Signature ok
+subject=/CN=client
+Getting CA Private Key
+Enter pass phrase for ca-key.pem:
+</pre> <p>After generating <code>cert.pem</code> and <code>server-cert.pem</code> you can safely remove the two certificate signing requests:</p> <pre>$ rm -v client.csr server.csr
+</pre> <p>With a default <code>umask</code> of 022, your secret keys will be <em>world-readable</em> and writable for you and your group.</p> <p>In order to protect your keys from accidental damage, you will want to remove their write permissions. To make them only readable by you, change file modes as follows:</p> <pre>$ chmod -v 0400 ca-key.pem key.pem server-key.pem
+</pre> <p>Certificates can be world-readable, but you might want to remove write access to prevent accidental damage:</p> <pre>$ chmod -v 0444 ca.pem server-cert.pem cert.pem
+</pre> <p>Now you can make the Docker daemon only accept connections from clients providing a certificate trusted by our CA:</p> <pre>$ docker daemon --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem --tlskey=server-key.pem \
+  -H=0.0.0.0:2376
+</pre> <p>To be able to connect to Docker and validate its certificate, you now need to provide your client keys, certificates and trusted CA:</p> <blockquote> <p><strong>Note</strong>: replace all instances of <code>$HOST</code> in the following example with the DNS name of your Docker daemon’s host.</p> </blockquote> <pre>$ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem \
+  -H=$HOST:2376 version
+</pre> <blockquote> <p><strong>Note</strong>: Docker over TLS should run on TCP port 2376.</p> <p><strong>Warning</strong>: As shown in the example above, you don’t have to run the <code>docker</code> client with <code>sudo</code> or the <code>docker</code> group when you use certificate authentication. That means anyone with the keys can give any instructions to your Docker daemon, giving them root access to the machine hosting the daemon. Guard these keys as you would a root password!</p> </blockquote> <h2 id="secure-by-default">Secure by default</h2> <p>If you want to secure your Docker client connections by default, you can move the files to the <code>.docker</code> directory in your home directory -- and set the <code>DOCKER_HOST</code> and <code>DOCKER_TLS_VERIFY</code> variables as well (instead of passing <code>-H=tcp://$HOST:2376</code> and <code>--tlsverify</code> on every call).</p> <pre>$ mkdir -pv ~/.docker
+$ cp -v {ca,cert,key}.pem ~/.docker
+$ export DOCKER_HOST=tcp://$HOST:2376 DOCKER_TLS_VERIFY=1
+</pre> <p>Docker will now connect securely by default:</p> <pre>$ docker ps
+</pre> <h2 id="other-modes">Other modes</h2> <p>If you don’t want to have complete two-way authentication, you can run Docker in various other modes by mixing the flags.</p> <h3 id="daemon-modes">Daemon modes</h3> <ul> <li>
+<code>tlsverify</code>, <code>tlscacert</code>, <code>tlscert</code>, <code>tlskey</code> set: Authenticate clients</li> <li>
+<code>tls</code>, <code>tlscert</code>, <code>tlskey</code>: Do not authenticate clients</li> </ul> <h3 id="client-modes">Client modes</h3> <ul> <li>
+<code>tls</code>: Authenticate server based on public/default CA pool</li> <li>
+<code>tlsverify</code>, <code>tlscacert</code>: Authenticate server based on given CA</li> <li>
+<code>tls</code>, <code>tlscert</code>, <code>tlskey</code>: Authenticate with client certificate, do not authenticate server based on given CA</li> <li>
+<code>tlsverify</code>, <code>tlscacert</code>, <code>tlscert</code>, <code>tlskey</code>: Authenticate with client certificate and authenticate server based on given CA</li> </ul> <p>If found, the client will send its client certificate, so you just need to drop your keys into <code>~/.docker/{ca,cert,key}.pem</code>. Alternatively, if you want to store your keys in another location, you can specify that location using the environment variable <code>DOCKER_CERT_PATH</code>.</p> <pre>$ export DOCKER_CERT_PATH=~/.docker/zone1/
+$ docker --tlsverify ps
+</pre> <h3 id="connecting-to-the-secure-docker-port-using-curl">Connecting to the secure Docker port using <code>curl</code>
+</h3> <p>To use <code>curl</code> to make test API requests, you need to use three extra command line flags:</p> <pre>$ curl https://$HOST:2376/images/json \
+  --cert ~/.docker/cert.pem \
+  --key ~/.docker/key.pem \
+  --cacert ~/.docker/ca.pem
+</pre> <h2 id="related-information">Related information</h2> <ul> <li><a href="../certificates/">Using certificates for repository client verification</a></li> <li><a href="https://docs.docker.com/engine/security/trust/" target="_blank">Use trusted images</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/security/https/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/security/https/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

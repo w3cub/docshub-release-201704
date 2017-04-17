@@ -1,0 +1,85 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Migrate to Engine 1.10 - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="Starting from version 1.10 of Docker Engine, we completely change the way image data is addressed on disk. Previously, every image and layer used a &hellip;">
+  <meta name="keywords" content="migrate, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/migration/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="migrate-to-engine-1-10">Migrate to Engine 1.10</h1> <p>Starting from version 1.10 of Docker Engine, we completely change the way image data is addressed on disk. Previously, every image and layer used a randomly assigned UUID. In 1.10 we implemented a content addressable method using an ID, based on a secure hash of the image and layer data.</p> <p>The new method gives users more security, provides a built-in way to avoid ID collisions and guarantee data integrity after pull, push, load, or save. It also brings better sharing of layers by allowing many images to freely share their layers even if they didn’t come from the same build.</p> <p>Addressing images by their content also lets us more easily detect if something has already been downloaded. Because we have separated images and layers, you don’t have to pull the configurations for every image that was part of the original build chain. We also don’t need to create layers for the build instructions that didn’t modify the filesystem.</p> <p>Content addressability is the foundation for the new distribution features. The image pull and push code has been reworked to use a download/upload manager concept that makes pushing and pulling images much more stable and mitigates any parallel request issues. The download manager also brings retries on failed downloads and better prioritization for concurrent downloads.</p> <p>We are also introducing a new manifest format that is built on top of the content addressable base. It directly references the content addressable image configuration and layer checksums. The new manifest format also makes it possible for a manifest list to be used for targeting multiple architectures/platforms. Moving to the new manifest format will be completely transparent.</p> <h2 id="preparing-for-upgrade">Preparing for upgrade</h2> <p>To make your current images accessible to the new model we have to migrate them to content addressable storage. This means calculating the secure checksums for your current data.</p> <p>All your current images, tags and containers are automatically migrated to the new foundation the first time you start Docker Engine 1.10. Before loading your container, the daemon will calculate all needed checksums for your current data, and after it has completed, all your images and tags will have brand new secure IDs.</p> <p><strong>While this is simple operation, calculating SHA256 checksums for your files can take time if you have lots of image data.</strong> On average you should assume that migrator can process data at a speed of 100MB/s. During this time your Docker daemon won’t be ready to respond to requests.</p> <h2 id="minimizing-migration-time">Minimizing migration time</h2> <p>If you can accept this one time hit, then upgrading Docker Engine and restarting the daemon will transparently migrate your images. However, if you want to minimize the daemon’s downtime, a migration utility can be run while your old daemon is still running.</p> <p>This tool will find all your current images and calculate the checksums for them. After you upgrade and restart the daemon, the checksum data of the migrated images will already exist, freeing the daemon from that computation work. If new images appeared between the migration and the upgrade, those will be processed at time of upgrade to 1.10.</p> <p><a href="https://github.com/docker/v1.10-migrator/releases" target="_blank">You can download the migration tool here.</a></p> <p>The migration tool can also be run as a Docker image. While running the migrator image you need to expose your Docker data directory to the container. If you use the default path then you would run:</p> <pre>$ docker run --rm -v /var/lib/docker:/var/lib/docker docker/v1.10-migrator
+</pre> <p>If you use the devicemapper storage driver, you also need to pass the flag <code>--privileged</code> to give the tool access to your storage devices.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/migration/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/migration/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

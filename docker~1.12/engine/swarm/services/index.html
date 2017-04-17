@@ -1,0 +1,172 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Deploy Services to a Swarm (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="When you are running Docker Engine in swarm mode, you run docker service create to deploy your application in the swarm. The swarm manager accepts &hellip;">
+  <meta name="keywords" content="deploy, services, swarm, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/swarm/services/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="deploy-services-to-a-swarm">Deploy services to a swarm</h1> <p>When you are running Docker Engine in swarm mode, you run <code>docker service create</code> to deploy your application in the swarm. The swarm manager accepts the service description as the desired state for your application. The built-in swarm orchestrator and scheduler deploy your application to nodes in your swarm to achieve and maintain the desired state.</p> <p>For an overview of how services work, refer to <a href="../how-swarm-mode-works/services/">How services work</a>.</p> <p>This guide assumes you are working with the Docker Engine running in swarm mode. You must run all <code>docker service</code> commands from a manager node.</p> <p>If you haven’t already, read through <a href="../key-concepts/">Swarm mode key concepts</a> and <a href="../how-swarm-mode-works/services/">How services work</a>.</p> <h2 id="create-a-service">Create a service</h2> <p>To create the simplest type of service in a swarm, you only need to supply a container image:</p> <pre>$ docker service create &lt;IMAGE&gt;
+</pre> <p>The swarm orchestrator schedules one task on an available node. The task invokes a container based upon the image. For example, you could run the following command to create a service of one instance of an nginx web server:</p> <pre>$ docker service create --name my_web nginx
+
+anixjtol6wdfn6yylbkrbj2nx
+</pre> <p>In this example the <code>--name</code> flag names the service <code>my_web</code>.</p> <p>To list the service, run <code>docker service ls</code> from a manager node:</p> <pre>$ docker service ls
+
+ID            NAME    REPLICAS  IMAGE  COMMAND
+anixjtol6wdf  my_web  1/1       nginx
+</pre> <p>To make the web server accessible from outside the swarm, you need to <a href="#publish-ports-externally-to-the-swarm">publish the port</a> where the swarm listens for web requests.</p> <p>You can include a command to run inside containers after the image:</p> <pre>$ docker service create &lt;IMAGE&gt; &lt;COMMAND&gt;
+</pre> <p>For example to start an <code>alpine</code> image that runs <code>ping docker.com</code>:</p> <pre>$ docker service create --name helloworld alpine ping docker.com
+
+9uk4639qpg7npwf3fn2aasksr
+</pre> <h2 id="configure-the-runtime-environment">Configure the runtime environment</h2> <p>You can configure the following options for the runtime environment in the container:</p> <ul> <li>environment variables using the <code>--env</code> flag</li> <li>the working directory inside the container using the <code>--workdir</code> flag</li> <li>the username or UID using the <code>--user</code> flag</li> </ul> <p>For example:</p> <pre>$ docker service create --name helloworld \
+  --env MYVAR=myvalue \
+  --workdir /tmp \
+  --user my_user \
+  alpine ping docker.com
+
+9uk4639qpg7npwf3fn2aasksr
+</pre> <h2 id="control-service-scale-and-placement">Control service scale and placement</h2> <p>Swarm mode has two types of services, replicated and global. For replicated services, you specify the number of replica tasks for the swarm manager to schedule onto available nodes. For global services, the scheduler places one task on each available node.</p> <p>You control the type of service using the <code>--mode</code> flag. If you don’t specify a mode, the service defaults to <code>replicated</code>. For replicated services, you specify the number of replica tasks you want to start using the <code>--replicas</code> flag. For example, to start a replicated nginx service with 3 replica tasks:</p> <pre>$ docker service create --name my_web --replicas 3 nginx
+</pre> <p>To start a global service on each available node, pass <code>--mode global</code> to <code>docker service create</code>. Every time a new node becomes available, the scheduler places a task for the global service on the new node. For example to start a service that runs alpine on every node in the swarm:</p> <pre>$ docker service create --name myservice --mode global alpine top
+</pre> <p>Service constraints let you set criteria for a node to meet before the scheduler deploys a service to the node. You can apply constraints to the service based upon node attributes and metadata or engine metadata. For more information on constraints, refer to the <code>docker service create</code> <a href="../../reference/commandline/service_create/">CLI reference</a>.</p> <h2 id="configure-service-networking-options">Configure service networking options</h2> <p>Swarm mode lets you network services in a couple of ways:</p> <ul> <li>publish ports externally to the swarm using ingress networking</li> <li>connect services and tasks within the swarm using overlay networks</li> </ul> <h3 id="publish-ports-externally-to-the-swarm">Publish ports externally to the swarm</h3> <p>You publish service ports externally to the swarm using the <code>--publish
+&lt;TARGET-PORT&gt;:&lt;SERVICE-PORT&gt;</code> flag. When you publish a service port, the swarm makes the service accessible at the target port on every node regardless if there is a task for the service running on the node.</p> <p>For example, imagine you want to deploy a 3-replica nginx service to a 10-node swarm as follows:</p> <pre>docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+</pre> <p>The scheduler will deploy nginx tasks to a maximum of 3 nodes. However, the swarm makes nginx port 80 from the task container accessible at port 8080 on any node in the swarm. You can direct <code>curl</code> at port 8080 of any node in the swarm to access the web server:</p> <pre>$ curl localhost:8080
+
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+&lt;style&gt;
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Welcome to nginx!&lt;/h1&gt;
+&lt;p&gt;If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.&lt;/p&gt;
+
+&lt;p&gt;For online documentation and support please refer to
+&lt;a href="http://nginx.org/"&gt;nginx.org&lt;/a&gt;.&lt;br/&gt;
+Commercial support is available at
+&lt;a href="http://nginx.com/"&gt;nginx.com&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Thank you for using nginx.&lt;/em&gt;&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre> <h3 id="add-an-overlay-network">Add an overlay network</h3> <p>Use overlay networks to connect one or more services within the swarm.</p> <p>First, create an overlay network on a manager node the <code>docker network create</code> command:</p> <pre>$ docker network create --driver overlay my-network
+
+etjpu59cykrptrgw0z0hk5snf
+</pre> <p>After you create an overlay network in swarm mode, all manager nodes have access to the network.</p> <p>When you create a service and pass the <code>--network</code> flag to attach the service to the overlay network:</p> <pre>$ docker service create \
+  --replicas 3 \
+  --network my-network \
+  --name my-web \
+  nginx
+
+716thylsndqma81j6kkkb5aus
+</pre> <p>The swarm extends <code>my-network</code> to each node running the service.</p> <p>For more information on overlay networking and service discovery, refer to <a href="../networking/">Attach services to an overlay network</a>. See also <a href="../../userguide/networking/overlay-security-model/">Docker swarm mode overlay network security model</a>.</p> <h2 id="configure-update-behavior">Configure update behavior</h2> <p>When you create a service, you can specify a rolling update behavior for how the swarm should apply changes to the service when you run <code>docker service update</code>. You can also specify these flags as part of the update, as arguments to <code>docker service update</code>.</p> <p>The <code>--update-delay</code> flag configures the time delay between updates to a service task or sets of tasks. You can describe the time <code>T</code> as a combination of the number of seconds <code>Ts</code>, minutes <code>Tm</code>, or hours <code>Th</code>. So <code>10m30s</code> indicates a 10 minute 30 second delay.</p> <p>By default the scheduler updates 1 task at a time. You can pass the <code>--update-parallelism</code> flag to configure the maximum number of service tasks that the scheduler updates simultaneously.</p> <p>When an update to an individual task returns a state of <code>RUNNING</code>, the scheduler continues the update by continuing to another task until all tasks are updated. If, at any time during an update a task returns <code>FAILED</code>, the scheduler pauses the update. You can control the behavior using the <code>--update-failure-action</code> flag for <code>docker service create</code> or <code>docker service update</code>.</p> <p>In the example service below, the scheduler applies updates to a maximum of 2 replicas at a time. When an updated task returns either <code>RUNNING</code> or <code>FAILED</code>, the scheduler waits 10 seconds before stopping the next task to update:</p> <pre>$ docker service create \
+  --replicas 10 \
+  --name my_web \
+  --update-delay 10s \
+  --update-parallelism 2 \
+  --update-failure-action continue \
+  alpine
+
+0u6a4s31ybk7yw2wyvtikmu50
+</pre> <h2 id="configure-mounts">Configure mounts</h2> <p>You can create two types of mounts for services in a swarm, <code>volume</code> mounts or <code>bind</code> mounts. You pass the <code>--mount</code> flag when you create a service. The default is a volume mount if you don’t specify a type.</p> <ul> <li>Volumes are storage that remain alive after a container for a task has been removed. The preferred method to mount volumes is to leverage an existing volume:</li> </ul> <pre>$ docker service create \
+  --mount src=&lt;VOLUME-NAME&gt;,dst=&lt;CONTAINER-PATH&gt; \
+  --name myservice \
+  &lt;IMAGE&gt;
+</pre> <p>For more information on how to create a volume, see the <code>volume create</code> <a href="../../reference/commandline/volume_create/">CLI reference</a>.</p> <p>The following method creates the volume at deployment time when the scheduler dispatches a task, just before the starting the container:</p> <pre>$ docker service create \
+  --mount type=volume,src=&lt;VOLUME-NAME&gt;,dst=&lt;CONTAINER-PATH&gt;,volume-driver=&lt;DRIVER&gt;,volume-opt=&lt;KEY0&gt;=&lt;VALUE0&gt;,volume-opt=&lt;KEY1&gt;=&lt;VALUE1&gt;
+  --name myservice \
+  &lt;IMAGE&gt;
+</pre> <ul> <li>Bind mounts are file system paths from the host where the scheduler deploys the container for the task. Docker mounts the path into the container. The file system path must exist before the swarm initializes the container for the task.</li> </ul> <p>The following examples show bind mount syntax:</p> <pre># Mount a read-write bind
+$ docker service create \
+  --mount type=bind,src=&lt;HOST-PATH&gt;,dst=&lt;CONTAINER-PATH&gt; \
+  --name myservice \
+  &lt;IMAGE&gt;
+
+# Mount a read-only bind
+$ docker service create \
+  --mount type=bind,src=&lt;HOST-PATH&gt;,dst=&lt;CONTAINER-PATH&gt;,readonly \
+  --name myservice \
+  &lt;IMAGE&gt;
+</pre> <blockquote> <p><strong>Important note:</strong> Bind mounts can be useful but they are also dangerous. In most cases, we recommend that you architect your application such that mounting paths from the host is unnecessary. The main risks include the following:<br> <br> If you bind mount a host path into your service’s containers, the path must exist on every machine. The Docker swarm mode scheduler can schedule containers on any machine that meets resource availability requirements and satisfies all <code>--constraint</code>s you specify.<br> <br> The Docker swarm mode scheduler may reschedule your running service containers at any time if they become unhealthy or unreachable.<br> <br> Host bind mounts are completely non-portable. When you use bind mounts, there is no guarantee that your application will run the same way in development as it does in production.</p> </blockquote> <h2 id="learn-more">Learn More</h2> <ul> <li><a href="../admin_guide/">Swarm administration guide</a></li> <li><a href="../../reference/commandline/">Docker Engine command line reference</a></li> <li><a href="../swarm-tutorial/">Swarm mode tutorial</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/services/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/services/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

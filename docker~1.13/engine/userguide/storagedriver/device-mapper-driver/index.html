@@ -1,0 +1,311 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Device Mapper Storage in Practice (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="Device Mapper is a kernel-based framework that underpins many advanced volume management technologies on Linux. Docker’s devicemapper storage driver &hellip;">
+  <meta name="keywords" content="docker, and, device, mapper, storage, driver, practice, engine, -, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/userguide/storagedriver/device-mapper-driver/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Docker and the Device Mapper storage driver</h1>  <p>Device Mapper is a kernel-based framework that underpins many advanced volume management technologies on Linux. Docker’s <code class="highlighter-rouge">devicemapper</code> storage driver leverages the thin provisioning and snapshotting capabilities of this framework for image and container management. This article refers to the Device Mapper storage driver as <code class="highlighter-rouge">devicemapper</code>, and the kernel framework as <code class="highlighter-rouge">Device Mapper</code>.</p> <blockquote> <p><strong>Note</strong>: The <a href="https://www.docker.com/compatibility-maintenance" target="_blank">Commercially Supported Docker Engine (CS-Engine) running on RHEL and CentOS Linux</a> requires that you use the <code class="highlighter-rouge">devicemapper</code> storage driver.</p> </blockquote> <h2 id="an-alternative-to-aufs">An alternative to AUFS</h2> <p>Docker originally ran on Ubuntu and Debian Linux and used AUFS for its storage backend. As Docker became popular, many of the companies that wanted to use it were using Red Hat Enterprise Linux (RHEL). Unfortunately, because the upstream mainline Linux kernel did not include AUFS, RHEL did not use AUFS either.</p> <p>To correct this Red Hat developers investigated getting AUFS into the mainline kernel. Ultimately, though, they decided a better idea was to develop a new storage backend. Moreover, they would base this new storage backend on existing <code class="highlighter-rouge">Device Mapper</code> technology.</p> <p>Red Hat collaborated with Docker Inc. to contribute this new driver. As a result of this collaboration, Docker’s Engine was re-engineered to make the storage backend pluggable. So it was that the <code class="highlighter-rouge">devicemapper</code> became the second storage driver Docker supported.</p> <p>Device Mapper has been included in the mainline Linux kernel since version 2.6.9. It is a core part of RHEL family of Linux distributions. This means that the <code class="highlighter-rouge">devicemapper</code> storage driver is based on stable code that has a lot of real-world production deployments and strong community support.</p> <h2 id="image-layering-and-sharing">Image layering and sharing</h2> <p>The <code class="highlighter-rouge">devicemapper</code> driver stores every image and container on its own virtual device. These devices are thin-provisioned copy-on-write snapshot devices. Device Mapper technology works at the block level rather than the file level. This means that <code class="highlighter-rouge">devicemapper</code> storage driver’s thin provisioning and copy-on-write operations work with blocks rather than entire files.</p> <blockquote> <p><strong>Note</strong>: Snapshots are also referred to as <em>thin devices</em> or <em>virtual devices</em>. They all mean the same thing in the context of the <code class="highlighter-rouge">devicemapper</code> storage driver.</p> </blockquote> <p>With <code class="highlighter-rouge">devicemapper</code> the high level process for creating images is as follows:</p> <ol> <li> <p>The <code class="highlighter-rouge">devicemapper</code> storage driver creates a thin pool.</p> <p>The pool is created from block devices or loop mounted sparse files (more on this later).</p> </li> <li> <p>Next it creates a <em>base device</em>.</p> <p>A base device is a thin device with a filesystem. You can see which filesystem is in use by running the <code class="highlighter-rouge">docker info</code> command and checking the <code class="highlighter-rouge">Backing filesystem</code> value.</p> </li> <li> <p>Each new image (and image layer) is a snapshot of this base device.</p> <p>These are thin provisioned copy-on-write snapshots. This means that they are initially empty and only consume space from the pool when data is written to them.</p> </li> </ol> <p>With <code class="highlighter-rouge">devicemapper</code>, container layers are snapshots of the image they are created from. Just as with images, container snapshots are thin provisioned copy-on-write snapshots. The container snapshot stores all updates to the container. The <code class="highlighter-rouge">devicemapper</code> allocates space to them on-demand from the pool as and when data is written to the container.</p> <p>The high level diagram below shows a thin pool with a base device and two images.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/base_device.jpg" alt=""></p> <p>If you look closely at the diagram you’ll see that it’s snapshots all the way down. Each image layer is a snapshot of the layer below it. The lowest layer of each image is a snapshot of the base device that exists in the pool. This base device is a <code class="highlighter-rouge">Device Mapper</code> artifact and not a Docker image layer.</p> <p>A container is a snapshot of the image it is created from. The diagram below shows two containers - one based on the Ubuntu image and the other based on the Busybox image.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/two_dm_container.jpg" alt=""></p> <h2 id="reads-with-the-devicemapper">Reads with the devicemapper</h2> <p>Let’s look at how reads and writes occur using the <code class="highlighter-rouge">devicemapper</code> storage driver. The diagram below shows the high level process for reading a single block (<code class="highlighter-rouge">0x44f</code>) in an example container.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/dm_container.jpg" alt=""></p> <ol> <li> <p>An application makes a read request for block <code class="highlighter-rouge">0x44f</code> in the container.</p> <p>Because the container is a thin snapshot of an image it does not have the data. Instead, it has a pointer (PTR) to where the data is stored in the image snapshot lower down in the image stack.</p> </li> <li> <p>The storage driver follows the pointer to block <code class="highlighter-rouge">0xf33</code> in the snapshot relating to image layer <code class="highlighter-rouge">a005...</code>.</p> </li> <li> <p>The <code class="highlighter-rouge">devicemapper</code> copies the contents of block <code class="highlighter-rouge">0xf33</code> from the image snapshot to memory in the container.</p> </li> <li> <p>The storage driver returns the data to the requesting application.</p> </li> </ol> <h2 id="write-examples">Write examples</h2> <p>With the <code class="highlighter-rouge">devicemapper</code> driver, writing new data to a container is accomplished by an <em>allocate-on-demand</em> operation. Updating existing data uses a copy-on-write operation. Because Device Mapper is a block-based technology these operations occur at the block level.</p> <p>For example, when making a small change to a large file in a container, the <code class="highlighter-rouge">devicemapper</code> storage driver does not copy the entire file. It only copies the blocks to be modified. Each block is 64KB.</p> <h3 id="writing-new-data">Writing new data</h3> <p>To write 56KB of new data to a container:</p> <ol> <li> <p>An application makes a request to write 56KB of new data to the container.</p> </li> <li> <p>The allocate-on-demand operation allocates a single new 64KB block to the container’s snapshot.</p> <p>If the write operation is larger than 64KB, multiple new blocks are allocated to the container’s snapshot.</p> </li> <li> <p>The data is written to the newly allocated block.</p> </li> </ol> <h3 id="overwriting-existing-data">Overwriting existing data</h3> <p>To modify existing data for the first time:</p> <ol> <li> <p>An application makes a request to modify some data in the container.</p> </li> <li> <p>A copy-on-write operation locates the blocks that need updating.</p> </li> <li> <p>The operation allocates new empty blocks to the container snapshot and copies the data into those blocks.</p> </li> <li> <p>The modified data is written into the newly allocated blocks.</p> </li> </ol> <p>The application in the container is unaware of any of these allocate-on-demand and copy-on-write operations. However, they may add latency to the application’s read and write operations.</p> <h2 id="configure-docker-with-devicemapper">Configure Docker with devicemapper</h2> <p>The <code class="highlighter-rouge">devicemapper</code> is the default Docker storage driver on some Linux distributions. This includes RHEL and most of its forks. Currently, the following distributions support the driver:</p> <ul> <li>RHEL/CentOS/Fedora</li> <li>Ubuntu 12.04</li> <li>Ubuntu 14.04</li> <li>Debian</li> <li>Arch Linux</li> </ul> <p>Docker hosts running the <code class="highlighter-rouge">devicemapper</code> storage driver default to a configuration mode known as <code class="highlighter-rouge">loop-lvm</code>. This mode uses sparse files to build the thin pool used by image and container snapshots. The mode is designed to work out-of-the-box with no additional configuration. However, production deployments should not run under <code class="highlighter-rouge">loop-lvm</code> mode.</p> <p>You can detect the mode by viewing the <code class="highlighter-rouge">docker info</code> command:</p> <pre class="highlight" data-language="bash">$ sudo docker info
+
+Containers: 0
+Images: 0
+Storage Driver: devicemapper
+ Pool Name: docker-202:2-25220302-pool
+ Pool Blocksize: 65.54 kB
+ Backing Filesystem: xfs
+ [...]
+ Data loop file: /var/lib/docker/devicemapper/devicemapper/data
+ Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
+ Library Version: 1.02.93-RHEL7 (2015-01-28)
+ [...]
+ ```
+
+The output above shows a Docker host running with the `devicemapper` storage
+driver operating in `loop-lvm` mode. This is indicated by the fact that the
+`Data loop file` and a `Metadata loop file` are on files under
+`/var/lib/docker/devicemapper/devicemapper`. These are loopback mounted sparse
+files.
+
+### Configure direct-lvm mode for production
+
+The preferred configuration for production deployments is `direct-lvm`. This
+mode uses block devices to create the thin pool. The following procedure shows
+you how to configure a Docker host to use the `devicemapper` storage driver in
+a `direct-lvm` configuration.
+
+&gt; **Caution:** If you have already run the Docker daemon on your Docker host
+&gt; and have images you want to keep, `push` them to Docker Hub or your private
+&gt; Docker Trusted Registry before attempting this procedure.
+
+The procedure below will create a logical volume configured as a thin pool to
+use as backing for the storage pool. It assumes that you have a spare block
+device at `/dev/xvdf` with enough free space to complete the task. The device
+identifier and volume sizes may be different in your environment and you
+should substitute your own values throughout the procedure. The procedure also
+assumes that the Docker daemon is in the `stopped` state.
+
+1. Log in to the Docker host you want to configure and stop the Docker daemon.
+
+2. Install the LVM2 and `thin-provisioning-tools` packages.
+
+   The LVM2 package includes the userspace toolset that provides logical volume
+   management facilities on linux.
+
+	 The `thin-provisioning-tools` package allows you to activate and manage your
+	 pool.
+
+3. Create a physical volume replacing `/dev/xvdf` with your block device.
+
+	```bash
+	$ pvcreate /dev/xvdf
+	```
+
+4. Create a 'docker' volume group.
+
+	```bash
+	$ vgcreate docker /dev/xvdf
+	```
+
+5. Create a thin pool named `thinpool`.
+
+	In this example, the data logical is 95% of the 'docker' volume group size.
+	Leaving this free space allows for auto expanding of either the data or
+	metadata if space runs low as a temporary stopgap.
+
+	```bash
+	$ lvcreate --wipesignatures y -n thinpool docker -l 95%VG
+	$ lvcreate --wipesignatures y -n thinpoolmeta docker -l 1%VG
+	```
+
+6. Convert the pool to a thin pool.
+
+	```bash
+	$ lvconvert -y --zero n -c 512K --thinpool docker/thinpool --poolmetadata docker/thinpoolmeta
+	```
+
+7. Configure autoextension of thin pools via an `lvm` profile.
+
+	```bash
+	$ vi /etc/lvm/profile/docker-thinpool.profile
+	```
+
+8. Specify 'thin_pool_autoextend_threshold' value.
+
+	The value should be the percentage of space used before `lvm` attempts
+	to autoextend the available space (100 = disabled).
+
+	```
+	thin_pool_autoextend_threshold = 80
+	```
+
+9. Modify the `thin_pool_autoextend_percent` for when thin pool autoextension occurs.
+
+	The value's setting is the perentage of space to increase the thin pool (100 =
+	disabled)
+
+	```
+	thin_pool_autoextend_percent = 20
+	```
+
+10. Check your work, your `docker-thinpool.profile` file should appear similar to the following:
+
+	An example `/etc/lvm/profile/docker-thinpool.profile` file:
+
+	```
+	activation {
+		thin_pool_autoextend_threshold=80
+		thin_pool_autoextend_percent=20
+	}
+	```
+
+11. Apply your new lvm profile
+
+	```bash
+	$ lvchange --metadataprofile docker-thinpool docker/thinpool
+	```
+
+12. Verify the `lv` is monitored.
+
+	```bash
+	$ lvs -o+seg_monitor
+	```
+
+13. If the Docker daemon was previously started, move your existing graph driver
+    directory out of the way.
+
+    Moving the graph driver removes any images, containers, and volumes in your
+    Docker installation. These commands move the contents of the
+    `/var/lib/docker` directory to a new directory named `/var/lib/docker.bk`.
+    If any of the following steps fail and you need to restore, you can remove
+    `/var/lib/docker` and replace it with `/var/lib/docker.bk`.
+
+    ```bash
+    $ mkdir /var/lib/docker.bk
+    $ mv /var/lib/docker/* /var/lib/docker.bk
+    ```
+
+14. Configure the Docker daemon with specific devicemapper options.
+
+    Now that your storage is configured, configure the Docker daemon to use it. There are two ways to do this. You can set options on the command line if you start the daemon there:
+
+    ```bash
+    --storage-driver=devicemapper --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool --storage-opt=dm.use_deferred_removal=true --storage-opt=dm.use_deferred_deletion=true
+    ```
+
+	You can also set them for startup in the `daemon.json` configuration, for example:
+
+    ```json
+    {
+      "storage-driver": "devicemapper",
+       "storage-opts": [
+         "dm.thinpooldev=/dev/mapper/docker-thinpool",
+         "dm.use_deferred_removal=true",
+         "dm.use_deferred_deletion=true"
+       ]
+    }
+    ```
+
+    &gt;**Note**: Always set both `dm.use_deferred_removal=true` and `dm.use_deferred_deletion=true` to prevent unintentionally leaking mount points.
+
+15. If using systemd and modifying the daemon configuration via unit or drop-in file, reload systemd to scan for changes.
+
+	```bash
+	$ systemctl daemon-reload
+	```
+
+16. Start the Docker daemon.
+
+	```bash
+	$ systemctl start docker
+	```
+
+After you start the Docker daemon, ensure you monitor your thin pool and volume
+group free space. While the volume group will auto-extend, it can still fill
+up. To monitor logical volumes, use `lvs` without options or `lvs -a` to see tha
+data and metadata sizes. To monitor volume group free space, use the `vgs` command.
+
+Logs can show the auto-extension of the thin pool when it hits the threshold, to
+view the logs use:
+
+```bash
+$ journalctl -fu dm-event.service
+</pre>  <p>After you have verified that the configuration is correct, you can remove the <code class="highlighter-rouge">/var/lib/docker.bk</code> directory which contains the previous configuration.</p> <pre class="highlight" data-language="bash">$ rm -rf /var/lib/docker.bk
+</pre>  <p>If you run into repeated problems with thin pool, you can use the <code class="highlighter-rouge">dm.min_free_space</code> option to tune the Engine behavior. This value ensures that operations fail with a warning when the free space is at or near the minimum. For information, see <a href="../../../reference/commandline/dockerd/#storage-driver-options" target="_blank">the storage driver options in the Engine daemon reference</a>.</p> <h3 id="examine-devicemapper-structures-on-the-host">Examine devicemapper structures on the host</h3> <p>You can use the <code class="highlighter-rouge">lsblk</code> command to see the device files created above and the <code class="highlighter-rouge">pool</code> that the <code class="highlighter-rouge">devicemapper</code> storage driver creates on top of them.</p> <pre class="highlight" data-language="bash">$ sudo lsblk
+NAME			   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+xvda			   202:0	0	 8G  0 disk
+└─xvda1			   202:1	0	 8G  0 part /
+xvdf			   202:80	0	10G  0 disk
+├─vg--docker-data		   253:0	0	90G  0 lvm
+│ └─docker-202:1-1032-pool 253:2	0	10G  0 dm
+└─vg--docker-metadata	   253:1	0	 4G  0 lvm
+  └─docker-202:1-1032-pool 253:2	0	10G  0 dm
+</pre>  <p>The diagram below shows the image from prior examples updated with the detail from the <code class="highlighter-rouge">lsblk</code> command above.</p> <p><img src="https://docs.docker.com/engine/userguide/storagedriver/images/lsblk-diagram.jpg" alt=""></p> <p>In the diagram, the pool is named <code class="highlighter-rouge">Docker-202:1-1032-pool</code> and spans the <code class="highlighter-rouge">data</code> and <code class="highlighter-rouge">metadata</code> devices created earlier. The <code class="highlighter-rouge">devicemapper</code> constructs the pool name as follows:</p> <pre class="highlight" data-language="">Docker-MAJ:MIN-INO-pool
+</pre>  <p><code class="highlighter-rouge">MAJ</code>, <code class="highlighter-rouge">MIN</code> and <code class="highlighter-rouge">INO</code> refer to the major and minor device numbers and inode.</p> <p>Because Device Mapper operates at the block level it is more difficult to see diffs between image layers and containers. Docker 1.10 and later no longer matches image layer IDs with directory names in <code class="highlighter-rouge">/var/lib/docker</code>. However, there are two key directories. The <code class="highlighter-rouge">/var/lib/docker/devicemapper/mnt</code> directory contains the mount points for image and container layers. The <code class="highlighter-rouge">/var/lib/docker/devicemapper/metadata</code>directory contains one file for every image layer and container snapshot. The files contain metadata about each snapshot in JSON format.</p> <h2 id="increase-capacity-on-a-running-device">Increase capacity on a running device</h2> <p>You can increase the capacity of the pool on a running thin-pool device. This is useful if the data’s logical volume is full and the volume group is at full capacity.</p> <h3 id="for-a-loop-lvm-configuration">For a loop-lvm configuration</h3> <p>In this scenario, the thin pool is configured to use <code class="highlighter-rouge">loop-lvm</code> mode. To show the specifics of the existing configuration use <code class="highlighter-rouge">docker info</code>:</p> <pre class="highlight" data-language="bash">$ sudo docker info
+
+Containers: 0
+ Running: 0
+ Paused: 0
+ Stopped: 0
+Images: 2
+Server Version: 1.11.0
+Storage Driver: devicemapper
+ Pool Name: docker-8:1-123141-pool
+ Pool Blocksize: 65.54 kB
+ Base Device Size: 10.74 GB
+ Backing Filesystem: ext4
+ Data file: /dev/loop0
+ Metadata file: /dev/loop1
+ Data Space Used: 1.202 GB
+ Data Space Total: 107.4 GB
+ Data Space Available: 4.506 GB
+ Metadata Space Used: 1.729 MB
+ Metadata Space Total: 2.147 GB
+ Metadata Space Available: 2.146 GB
+ Udev Sync Supported: true
+ Deferred Removal Enabled: false
+ Deferred Deletion Enabled: false
+ Deferred Deleted Device Count: 0
+ Data loop file: /var/lib/docker/devicemapper/devicemapper/data
+ WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.
+ Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
+ Library Version: 1.02.90 (2014-09-01)
+Logging Driver: json-file
+[...]
+</pre>  <p>The <code class="highlighter-rouge">Data Space</code> values show that the pool is 100GB total. This example extends the pool to 200GB.</p> <ol> <li> <p>List the sizes of the devices.</p> <p>```bash $ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/</p> <p>total 1175492 -rw——- 1 root root 100G Mar 30 05:22 data -rw——- 1 root root 2.0G Mar 31 11:17 metadata ```</p> </li> <li> <p>Truncate <code class="highlighter-rouge">data</code> file to the size of the <code class="highlighter-rouge">metadata</code> file (approximately 200GB).</p> <p><code class="highlighter-rouge">bash $ sudo truncate -s 214748364800 /var/lib/docker/devicemapper/devicemapper/data</code></p> </li> <li> <p>Verify the file size changed.</p> <p>```bash $ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/</p> <p>total 1.2G -rw——- 1 root root 200G Apr 14 08:47 data -rw——- 1 root root 2.0G Apr 19 13:27 metadata ```</p> </li> <li> <p>Reload data loop device</p> <p>```bash $ sudo blockdev –getsize64 /dev/loop0</p> <p>107374182400</p> <p>$ sudo losetup -c /dev/loop0</p> <p>$ sudo blockdev –getsize64 /dev/loop0</p> <p>214748364800 ```</p> </li> <li> <p>Reload devicemapper thin pool.</p> <p>a. Get the pool name first.</p> <p>```bash $ sudo dmsetup status | grep pool</p> <p>docker-8:1-123141-pool: 0 209715200 thin-pool 91 422/524288 18338/1638400 - rw discard_passdown queue_if_no_space - ```</p> <p>The name is the string before the colon.</p> <p>b. Dump the device mapper table first.</p> <p>```bash $ sudo dmsetup table docker-8:1-123141-pool</p> <p>0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing ```</p> <p>c. Calculate the real total sectors of the thin pool now.</p> <p>Change the second number of the table info (i.e. the disk end sector) to reflect the new number of 512 byte sectors in the disk. For example, as the new loop size is 200GB, change the second number to 419430400.</p> <p>d. Reload the thin pool with the new sector number</p> <p><code class="highlighter-rouge">bash $ sudo dmsetup suspend docker-8:1-123141-pool \ &amp;&amp; sudo dmsetup reload docker-8:1-123141-pool --table '0 419430400 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing' \ &amp;&amp; sudo dmsetup resume docker-8:1-123141-pool</code></p> </li> </ol> <h4 id="the-devicetool">The device_tool</h4> <p>The Docker’s projects <code class="highlighter-rouge">contrib</code> directory contains not part of the core distribution. These tools that are often useful but can also be out-of-date. <a href="https://goo.gl/wNfDTi" target="_blank">In this directory, is the <code class="highlighter-rouge">device_tool.go</code></a> which you can also resize the loop-lvm thin pool.</p> <p>To use the tool, compile it first. Then, do the following to resize the pool:</p> <pre class="highlight" data-language="bash">$ ./device_tool resize 200GB
+</pre>  <h3 id="for-a-direct-lvm-mode-configuration">For a direct-lvm mode configuration</h3> <p>In this example, you extend the capacity of a running device that uses the <code class="highlighter-rouge">direct-lvm</code> configuration. This example assumes you are using the <code class="highlighter-rouge">/dev/sdh1</code> disk partition.</p> <ol> <li> <p>Extend the volume group (VG) <code class="highlighter-rouge">vg-docker</code>.</p> <p>```bash $ sudo vgextend vg-docker /dev/sdh1</p> <p>Volume group “vg-docker” successfully extended ```</p> <p>Your volume group may use a different name.</p> </li> <li> <p>Extend the <code class="highlighter-rouge">data</code> logical volume(LV) <code class="highlighter-rouge">vg-docker/data</code></p> <p>```bash $ sudo lvextend -l+100%FREE -n vg-docker/data</p> <p>Extending logical volume data to 200 GiB Logical volume data successfully resized ```</p> </li> <li> <p>Reload devicemapper thin pool.</p> <p>a. Get the pool name.</p> <p>```bash $ sudo dmsetup status | grep pool</p> <p>docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space ```</p> <p>The name is the string before the colon.</p> <p>b. Dump the device mapper table.</p> <p>```bash $ sudo dmsetup table docker-253:17-1835016-pool</p> <p>0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing ```</p> <p>c. Calculate the real total sectors of the thin pool now. we can use <code class="highlighter-rouge">blockdev</code> to get the real size of data lv.</p> <p>Change the second number of the table info (i.e. the number of sectors) to reflect the new number of 512 byte sectors in the disk. For example, as the new data <code class="highlighter-rouge">lv</code> size is <code class="highlighter-rouge">264132100096</code> bytes, change the second number to <code class="highlighter-rouge">515883008</code>.</p> <p>```bash $ sudo blockdev –getsize64 /dev/vg-docker/data</p> <p>264132100096 ```</p> <p>d. Then reload the thin pool with the new sector number.</p> <p><code class="highlighter-rouge">bash $ sudo dmsetup suspend docker-253:17-1835016-pool \ &amp;&amp; sudo dmsetup reload docker-253:17-1835016-pool --table '0 515883008 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing' \ &amp;&amp; sudo dmsetup resume docker-253:17-1835016-pool</code></p> </li> </ol> <h2 id="device-mapper-and-docker-performance">Device Mapper and Docker performance</h2> <p>It is important to understand the impact that allocate-on-demand and copy-on-write operations can have on overall container performance.</p> <h3 id="allocate-on-demand-performance-impact">Allocate-on-demand performance impact</h3> <p>The <code class="highlighter-rouge">devicemapper</code> storage driver allocates new blocks to a container via an allocate-on-demand operation. This means that each time an app writes to somewhere new inside a container, one or more empty blocks has to be located from the pool and mapped into the container.</p> <p>All blocks are 64KB. A write that uses less than 64KB still results in a single 64KB block being allocated. Writing more than 64KB of data uses multiple 64KB blocks. This can impact container performance, especially in containers that perform lots of small writes. However, once a block is allocated to a container subsequent reads and writes can operate directly on that block.</p> <h3 id="copy-on-write-performance-impact">Copy-on-write performance impact</h3> <p>Each time a container updates existing data for the first time, the <code class="highlighter-rouge">devicemapper</code> storage driver has to perform a copy-on-write operation. This copies the data from the image snapshot to the container’s snapshot. This process can have a noticeable impact on container performance.</p> <p>All copy-on-write operations have a 64KB granularity. As a results, updating 32KB of a 1GB file causes the driver to copy a single 64KB block into the container’s snapshot. This has obvious performance advantages over file-level copy-on-write operations which would require copying the entire 1GB file into the container layer.</p> <p>In practice, however, containers that perform lots of small block writes (&lt;64KB) can perform worse with <code class="highlighter-rouge">devicemapper</code> than with AUFS.</p> <h3 id="other-device-mapper-performance-considerations">Other device mapper performance considerations</h3> <p>There are several other things that impact the performance of the <code class="highlighter-rouge">devicemapper</code> storage driver.</p> <ul> <li> <p><strong>The mode.</strong> The default mode for Docker running the <code class="highlighter-rouge">devicemapper</code> storage driver is <code class="highlighter-rouge">loop-lvm</code>. This mode uses sparse files and suffers from poor performance. It is <strong>not recommended for production</strong>. The recommended mode for production environments is <code class="highlighter-rouge">direct-lvm</code> where the storage driver writes directly to raw block devices.</p> </li> <li> <p><strong>High speed storage.</strong> For best performance you should place the <code class="highlighter-rouge">Data file</code> and <code class="highlighter-rouge">Metadata file</code> on high speed storage such as SSD. This can be direct attached storage or from a SAN or NAS array.</p> </li> <li> <p><strong>Memory usage.</strong> <code class="highlighter-rouge">devicemapper</code> is not the most memory efficient Docker storage driver. Launching <em>n</em> copies of the same container loads <em>n</em> copies of its files into memory. This can have a memory impact on your Docker host. As a result, the <code class="highlighter-rouge">devicemapper</code> storage driver may not be the best choice for PaaS and other high density use cases.</p> </li> </ul> <p>One final point, data volumes provide the best and most predictable performance. This is because they bypass the storage driver and do not incur any of the potential overheads introduced by thin provisioning and copy-on-write. For this reason, you should to place heavy write workloads on data volumes.</p> <h2 id="related-information">Related Information</h2> <ul> <li><a href="../imagesandcontainers/">Understand images, containers, and storage drivers</a></li> <li><a href="../selectadriver/">Select a storage driver</a></li> <li><a href="../aufs-driver/">AUFS storage driver in practice</a></li> <li><a href="../btrfs-driver/">Btrfs storage driver in practice</a></li> <li><a href="../../../reference/commandline/dockerd/#storage-driver-options">daemon reference</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

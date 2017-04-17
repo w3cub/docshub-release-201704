@@ -1,0 +1,125 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Using Supervisor With Docker (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content=" Note&#58; - If you don’t like sudo then see Giving non-root access ">
+  <meta name="keywords" content="using, supervisor, with, docker, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/admin/using_supervisord/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="using-supervisor-with-docker">Using Supervisor with Docker</h1> <blockquote> <p><strong>Note</strong>: - <strong>If you don’t like sudo</strong> then see <a href="../../installation/binaries/#giving-non-root-access"><em>Giving non-root access</em></a></p> </blockquote> <p>Traditionally a Docker container runs a single process when it is launched, for example an Apache daemon or a SSH server daemon. Often though you want to run more than one process in a container. There are a number of ways you can achieve this ranging from using a simple Bash script as the value of your container’s <code>CMD</code> instruction to installing a process management tool.</p> <p>In this example you’re going to make use of the process management tool, <a href="http://supervisord.org/" target="_blank">Supervisor</a>, to manage multiple processes in a container. Using Supervisor allows you to better control, manage, and restart the processes inside the container. To demonstrate this we’re going to install and manage both an SSH daemon and an Apache daemon.</p> <h2 id="creating-a-dockerfile">Creating a Dockerfile</h2> <p>Let’s start by creating a basic <code>Dockerfile</code> for our new image.</p> <pre>FROM ubuntu:16.04
+MAINTAINER examples@docker.com
+</pre> <h2 id="installing-supervisor">Installing Supervisor</h2> <p>You can now install the SSH and Apache daemons as well as Supervisor in the container.</p> <pre>RUN apt-get update &amp;&amp; apt-get install -y openssh-server apache2 supervisor
+RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
+</pre> <p>The first <code>RUN</code> instruction installs the <code>openssh-server</code>, <code>apache2</code> and <code>supervisor</code> (which provides the Supervisor daemon) packages. The next <code>RUN</code> instruction creates four new directories that are needed to run the SSH daemon and Supervisor.</p> <h2 id="adding-supervisor-s-configuration-file">Adding Supervisor’s configuration file</h2> <p>Now let’s add a configuration file for Supervisor. The default file is called <code>supervisord.conf</code> and is located in <code>/etc/supervisor/conf.d/</code>.</p> <pre>COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+</pre> <p>Let’s see what is inside the <code>supervisord.conf</code> file.</p> <pre>[supervisord]
+nodaemon=true
+
+[program:sshd]
+command=/usr/sbin/sshd -D
+
+[program:apache2]
+command=/bin/bash -c "source /etc/apache2/envvars &amp;&amp; exec /usr/sbin/apache2 -DFOREGROUND"
+</pre> <p>The <code>supervisord.conf</code> configuration file contains directives that configure Supervisor and the processes it manages. The first block <code>[supervisord]</code> provides configuration for Supervisor itself. The <code>nodaemon</code> directive is used, which tells Supervisor to run interactively rather than daemonize.</p> <p>The next two blocks manage the services we wish to control. Each block controls a separate process. The blocks contain a single directive, <code>command</code>, which specifies what command to run to start each process.</p> <h2 id="exposing-ports-and-running-supervisor">Exposing ports and running Supervisor</h2> <p>Now let’s finish the <code>Dockerfile</code> by exposing some required ports and specifying the <code>CMD</code> instruction to start Supervisor when our container launches.</p> <pre>EXPOSE 22 80
+CMD ["/usr/bin/supervisord"]
+</pre> <p>These instructions tell Docker that ports 22 and 80 are exposed by the container and that the <code>/usr/bin/supervisord</code> binary should be executed when the container launches.</p> <h2 id="building-our-image">Building our image</h2> <p>Your completed Dockerfile now looks like this:</p> <pre>FROM ubuntu:16.04
+MAINTAINER examples@docker.com
+
+RUN apt-get update &amp;&amp; apt-get install -y openssh-server apache2 supervisor
+RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+EXPOSE 22 80
+CMD ["/usr/bin/supervisord"]
+</pre> <p>And your <code>supervisord.conf</code> file looks like this;</p> <pre>[supervisord]
+nodaemon=true
+
+[program:sshd]
+command=/usr/sbin/sshd -D
+
+[program:apache2]
+command=/bin/bash -c "source /etc/apache2/envvars &amp;&amp; exec /usr/sbin/apache2 -DFOREGROUND"
+</pre> <p>You can now build the image using this command;</p> <pre>$ docker build -t mysupervisord .
+</pre> <h2 id="running-your-supervisor-container">Running your Supervisor container</h2> <p>Once you have built your image you can launch a container from it.</p> <pre>$ docker run -p 22 -p 80 -t -i mysupervisord
+2013-11-25 18:53:22,312 CRIT Supervisor running as root (no user in config file)
+2013-11-25 18:53:22,312 WARN Included extra file "/etc/supervisor/conf.d/supervisord.conf" during parsing
+2013-11-25 18:53:22,342 INFO supervisord started with pid 1
+2013-11-25 18:53:23,346 INFO spawned: 'sshd' with pid 6
+2013-11-25 18:53:23,349 INFO spawned: 'apache2' with pid 7
+...
+</pre> <p>You launched a new container interactively using the <code>docker run</code> command. That container has run Supervisor and launched the SSH and Apache daemons with it. We’ve specified the <code>-p</code> flag to expose ports 22 and 80. From here we can now identify the exposed ports and connect to one or both of the SSH and Apache daemons.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/admin/using_supervisord/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/admin/using_supervisord/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

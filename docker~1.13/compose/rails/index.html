@@ -1,0 +1,147 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Quickstart&#58; Compose and Rails - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="This Quickstart guide will show you how to use Docker Compose to set up and run a Rails&#47;PostgreSQL app. Before starting, you’ll need to have &hellip;">
+  <meta name="keywords" content="quickstart, compose, and, rails, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/compose/rails/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Quickstart: Compose and Rails</h1>  <p>This Quickstart guide will show you how to use Docker Compose to set up and run a Rails/PostgreSQL app. Before starting, you’ll need to have <a href="../install/">Compose installed</a>.</p> <h3 id="define-the-project">Define the project</h3> <p>Start by setting up the three files you’ll need to build the app. First, since your app is going to run inside a Docker container containing all of its dependencies, you’ll need to define exactly what needs to be included in the container. This is done using a file called <code class="highlighter-rouge">Dockerfile</code>. To begin with, the Dockerfile consists of:</p> <pre class="highlight" data-language="">FROM ruby:2.3.3
+RUN apt-get update -qq &amp;&amp; apt-get install -y build-essential libpq-dev nodejs
+RUN mkdir /myapp
+WORKDIR /myapp
+ADD Gemfile /myapp/Gemfile
+ADD Gemfile.lock /myapp/Gemfile.lock
+RUN bundle install
+ADD . /myapp
+</pre>  <p>That’ll put your application code inside an image that will build a container with Ruby, Bundler and all your dependencies inside it. For more information on how to write Dockerfiles, see the <a href="../../engine/getstarted/step_four/#building-an-image-from-a-dockerfile">Docker user guide</a> and the <a href="../../engine/reference/builder/">Dockerfile reference</a>.</p> <p>Next, create a bootstrap <code class="highlighter-rouge">Gemfile</code> which just loads Rails. It’ll be overwritten in a moment by <code class="highlighter-rouge">rails new</code>.</p> <pre class="highlight" data-language="">source 'https://rubygems.org'
+gem 'rails', '5.0.0.1'
+</pre>  <p>You’ll need an empty <code class="highlighter-rouge">Gemfile.lock</code> in order to build our <code class="highlighter-rouge">Dockerfile</code>.</p> <pre class="highlight" data-language="">touch Gemfile.lock
+</pre>  <p>Finally, <code class="highlighter-rouge">docker-compose.yml</code> is where the magic happens. This file describes the services that comprise your app (a database and a web app), how to get each one’s Docker image (the database just runs on a pre-made PostgreSQL image, and the web app is built from the current directory), and the configuration needed to link them together and expose the web app’s port.</p> <pre class="highlight" data-language="">version: '2'
+services:
+  db:
+    image: postgres
+  web:
+    build: .
+    command: bundle exec rails s -p 3000 -b '0.0.0.0'
+    volumes:
+      - .:/myapp
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+</pre>  <blockquote> <p><strong>Tip:</strong> You can use either a <code class="highlighter-rouge">.yml</code> or <code class="highlighter-rouge">.yaml</code> extension for this file.</p> </blockquote> <h3 id="build-the-project">Build the project</h3> <p>With those three files in place, you can now generate the Rails skeleton app using <code class="highlighter-rouge">docker-compose run</code>:</p> <pre class="highlight" data-language="">docker-compose run web rails new . --force --database=postgresql --skip-bundle
+</pre>  <p>First, Compose will build the image for the <code class="highlighter-rouge">web</code> service using the <code class="highlighter-rouge">Dockerfile</code>. Then it’ll run <code class="highlighter-rouge">rails new</code> inside a new container, using that image. Once it’s done, you should have generated a fresh app:</p> <pre class="highlight" data-language="">  $ ls -l
+  total 56
+  -rw-r--r--   1 user  staff   215 Feb 13 23:33 Dockerfile
+  -rw-r--r--   1 user  staff  1480 Feb 13 23:43 Gemfile
+  -rw-r--r--   1 user  staff  2535 Feb 13 23:43 Gemfile.lock
+  -rw-r--r--   1 root  root   478 Feb 13 23:43 README.rdoc
+  -rw-r--r--   1 root  root   249 Feb 13 23:43 Rakefile
+  drwxr-xr-x   8 root  root   272 Feb 13 23:43 app
+  drwxr-xr-x   6 root  root   204 Feb 13 23:43 bin
+  drwxr-xr-x  11 root  root   374 Feb 13 23:43 config
+  -rw-r--r--   1 root  root   153 Feb 13 23:43 config.ru
+  drwxr-xr-x   3 root  root   102 Feb 13 23:43 db
+  -rw-r--r--   1 user  staff   161 Feb 13 23:35 docker-compose.yml
+  drwxr-xr-x   4 root  root   136 Feb 13 23:43 lib
+  drwxr-xr-x   3 root  root   102 Feb 13 23:43 log
+  drwxr-xr-x   7 root  root   238 Feb 13 23:43 public
+  drwxr-xr-x   9 root  root   306 Feb 13 23:43 test
+  drwxr-xr-x   3 root  root   102 Feb 13 23:43 tmp
+  drwxr-xr-x   3 root  root   102 Feb 13 23:43 vendor
+</pre>  <p>If you are running Docker on Linux, the files <code class="highlighter-rouge">rails new</code> created are owned by root. This happens because the container runs as the root user. Change the ownership of the new files.</p> <pre class="highlight" data-language="">  sudo chown -R $USER:$USER .
+</pre>  <p>If you are running Docker on Mac or Windows, you should already have ownership of all files, including those generated by <code class="highlighter-rouge">rails new</code>. List the files just to verify this.</p> <p>If you edit <code class="highlighter-rouge">Gemfile</code> at this point or later, you will need to build the image again. (This, and changes to the Dockerfile itself, should be the only times you’ll need to rebuild.)</p> <pre class="highlight" data-language="">docker-compose build
+</pre>  <h3 id="connect-the-database">Connect the database</h3> <p>The app is now bootable, but you’re not quite there yet. By default, Rails expects a database to be running on <code class="highlighter-rouge">localhost</code> - so you need to point it at the <code class="highlighter-rouge">db</code> container instead. You also need to change the database and username to align with the defaults set by the <code class="highlighter-rouge">postgres</code> image.</p> <p>Replace the contents of <code class="highlighter-rouge">config/database.yml</code> with the following:</p> <pre class="highlight" data-language="">development: &amp;default
+  adapter: postgresql
+  encoding: unicode
+  database: myapp_development
+  pool: 5
+  username: postgres
+  password:
+  host: db
+
+test:
+  &lt;&lt;: *default
+  database: myapp_test
+</pre>  <p>You can now boot the app with:</p> <pre class="highlight" data-language="">docker-compose up
+</pre>  <p>If all’s well, you should see some PostgreSQL output, and then—after a few seconds—the familiar refrain:</p> <pre class="highlight" data-language="">myapp_web_1 | [2014-01-17 17:16:29] INFO  WEBrick 1.3.1
+myapp_web_1 | [2014-01-17 17:16:29] INFO  ruby 2.2.0 (2014-12-25) [x86_64-linux-gnu]
+myapp_web_1 | [2014-01-17 17:16:29] INFO  WEBrick::HTTPServer#start: pid=1 port=3000
+</pre>  <p>Finally, you need to create the database. In another terminal, run:</p> <pre class="highlight" data-language="">docker-compose run web rails db:create
+</pre>  <p>That’s it. Your app should now be running on port 3000 on your Docker daemon. If you’re using <a href="../../machine/overview/">Docker Machine</a>, then <code class="highlighter-rouge">docker-machine ip MACHINE_VM</code> returns the Docker host IP address.</p> <p><img src="https://docs.docker.com/compose/images/rails-welcome.png" alt="Rails example"></p> <blockquote> <p><strong>Note</strong>: If you stop the example application and attempt to restart it, you might get the following error: <code class="highlighter-rouge">web_1 | A server is already running. Check /myapp/tmp/pids/server.pid.</code> One way to resolve this is to delete the file <code class="highlighter-rouge">tmp/pids/server.pid</code>, and then re-start the application with <code class="highlighter-rouge">docker-compose up</code>.</p> </blockquote> <h2 id="more-compose-documentation">More Compose documentation</h2> <ul> <li><a href="../">User guide</a></li> <li><a href="../install/">Installing Compose</a></li> <li><a href="../gettingstarted/">Getting Started</a></li> <li><a href="../django/">Get started with Django</a></li> <li><a href="../wordpress/">Get started with WordPress</a></li> <li><a href="https://docs.docker.com/compose/reference/" target="_blank">Command line reference</a></li> <li><a href="../compose-file/">Compose file reference</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/compose/rails/" class="_attribution-link" target="_blank">https://docs.docker.com/compose/rails/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

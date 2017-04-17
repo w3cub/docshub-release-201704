@@ -1,0 +1,186 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Use Docker Machine to Provision Cloud Hosts (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Machine driver plugins are available for many cloud platforms, so you can use Machine to provision cloud hosts. When you use Docker Machine &hellip;">
+  <meta name="keywords" content="example, use, docker, machine, provision, cloud, hosts, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/installation/cloud/cloud-ex-machine-ocean/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="example-use-docker-machine-to-provision-cloud-hosts">Example: Use Docker Machine to provision cloud hosts</h1> <p>Docker Machine driver plugins are available for many cloud platforms, so you can use Machine to provision cloud hosts. When you use Docker Machine for provisioning, you create cloud hosts with Docker Engine installed on them.</p> <p>You’ll need to install and run Docker Machine, and create an account with the cloud provider.</p> <p>Then you provide account verification, security credentials, and configuration options for the providers as flags to <code>docker-machine create</code>. The flags are unique for each cloud-specific driver. For instance, to pass a Digital Ocean access token, you use the <code>--digitalocean-access-token</code> flag.</p> <p>As an example, let’s take a look at how to create a Dockerized <a href="https://digitalocean.com" target="_blank">Digital Ocean</a> <em>Droplet</em> (cloud server).</p> <h3 id="step-1-create-a-digital-ocean-account-and-log-in">Step 1. Create a Digital Ocean account and log in</h3> <p>If you have not done so already, go to <a href="https://digitalocean.com" target="_blank">Digital Ocean</a>, create an account, and log in.</p> <h3 id="step-2-generate-a-personal-access-token">Step 2. Generate a personal access token</h3> <p>To generate your access token:</p> <ol> <li>
+<p>Go to the Digital Ocean administrator console and click <strong>API</strong> in the header.</p> <p><img src="https://docs.docker.com/engine/installation/images/ocean_click_api.png" alt="Click API in Digital Ocean console"></p>
+</li> <li>
+<p>Click <strong>Generate New Token</strong> to get to the token generator.</p> <p><img src="https://docs.docker.com/engine/installation/images/ocean_gen_token.png" alt="Generate token"></p>
+</li> <li>
+<p>Give the token a clever name (e.g. “machine”), make sure the <strong>Write (Optional)</strong> checkbox is checked, and click <strong>Generate Token</strong>.</p> <p><img src="https://docs.docker.com/engine/installation/images/ocean_token_create.png" alt="Name and generate token"></p>
+</li> <li>
+<p>Grab (copy to clipboard) the generated big long hex string and store it somewhere safe.</p> <p><img src="https://docs.docker.com/engine/installation/images/ocean_save_token.png" alt="Copy and save personal access token"></p> <p>This is the personal access token you’ll use in the next step to create your cloud server.</p>
+</li> </ol> <h3 id="step-3-install-docker-machine">Step 3. Install Docker Machine</h3> <ol> <li>
+<p>If you have not done so already, install Docker Machine on your local host.</p> <ul> <li><p><a href="../../mac/" target="_blank"> How to install Docker Machine on Mac OS X</a></p></li> <li><p><a href="../../windows/" target="_blank">How to install Docker Machine on Windows</a></p></li> <li><p><a href="../../../../machine/install-machine/" target="_blank">Install Docker Machine directly</a> (e.g., on Linux)</p></li> </ul>
+</li> <li>
+<p>At a command terminal, use <code>docker-machine ls</code> to get a list of Docker Machines and their status.</p> <pre>$ docker-machine ls
+NAME      ACTIVE   DRIVER       STATE     URL                         SWARM
+default   *        virtualbox   Running   tcp:////xxx.xxx.xx.xxx:xxxx  
+</pre>
+</li> <li>
+<p>Run some Docker commands to make sure that Docker Engine is also up-and-running.</p> <p>We’ll run <code>docker run hello-world</code> again, but you could try <code>docker ps</code>, <code>docker run docker/whalesay cowsay boo</code>, or another command to verify that Docker is running.</p> <pre>$ docker run hello-world
+
+Hello from Docker.
+This message shows that your installation appears to be working correctly.
+...
+</pre>
+</li> </ol> <h3 id="step-4-use-machine-to-create-the-droplet">Step 4. Use Machine to Create the Droplet</h3> <ol> <li>
+<p>Run <code>docker-machine create</code> with the <code>digitalocean</code> driver and pass your key to the <code>--digitalocean-access-token</code> flag, along with a name for the new cloud server.</p> <p>For this example, we’ll call our new Droplet “docker-sandbox”.</p> <pre>$ docker-machine create --driver digitalocean --digitalocean-access-token xxxxx docker-sandbox
+Running pre-create checks...
+Creating machine...
+(docker-sandbox) OUT | Creating SSH key...
+(docker-sandbox) OUT | Creating Digital Ocean droplet...
+(docker-sandbox) OUT | Waiting for IP address to be assigned to the Droplet...
+Waiting for machine to be running, this may take a few minutes...
+Machine is running, waiting for SSH to be available...
+Detecting operating system of created instance...
+Detecting the provisioner...
+Provisioning created instance...
+Copying certs to the local machine directory...
+Copying certs to the remote machine...
+Setting Docker configuration on the remote daemon...
+To see how to connect Docker to this machine, run: docker-machine env docker-sandbox
+</pre> <p>When the Droplet is created, Docker generates a unique SSH key and stores it on your local system in <code>~/.docker/machines</code>. Initially, this is used to provision the host. Later, it’s used under the hood to access the Droplet directly with the <code>docker-machine ssh</code> command. Docker Engine is installed on the cloud server and the daemon is configured to accept remote connections over TCP using TLS for authentication.</p>
+</li> <li>
+<p>Go to the Digital Ocean console to view the new Droplet.</p> <p><img src="https://docs.docker.com/engine/installation/images/ocean_droplet.png" alt="Droplet in Digital Ocean created with Machine"></p>
+</li> <li>
+<p>At the command terminal, run <code>docker-machine ls</code>.</p> <pre>$ docker-machine ls
+NAME             ACTIVE   DRIVER         STATE     URL                         SWARM
+default          *        virtualbox     Running   tcp://192.168.99.100:2376   
+docker-sandbox   -        digitalocean   Running   tcp://45.55.139.48:2376     
+</pre> <p>Notice that the new cloud server is running but is not the active host. Our command shell is still connected to the default machine, which is currently the active host as indicated by the asterisk (*).</p>
+</li> <li>
+<p>Run <code>docker-machine env docker-sandbox</code> to get the environment commands for the new remote host, then run <code>eval</code> as directed to re-configure the shell to connect to <code>docker-sandbox</code>.</p> <pre>$ docker-machine env docker-sandbox
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://45.55.222.72:2376"
+export DOCKER_CERT_PATH="/Users/victoriabialas/.docker/machine/machines/docker-sandbox"
+export DOCKER_MACHINE_NAME="docker-sandbox"
+# Run this command to configure your shell:
+# eval "$(docker-machine env docker-sandbox)"
+
+$ eval "$(docker-machine env docker-sandbox)"
+</pre>
+</li> <li>
+<p>Re-run <code>docker-machine ls</code> to verify that our new server is the active machine, as indicated by the asterisk (*) in the ACTIVE column.</p> <pre>$ docker-machine ls
+NAME             ACTIVE   DRIVER         STATE     URL                         SWARM
+default          -        virtualbox     Running   tcp://192.168.99.100:2376   
+docker-sandbox   *        digitalocean   Running   tcp://45.55.222.72:2376     
+</pre>
+</li> <li>
+<p>Run some <code>docker-machine</code> commands to inspect the remote host. For example, <code>docker-machine ip &lt;machine&gt;</code> gets the host IP address and <code>docker-machine inspect &lt;machine&gt;</code> lists all the details.</p> <pre>$ docker-machine ip docker-sandbox
+104.131.43.236
+
+$ docker-machine inspect docker-sandbox
+{
+    "ConfigVersion": 3,
+    "Driver": {
+    "IPAddress": "104.131.43.236",
+    "MachineName": "docker-sandbox",
+    "SSHUser": "root",
+    "SSHPort": 22,
+    "SSHKeyPath": "/Users/samanthastevens/.docker/machine/machines/docker-sandbox/id_rsa",
+    "StorePath": "/Users/samanthastevens/.docker/machine",
+    "SwarmMaster": false,
+    "SwarmHost": "tcp://0.0.0.0:3376",
+    "SwarmDiscovery": "",
+    ...
+</pre>
+</li> <li>
+<p>Verify Docker Engine is installed correctly by running <code>docker</code> commands.</p> <p>Start with something basic like <code>docker run hello-world</code>, or for a more interesting test, run a Dockerized webserver on your new remote machine.</p> <p>In this example, the <code>-p</code> option is used to expose port 80 from the <code>nginx</code> container and make it accessible on port <code>8000</code> of the <code>docker-sandbox</code> host.</p> <pre>$ docker run -d -p 8000:80 --name webserver kitematic/hello-world-nginx
+Unable to find image 'kitematic/hello-world-nginx:latest' locally
+latest: Pulling from kitematic/hello-world-nginx
+a285d7f063ea: Pull complete
+2d7baf27389b: Pull complete
+...
+Digest: sha256:ec0ca6dcb034916784c988b4f2432716e2e92b995ac606e080c7a54b52b87066
+Status: Downloaded newer image for kitematic/hello-world-nginx:latest
+942dfb4a0eaae75bf26c9785ade4ff47ceb2ec2a152be82b9d7960e8b5777e65
+</pre> <p>In a web browser, go to <code>http://&lt;host_ip&gt;:8000</code> to bring up the webserver home page. You got the <code>&lt;host_ip&gt;</code> from the output of the <code>docker-machine ip &lt;machine&gt;</code> command you ran in a previous step. Use the port you exposed in the <code>docker run</code> command.</p> <p><img src="https://docs.docker.com/engine/installation/images/nginx-webserver.png" alt="nginx webserver"></p>
+</li> </ol> <h4 id="understand-the-defaults-and-options-on-the-create-command">Understand the defaults and options on the create command</h4> <p>For convenience, <code>docker-machine</code> will use sensible defaults for choosing settings such as the image that the server is based on, but you override the defaults using the respective flags (e.g. <code>--digitalocean-image</code>). This is useful if, for example, you want to create a cloud server with a lot of memory and CPUs (by default <code>docker-machine</code> creates a small server). For a full list of the flags/settings available and their defaults, see the output of <code>docker-machine create -h</code> at the command line. See also <a href="../../../../machine/drivers/os-base/" target="_blank">Driver options and operating system defaults</a> and information about the <a href="../../../../machine/reference/create/" target="_blank">create</a> command in the Docker Machine documentation.</p> <h3 id="step-5-use-machine-to-remove-the-droplet">Step 5. Use Machine to remove the Droplet</h3> <p>To remove a host and all of its containers and images, first stop the machine, then use <code>docker-machine rm</code>:</p> <pre>$ docker-machine stop docker-sandbox
+$ docker-machine rm docker-sandbox
+Do you really want to remove "docker-sandbox"? (y/n): y
+Successfully removed docker-sandbox
+
+$ docker-machine ls
+NAME      ACTIVE   DRIVER       STATE     URL                         SWARM
+default   *        virtualbox   Running   tcp:////xxx.xxx.xx.xxx:xxxx
+</pre> <p>If you monitor the Digital Ocean console while you run these commands, you will see it update first to reflect that the Droplet was stopped, and then removed.</p> <p>If you create a host with Docker Machine, but remove it through the cloud provider console, Machine will lose track of the server status. So please use the <code>docker-machine rm</code> command for hosts you create with <code>docker-machine --create</code>.</p> <h2 id="where-to-go-next">Where to go next</h2> <ul> <li><p><a href="https://docs.docker.com/machine/drivers/" target="_blank">Docker Machine driver reference</a></p></li> <li><p><a href="../../../../machine/overview/">Docker Machine Overview</a></p></li> <li><p><a href="../../../../machine/get-started-cloud/">Use Docker Machine to provision hosts on cloud providers</a></p></li> <li><p><a href="https://docs.docker.com/engine/installation/" target="_blank">Install Docker Engine</a></p></li> <li><p><a href="../../../userguide/intro/">Docker User Guide</a></p></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/installation/cloud/cloud-ex-machine-ocean/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/installation/cloud/cloud-ex-machine-ocean/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

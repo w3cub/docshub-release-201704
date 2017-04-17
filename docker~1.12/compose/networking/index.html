@@ -1,0 +1,146 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Networking in Compose - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="Note&#58; This document only applies if you’re using version 2 of the Compose file format. Networking features are not supported for version 1 ( &hellip;">
+  <meta name="keywords" content="networking, compose, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/compose/networking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="networking-in-compose">Networking in Compose</h1> <blockquote> <p><strong>Note:</strong> This document only applies if you’re using <a href="../compose-file/#versioning">version 2 of the Compose file format</a>. Networking features are not supported for version 1 (legacy) Compose files.</p> </blockquote> <p>By default Compose sets up a single <a href="../../engine/reference/commandline/network_create/">network</a> for your app. Each container for a service joins the default network and is both <em>reachable</em> by other containers on that network, and <em>discoverable</em> by them at a hostname identical to the container name.</p> <blockquote> <p><strong>Note:</strong> Your app’s network is given a name based on the “project name”, which is based on the name of the directory it lives in. You can override the project name with either the <a href="../reference/overview/"><code>--project-name</code> flag</a> or the <a href="../reference/envvars/#compose-project-name"><code>COMPOSE_PROJECT_NAME</code> environment variable</a>.</p> </blockquote> <p>For example, suppose your app is in a directory called <code>myapp</code>, and your <code>docker-compose.yml</code> looks like this:</p> <pre>version: '2'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+  db:
+    image: postgres
+</pre> <p>When you run <code>docker-compose up</code>, the following happens:</p> <ol> <li>A network called <code>myapp_default</code> is created.</li> <li>A container is created using <code>web</code>’s configuration. It joins the network <code>myapp_default</code> under the name <code>web</code>.</li> <li>A container is created using <code>db</code>’s configuration. It joins the network <code>myapp_default</code> under the name <code>db</code>.</li> </ol> <p>Each container can now look up the hostname <code>web</code> or <code>db</code> and get back the appropriate container’s IP address. For example, <code>web</code>’s application code could connect to the URL <code>postgres://db:5432</code> and start using the Postgres database.</p> <p>Because <code>web</code> explicitly maps a port, it’s also accessible from the outside world via port 8000 on your Docker host’s network interface.</p> <h2 id="updating-containers">Updating containers</h2> <p>If you make a configuration change to a service and run <code>docker-compose up</code> to update it, the old container will be removed and the new one will join the network under a different IP address but the same name. Running containers will be able to look up that name and connect to the new address, but the old address will stop working.</p> <p>If any containers have connections open to the old container, they will be closed. It is a container’s responsibility to detect this condition, look up the name again and reconnect.</p> <h2 id="links">Links</h2> <p>Links allow you to define extra aliases by which a service is reachable from another service. They are not required to enable services to communicate - by default, any service can reach any other service at that service’s name. In the following example, <code>db</code> is reachable from <code>web</code> at the hostnames <code>db</code> and <code>database</code>:</p> <pre>version: '2'
+services:
+  web:
+    build: .
+    links:
+      - "db:database"
+  db:
+    image: postgres
+</pre> <p>See the <a href="../compose-file/#links">links reference</a> for more information.</p> <h2 id="multi-host-networking">Multi-host networking</h2> <p>When <a href="../swarm/">deploying a Compose application to a Swarm cluster</a>, you can make use of the built-in <code>overlay</code> driver to enable multi-host communication between containers with no changes to your Compose file or application code.</p> <p>Consult the <a href="../../engine/userguide/networking/get-started-overlay/">Getting started with multi-host networking</a> to see how to set up a Swarm cluster. The cluster will use the <code>overlay</code> driver by default, but you can specify it explicitly if you prefer - see below for how to do this.</p> <h2 id="specifying-custom-networks">Specifying custom networks</h2> <p>Instead of just using the default app network, you can specify your own networks with the top-level <code>networks</code> key. This lets you create more complex topologies and specify <a href="../../engine/extend/plugins_network/">custom network drivers</a> and options. You can also use it to connect services to externally-created networks which aren’t managed by Compose.</p> <p>Each service can specify what networks to connect to with the <em>service-level</em> <code>networks</code> key, which is a list of names referencing entries under the <em>top-level</em> <code>networks</code> key.</p> <p>Here’s an example Compose file defining two custom networks. The <code>proxy</code> service is isolated from the <code>db</code> service, because they do not share a network in common - only <code>app</code> can talk to both.</p> <pre>version: '2'
+
+services:
+  proxy:
+    build: ./proxy
+    networks:
+      - front
+  app:
+    build: ./app
+    networks:
+      - front
+      - back
+  db:
+    image: postgres
+    networks:
+      - back
+
+networks:
+  front:
+    # Use a custom driver
+    driver: custom-driver-1
+  back:
+    # Use a custom driver which takes special options
+    driver: custom-driver-2
+    driver_opts:
+      foo: "1"
+      bar: "2"
+</pre> <p>Networks can be configured with static IP addresses by setting the <a href="../compose-file/#ipv4-address-ipv6-address">ipv4_address and/or ipv6_address</a> for each attached network.</p> <p>For full details of the network configuration options available, see the following references:</p> <ul> <li><a href="../compose-file/#network-configuration-reference">Top-level <code>networks</code> key</a></li> <li><a href="../compose-file/#networks">Service-level <code>networks</code> key</a></li> </ul> <h2 id="configuring-the-default-network">Configuring the default network</h2> <p>Instead of (or as well as) specifying your own networks, you can also change the settings of the app-wide default network by defining an entry under <code>networks</code> named <code>default</code>:</p> <pre>version: '2'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+  db:
+    image: postgres
+
+networks:
+  default:
+    # Use a custom driver
+    driver: custom-driver-1
+</pre> <h2 id="using-a-pre-existing-network">Using a pre-existing network</h2> <p>If you want your containers to join a pre-existing network, use the <a href="../compose-file/#network-configuration-reference"><code>external</code> option</a>:</p> <pre>networks:
+  default:
+    external:
+      name: my-pre-existing-network
+</pre> <p>Instead of attemping to create a network called <code>[projectname]_default</code>, Compose will look for a network called <code>my-pre-existing-network</code> and connect your app’s containers to it.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/compose/networking/" class="_attribution-link" target="_blank">https://docs.docker.com/compose/networking/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

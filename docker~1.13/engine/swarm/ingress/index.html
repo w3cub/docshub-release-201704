@@ -1,0 +1,123 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Use Swarm Mode Routing Mesh (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Engine swarm mode makes it easy to publish ports for services to make them available to resources outside the swarm. All nodes participate in &hellip;">
+  <meta name="keywords" content="use, swarm, mode, routing, mesh, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/swarm/ingress/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Use swarm mode routing mesh</h1>  <p>Docker Engine swarm mode makes it easy to publish ports for services to make them available to resources outside the swarm. All nodes participate in an ingress <strong>routing mesh</strong>. The routing mesh enables each node in the swarm to accept connections on published ports for any service running in the swarm, even if there’s no task running on the node. The routing mesh routes all incoming requests to published ports on available nodes to an active container.</p> <p>In order to use the ingress network in the swarm, you need to have the following ports open between the swarm nodes before you enable swarm mode:</p> <ul> <li>Port <code class="highlighter-rouge">7946</code> TCP/UDP for container network discovery.</li> <li>Port <code class="highlighter-rouge">4789</code> UDP for the container ingress network.</li> </ul> <p>You must also open the published port between the swarm nodes and any external resources, such as an external load balancer, that require access to the port.</p> <h2 id="publish-a-port-for-a-service">Publish a port for a service</h2> <p>Use the <code class="highlighter-rouge">--publish</code> flag to publish a port when you create a service:</p> <pre class="highlight" data-language="bash">$ docker service create \
+  --name &lt;SERVICE-NAME&gt; \
+  --publish &lt;PUBLISHED-PORT&gt;:&lt;TARGET-PORT&gt; \
+  &lt;IMAGE&gt;
+</pre>  <p>The <code class="highlighter-rouge">&lt;TARGET-PORT&gt;</code> is the port where the container listens. The <code class="highlighter-rouge">&lt;PUBLISHED-PORT&gt;</code> is the port where the swarm makes the service available.</p> <p>For example, the following command publishes port 80 in the nginx container to port 8080 for any node in the swarm:</p> <pre class="highlight" data-language="bash">$ docker service create \
+  --name my-web \
+  --publish 8080:80 \
+  --replicas 2 \
+  nginx
+</pre>  <p>When you access port 8080 on any node, the swarm load balancer routes your request to an active container.</p> <p>The routing mesh listens on the published port for any IP address assigned to the node. For externally routable IP addresses, the port is available from outside the host. For all other IP addresses the access is only available from within the host.</p> <p><img src="https://docs.docker.com/engine/swarm/images/ingress-routing-mesh.png" alt="service ingress image"></p> <p>You can publish a port for an existing service using the following command:</p> <pre class="highlight" data-language="bash">$ docker service update \
+  --publish-add &lt;PUBLISHED-PORT&gt;:&lt;TARGET-PORT&gt; \
+  &lt;SERVICE&gt;
+</pre>  <p>You can use <code class="highlighter-rouge">docker service inspect</code> to view the service’s published port. For instance:</p> <pre class="highlight" data-language="bash">
+$ docker service inspect --format="{{json .Endpoint.Spec.Ports}}" my-web
+
+[{"Protocol":"tcp","TargetPort":80,"PublishedPort":8080}]
+
+</pre>  <p>The output shows the <code class="highlighter-rouge">&lt;TARGET-PORT&gt;</code> from the containers and the <code class="highlighter-rouge">&lt;PUBLISHED-PORT&gt;</code> where nodes listen for requests for the service.</p> <h3 id="publish-a-port-for-tcp-only-or-udp-only">Publish a port for TCP only or UDP only</h3> <p>By default, when you publish a port, it is a TCP port. You can specifically publish a UDP port instead of or in addition to a TCP port. When you publish both TCP and UDP ports, Docker 1.12.2 and earlier require you to add the suffix <code class="highlighter-rouge">/tcp</code> for TCP ports. Otherwise it is optional.</p> <h4 id="tcp-only">TCP only</h4> <p>The following two commands are equivalent.</p> <pre class="highlight" data-language="bash">$ docker service create --name dns-cache -p 53:53 dns-cache
+
+$ docker service create --name dns-cache -p 53:53/tcp dns-cache
+</pre>  <h4 id="tcp-and-udp">TCP and UDP</h4> <pre class="highlight" data-language="bash">$ docker service create --name dns-cache -p 53:53/tcp -p 53:53/udp dns-cache
+</pre>  <h4 id="udp-only">UDP only</h4> <pre class="highlight" data-language="bash">$ docker service create --name dns-cache -p 53:53/udp dns-cache
+</pre>  <h2 id="configure-an-external-load-balancer">Configure an external load balancer</h2> <p>You can configure an external load balancer to route requests to a swarm service. For example, you could configure <a href="http://www.haproxy.org" target="_blank">HAProxy</a> to balance requests to an nginx service published to port 8080.</p> <p><img src="https://docs.docker.com/engine/swarm/images/ingress-lb.png" alt="ingress with external load balancer image"></p> <p>In this case, port 8080 must be open between the load balancer and the nodes in the swarm. The swarm nodes can reside on a private network that is accessible to the proxy server, but that is not publicly accessible.</p> <p>You can configure the load balancer to balance requests between every node in the swarm even if there are no tasks scheduled on the node. For example, you could have the following HAProxy configuration in <code class="highlighter-rouge">/etc/haproxy/haproxy.cfg</code>:</p> <pre class="highlight" data-language="bash">global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+...snip...
+
+# Configure HAProxy to listen on port 80
+frontend http_front
+   bind *:80
+   stats uri /haproxy?stats
+   default_backend http_back
+
+# Configure HAProxy to route requests to swarm nodes on port 8080
+backend http_back
+   balance roundrobin
+   server node1 192.168.99.100:8080 check
+   server node2 192.168.99.101:8080 check
+   server node3 192.168.99.102:8080 check
+</pre>  <p>When you access the HAProxy load balancer on port 80, it forwards requests to nodes in the swarm. The swarm routing mesh routes the request to an active task. If, for any reason the swarm scheduler dispatches tasks to different nodes, you don’t need to reconfigure the load balancer.</p> <p>You can configure any type of load balancer to route requests to swarm nodes. To learn more about HAProxy, see the <a href="https://cbonte.github.io/haproxy-dconv/" target="_blank">HAProxy documentation</a>.</p> <h2 id="learn-more">Learn more</h2> <ul> <li><a href="../services/">Deploy services to a swarm</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/ingress/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/ingress/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

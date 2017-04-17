@@ -1,0 +1,151 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Apply Rolling Updates (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="In a previous step of the tutorial, you scaled the number of instances of a service. In this part of the tutorial, you deploy a service based on the &hellip;">
+  <meta name="keywords" content="apply, rolling, updates, service, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/swarm/swarm-tutorial/rolling-update/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="apply-rolling-updates-to-a-service">Apply rolling updates to a service</h1> <p>In a previous step of the tutorial, you <a href="../scale-service/">scaled</a> the number of instances of a service. In this part of the tutorial, you deploy a service based on the Redis 3.0.6 container image. Then you upgrade the service to use the Redis 3.0.7 container image using rolling updates.</p> <ol> <li><p>If you haven’t already, open a terminal and ssh into the machine where you run your manager node. For example, the tutorial uses a machine named <code>manager1</code>.</p></li> <li>
+<p>Deploy Redis 3.0.6 to the swarm and configure the swarm with a 10 second update delay:</p> <pre>$ docker service create \
+  --replicas 3 \
+  --name redis \
+  --update-delay 10s \
+  redis:3.0.6
+
+0u6a4s31ybk7yw2wyvtikmu50
+</pre> <p>You configure the rolling update policy at service deployment time.</p> <p>The <code>--update-delay</code> flag configures the time delay between updates to a service task or sets of tasks. You can describe the time <code>T</code> as a combination of the number of seconds <code>Ts</code>, minutes <code>Tm</code>, or hours <code>Th</code>. So <code>10m30s</code> indicates a 10 minute 30 second delay.</p> <p>By default the scheduler updates 1 task at a time. You can pass the <code>--update-parallelism</code> flag to configure the maximum number of service tasks that the scheduler updates simultaneously.</p> <p>By default, when an update to an individual task returns a state of <code>RUNNING</code>, the scheduler schedules another task to update until all tasks are updated. If, at any time during an update a task returns <code>FAILED</code>, the scheduler pauses the update. You can control the behavior using the <code>--update-failure-action</code> flag for <code>docker service create</code> or <code>docker service update</code>.</p>
+</li> <li>
+<p>Inspect the <code>redis</code> service:</p> <pre>$ docker service inspect --pretty redis
+
+ID:             0u6a4s31ybk7yw2wyvtikmu50
+Name:           redis
+Mode:           Replicated
+ Replicas:      3
+Placement:
+ Strategy:      Spread
+UpdateConfig:
+ Parallelism:   1
+ Delay:         10s
+ContainerSpec:
+ Image:         redis:3.0.6
+Resources:
+</pre>
+</li> <li>
+<p>Now you can update the container image for <code>redis</code>. The swarm manager applies the update to nodes according to the <code>UpdateConfig</code> policy:</p> <pre>$ docker service update --image redis:3.0.7 redis
+redis
+</pre> <p>The scheduler applies rolling updates as follows by default:</p> <ul> <li>Stop the first task.</li> <li>Schedule update for the stopped task.</li> <li>Start the container for the updated task.</li> <li>If the update to a task returns <code>RUNNING</code>, wait for the specified delay period then stop the next task.</li> <li>If, at any time during the update, a task returns <code>FAILED</code>, pause the update.</li> </ul>
+</li> <li>
+<p>Run <code>docker service inspect --pretty redis</code> to see the new image in the desired state:</p> <pre>$ docker service inspect --pretty redis
+
+ID:             0u6a4s31ybk7yw2wyvtikmu50
+Name:           redis
+Mode:           Replicated
+ Replicas:      3
+Placement:
+ Strategy:      Spread
+UpdateConfig:
+ Parallelism:   1
+ Delay:         10s
+ContainerSpec:
+ Image:         redis:3.0.7
+Resources:
+</pre> <p>The output of <code>service inspect</code> shows if your update paused due to failure:</p> <pre>$ docker service inspect --pretty redis
+
+ID:             0u6a4s31ybk7yw2wyvtikmu50
+Name:           redis
+...snip...
+Update status:
+ State:      paused
+ Started:    11 seconds ago
+ Message:    update paused due to failure or early termination of task 9p7ith557h8ndf0ui9s0q951b
+...snip...
+</pre> <p>To restart a paused update run <code>docker service update &lt;SERVICE-ID&gt;</code>. For example:</p> <pre>docker service update redis
+</pre> <p>To avoid repeating certain update failures, you may need to reconfigure the service by passing flags to <code>docker service update</code>.</p>
+</li> <li>
+<p>Run <code>docker service ps &lt;SERVICE-ID&gt;</code> to watch the rolling update:</p> <pre>$ docker service ps redis
+
+ID                         NAME         IMAGE        NODE       DESIRED STATE  CURRENT STATE            ERROR
+dos1zffgeofhagnve8w864fco  redis.1      redis:3.0.7  worker1    Running        Running 37 seconds
+88rdo6pa52ki8oqx6dogf04fh   \_ redis.1  redis:3.0.6  worker2    Shutdown       Shutdown 56 seconds ago
+9l3i4j85517skba5o7tn5m8g0  redis.2      redis:3.0.7  worker2    Running        Running About a minute
+66k185wilg8ele7ntu8f6nj6i   \_ redis.2  redis:3.0.6  worker1    Shutdown       Shutdown 2 minutes ago
+egiuiqpzrdbxks3wxgn8qib1g  redis.3      redis:3.0.7  worker1    Running        Running 48 seconds
+ctzktfddb2tepkr45qcmqln04   \_ redis.3  redis:3.0.6  mmanager1  Shutdown       Shutdown 2 minutes ago
+</pre> <p>Before Swarm updates all of the tasks, you can see that some are running <code>redis:3.0.6</code> while others are running <code>redis:3.0.7</code>. The output above shows the state once the rolling updates are done.</p>
+</li> </ol> <p>Next, learn about how to <a href="../drain-node/">drain a node</a> in the swarm.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/swarm-tutorial/rolling-update/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/swarm-tutorial/rolling-update/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

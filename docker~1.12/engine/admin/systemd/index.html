@@ -1,0 +1,136 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Control and Configure Docker With Systemd (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content=" Many Linux distributions use systemd to start the Docker daemon. This document shows a few examples of how to customize Docker’s settings. ">
+  <meta name="keywords" content="control, and, configure, docker, with, systemd, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/admin/systemd/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="control-and-configure-docker-with-systemd">Control and configure Docker with systemd</h1> <p>Many Linux distributions use systemd to start the Docker daemon. This document shows a few examples of how to customize Docker’s settings.</p> <h2 id="starting-the-docker-daemon">Starting the Docker daemon</h2> <p>Once Docker is installed, you will need to start the Docker daemon.</p> <pre>$ sudo systemctl start docker
+# or on older distributions, you may need to use
+$ sudo service docker start
+</pre> <p>If you want Docker to start at boot, you should also:</p> <pre>$ sudo systemctl enable docker
+# or on older distributions, you may need to use
+$ sudo chkconfig docker on
+</pre> <h2 id="custom-docker-daemon-options">Custom Docker daemon options</h2> <p>There are a number of ways to configure the daemon flags and environment variables for your Docker daemon.</p> <p>The recommended way is to use a systemd drop-in file (as described in the <a target="_blank" href="https://www.freedesktop.org/software/systemd/man/systemd.unit.html">systemd.unit</a> documentation). These are local files named <code>&lt;something&gt;.conf</code> in the <code>/etc/systemd/system/docker.service.d</code> directory. This could also be <code>/etc/systemd/system/docker.service</code>, which also works for overriding the defaults from <code>/lib/systemd/system/docker.service</code>.</p> <p>However, if you had previously used a package which had an <code>EnvironmentFile</code> (often pointing to <code>/etc/sysconfig/docker</code>) then for backwards compatibility, you drop a file with a <code>.conf</code> extension into the <code>/etc/systemd/system/docker.service.d</code> directory including the following:</p> <pre>[Service]
+EnvironmentFile=-/etc/sysconfig/docker
+EnvironmentFile=-/etc/sysconfig/docker-storage
+EnvironmentFile=-/etc/sysconfig/docker-network
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// $OPTIONS \
+          $DOCKER_STORAGE_OPTIONS \
+          $DOCKER_NETWORK_OPTIONS \
+          $BLOCK_REGISTRY \
+          $INSECURE_REGISTRY
+</pre> <p>To check if the <code>docker.service</code> uses an <code>EnvironmentFile</code>:</p> <pre>$ systemctl show docker | grep EnvironmentFile
+EnvironmentFile=-/etc/sysconfig/docker (ignore_errors=yes)
+</pre> <p>Alternatively, find out where the service file is located:</p> <pre>$ systemctl show --property=FragmentPath docker
+FragmentPath=/usr/lib/systemd/system/docker.service
+$ grep EnvironmentFile /usr/lib/systemd/system/docker.service
+EnvironmentFile=-/etc/sysconfig/docker
+</pre> <p>You can customize the Docker daemon options using override files as explained in the <a href="#http-proxy">HTTP Proxy example</a> below. The files located in <code>/usr/lib/systemd/system</code> or <code>/lib/systemd/system</code> contain the default options and should not be edited.</p> <h3 id="runtime-directory-and-storage-driver">Runtime directory and storage driver</h3> <p>You may want to control the disk space used for Docker images, containers and volumes by moving it to a separate partition.</p> <p>In this example, we’ll assume that your <code>docker.service</code> file looks something like:</p> <pre>[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network.target docker.socket
+Requires=docker.socket
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/docker daemon -H fd://
+LimitNOFILE=1048576
+LimitNPROC=1048576
+TasksMax=1048576
+
+[Install]
+Also=docker.socket
+</pre> <p>This will allow us to add extra flags via a drop-in file (mentioned above) by placing a file containing the following in the <code>/etc/systemd/system/docker.service.d</code> directory:</p> <pre>[Service]
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// --graph="/mnt/docker-data" --storage-driver=overlay
+</pre> <p>You can also set other environment variables in this file, for example, the <code>HTTP_PROXY</code> environment variables described below.</p> <p>To modify the ExecStart configuration, specify an empty configuration followed by a new configuration as follows:</p> <pre>[Service]
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// --bip=172.17.42.1/16
+</pre> <p>If you fail to specify an empty configuration, Docker reports an error such as:</p> <pre>docker.service has more than one ExecStart= setting, which is only allowed for Type=oneshot services. Refusing.
+</pre> <h3 id="http-proxy">HTTP proxy</h3> <p>This example overrides the default <code>docker.service</code> file.</p> <p>If you are behind an HTTP proxy server, for example in corporate settings, you will need to add this configuration in the Docker systemd service file.</p> <p>First, create a systemd drop-in directory for the docker service:</p> <pre>mkdir /etc/systemd/system/docker.service.d
+</pre> <p>Now create a file called <code>/etc/systemd/system/docker.service.d/http-proxy.conf</code> that adds the <code>HTTP_PROXY</code> environment variable:</p> <pre>[Service]
+Environment="HTTP_PROXY=http://proxy.example.com:80/"
+</pre> <p>If you have internal Docker registries that you need to contact without proxying you can specify them via the <code>NO_PROXY</code> environment variable:</p> <pre>Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.1,docker-registry.somecorporation.com"
+</pre> <p>Flush changes:</p> <pre>$ sudo systemctl daemon-reload
+</pre> <p>Verify that the configuration has been loaded:</p> <pre>$ systemctl show --property=Environment docker
+Environment=HTTP_PROXY=http://proxy.example.com:80/
+</pre> <p>Restart Docker:</p> <pre>$ sudo systemctl restart docker
+</pre> <h2 id="manually-creating-the-systemd-unit-files">Manually creating the systemd unit files</h2> <p>When installing the binary without a package, you may want to integrate Docker with systemd. For this, simply install the two unit files (service and socket) from <a href="https://github.com/docker/docker/tree/master/contrib/init/systemd" target="_blank">the github repository</a> to <code>/etc/systemd/system</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/admin/systemd/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/admin/systemd/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

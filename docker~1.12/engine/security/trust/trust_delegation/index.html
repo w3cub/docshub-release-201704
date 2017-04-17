@@ -1,0 +1,123 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Delegations for Content Trust (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content=" Docker Engine supports the usage of the targets&#47;releases delegation as the canonical source of a trusted image tag. ">
+  <meta name="keywords" content="delegations, for, content, trust, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/security/trust/trust_delegation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="delegations-for-content-trust">Delegations for content trust</h1> <p>Docker Engine supports the usage of the <code>targets/releases</code> delegation as the canonical source of a trusted image tag.</p> <p>Using this delegation allows you to collaborate with other publishers without sharing your repository key (a combination of your targets and snapshot keys - please see “<a href="../trust_key_mng/">Manage keys for content trust</a>” for more information). A collaborator can keep their own delegation key private.</p> <p>The <code>targets/releases</code> delegation is currently an optional feature - in order to set up delegations, you must use the Notary CLI:</p> <ol> <li><p><a href="https://github.com/docker/notary/releases" target="_blank">Download the client</a> and ensure that it is available on your path</p></li> <li>
+<p>Create a configuration file at <code>~/.notary/config.json</code> with the following content:</p> <pre>{
+  "trust_dir" : "~/.docker/trust",
+  "remote_server": {
+    "url": "https://notary.docker.io"
+  }
+}
+</pre> <p>This tells Notary where the Docker Content Trust data is stored, and to use the Notary server used for images in Docker Hub.</p>
+</li> </ol> <p>For more detailed information about how to use Notary outside of the default Docker Content Trust use cases, please refer to the <a href="https://docs.docker.com/notary/getting_started/" target="_blank">the Notary CLI documentation</a>.</p> <p>Note that when publishing and listing delegation changes using the Notary client, your Docker Hub credentials are required.</p> <h2 id="generating-delegation-keys">Generating delegation keys</h2> <p>Your collaborator needs to generate a private key (either RSA or ECDSA) and give you the public key so that you can add it to the <code>targets/releases</code> delegation.</p> <p>The easiest way to for them to generate these keys is with OpenSSL. Here is an example of how to generate a 2048-bit RSA portion key (all RSA keys must be at least 2048 bits):</p> <pre>$ openssl genrsa -out delegation.key 2048
+Generating RSA private key, 2048 bit long modulus
+....................................................+++
+............+++
+e is 65537 (0x10001)
+
+</pre> <p>They should keep <code>delegation.key</code> private - this is what they will use to sign tags.</p> <p>Then they need to generate an x509 certificate containing the public key, which is what they will give to you. Here is the command to generate a CSR (certificate signing request):</p> <pre>$ openssl req -new -sha256 -key delegation.key -out delegation.csr
+</pre> <p>Then they can send it to whichever CA you trust to sign certificates, or they can self-sign the certificate (in this example, creating a certificate that is valid for 1 year):</p> <pre>$ openssl x509 -req -days 365 -in delegation.csr -signkey delegation.key -out delegation.crt
+</pre> <p>Then they need to give you <code>delegation.crt</code>, whether it is self-signed or signed by a CA.</p> <h2 id="adding-a-delegation-key-to-an-existing-repository">Adding a delegation key to an existing repository</h2> <p>If your repository was created using a version of Docker Engine prior to 1.11, then before adding any delegations, you should rotate the snapshot key to the server so that collaborators will not require your snapshot key to sign and publish tags:</p> <pre>$ notary key rotate docker.io/&lt;username&gt;/&lt;imagename&gt; snapshot -r
+</pre> <p>This tells Notary to rotate a key for your particular image repository - note that you must include the <code>docker.io/</code> prefix. <code>snapshot -r</code> specifies that you want to rotate the snapshot key specifically, and you want the server to manage it (<code>-r</code> stands for “remote”).</p> <p>When adding a delegation, your must acquire <a href="#generating-delegation-keys">the PEM-encoded x509 certificate with the public key</a> of the collaborator you wish to delegate to.</p> <p>Assuming you have the certificate <code>delegation.crt</code>, you can add a delegation for this user and then publish the delegation change:</p> <pre>$ notary delegation add docker.io/&lt;username&gt;/&lt;imagename&gt; targets/releases delegation.crt --all-paths
+$ notary publish docker.io/&lt;username&gt;/&lt;imagename&gt;
+</pre> <p>The preceding example illustrates a request to add the delegation <code>targets/releases</code> to the image repository, if it doesn’t exist. Be sure to use <code>targets/releases</code> - Notary supports multiple delegation roles, so if you mistype the delegation name, the Notary CLI will not error. However, Docker Engine supports reading only from <code>targets/releases</code>.</p> <p>It also adds the collaborator’s public key to the delegation, enabling them to sign the <code>targets/releases</code> delegation so long as they have the private key corresponding to this public key. The <code>--all-paths</code> flags tells Notary not to restrict the tag names that can be signed into <code>targets/releases</code>, which we highly recommend for <code>targets/releases</code>.</p> <p>Publishing the changes tells the server about the changes to the <code>targets/releases</code> delegation.</p> <p>After publishing, view the delegation information to ensure that you correctly added the keys to <code>targets/releases</code>:</p> <pre>$ notary delegation list docker.io/&lt;username&gt;/&lt;imagename&gt;
+
+      ROLE               PATHS                                   KEY IDS                                THRESHOLD
+---------------------------------------------------------------------------------------------------------------
+  targets/releases   "" &lt;all paths&gt;  729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a   1
+</pre> <p>You can see the <code>targets/releases</code> with its paths and the key ID you just added.</p> <p>Notary currently does not map collaborators names to keys, so we recommend that you add and list delegation keys one at a time, and keep a mapping of the key IDs to collaborators yourself should you need to remove a collaborator.</p> <h2 id="removing-a-delegation-key-from-an-existing-repository">Removing a delegation key from an existing repository</h2> <p>To revoke a collaborator’s permission to sign tags for your image repository, you must know the IDs of their keys, because you need to remove their keys from the <code>targets/releases</code> delegation.</p> <pre>$ notary delegation remove docker.io/&lt;username&gt;/&lt;imagename&gt; targets/releases 729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a
+
+Removal of delegation role targets/releases with keys [729c7094a8210fd1e780e7b17b7bb55c9a28a48b871b07f65d97baf93898523a], to repository "docker.io/&lt;username&gt;/&lt;imagename&gt;" staged for next publish.
+</pre> <p>The revocation will take effect as soon as you publish:</p> <pre>$ notary publish docker.io/&lt;username&gt;/&lt;imagename&gt;
+</pre> <p>Note that by removing all the keys from the <code>targets/releases</code> delegation, the delegation (and any tags that are signed into it) is removed. That means that these tags will all be deleted, and you may end up with older, legacy tags that were signed directly by the targets key.</p> <h2 id="removing-the-targets-releases-delegation-entirely-from-a-repository">Removing the <code>targets/releases</code> delegation entirely from a repository</h2> <p>If you’ve decided that delegations aren’t for you, you can delete the <code>targets/releases</code> delegation entirely. This also removes all the tags that are currently in <code>targets/releases</code>, however, and you may end up with older, legacy tags that were signed directly by the targets key.</p> <p>To delete the <code>targets/releases</code> delegation:</p> <pre>$ notary delegation remove docker.io/&lt;username&gt;/&lt;imagename&gt; targets/releases
+
+Are you sure you want to remove all data for this delegation? (yes/no)
+yes
+
+Forced removal (including all keys and paths) of delegation role targets/releases to repository "docker.io/&lt;username&gt;/&lt;imagename&gt;" staged for next publish.
+
+$ notary publish docker.io/&lt;username&gt;/&lt;imagename&gt;
+</pre> <h2 id="pushing-trusted-data-as-a-collaborator">Pushing trusted data as a collaborator</h2> <p>As a collaborator with a private key that has been added to a repository’s <code>targets/releases</code> delegation, you need to import the private key that you generated into Content Trust.</p> <p>To do so, you can run:</p> <pre>$ notary key import delegation.key --role user
+</pre> <p>where <code>delegation.key</code> is the file containing your PEM-encoded private key.</p> <p>After you have done so, running <code>docker push</code> on any repository that includes your key in the <code>targets/releases</code> delegation will automatically sign tags using this imported key.</p> <h2 id="docker-push-behavior">
+<code>docker push</code> behavior</h2> <p>When running <code>docker push</code> with Docker Content Trust, Docker Engine will attempt to sign and push with the <code>targets/releases</code> delegation if it exists. If it does not, the targets key will be used to sign the tag, if the key is available.</p> <h2 id="docker-pull-and-docker-build-behavior">
+<code>docker pull</code> and <code>docker build</code> behavior</h2> <p>When running <code>docker pull</code> or <code>docker build</code> with Docker Content Trust, Docker Engine will pull tags only signed by the <code>targets/releases</code> delegation role or the legacy tags that were signed directly with the <code>targets</code> key.</p> <h2 id="related-information">Related information</h2> <ul> <li><a href="../content_trust/">Content trust in Docker</a></li> <li><a href="../trust_key_mng/">Manage keys for content trust</a></li> <li><a href="../trust_automation/">Automation with content trust</a></li> <li><a href="../trust_sandbox/">Play in a content trust sandbox</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/security/trust/trust_delegation/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/security/trust/trust_delegation/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

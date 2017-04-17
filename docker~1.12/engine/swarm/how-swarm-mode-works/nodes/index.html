@@ -1,0 +1,88 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>How Nodes Work (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Engine 1.12 introduces swarm mode that enables you to create a cluster of one or more Docker Engines called a swarm. A swarm consists of one &hellip;">
+  <meta name="keywords" content="how, nodes, work, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/swarm/how-swarm-mode-works/nodes/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="how-nodes-work">How nodes work</h1> <p>Docker Engine 1.12 introduces swarm mode that enables you to create a cluster of one or more Docker Engines called a swarm. A swarm consists of one or more nodes: physical or virtual machines running Docker Engine 1.12 or later in swarm mode.</p> <p>There are two types of nodes: <a href="#manager-nodes"><strong>managers</strong></a> and <a href="#worker-nodes"><strong>workers</strong></a>.</p> <p><img src="https://docs.docker.com/engine/swarm/images/swarm-diagram.png" alt="Swarm mode cluster"></p> <p>If you haven’t already, read through the <a href="../../">swarm mode overview</a> and <a href="../../key-concepts/">key concepts</a>.</p> <h2 id="manager-nodes">Manager nodes</h2> <p>Manager nodes handle cluster management tasks:</p> <ul> <li>maintaining cluster state</li> <li>scheduling services</li> <li>serving swarm mode <a href="https://docs.docker.com/engine/reference/api/" target="_blank">HTTP API endpoints</a>
+</li> </ul> <p>Using a <a href="https://raft.github.io/raft.pdf" target="_blank">Raft</a> implementation, the managers maintain a consistent internal state of the entire swarm and all the services running on it. For testing purposes it is OK to run a swarm with a single manager. If the manager in a single-manager swarm fails, your services will continue to run, but you will need to create a new cluster to recover.</p> <p>To take advantage of swarm mode’s fault-tolerance features, Docker recommends you implement an odd number of nodes according to your organization’s high-availability requirements. When you have multiple managers you can recover from the failure of a manager node without downtime.</p> <ul> <li>A three-manager swarm tolerates a maximum loss of one manager.</li> <li>A five-manager swarm tolerates a maximum simultaneous loss of two manager nodes.</li> <li>An <code>N</code> manager cluster will tolerate the loss of at most <code>(N-1)/2</code> managers.</li> <li>
+<p>Docker recommends a maximum of seven manager nodes for a swarm.</p> <blockquote> <p><strong>Important Note</strong>: Adding more managers does NOT mean increased scalability or higher performance. In general, the opposite is true.</p> </blockquote>
+</li> </ul> <h2 id="worker-nodes">Worker nodes</h2> <p>Worker nodes are also instances of Docker Engine whose sole purpose is to execute containers. Worker nodes don’t participate in the Raft distributed state, make in scheduling decisions, or serve the swarm mode HTTP API.</p> <p>You can create a swarm of one manager node, but you cannot have a worker node without at least one manager node. By default, all managers are also workers. In a single manager node cluster, you can run commands like <code>docker service
+create</code> and the scheduler will place all tasks on the local Engine.</p> <p>To prevent the scheduler from placing tasks on a manager node in a multi-node swarm, set the availability for the manager node to <code>Drain</code>. The scheduler gracefully stops tasks on nodes in <code>Drain</code> mode and schedules the tasks on an <code>Active</code> node. The scheduler does not assign new tasks to nodes with <code>Drain</code> availability.</p> <p>Refer to the <a href="../../../reference/commandline/node_update/"><code>docker node update</code></a> command line reference to see how to change node availability.</p> <h2 id="changing-roles">Changing roles</h2> <p>You can promote a worker node to be a manager by running <code>docker node promote</code>. For example, you may want to promote a worker node when you take a manager node offline for maintenance. See <a href="../../../reference/commandline/node_promote/">node promote</a>.</p> <p>You can also demote a manager node to a worker node. See <a href="../../../reference/commandline/node_demote/">node demote</a>.</p> <h2 id="what-s-next">What’s Next</h2> <ul> <li>Read about how swarm mode <a href="../services/">services</a> work.</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/how-swarm-mode-works/nodes/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

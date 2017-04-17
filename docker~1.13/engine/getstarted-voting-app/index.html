@@ -1,0 +1,195 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Tour the Voting App Sample (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="This example is built around a web-based voting application that collects, tallies, and returns the results of votes (for cats and dogs, or other &hellip;">
+  <meta name="keywords" content="tour, voting, app, sample, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/getstarted-voting-app/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Tour the voting app</h1>  <p>This example is built around a web-based voting application that collects, tallies, and returns the results of votes (for cats and dogs, or other choices you specify). The voting app includes several services, each one running in its own container. We’ll deploy the app as a <em>stack</em> to introduce some new concepts surfaced in <a href="../../compose/compose-file/#version-3">Compose Version 3</a>, and also use <a href="../swarm/">swarm mode</a>, which is cluster management and orchestration capability built into Docker Engine.</p> <h2 id="got-docker">Got Docker?</h2> <p>If you haven’t yet downloaded Docker or installed it, go to <a href="../getstarted/step_one/#step-1-get-docker">Get Docker</a> and grab Docker for your platform. You can follow along and run this example using Docker for Mac, Docker for Windows or Docker for Linux.</p> <p>Once you have Docker installed, you can run <code class="highlighter-rouge">docker hello-world</code> or other commands described in the Get Started with Docker tutorial to <a href="../getstarted/step_one/#step-3-verify-your-installation">verify your installation</a>. If you are totally new to Docker, you might continue through the full <a href="../getstarted/">Get Started with Docker tutorial</a> first, then come back.</p> <h2 id="what-youll-learn-and-do">What you’ll learn and do</h2> <p>In this tutorial, you’ll learn how to:</p> <ul> <li>Use <code class="highlighter-rouge">docker machine</code> to create multiple virtual local hosts or dockerized cloud servers</li> <li>Use <code class="highlighter-rouge">docker</code> commands to set up and run a swarm with manager and worker nodes</li> <li>Deploy the <code class="highlighter-rouge">vote</code> app by feeding our example <code class="highlighter-rouge">docker-stack.yml</code> file to the <code class="highlighter-rouge">docker stack deploy</code> command</li> <li>Test the app by voting for cats and dogs, and view the results</li> <li>Use the <code class="highlighter-rouge">visualizer</code> to explore and understand the runtime app and services</li> <li>Update the <code class="highlighter-rouge">docker-stack.yml</code> and redeploy the app using a different <code class="highlighter-rouge">vote</code> image to implement a poll on different choices</li> <li>Use features new in Compose Version 3, highlighted in the sample app</li> </ul> <h2 id="anatomy-of-the-voting-app">Anatomy of the voting app</h2> <p>The voting app you are about to deploy is composed of several services:</p> <table> <thead> <tr> <th>Service</th> <th>Description</th> <th>Base Image</th> </tr> </thead> <tbody> <tr> <td><code class="highlighter-rouge">vote</code></td> <td>Presents the voting interface via port <code class="highlighter-rouge">5000</code>. Viewable at <code class="highlighter-rouge">&lt;manager-IP&gt;:5000</code>
+</td> <td>Based on a Python image, <code class="highlighter-rouge">dockersamples/examplevotingapp_vote</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">result</code></td> <td>Displays the voting results via port 5001. Viewable at <code class="highlighter-rouge">&lt;manager-IP&gt;:5001</code>
+</td> <td>Based on a Node.js image, <code class="highlighter-rouge">dockersamples/examplevotingapp_result</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">visualizer</code></td> <td>A web app that shows a map of the deployment of the various services across the available nodes via port <code class="highlighter-rouge">8080</code>. Viewable at <code class="highlighter-rouge">&lt;manager-IP&gt;:8080</code>
+</td> <td>Based on a Node.js image, <code class="highlighter-rouge">dockersamples/visualizer</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">redis</code></td> <td>Collects raw voting data and stores it in a key/value queue</td> <td>Based on a <code class="highlighter-rouge">redis</code> image, <code class="highlighter-rouge">redis:alpine</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">db</code></td> <td>A PostgreSQL service which provides permanent storage on a host volume</td> <td>Based on a <code class="highlighter-rouge">postgres</code> image, <code class="highlighter-rouge">postgres:9.4</code>
+</td> </tr> <tr> <td><code class="highlighter-rouge">worker</code></td> <td>A background service that transfers votes from the queue to permanent storage</td> <td>Based on a .NET image, <code class="highlighter-rouge">dockersamples/examplevotingapp_worker</code>
+</td> </tr> </tbody> </table> <p>Each service will run in its own container. Using swarm mode, we can also scale the application to deploy replicas of containerized services distributed across multiple nodes.</p> <p>Here is an example of one of the services fully defined:</p> <pre class="highlight" data-language="">vote:
+  image: dockersamples/examplevotingapp_vote:before
+  ports:
+    - 5000:80
+  networks:
+    - frontend
+  depends_on:
+    - redis
+  deploy:
+    replicas: 2
+    update_config:
+      parallelism: 2
+    restart_policy:
+      condition: on-failure
+</pre>  <p>The <code class="highlighter-rouge">image</code> key defines which image the service will use. The <code class="highlighter-rouge">vote</code> service uses <code class="highlighter-rouge">dockersamples/examplevotingapp_vote:before</code>.</p> <p>The <code class="highlighter-rouge">depends_on</code> key allows you to specify that a service is only deployed after another service. In our example, <code class="highlighter-rouge">vote</code> only deploys after <code class="highlighter-rouge">redis</code>.</p> <p>The <code class="highlighter-rouge">deploy</code> key specifies aspects of a swarm deployment, as described below in <a href="#compose-v3-features-and-compatibility">Compose Version 3 features and compatibility</a>.</p> <h2 id="docker-stackyml-deployment-configuration">docker-stack.yml deployment configuration</h2> <p>We’ll deploy the app using <code class="highlighter-rouge">docker-stack.yml</code>, which is a type of <a href="../../compose/compose-file/">Compose file</a> new in Compose Version 3.</p> <p>To follow along with the example, you need only have Docker running and the copy of <code class="highlighter-rouge">docker-stack.yml</code> we provide here. This file defines all the services shown in the <a href="#anatomy-of-the-voting-app">table above</a>, their base images, configuration details such as ports and networks, application dependencies, and the swarm configuration.</p> <pre class="highlight" data-language="">version: "3"
+services:
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379"
+    networks:
+      - frontend
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  vote:
+    image: dockersamples/examplevotingapp_vote:before
+    ports:
+      - 5000:80
+    networks:
+      - frontend
+    depends_on:
+      - redis
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 2
+      restart_policy:
+        condition: on-failure
+  result:
+    image: dockersamples/examplevotingapp_result:before
+    ports:
+      - 5001:80
+    networks:
+      - backend
+    depends_on:
+      - db
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - frontend
+      - backend
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels: [APP=VOTING]
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
+</pre>  <h2 id="compose-version-3-features-and-compatibility">Compose Version 3 features and compatibility</h2> <p>To deploy the voting application, we will run the <code class="highlighter-rouge">docker-stack deploy</code> command with this <code class="highlighter-rouge">docker-stack.yml</code> file to pull the referenced images and launch the services in a swarm as configured in the <code class="highlighter-rouge">.yml</code>.</p> <p>Note that at the top of the <code class="highlighter-rouge">docker-stack.yml</code> file, the version is indicated as <code class="highlighter-rouge">version: "3"</code>. The voting app example relies on Compose version 3, which is designed to be cross-compatible with Compose and Docker Engine swarm mode.</p> <p>Before we get started, let’s take a look at some aspects of Compose files and deployment options that are new in Compose Version 3, and that we want to highlight in this walkthrough.</p> <ul> <li>
+<a href="#docker-stackyml">docker-stack.yml</a> <ul> <li><a href="#deploy-key">deploy key</a></li> </ul> </li> <li><a href="#docker-stack-deploy-command">docker stack deploy command</a></li> <li><a href="#docker-stacks-and-services">Docker stacks and services</a></li> </ul> <h3 id="docker-stackyml">docker-stack.yml</h3> <p><code class="highlighter-rouge">docker-stack.yml</code> is a new type of <a href="../../compose/compose-file/">Compose file</a> only compatible with Compose Version 3.</p> <h4 id="deploy-key">deploy key</h4> <p>The <code class="highlighter-rouge">deploy</code> key allows you to specify various properties of a swarm deployment.</p> <p>For example, the voting app configuration uses this to create replicas of the <code class="highlighter-rouge">vote</code> and <code class="highlighter-rouge">result</code> services (2 containers of each will be deployed to the swarm).</p> <p>The voting app also uses the <code class="highlighter-rouge">deploy</code> key to constrain some services to run only on the manager node.</p> <p>For more about the <code class="highlighter-rouge">deploy key</code>, see <a href="../../compose/compose-file/#deploy">deploy</a>.</p> <h3 id="docker-stack-deploy-command">docker stack deploy command</h3> <p><code class="highlighter-rouge">docker stack deploy</code> is the command we will use to deploy with <code class="highlighter-rouge">docker-stack.yml</code>.</p> <ul> <li> <p>This command supports only <code class="highlighter-rouge">version: "3"</code> Compose files.</p> </li> <li> <p>It does not support the <code class="highlighter-rouge">build</code> key supported in Compose files, which builds based on a Dockerfile. You need to use pre-built images with <code class="highlighter-rouge">docker stack deploy</code>.</p> </li> <li> <p>It can take the place of running <code class="highlighter-rouge">docker compose up</code> to deploy Version 3 compatible applications.</p> </li> </ul> <p>See information about the <a href="../../compose/compose-file/#deploy">deploy</a> key in the Compose file reference and <a href="../reference/commandline/stack_deploy/"><code class="highlighter-rouge">docker stack deploy</code></a> in the Docker Engine command line reference.</p> <h3 id="docker-stacks-and-services">Docker stacks and services</h3> <p>Taken together, these new Compose features and deployment options can help when mapping out distributed applications and clustering strategies. Rather than thinking about running individual containers, we can start to model deployments as Docker stacks and services.</p> <h3 id="compose-file-reference">Compose file reference</h3> <p>For more on what’s new in Compose Version 3:</p> <ul> <li> <p><a href="https://blog.docker.com/2017/01/whats-new-in-docker-1-13/" target="_blank">Introducing Docker 1.13.0</a> blog post from <a href="https://blog.docker.com/author/core_eng/" target="_blank">Docker Core Engineering</a></p> </li> <li> <p><a href="../../compose/compose-file/#versioning">Versioning</a>, <a href="../../compose/compose-file/#version-3">Version 3</a>, and <a href="../../compose/compose-file/#upgrading">Upgrading</a> in <a href="../../compose/compose-file/">Compose file reference</a></p> </li> </ul> <h2 id="whats-next">What’s next?</h2> <p>In the next step, we’ll <a href="node-setup/">set up two Dockerized hosts</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/getstarted-voting-app/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/getstarted-voting-app/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

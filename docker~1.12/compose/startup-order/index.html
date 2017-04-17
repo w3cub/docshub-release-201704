@@ -1,0 +1,114 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Controlling Startup Order (Compose) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="You can control the order of service startup with the depends_on option. Compose always starts containers in dependency order, where dependencies &hellip;">
+  <meta name="keywords" content="controlling, startup, order, compose, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/compose/startup-order/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="controlling-startup-order-in-compose">Controlling startup order in Compose</h1> <p>You can control the order of service startup with the <a href="../compose-file/#depends-on">depends_on</a> option. Compose always starts containers in dependency order, where dependencies are determined by <code>depends_on</code>, <code>links</code>, <code>volumes_from</code> and <code>network_mode: "service:..."</code>.</p> <p>However, Compose will not wait until a container is “ready” (whatever that means for your particular application) - only until it’s running. There’s a good reason for this.</p> <p>The problem of waiting for a database (for example) to be ready is really just a subset of a much larger problem of distributed systems. In production, your database could become unavailable or move hosts at any time. Your application needs to be resilient to these types of failures.</p> <p>To handle this, your application should attempt to re-establish a connection to the database after a failure. If the application retries the connection, it should eventually be able to connect to the database.</p> <p>The best solution is to perform this check in your application code, both at startup and whenever a connection is lost for any reason. However, if you don’t need this level of resilience, you can work around the problem with a wrapper script:</p> <ul> <li>
+<p>Use a tool such as <a href="https://github.com/vishnubob/wait-for-it" target="_blank">wait-for-it</a> or <a href="https://github.com/jwilder/dockerize" target="_blank">dockerize</a>. These are small wrapper scripts which you can include in your application’s image and will poll a given host and port until it’s accepting TCP connections.</p> <p>Supposing your application’s image has a <code>CMD</code> set in its Dockerfile, you can wrap it by setting the entrypoint in <code>docker-compose.yml</code>:</p> <pre>version: "2"
+services:
+  web:
+    build: .
+    ports:
+      - "80:8000"
+    depends_on:
+      - "db"
+    entrypoint: ./wait-for-it.sh db:5432
+  db:
+    image: postgres
+</pre>
+</li> <li>
+<p>Write your own wrapper script to perform a more application-specific health check. For example, you might want to wait until Postgres is definitely ready to accept commands:</p> <pre>#!/bin/bash
+
+set -e
+
+host="$1"
+shift
+cmd="$@"
+
+until psql -h "$host" -U "postgres" -c '\l'; do
+  &gt;&amp;2 echo "Postgres is unavailable - sleeping"
+  sleep 1
+done
+
+&gt;&amp;2 echo "Postgres is up - executing command"
+exec $cmd
+</pre> <p>You can use this as a wrapper script as in the previous example, by setting <code>entrypoint: ./wait-for-postgres.sh db</code>.</p>
+</li> </ul> <h2 id="compose-documentation">Compose documentation</h2> <ul> <li><a href="../install/">Installing Compose</a></li> <li><a href="../django/">Get started with Django</a></li> <li><a href="../rails/">Get started with Rails</a></li> <li><a href="../wordpress/">Get started with WordPress</a></li> <li><a href="https://docs.docker.com/compose/reference/" target="_blank">Command line reference</a></li> <li><a href="../compose-file/">Compose file reference</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/compose/startup-order/" class="_attribution-link" target="_blank">https://docs.docker.com/compose/startup-order/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

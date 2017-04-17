@@ -1,0 +1,149 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Dockerizing MongoDB (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="In this example, we are going to learn how to build a Docker image with MongoDB pre-installed. We’ll also see how to push that image to the Docker &hellip;">
+  <meta name="keywords" content="dockerize, mongodb, dockerizing, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/examples/mongodb/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Dockerize MongoDB</h1>  <h2 id="introduction">Introduction</h2> <p>In this example, we are going to learn how to build a Docker image with MongoDB pre-installed. We’ll also see how to <code class="highlighter-rouge">push</code> that image to the <a href="https://hub.docker.com" target="_blank">Docker Hub registry</a> and share it with others!</p> <blockquote> <p><strong>Note:</strong> This guide will show the mechanics of building a MongoDB container, but you will probably want to use the official image on <a href="https://hub.docker.com/_/mongo/" target="_blank">Docker Hub</a></p> </blockquote> <p>Using Docker and containers for deploying <a href="https://www.mongodb.org/" target="_blank">MongoDB</a> instances will bring several benefits, such as:</p> <ul> <li>Easy to maintain, highly configurable MongoDB instances;</li> <li>Ready to run and start working within milliseconds;</li> <li>Based on globally accessible and shareable images.</li> </ul> <blockquote> <p><strong>Note:</strong> If you do <strong><em>not</em></strong> like <code class="highlighter-rouge">sudo</code>, you might want to check out <a href="https://docs.docker.com/engine/installation/binaries/#giving-non-root-access" target="_blank"><em>Giving non-root access</em></a>.</p> </blockquote> <h2 id="creating-a-dockerfile-for-mongodb">Creating a Dockerfile for MongoDB</h2> <p>Let’s create our <code class="highlighter-rouge">Dockerfile</code> and start building it:</p> <pre class="highlight" data-language="bash">$ nano Dockerfile
+</pre>  <p>Although optional, it is handy to have comments at the beginning of a <code class="highlighter-rouge">Dockerfile</code> explaining its purpose:</p> <pre data-language="">    # Dockerizing MongoDB: Dockerfile for building MongoDB images
+    # Based on ubuntu:latest, installs MongoDB following the instructions from:
+    # http://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/
+</pre> <blockquote> <p><strong>Tip:</strong> <code class="highlighter-rouge">Dockerfile</code>s are flexible. However, they need to follow a certain format. The first item to be defined is the name of an image, which becomes the <em>parent</em> of your <em>Dockerized MongoDB</em> image.</p> </blockquote> <p>We will build our image using the latest version of Ubuntu from the <a href="https://hub.docker.com/_/ubuntu/" target="_blank">Docker Hub Ubuntu</a> repository.</p> <pre data-language=""># Format: FROM    repository[:version]
+FROM       ubuntu:latest
+</pre> <p>Continuing, we will declare the <code class="highlighter-rouge">MAINTAINER</code> of the <code class="highlighter-rouge">Dockerfile</code>:</p> <pre data-language=""># Format: MAINTAINER Name &lt;email@addr.ess&gt;
+MAINTAINER M.Y. Name &lt;myname@addr.ess&gt;
+</pre> <blockquote> <p><strong>Note:</strong> Although Ubuntu systems have MongoDB packages, they are likely to be outdated. Therefore in this example, we will use the official MongoDB packages.</p> </blockquote> <p>We will begin with importing the MongoDB public GPG key. We will also create a MongoDB repository file for the package manager.</p> <pre data-language=""># Installation:
+# Import MongoDB public GPG key AND create a MongoDB list file
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
+RUN echo "deb http://repo.mongodb.org/apt/ubuntu $(cat /etc/lsb-release | grep DISTRIB_CODENAME | cut -d= -f2)/mongodb-org/3.2 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-3.2.list
+</pre> <p>After this initial preparation we can update our packages and install MongoDB.</p> <pre data-language=""># Update apt-get sources AND install MongoDB
+RUN apt-get update &amp;&amp; apt-get install -y mongodb-org
+</pre> <blockquote> <p><strong>Tip:</strong> You can install a specific version of MongoDB by using a list of required packages with versions, e.g.: <code class="highlighter-rouge">dockerfile RUN apt-get update &amp;&amp; apt-get install -y mongodb-org=3.0.1 mongodb-org-server=3.0.1 mongodb-org-shell=3.0.1 mongodb-org-mongos=3.0.1 mongodb-org-tools=3.0.1</code></p> </blockquote> <p>MongoDB requires a data directory. Let’s create it as the final step of our installation instructions.</p> <pre data-language=""># Create the MongoDB data directory
+RUN mkdir -p /data/db
+</pre> <p>Lastly we set the <code class="highlighter-rouge">ENTRYPOINT</code> which will tell Docker to run <code class="highlighter-rouge">mongod</code> inside the containers launched from our MongoDB image. And for ports, we will use the <code class="highlighter-rouge">EXPOSE</code> instruction.</p> <pre data-language=""># Expose port 27017 from the container to the host
+EXPOSE 27017
+
+# Set usr/bin/mongod as the dockerized entry-point application
+ENTRYPOINT ["/usr/bin/mongod"]
+</pre> <p>Now save the file and let’s build our image.</p> <blockquote> <p><strong>Note:</strong> The full version of this <code class="highlighter-rouge">Dockerfile</code> can be found <a href="https://github.com/docker/docker.github.io/blob/master/engine/examples/mongodb/Dockerfile" target="_blank">here</a>.</p> </blockquote> <h2 id="building-the-mongodb-docker-image">Building the MongoDB Docker image</h2> <p>With our <code class="highlighter-rouge">Dockerfile</code>, we can now build the MongoDB image using Docker. Unless experimenting, it is always a good practice to tag Docker images by passing the <code class="highlighter-rouge">--tag</code> option to <code class="highlighter-rouge">docker build</code> command.</p> <pre data-language=""># Format: docker build --tag/-t &lt;user-name&gt;/&lt;repository&gt; .
+# Example:
+$ docker build --tag my/repo .
+</pre> <p>Once this command is issued, Docker will go through the <code class="highlighter-rouge">Dockerfile</code> and build the image. The final image will be tagged <code class="highlighter-rouge">my/repo</code>.</p> <h2 id="pushing-the-mongodb-image-to-docker-hub">Pushing the MongoDB image to Docker Hub</h2> <p>All Docker image repositories can be hosted and shared on <a href="https://hub.docker.com" target="_blank">Docker Hub</a> with the <code class="highlighter-rouge">docker push</code> command. For this, you need to be logged-in.</p> <pre class="highlight" data-language="bash"># Log-in
+$ docker login
+
+Username:
+..
+</pre>  <pre class="highlight" data-language="bash"># Push the image
+# Format: docker push &lt;user-name&gt;/&lt;repository&gt;
+$ docker push my/repo
+
+The push refers to a repository [my/repo] (len: 1)
+Sending image list
+Pushing repository my/repo (1 tags)
+..
+</pre>  <h2 id="using-the-mongodb-image">Using the MongoDB image</h2> <p>Using the MongoDB image we created, we can run one or more MongoDB instances as daemon process(es).</p> <pre class="highlight" data-language="bash"># Basic way
+# Usage: docker run --name &lt;name for container&gt; -d &lt;user-name&gt;/&lt;repository&gt;
+$ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo
+
+# Dockerized MongoDB, lean and mean!
+# Usage: docker run --name &lt;name for container&gt; -d &lt;user-name&gt;/&lt;repository&gt; --noprealloc --smallfiles
+$ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --smallfiles
+
+# Checking out the logs of a MongoDB container
+# Usage: docker logs &lt;name for container&gt;
+$ docker logs mongo_instance_001
+
+# Playing with MongoDB
+# Usage: mongo --port &lt;port you get from `docker ps`&gt;
+$ mongo --port 27017
+
+# If using docker-machine
+# Usage: mongo --port &lt;port you get from `docker ps`&gt;  --host &lt;ip address from `docker-machine ip VM_NAME`&gt;
+$ mongo --port 27017 --host 192.168.59.103
+</pre>  <blockquote> <p><strong>Tip:</strong> If you want to run two containers on the same engine, then you will need to map the exposed port to two different ports on the host</p> </blockquote> <pre class="highlight" data-language="bash"># Start two containers and map the ports
+$ docker run -p 28001:27017 --name mongo_instance_001 -d my/repo
+
+$ docker run -p 28002:27017 --name mongo_instance_002 -d my/repo
+
+# Now you can connect to each MongoDB instance on the two ports
+$ mongo --port 28001
+
+$ mongo --port 28002
+</pre>  <ul> <li><a href="../../userguide/networking/default_network/dockerlinks/">Linking containers</a></li> <li><a href="../../admin/ambassador_pattern_linking/">Cross-host linking containers</a></li> <li><a href="https://docs.docker.com/docker-hub/builds/" target="_blank">Creating an Automated Build</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/examples/mongodb/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/examples/mongodb/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

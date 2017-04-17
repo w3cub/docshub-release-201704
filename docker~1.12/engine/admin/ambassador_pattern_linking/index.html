@@ -1,0 +1,154 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Link via an Ambassador Container (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content=" Rather than hardcoding network links between a service consumer and provider, Docker encourages service portability, for example instead of&#58; ">
+  <meta name="keywords" content="link, ambassador, container, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/admin/ambassador_pattern_linking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="link-via-an-ambassador-container">Link via an ambassador container</h1> <p>Rather than hardcoding network links between a service consumer and provider, Docker encourages service portability, for example instead of:</p> <pre>(consumer) --&gt; (redis)
+</pre> <p>Requiring you to restart the <code>consumer</code> to attach it to a different <code>redis</code> service, you can add ambassadors:</p> <pre>(consumer) --&gt; (redis-ambassador) --&gt; (redis)
+</pre> <p>Or</p> <pre>(consumer) --&gt; (redis-ambassador) ---network---&gt; (redis-ambassador) --&gt; (redis)
+</pre> <p>When you need to rewire your consumer to talk to a different Redis server, you can just restart the <code>redis-ambassador</code> container that the consumer is connected to.</p> <p>This pattern also allows you to transparently move the Redis server to a different docker host from the consumer.</p> <p>Using the <code>svendowideit/ambassador</code> container, the link wiring is controlled entirely from the <code>docker run</code> parameters.</p> <h2 id="two-host-example">Two host example</h2> <p>Start actual Redis server on one Docker host</p> <pre>big-server $ docker run -d --name redis crosbymichael/redis
+</pre> <p>Then add an ambassador linked to the Redis server, mapping a port to the outside world</p> <pre>big-server $ docker run -d --link redis:redis --name redis_ambassador -p 6379:6379 svendowideit/ambassador
+</pre> <p>On the other host, you can set up another ambassador setting environment variables for each remote port we want to proxy to the <code>big-server</code></p> <pre>client-server $ docker run -d --name redis_ambassador --expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador
+</pre> <p>Then on the <code>client-server</code> host, you can use a Redis client container to talk to the remote Redis server, just by linking to the local Redis ambassador.</p> <pre>client-server $ docker run -i -t --rm --link redis_ambassador:redis relateiq/redis-cli
+redis 172.17.0.160:6379&gt; ping
+PONG
+</pre> <h2 id="how-it-works">How it works</h2> <p>The following example shows what the <code>svendowideit/ambassador</code> container does automatically (with a tiny amount of <code>sed</code>)</p> <p>On the Docker host (192.168.1.52) that Redis will run on:</p> <pre># start actual redis server
+$ docker run -d --name redis crosbymichael/redis
+
+# get a redis-cli container for connection testing
+$ docker pull relateiq/redis-cli
+
+# test the redis server by talking to it directly
+$ docker run -t -i --rm --link redis:redis relateiq/redis-cli
+redis 172.17.0.136:6379&gt; ping
+PONG
+^D
+
+# add redis ambassador
+$ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 alpine:3.2 sh
+</pre> <p>In the <code>redis_ambassador</code> container, you can see the linked Redis containers <code>env</code>:</p> <pre>/ # env
+REDIS_PORT=tcp://172.17.0.136:6379
+REDIS_PORT_6379_TCP_ADDR=172.17.0.136
+REDIS_NAME=/redis_ambassador/redis
+HOSTNAME=19d7adf4705e
+SHLVL=1
+HOME=/root
+REDIS_PORT_6379_TCP_PORT=6379
+REDIS_PORT_6379_TCP_PROTO=tcp
+REDIS_PORT_6379_TCP=tcp://172.17.0.136:6379
+TERM=xterm
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/
+/ # exit
+</pre> <p>This environment is used by the ambassador <code>socat</code> script to expose Redis to the world (via the <code>-p 6379:6379</code> port mapping):</p> <pre>$ docker rm redis_ambassador
+$ CMD="apk update &amp;&amp; apk add socat &amp;&amp; sh"
+$ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 alpine:3.2 sh -c "$CMD"
+[...]
+/ # socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
+</pre> <p>Now ping the Redis server via the ambassador:</p> <p>Now go to a different server:</p> <pre>$ CMD="apk update &amp;&amp; apk add socat &amp;&amp; sh"
+$ docker run -t -i --expose 6379 --name redis_ambassador alpine:3.2 sh -c "$CMD"
+[...]
+/ # socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
+</pre> <p>And get the <code>redis-cli</code> image so we can talk over the ambassador bridge.</p> <pre>$ docker pull relateiq/redis-cli
+$ docker run -i -t --rm --link redis_ambassador:redis relateiq/redis-cli
+redis 172.17.0.160:6379&gt; ping
+PONG
+</pre> <h2 id="the-svendowideit-ambassador-dockerfile">The svendowideit/ambassador Dockerfile</h2> <p>The <code>svendowideit/ambassador</code> image is based on the <code>alpine:3.2</code> image with <code>socat</code> installed. When you start the container, it uses a small <code>sed</code> script to parse out the (possibly multiple) link environment variables to set up the port forwarding. On the remote host, you need to set the variable using the <code>-e</code> command line option.</p> <pre>--expose 1234 -e REDIS_PORT_1234_TCP=tcp://192.168.1.52:6379
+</pre> <p>Will forward the local <code>1234</code> port to the remote IP and port, in this case <code>192.168.1.52:6379</code>.</p> <pre>#
+# do
+#   docker build -t svendowideit/ambassador .
+# then to run it (on the host that has the real backend on it)
+#   docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 svendowideit/ambassador
+# on the remote host, you can set up another ambassador
+#    docker run -t -i -name redis_ambassador -expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador sh
+# you can read more about this process at https://docs.docker.com/articles/ambassador_pattern_linking/
+
+# use alpine because its a minimal image with a package manager.
+# prettymuch all that is needed is a container that has a functioning env and socat (or equivalent)
+FROM    alpine:3.2
+MAINTAINER  SvenDowideit@home.org.au
+
+RUN apk update &amp;&amp; \
+    apk add socat &amp;&amp; \
+    rm -r /var/cache/
+
+CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&amp;/' &amp;&amp; echo wait) | sh
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/admin/ambassador_pattern_linking/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/admin/ambassador_pattern_linking/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

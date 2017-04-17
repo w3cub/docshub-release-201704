@@ -1,0 +1,108 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Swarm Administration Guide (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="When you run a swarm of Docker Engines, manager nodes are the key components for managing the swarm and storing the swarm state. It is important to &hellip;">
+  <meta name="keywords" content="administer, and, maintain, swarm, docker, engines, administration, guide, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/swarm/admin_guide/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="administer-and-maintain-a-swarm-of-docker-engines">Administer and maintain a swarm of Docker Engines</h1> <p>When you run a swarm of Docker Engines, <strong>manager nodes</strong> are the key components for managing the swarm and storing the swarm state. It is important to understand some key features of manager nodes in order to properly deploy and maintain the swarm.</p> <p>This article covers the following swarm administration tasks:</p> <ul> <li><a href="#use-a-static-ip-for-manager-node-advertise-address">Using a static IP for manager node advertise address</a></li> <li><a href="#add-manager-nodes-for-fault-tolerance">Adding manager nodes for fault tolerance</a></li> <li><a href="#distribute-manager-nodes">Distributing manager nodes</a></li> <li><a href="#run-manager-only-nodes">Running manager-only nodes</a></li> <li><a href="#back-up-the-swarm-state">Backing up the swarm state</a></li> <li><a href="#monitor-swarm-health">Monitoring the swarm health</a></li> <li><a href="#troubleshoot-a-manager-node">Troubleshooting a manager node</a></li> <li><a href="#force-remove-a-node">Forcefully removing a node</a></li> <li><a href="#recover-from-disaster">Recovering from disaster</a></li> </ul> <p>Refer to <a href="../how-swarm-mode-works/nodes/">How swarm mode nodes work</a> for a brief overview of Docker Swarm mode and the difference between manager and worker nodes.</p> <h2 id="operating-manager-nodes-in-a-swarm">Operating manager nodes in a swarm</h2> <p>Swarm manager nodes use the <a href="../raft/">Raft Consensus Algorithm</a> to manage the swarm state. You only need to understand some general concepts of Raft in order to manage a swarm.</p> <p>There is no limit on the number of manager nodes. The decision about how many manager nodes to implement is a trade-off between performance and fault-tolerance. Adding manager nodes to a swarm makes the swarm more fault-tolerant. However, additional manager nodes reduce write performance because more nodes must acknowledge proposals to update the swarm state. This means more network round-trip traffic.</p> <p>Raft requires a majority of managers, also called a quorum, to agree on proposed updates to the swarm. A quorum of managers must also agree on node additions and removals. Membership operations are subject to the same constraints as state replication.</p> <h2 id="use-a-static-ip-for-manager-node-advertise-address">Use a static IP for manager node advertise address</h2> <p>When initiating a swarm, you have to specify the <code>--advertise-addr</code> flag to advertise your address to other manager nodes in the swarm. For more information, see <a href="../swarm-mode/#configure-the-advertise-address">Run Docker Engine in swarm mode</a>. Because manager nodes are meant to be a stable component of the infrastructure, you should use a <em>fixed IP address</em> for the advertise address to prevent the swarm from becoming unstable on machine reboot.</p> <p>If the whole swarm restarts and every manager node subsequently gets a new IP address, there is no way for any node to contact an existing manager. Therefore the swarm is hung while nodes to contact one another at their old IP addresses.</p> <p>Dynamic IP addresses are OK for worker nodes.</p> <h2 id="add-manager-nodes-for-fault-tolerance">Add manager nodes for fault tolerance</h2> <p>You should maintain an odd number of managers in the swarm to support manager node failures. Having an odd number of managers ensures that during a network partition, there is a higher chance that a quorum remains available to process requests if the network is partitioned into two sets. Keeping a quorum is not guaranteed if you encounter more than two network partitions.</p> <table> <thead> <tr> <th align="center">Swarm Size</th> <th align="center">Majority</th> <th align="center">Fault Tolerance</th> </tr> </thead> <tbody> <tr> <td align="center">1</td> <td align="center">1</td> <td align="center">0</td> </tr> <tr> <td align="center">2</td> <td align="center">2</td> <td align="center">0</td> </tr> <tr> <td align="center"><strong>3</strong></td> <td align="center">2</td> <td align="center"><strong>1</strong></td> </tr> <tr> <td align="center">4</td> <td align="center">3</td> <td align="center">1</td> </tr> <tr> <td align="center"><strong>5</strong></td> <td align="center">3</td> <td align="center"><strong>2</strong></td> </tr> <tr> <td align="center">6</td> <td align="center">4</td> <td align="center">2</td> </tr> <tr> <td align="center"><strong>7</strong></td> <td align="center">4</td> <td align="center"><strong>3</strong></td> </tr> <tr> <td align="center">8</td> <td align="center">5</td> <td align="center">3</td> </tr> <tr> <td align="center"><strong>9</strong></td> <td align="center">5</td> <td align="center"><strong>4</strong></td> </tr> </tbody> </table> <p>For example, in a swarm with <em>5 nodes</em>, if you lose <em>3 nodes</em>, you don’t have a quorum. Therefore you can’t add or remove nodes until you recover one of the unavailable manager nodes or recover the swarm with disaster recovery commands. See <a href="#recover-from-disaster">Recover from disaster</a>.</p> <p>While it is possible to scale a swarm down to a single manager node, it is impossible to demote the last manager node. This ensures you maintain access to the swarm and that the swarm can still process requests. Scaling down to a single manager is an unsafe operation and is not recommended. If the last node leaves the swarm unexpetedly during the demote operation, the swarm will become unavailable until you reboot the node or restart with <code>--force-new-cluster</code>.</p> <p>You manage swarm membership with the <code>docker swarm</code> and <code>docker node</code> subsystems. Refer to <a href="../join-nodes/">Add nodes to a swarm</a> for more information on how to add worker nodes and promote a worker node to be a manager.</p> <h2 id="distribute-manager-nodes">Distribute manager nodes</h2> <p>In addition to maintaining an odd number of manager nodes, pay attention to datacenter topology when placing managers. For optimal fault-tolerance, distribute manager nodes across a minimum of 3 availability-zones to support failures of an entire set of machines or common maintenance scenarios. If you suffer a failure in any of those zones, the swarm should maintain a quorum of manager nodes available to process requests and rebalance workloads.</p> <table> <thead> <tr> <th align="center">Swarm manager nodes</th> <th align="center">Repartition (on 3 Availability zones)</th> </tr> </thead> <tbody> <tr> <td align="center">3</td> <td align="center">1-1-1</td> </tr> <tr> <td align="center">5</td> <td align="center">2-2-1</td> </tr> <tr> <td align="center">7</td> <td align="center">3-2-2</td> </tr> <tr> <td align="center">9</td> <td align="center">3-3-3</td> </tr> </tbody> </table> <h2 id="run-manager-only-nodes">Run manager-only nodes</h2> <p>By default manager nodes also act as a worker nodes. This means the scheduler can assign tasks to a manager node. For small and non-critical swarms assigning tasks to managers is relatively low-risk as long as you schedule services using <strong>resource constraints</strong> for <em>cpu</em> and <em>memory</em>.</p> <p>However, because manager nodes use the Raft consensus algorithm to replicate data in a consistent way, they are sensitive to resource starvation. You should isolate managers in your swarm from processes that might block swarm operations like swarm heartbeat or leader elections.</p> <p>To avoid interference with manager node operation, you can drain manager nodes to make them unavailable as worker nodes:</p> <pre>docker node update --availability drain &lt;NODE&gt;
+</pre> <p>When you drain a node, the scheduler reassigns any tasks running on the node to other available worker nodes in the swarm. It also prevents the scheduler from assigning tasks to the node.</p> <h2 id="back-up-the-swarm-state">Back up the swarm state</h2> <p>Docker manager nodes store the swarm state and manager logs in the following directory:</p> <pre>/var/lib/docker/swarm/raft
+</pre> <p>Back up the <code>raft</code> data directory often so that you can use it in case of <a href="#recover-from-disaster">disaster recovery</a>. Then you can take the <code>raft</code> directory of one of the manager nodes to restore to a new swarm.</p> <h2 id="monitor-swarm-health">Monitor swarm health</h2> <p>You can monitor the health of manager nodes by querying the docker <code>nodes</code> API in JSON format through the <code>/nodes</code> HTTP endpoint. Refer to the <a href="../../reference/api/docker_remote_api_v1.24/#36-nodes">nodes API documentation</a> for more information.</p> <p>From the command line, run <code>docker node inspect &lt;id-node&gt;</code> to query the nodes. For instance, to query the reachability of the node as a manager:</p> <pre>docker node inspect manager1 --format "{{ .ManagerStatus.Reachability }}"
+reachable
+</pre> <p>To query the status of the node as a worker that accept tasks:</p> <pre>docker node inspect manager1 --format "{{ .Status.State }}"
+ready
+</pre> <p>From those commands, we can see that <code>manager1</code> is both at the status <code>reachable</code> as a manager and <code>ready</code> as a worker.</p> <p>An <code>unreachable</code> health status means that this particular manager node is unreachable from other manager nodes. In this case you need to take action to restore the unreachable manager:</p> <ul> <li>Restart the daemon and see if the manager comes back as reachable.</li> <li>Reboot the machine.</li> <li>If neither restarting or rebooting work, you should add another manager node or promote a worker to be a manager node. You also need to cleanly remove the failed node entry from the manager set with <code>docker node demote &lt;NODE&gt;</code> and <code>docker node rm &lt;id-node&gt;</code>.</li> </ul> <p>Alternatively you can also get an overview of the swarm health from a manager node with <code>docker node ls</code>:</p> <pre>
+docker node ls
+ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS
+1mhtdwhvsgr3c26xxbnzdc3yp    node05    Accepted    Ready   Active
+516pacagkqp2xc3fk9t1dhjor    node02    Accepted    Ready   Active        Reachable
+9ifojw8of78kkusuc4a6c23fx *  node01    Accepted    Ready   Active        Leader
+ax11wdpwrrb6db3mfjydscgk7    node04    Accepted    Ready   Active
+bb1nrq2cswhtbg4mrsqnlx1ck    node03    Accepted    Ready   Active        Reachable
+di9wxgz8dtuh9d2hn089ecqkf    node06    Accepted    Ready   Active
+</pre> <h2 id="troubleshoot-a-manager-node">Troubleshoot a manager node</h2> <p>You should never restart a manager node by copying the <code>raft</code> directory from another node. The data directory is unique to a node ID. A node can only use a node ID once to join the swarm. The node ID space should be globally unique.</p> <p>To cleanly re-join a manager node to a cluster:</p> <ol> <li>To demote the node to a worker, run <code>docker node demote &lt;NODE&gt;</code>.</li> <li>To remove the node from the swarm, run <code>docker node rm &lt;NODE&gt;</code>.</li> <li>Re-join the node to the swarm with a fresh state using <code>docker swarm join</code>.</li> </ol> <p>For more information on joining a manager node to a swarm, refer to <a href="../join-nodes/">Join nodes to a swarm</a>.</p> <h2 id="force-remove-a-node">Force remove a node</h2> <p>In most cases, you should shut down a node before removing it from a swarm with the <code>docker node rm</code> command. If a node becomes unreachable, unresponsive, or compromised you can forcefully remove the node without shutting it down by passing the <code>--force</code> flag. For instance, if <code>node9</code> becomes compromised:</p>  <pre>$ docker node rm node9
+
+Error response from daemon: rpc error: code = 9 desc = node node9 is not down and can't be removed
+
+$ docker node rm --force node9
+
+Node node9 removed from swarm
+</pre> <p>Before you forcefully remove a manager node, you must first demote it to the worker role. Make sure that you always have an odd number of manager nodes if you demote or remove a manager</p> <h2 id="recover-from-disaster">Recover from disaster</h2> <p>Swarm is resilient to failures and the swarm can recover from any number of temporary node failures (machine reboots or crash with restart).</p> <p>In a swarm of <code>N</code> managers, there must be a quorum of manager nodes greater than 50% of the total number of managers (or <code>(N/2)+1</code>) in order for the swarm to process requests and remain available. This means the swarm can tolerate up to <code>(N-1)/2</code> permanent failures beyond which requests involving swarm management cannot be processed. These types of failures include data corruption or hardware failures.</p> <p>Even if you follow the guidelines here, it is possible that you can lose a quorum of manager nodes. If you can’t recover the quorum by conventional means such as restarting faulty nodes, you can recover the swarm by running <code>docker swarm init --force-new-cluster</code> on a manager node.</p> <pre># From the node to recover
+docker swarm init --force-new-cluster --advertise-addr node01:2377
+</pre> <p>The <code>--force-new-cluster</code> flag puts the Docker Engine into swarm mode as a manager node of a single-node swarm. It discards swarm membership information that existed before the loss of the quorum but it retains data necessary to the Swarm such as services, tasks and the list of worker nodes.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/admin_guide/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/admin_guide/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

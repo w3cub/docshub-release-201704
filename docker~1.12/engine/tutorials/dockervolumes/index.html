@@ -1,0 +1,121 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Manage Data in Containers (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="So far you’ve been introduced to some basic Docker concepts, seen how to work with Docker images as well as learned about networking and links &hellip;">
+  <meta name="keywords" content="manage, data, containersnext, steps, containers, engine, -, docker, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/tutorials/dockervolumes/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="manage-data-in-containers">Manage data in containers</h1> <p>So far you’ve been introduced to some <a href="../usingdocker/">basic Docker concepts</a>, seen how to work with <a href="../dockerimages/">Docker images</a> as well as learned about <a href="../../userguide/networking/default_network/dockerlinks/">networking and links between containers</a>. In this section you’re going to learn how you can manage data inside and between your Docker containers.</p> <p>You’re going to look at the two primary ways you can manage data with Docker Engine.</p> <ul> <li>Data volumes</li> <li>Data volume containers</li> </ul> <h2 id="data-volumes">Data volumes</h2> <p>A <em>data volume</em> is a specially-designated directory within one or more containers that bypasses the <a href="../../reference/glossary/#union-file-system"><em>Union File System</em></a>. Data volumes provide several useful features for persistent or shared data:</p> <ul> <li>Volumes are initialized when a container is created. If the container’s base image contains data at the specified mount point, that existing data is copied into the new volume upon volume initialization. (Note that this does not apply when <a href="#mount-a-host-directory-as-a-data-volume">mounting a host directory</a>.)</li> <li>Data volumes can be shared and reused among containers.</li> <li>Changes to a data volume are made directly.</li> <li>Changes to a data volume will not be included when you update an image.</li> <li>Data volumes persist even if the container itself is deleted.</li> </ul> <p>Data volumes are designed to persist data, independent of the container’s life cycle. Docker therefore <em>never</em> automatically deletes volumes when you remove a container, nor will it “garbage collect” volumes that are no longer referenced by a container.</p> <h3 id="adding-a-data-volume">Adding a data volume</h3> <p>You can add a data volume to a container using the <code>-v</code> flag with the <code>docker create</code> and <code>docker run</code> command. You can use the <code>-v</code> multiple times to mount multiple data volumes. Now, mount a single volume in your web application container.</p> <pre>$ docker run -d -P --name web -v /webapp training/webapp python app.py
+</pre> <p>This will create a new volume inside a container at <code>/webapp</code>.</p> <blockquote> <p><strong>Note:</strong> You can also use the <code>VOLUME</code> instruction in a <code>Dockerfile</code> to add one or more new volumes to any container created from that image.</p> </blockquote> <h3 id="locating-a-volume">Locating a volume</h3> <p>You can locate the volume on the host by utilizing the <code>docker inspect</code> command.</p> <pre>$ docker inspect web
+</pre> <p>The output will provide details on the container configurations including the volumes. The output should look something similar to the following:</p> <pre>...
+"Mounts": [
+    {
+        "Name": "fac362...80535",
+        "Source": "/var/lib/docker/volumes/fac362...80535/_data",
+        "Destination": "/webapp",
+        "Driver": "local",
+        "Mode": "",
+        "RW": true,
+        "Propagation": ""
+    }
+]
+...
+</pre> <p>You will notice in the above <code>Source</code> is specifying the location on the host and <code>Destination</code> is specifying the volume location inside the container. <code>RW</code> shows if the volume is read/write.</p> <h3 id="mount-a-host-directory-as-a-data-volume">Mount a host directory as a data volume</h3> <p>In addition to creating a volume using the <code>-v</code> flag you can also mount a directory from your Docker engine’s host into a container.</p> <pre>$ docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
+</pre> <p>This command mounts the host directory, <code>/src/webapp</code>, into the container at <code>/opt/webapp</code>. If the path <code>/opt/webapp</code> already exists inside the container’s image, the <code>/src/webapp</code> mount overlays but does not remove the pre-existing content. Once the mount is removed, the content is accessible again. This is consistent with the expected behavior of the <code>mount</code> command.</p> <p>The <code>container-dir</code> must always be an absolute path such as <code>/src/docs</code>. The <code>host-dir</code> can either be an absolute path or a <code>name</code> value. If you supply an absolute path for the <code>host-dir</code>, Docker bind-mounts to the path you specify. If you supply a <code>name</code>, Docker creates a named volume by that <code>name</code>.</p> <p>A <code>name</code> value must start with an alphanumeric character, followed by <code>a-z0-9</code>, <code>_</code> (underscore), <code>.</code> (period) or <code>-</code> (hyphen). An absolute path starts with a <code>/</code> (forward slash).</p> <p>For example, you can specify either <code>/foo</code> or <code>foo</code> for a <code>host-dir</code> value. If you supply the <code>/foo</code> value, the Docker Engine creates a bind-mount. If you supply the <code>foo</code> specification, the Docker Engine creates a named volume.</p> <p>If you are using Docker Machine on Mac or Windows, your Docker Engine daemon has only limited access to your OS X or Windows filesystem. Docker Machine tries to auto-share your <code>/Users</code> (OS X) or <code>C:\Users</code> (Windows) directory. So, you can mount files or directories on OS X using.</p> <pre>docker run -v /Users/&lt;path&gt;:/&lt;container path&gt; ...
+</pre> <p>On Windows, mount directories using:</p> <pre>docker run -v /c/Users/&lt;path&gt;:/&lt;container path&gt; ...`
+</pre> <p>All other paths come from your virtual machine’s filesystem, so if you want to make some other host folder available for sharing, you need to do additional work. In the case of VirtualBox you need to make the host folder available as a shared folder in VirtualBox. Then, you can mount it using the Docker <code>-v</code> flag.</p> <p>Mounting a host directory can be useful for testing. For example, you can mount source code inside a container. Then, change the source code and see its effect on the application in real time. The directory on the host must be specified as an absolute path and if the directory doesn’t exist the Docker Engine daemon automatically creates it for you.</p> <p>Docker volumes default to mount in read-write mode, but you can also set it to be mounted read-only.</p> <pre>$ docker run -d -P --name web -v /src/webapp:/opt/webapp:ro training/webapp python app.py
+</pre> <p>Here you’ve mounted the same <code>/src/webapp</code> directory but you’ve added the <code>ro</code> option to specify that the mount should be read-only.</p> <p>Because of <a href="http://lists.linuxfoundation.org/pipermail/containers/2015-April/035788.html" target="_blank">limitations in the <code>mount</code> function</a>, moving subdirectories within the host’s source directory can give access from the container to the host’s file system. This requires a malicious user with access to host and its mounted directory.</p> <blockquote> <p><strong>Note</strong>: The host directory is, by its nature, host-dependent. For this reason, you can’t mount a host directory from <code>Dockerfile</code> because built images should be portable. A host directory wouldn’t be available on all potential hosts.</p> </blockquote> <h3 id="mount-a-shared-storage-volume-as-a-data-volume">Mount a shared-storage volume as a data volume</h3> <p>In addition to mounting a host directory in your container, some Docker <a href="../../extend/plugins_volume/">volume plugins</a> allow you to provision and mount shared storage, such as iSCSI, NFS, or FC.</p> <p>A benefit of using shared volumes is that they are host-independent. This means that a volume can be made available on any host that a container is started on as long as it has access to the shared storage backend, and has the plugin installed.</p> <p>One way to use volume drivers is through the <code>docker run</code> command. Volume drivers create volumes by name, instead of by path like in the other examples.</p> <p>The following command creates a named volume, called <code>my-named-volume</code>, using the <code>flocker</code> volume driver, and makes it available within the container at <code>/opt/webapp</code>:</p> <pre>$ docker run -d -P \
+  --volume-driver=flocker \
+  -v my-named-volume:/opt/webapp \
+  --name web training/webapp python app.py
+</pre> <p>You may also use the <code>docker volume create</code> command, to create a volume before using it in a container.</p> <p>The following example also creates the <code>my-named-volume</code> volume, this time using the <code>docker volume create</code> command.</p> <pre>$ docker volume create -d flocker --name my-named-volume -o size=20GB
+
+$ docker run -d -P \
+  -v my-named-volume:/opt/webapp \
+  --name web training/webapp python app.py
+</pre> <p>A list of available plugins, including volume plugins, is available <a href="../../extend/plugins/">here</a>.</p> <h3 id="volume-labels">Volume labels</h3> <p>Labeling systems like SELinux require that proper labels are placed on volume content mounted into a container. Without a label, the security system might prevent the processes running inside the container from using the content. By default, Docker does not change the labels set by the OS.</p> <p>To change a label in the container context, you can add either of two suffixes <code>:z</code> or <code>:Z</code> to the volume mount. These suffixes tell Docker to relabel file objects on the shared volumes. The <code>z</code> option tells Docker that two containers share the volume content. As a result, Docker labels the content with a shared content label. Shared volume labels allow all containers to read/write content. The <code>Z</code> option tells Docker to label the content with a private unshared label. Only the current container can use a private volume.</p> <h3 id="mount-a-host-file-as-a-data-volume">Mount a host file as a data volume</h3> <p>The <code>-v</code> flag can also be used to mount a single file - instead of <em>just</em> directories - from the host machine.</p> <pre>$ docker run --rm -it -v ~/.bash_history:/root/.bash_history ubuntu /bin/bash
+</pre> <p>This will drop you into a bash shell in a new container, you will have your bash history from the host and when you exit the container, the host will have the history of the commands typed while in the container.</p> <blockquote> <p><strong>Note:</strong> Many tools used to edit files including <code>vi</code> and <code>sed --in-place</code> may result in an inode change. Since Docker v1.1.0, this will produce an error such as “<em>sed: cannot rename ./sedKdJ9Dy: Device or resource busy</em>”. In the case where you want to edit the mounted file, it is often easiest to instead mount the parent directory.</p> </blockquote> <h2 id="creating-and-mounting-a-data-volume-container">Creating and mounting a data volume container</h2> <p>If you have some persistent data that you want to share between containers, or want to use from non-persistent containers, it’s best to create a named Data Volume Container, and then to mount the data from it.</p> <p>Let’s create a new named container with a volume to share. While this container doesn’t run an application, it reuses the <code>training/postgres</code> image so that all containers are using layers in common, saving disk space.</p> <pre>$ docker create -v /dbdata --name dbstore training/postgres /bin/true
+</pre> <p>You can then use the <code>--volumes-from</code> flag to mount the <code>/dbdata</code> volume in another container.</p> <pre>$ docker run -d --volumes-from dbstore --name db1 training/postgres
+</pre> <p>And another:</p> <pre>$ docker run -d --volumes-from dbstore --name db2 training/postgres
+</pre> <p>In this case, if the <code>postgres</code> image contained a directory called <code>/dbdata</code> then mounting the volumes from the <code>dbstore</code> container hides the <code>/dbdata</code> files from the <code>postgres</code> image. The result is only the files from the <code>dbstore</code> container are visible.</p> <p>You can use multiple <code>--volumes-from</code> parameters to combine data volumes from several containers. To find detailed information about <code>--volumes-from</code> see the <a href="../../reference/commandline/run/#mount-volumes-from-container-volumes-from">Mount volumes from container</a> in the <code>run</code> command reference.</p> <p>You can also extend the chain by mounting the volume that came from the <code>dbstore</code> container in yet another container via the <code>db1</code> or <code>db2</code> containers.</p> <pre>$ docker run -d --name db3 --volumes-from db1 training/postgres
+</pre> <p>If you remove containers that mount volumes, including the initial <code>dbstore</code> container, or the subsequent containers <code>db1</code> and <code>db2</code>, the volumes will not be deleted. To delete the volume from disk, you must explicitly call <code>docker rm -v</code> against the last container with a reference to the volume. This allows you to upgrade, or effectively migrate data volumes between containers.</p> <blockquote> <p><strong>Note:</strong> Docker will not warn you when removing a container <em>without</em> providing the <code>-v</code> option to delete its volumes. If you remove containers without using the <code>-v</code> option, you may end up with “dangling” volumes; volumes that are no longer referenced by a container. You can use <code>docker volume ls -f dangling=true</code> to find dangling volumes, and use <code>docker volume rm &lt;volume name&gt;</code> to remove a volume that’s no longer needed.</p> </blockquote> <h2 id="backup-restore-or-migrate-data-volumes">Backup, restore, or migrate data volumes</h2> <p>Another useful function we can perform with volumes is use them for backups, restores or migrations. You do this by using the <code>--volumes-from</code> flag to create a new container that mounts that volume, like so:</p> <pre>$ docker run --rm --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+</pre> <p>Here you’ve launched a new container and mounted the volume from the <code>dbstore</code> container. You’ve then mounted a local host directory as <code>/backup</code>. Finally, you’ve passed a command that uses <code>tar</code> to backup the contents of the <code>dbdata</code> volume to a <code>backup.tar</code> file inside our <code>/backup</code> directory. When the command completes and the container stops we’ll be left with a backup of our <code>dbdata</code> volume.</p> <p>You could then restore it to the same container, or another that you’ve made elsewhere. Create a new container.</p> <pre>$ docker run -v /dbdata --name dbstore2 ubuntu /bin/bash
+</pre> <p>Then un-tar the backup file in the new container`s data volume.</p> <pre>$ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata &amp;&amp; tar xvf /backup/backup.tar --strip 1"
+</pre> <p>You can use the techniques above to automate backup, migration and restore testing using your preferred tools.</p> <h2 id="removing-volumes">Removing volumes</h2> <p>A Docker data volume persists after a container is deleted. You can create named or anonymous volumes. Named volumes have a specific source form outside the container, for example <code>awesome:/bar</code>. Anonymous volumes have no specific source. When the container is deleted, you should instruct the Docker Engine daemon to clean up anonymous volumes. To do this, use the <code>--rm</code> option, for example:</p> <pre>$ docker run --rm -v /foo -v awesome:/bar busybox top
+</pre> <p>This command creates an anonymous <code>/foo</code> volume. When the container is removed, the Docker Engine removes the <code>/foo</code> volume but not the <code>awesome</code> volume.</p> <h2 id="important-tips-on-using-shared-volumes">Important tips on using shared volumes</h2> <p>Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure your applications are designed to write to shared data stores.</p> <p>Data volumes are directly accessible from the Docker host. This means you can read and write to them with normal Linux tools. In most cases you should not do this as it can cause data corruption if your containers and applications are unaware of your direct access.</p> <h1 id="next-steps">Next steps</h1> <p>Now you’ve learned a bit more about how to use Docker we’re going to see how to combine Docker with the services available on <a href="https://hub.docker.com" target="_blank">Docker Hub</a> including Automated Builds and private repositories.</p> <p>Go to <a href="../dockerrepos/">Store images in Docker Hub</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/tutorials/dockervolumes/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/tutorials/dockervolumes/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

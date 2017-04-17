@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>How Services Work (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="To deploy an application image when Docker Engine is in swarm mode, you create a service. Frequently a service will be the image for a microservice &hellip;">
+  <meta name="keywords" content="how, services, work, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/swarm/how-swarm-mode-works/services/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>How services work</h1>  <p>To deploy an application image when Docker Engine is in swarm mode, you create a service. Frequently a service will be the image for a microservice within the context of some larger application. Examples of services might include an HTTP server, a database, or any other type of executable program that you wish to run in a distributed environment.</p> <p>When you create a service, you specify which container image to use and which commands to execute inside running containers. You also define options for the service including:</p> <ul> <li>the port where the swarm will make the service available outside the swarm</li> <li>an overlay network for the service to connect to other services in the swarm</li> <li>CPU and memory limits and reservations</li> <li>a rolling update policy</li> <li>the number of replicas of the image to run in the swarm</li> </ul> <h2 id="services-tasks-and-containers">Services, tasks, and containers</h2> <p>When you deploy the service to the swarm, the swarm manager accepts your service definition as the desired state for the service. Then it schedules the service on nodes in the swarm as one or more replica tasks. The tasks run independently of each other on nodes in the swarm.</p> <p>For example, imagine you want to load balance between three instances of an HTTP listener. The diagram below shows an HTTP listener service with three replicas. Each of the three instances of the listener is a task in the swarm.</p> <p><img src="https://docs.docker.com/engine/swarm/images/services-diagram.png" alt="services diagram"></p> <p>A container is an isolated process. In the swarm mode model, each task invokes exactly one container. A task is analogous to a “slot” where the scheduler places a container. Once the container is live, the scheduler recognizes that the task is in a running state. If the container fails health checks or terminates, the task terminates.</p> <h2 id="tasks-and-scheduling">Tasks and scheduling</h2> <p>A task is the atomic unit of scheduling within a swarm. When you declare a desired service state by creating or updating a service, the orchestrator realizes the desired state by scheduling tasks. For instance, you define a service that instructs the orchestrator to keep three instances of a HTTP listener running at all times. The orchestrator responds by creating three tasks. Each task is a slot that the scheduler fills by spawning a container. The container is the instantiation of the task. If a HTTP listener task subsequently fails its health check or crashes, the orchestrator creates a new replica task that spawns a new container.</p> <p>A task is a one-directional mechanism. It progresses monotonically through a series of states: assigned, prepared, running, etc. If the task fails the orchestrator removes the task and its container and then creates a new task to replace it according to the desired state specified by the service.</p> <p>The underlying logic of Docker swarm mode is a general purpose scheduler and orchestrator. The service and task abstractions themselves are unaware of the containers they implement. Hypothetically, you could implement other types of tasks such as virtual machine tasks or non-containerized process tasks. The scheduler and orchestrator are agnostic about the type of task. However, the current version of Docker only supports container tasks.</p> <p>The diagram below shows how swarm mode accepts service create requests and schedules tasks to worker nodes.</p> <p><img src="https://docs.docker.com/engine/swarm/images/service-lifecycle.png" alt="services flow"></p> <h3 id="pending-services">Pending services</h3> <p>A service may be configured in such a way that no node currently in the swarm can run its tasks. In this case, the service remains in state <code class="highlighter-rouge">pending</code>. Here are a few examples of when a service might remain in state <code class="highlighter-rouge">pending</code>.</p> <p><strong>Note</strong>: If your only intention is to prevent a service from being deployed, scale the service to 0 instead of trying to configure it in such a way that it will remain in <code class="highlighter-rouge">pending</code>.</p> <ul> <li> <p>If all nodes are paused or drained, and you create a service, it will be pending until a node becomes available. In reality, the first node to become available will get all of the tasks, so this is not a good thing to do in a production environment.</p> </li> <li> <p>You can reserve a specific amount of memory for a service. If no node in the swarm has the required amount of memory, the service will remain in a pending state until a node is available which can run its tasks. If you specify a very large value, such as 500 GB, the task will be pending forever, unless you really have a node which can satisfy it.</p> </li> <li> <p>You can impose placement constraints on the service, and the constraints may not be able to be honored at a given time.</p> </li> </ul> <p>This behavior illustrates that the requirements and configuration of your tasks are not tightly tied to the current state of the swarm. As the administrator of a swarm, you declare the desired state of your swarm, and the manager works with the nodes in the swarm to create that state. You do not need to micro-manage the tasks on the swarm.</p> <h2 id="replicated-and-global-services">Replicated and global services</h2> <p>There are two types of service deployments, replicated and global.</p> <p>For a replicated service, you specify the number of identical tasks you want to run. For example, you decide to deploy an HTTP service with three replicas, each serving the same content.</p> <p>A global service is a service that runs one task on every node. There is no pre-specified number of tasks. Each time you add a node to the swarm, the orchestrator creates a task and the scheduler assigns the task to the new node. Good candidates for global services are monitoring agents, an anti-virus scanners or other types of containers that you want to run on every node in the swarm.</p> <p>The diagram below shows a three-service replica in yellow and a global service in gray.</p> <p><img src="https://docs.docker.com/engine/swarm/images/replicated-vs-global.png" alt="global vs replicated services"></p> <h2 id="learn-more">Learn More</h2> <ul> <li>Read about how swarm mode <a href="../nodes/">nodes</a> work.</li> <li>Learn how <a href="../pki/">PKI</a> works in swarm mode.</li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

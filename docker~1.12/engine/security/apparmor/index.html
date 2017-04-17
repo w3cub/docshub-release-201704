@@ -1,0 +1,245 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>AppArmor Security Profiles for Docker (Engine) - Docker 1.12 - W3cubDocs</title>
+  
+  <meta name="description" content="AppArmor (Application Armor) is a Linux security module that protects an operating system and its applications from security threats. To use it, a &hellip;">
+  <meta name="keywords" content="apparmor, security, profiles, for, docker, engine, -, docker~1.12">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.12/engine/security/apparmor/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.12.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.12/" class="_nav-link" title="" style="margin-left:0;">Docker 1.12</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1 id="apparmor-security-profiles-for-docker">AppArmor security profiles for Docker</h1> <p>AppArmor (Application Armor) is a Linux security module that protects an operating system and its applications from security threats. To use it, a system administrator associates an AppArmor security profile with each program. Docker expects to find an AppArmor policy loaded and enforced.</p> <p>Docker automatically loads container profiles. The Docker binary installs a <code>docker-default</code> profile in the <code>/etc/apparmor.d/docker</code> file. This profile is used on containers, <em>not</em> on the Docker Daemon.</p> <p>A profile for the Docker Engine daemon exists but it is not currently installed with the <code>deb</code> packages. If you are interested in the source for the daemon profile, it is located in <a href="https://github.com/docker/docker/tree/master/contrib/apparmor" target="_blank">contrib/apparmor</a> in the Docker Engine source repository.</p> <h2 id="understand-the-policies">Understand the policies</h2> <p>The <code>docker-default</code> profile is the default for running containers. It is moderately protective while providing wide application compatibility. The profile is the following:</p> <pre>#include &lt;tunables/global&gt;
+
+
+profile docker-default flags=(attach_disconnected,mediate_deleted) {
+
+  #include &lt;abstractions/base&gt;
+
+
+  network,
+  capability,
+  file,
+  umount,
+
+  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/mem rwklx,
+  deny @{PROC}/kmem rwklx,
+  deny @{PROC}/kcore rwklx,
+
+  deny mount,
+
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/efi/efivars/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+}
+</pre> <p>When you run a container, it uses the <code>docker-default</code> policy unless you override it with the <code>security-opt</code> option. For example, the following explicitly specifies the default policy:</p> <pre>$ docker run --rm -it --security-opt apparmor=docker-default hello-world
+</pre> <h2 id="load-and-unload-profiles">Load and unload profiles</h2> <p>To load a new profile into AppArmor for use with containers:</p> <pre>$ apparmor_parser -r -W /path/to/your_profile
+</pre> <p>Then, run the custom profile with <code>--security-opt</code> like so:</p> <pre>$ docker run --rm -it --security-opt apparmor=your_profile hello-world
+</pre> <p>To unload a profile from AppArmor:</p> <pre># stop apparmor
+$ /etc/init.d/apparmor stop
+# unload the profile
+$ apparmor_parser -R /path/to/profile
+# start apparmor
+$ /etc/init.d/apparmor start
+</pre> <h3 id="resources-for-writing-profiles">Resources for writing profiles</h3> <p>The syntax for file globbing in AppArmor is a bit different than some other globbing implementations. It is highly suggested you take a look at some of the below resources with regard to AppArmor profile syntax.</p> <ul> <li><a href="http://wiki.apparmor.net/index.php/QuickProfileLanguage" target="_blank">Quick Profile Language</a></li> <li><a href="http://wiki.apparmor.net/index.php/AppArmor_Core_Policy_Reference#AppArmor_globbing_syntax" target="_blank">Globbing Syntax</a></li> </ul> <h2 id="nginx-example-profile">Nginx example profile</h2> <p>In this example, you create a custom AppArmor profile for Nginx. Below is the custom profile.</p> <pre>#include &lt;tunables/global&gt;
+
+
+profile docker-nginx flags=(attach_disconnected,mediate_deleted) {
+  #include &lt;abstractions/base&gt;
+
+  network inet tcp,
+  network inet udp,
+  network inet icmp,
+
+  deny network raw,
+
+  deny network packet,
+
+  file,
+  umount,
+
+  deny /bin/** wl,
+  deny /boot/** wl,
+  deny /dev/** wl,
+  deny /etc/** wl,
+  deny /home/** wl,
+  deny /lib/** wl,
+  deny /lib64/** wl,
+  deny /media/** wl,
+  deny /mnt/** wl,
+  deny /opt/** wl,
+  deny /proc/** wl,
+  deny /root/** wl,
+  deny /sbin/** wl,
+  deny /srv/** wl,
+  deny /tmp/** wl,
+  deny /sys/** wl,
+  deny /usr/** wl,
+
+  audit /** w,
+
+  /var/run/nginx.pid w,
+
+  /usr/sbin/nginx ix,
+
+  deny /bin/dash mrwklx,
+  deny /bin/sh mrwklx,
+  deny /usr/bin/top mrwklx,
+
+
+  capability chown,
+  capability dac_override,
+  capability setuid,
+  capability setgid,
+  capability net_bind_service,
+
+  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/mem rwklx,
+  deny @{PROC}/kmem rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny mount,
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/efi/efivars/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+}
+</pre> <ol> <li>
+<p>Save the custom profile to disk in the <code>/etc/apparmor.d/containers/docker-nginx</code> file.</p> <p>The file path in this example is not a requirement. In production, you could use another.</p>
+</li> <li>
+<p>Load the profile.</p> <pre>$ sudo apparmor_parser -r -W /etc/apparmor.d/containers/docker-nginx
+</pre>
+</li> <li>
+<p>Run a container with the profile.</p> <p>To run nginx in detached mode:</p> <pre>$ docker run --security-opt "apparmor=docker-nginx" \
+    -p 80:80 -d --name apparmor-nginx nginx
+</pre>
+</li> <li>
+<p>Exec into the running container</p> <pre>$ docker exec -it apparmor-nginx bash
+</pre>
+</li> <li>
+<p>Try some operations to test the profile.</p> <pre>root@6da5a2a930b9:~# ping 8.8.8.8
+ping: Lacking privilege for raw socket.
+
+root@6da5a2a930b9:/# top
+bash: /usr/bin/top: Permission denied
+
+root@6da5a2a930b9:~# touch ~/thing
+touch: cannot touch 'thing': Permission denied
+
+root@6da5a2a930b9:/# sh
+bash: /bin/sh: Permission denied
+
+root@6da5a2a930b9:/# dash
+bash: /bin/dash: Permission denied
+</pre>
+</li> </ol> <p>Congrats! You just deployed a container secured with a custom apparmor profile!</p> <h2 id="debug-apparmor">Debug AppArmor</h2> <p>You can use <code>dmesg</code> to debug problems and <code>aa-status</code> check the loaded profiles.</p> <h3 id="use-dmesg">Use dmesg</h3> <p>Here are some helpful tips for debugging any problems you might be facing with regard to AppArmor.</p> <p>AppArmor sends quite verbose messaging to <code>dmesg</code>. Usually an AppArmor line looks like the following:</p> <pre>[ 5442.864673] audit: type=1400 audit(1453830992.845:37): apparmor="ALLOWED" operation="open" profile="/usr/bin/docker" name="/home/jessie/docker/man/man1/docker-attach.1" pid=10923 comm="docker" requested_mask="r" denied_mask="r" fsuid=1000 ouid=0
+</pre> <p>In the above example, you can see <code>profile=/usr/bin/docker</code>. This means the user has the <code>docker-engine</code> (Docker Engine Daemon) profile loaded.</p> <blockquote> <p><strong>Note:</strong> On version of Ubuntu &gt; 14.04 this is all fine and well, but Trusty users might run into some issues when trying to <code>docker exec</code>.</p> </blockquote> <p>Look at another log line:</p> <pre>[ 3256.689120] type=1400 audit(1405454041.341:73): apparmor="DENIED" operation="ptrace" profile="docker-default" pid=17651 comm="docker" requested_mask="receive" denied_mask="receive"
+</pre> <p>This time the profile is <code>docker-default</code>, which is run on containers by default unless in <code>privileged</code> mode. This line shows that apparmor has denied <code>ptrace</code> in the container. This is exactly as expected.</p> <h3 id="use-aa-status">Use aa-status</h3> <p>If you need to check which profiles are loaded, you can use <code>aa-status</code>. The output looks like:</p> <pre>$ sudo aa-status
+apparmor module is loaded.
+14 profiles are loaded.
+1 profiles are in enforce mode.
+   docker-default
+13 profiles are in complain mode.
+   /usr/bin/docker
+   /usr/bin/docker///bin/cat
+   /usr/bin/docker///bin/ps
+   /usr/bin/docker///sbin/apparmor_parser
+   /usr/bin/docker///sbin/auplink
+   /usr/bin/docker///sbin/blkid
+   /usr/bin/docker///sbin/iptables
+   /usr/bin/docker///sbin/mke2fs
+   /usr/bin/docker///sbin/modprobe
+   /usr/bin/docker///sbin/tune2fs
+   /usr/bin/docker///sbin/xtables-multi
+   /usr/bin/docker///sbin/zfs
+   /usr/bin/docker///usr/bin/xz
+38 processes have profiles defined.
+37 processes are in enforce mode.
+   docker-default (6044)
+   ...
+   docker-default (31899)
+1 processes are in complain mode.
+   /usr/bin/docker (29756)
+0 processes are unconfined but have a profile defined.
+</pre> <p>The above output shows that the <code>docker-default</code> profile running on various container PIDs is in <code>enforce</code> mode. This means AppArmor is actively blocking and auditing in <code>dmesg</code> anything outside the bounds of the <code>docker-default</code> profile.</p> <p>The output above also shows the <code>/usr/bin/docker</code> (Docker Engine daemon) profile is running in <code>complain</code> mode. This means AppArmor <em>only</em> logs to <code>dmesg</code> activity outside the bounds of the profile. (Except in the case of Ubuntu Trusty, where some interesting behaviors are enforced.)</p> <h2 id="contribute-docker-s-apparmor-code">Contribute Docker’s AppArmor code</h2> <p>Advanced users and package managers can find a profile for <code>/usr/bin/docker</code> (Docker Engine Daemon) underneath <a href="https://github.com/docker/docker/tree/master/contrib/apparmor" target="_blank">contrib/apparmor</a> in the Docker Engine source repository.</p> <p>The <code>docker-default</code> profile for containers lives in <a href="https://github.com/docker/docker/tree/master/profiles/apparmor" target="_blank">profiles/apparmor</a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/security/apparmor/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/security/apparmor/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

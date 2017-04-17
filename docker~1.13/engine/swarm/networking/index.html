@@ -1,0 +1,196 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Attach Services to an Overlay Network (Engine) - Docker 1.13 - W3cubDocs</title>
+  
+  <meta name="description" content="Docker Engine swarm mode natively supports overlay networks, so you can enable container-to-container networks. When you use swarm mode, you don’t &hellip;">
+  <meta name="keywords" content="attach, services, overlay, network, engine, -, docker, docker~1.13">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/docker~1.13/engine/swarm/networking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/docker~1.13.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/docker~1.13/" class="_nav-link" title="" style="margin-left:0;">Docker 1.13</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _docker">
+				
+<h1>Attach services to an overlay network</h1>  <p>Docker Engine swarm mode natively supports <strong>overlay networks</strong>, so you can enable container-to-container networks. When you use swarm mode, you don’t need an external key-value store. Features of swarm mode overlay networks include the following:</p> <ul> <li>You can attach multiple services to the same network.</li> <li>By default, <strong>service discovery</strong> assigns a virtual IP address (VIP) and DNS entry to each service in the swarm, making it available by its service name to containers on the same network.</li> <li>You can configure the service to use DNS round-robin instead of a VIP.</li> </ul> <p>In order to use overlay networks in the swarm, you need to have the following ports open between the swarm nodes before you enable swarm mode:</p> <ul> <li>Port <code class="highlighter-rouge">7946</code> TCP/UDP for container network discovery.</li> <li>Port <code class="highlighter-rouge">4789</code> UDP for the container overlay network.</li> </ul> <h2 id="create-an-overlay-network-in-a-swarm">Create an overlay network in a swarm</h2> <p>When you run Docker Engine in swarm mode, you can run <code class="highlighter-rouge">docker network create</code> from a manager node to create an overlay network. For instance, to create a network named <code class="highlighter-rouge">my-network</code>:</p> <pre class="highlight" data-language="">$ docker network create \
+  --driver overlay \
+  --subnet 10.0.9.0/24 \
+  --opt encrypted \
+  my-network
+
+273d53261bcdfda5f198587974dae3827e947ccd7e74a41bf1f482ad17fa0d33
+</pre>  <p>By default nodes in the swarm encrypt traffic between themselves and other nodes. The optional <code class="highlighter-rouge">--opt encrypted</code> flag enables an additional layer of encryption in the overlay driver for vxlan traffic between containers on different nodes. For more information, refer to <a href="../../userguide/networking/overlay-security-model/">Docker swarm mode overlay network security model</a>.</p> <p>The <code class="highlighter-rouge">--subnet</code> flag specifies the subnet for use with the overlay network. When you don’t specify a subnet, the swarm manager automatically chooses a subnet and assigns it to the network. On some older kernels, including kernel 3.10, automatically assigned adresses may overlap with another subnet in your infrastructure. Such overlaps can cause connectivity issues or failures with containers connected to the network.</p> <p>Before you attach a service to the network, the network only extends to manager nodes. You can run <code class="highlighter-rouge">docker network ls</code> to view the network:</p> <pre class="highlight" data-language="bash">$ docker network ls
+
+NETWORK ID          NAME        DRIVER   SCOPE
+f9145f09b38b        bridge      bridge   local
+..snip..
+273d53261bcd        my-network  overlay  swarm
+</pre>  <p>The <code class="highlighter-rouge">swarm</code> scope indicates that the network is available for use with services deployed to the swarm. After you create a service attached to the network, the swarm only extends the network to worker nodes where the scheduler places tasks for the service. On workers without tasks running for a service attached to the network, <code class="highlighter-rouge">network ls</code> does not display the network.</p> <h2 id="attach-a-service-to-an-overlay-network">Attach a service to an overlay network</h2> <p>To attach a service to an overlay network, pass the <code class="highlighter-rouge">--network</code> flag when you create a service. For example to create an nginx service attached to a network called <code class="highlighter-rouge">my-network</code>:</p> <pre class="highlight" data-language="bash">$ docker service create \
+  --replicas 3 \
+  --name my-web \
+  --network my-network \
+  nginx
+</pre>  <blockquote> <p><strong>Note:</strong> You have to create the network before you can attach a service to it.</p> </blockquote> <p>The containers for the tasks in the service can connect to one another on the overlay network. The swarm extends the network to all the nodes with <code class="highlighter-rouge">Running</code> tasks for the service.</p> <p>From a manager node, run <code class="highlighter-rouge">docker service ps &lt;SERVICE&gt;</code> to view the nodes where tasks are running for the service:</p> <pre class="highlight" data-language="bash">$ docker service ps my-web
+
+NAME                                IMAGE  NODE   DESIRED STATE  CURRENT STATE               ERROR
+my-web.1.63s86gf6a0ms34mvboniev7bs  nginx  node1  Running        Running 58 seconds ago
+my-web.2.6b3q2qbjveo4zauc6xig7au10  nginx  node2  Running        Running 58 seconds ago
+my-web.3.66u2hcrz0miqpc8h0y0f3v7aw  nginx  node3  Running        Running about a minute ago
+</pre>  <p><img src="https://docs.docker.com/engine/swarm/images/service-vip.png" alt="service vip image"></p> <p>You can inspect the network from any node with a <code class="highlighter-rouge">Running</code> task for a service attached to the network:</p> <pre class="highlight" data-language="bash">$ docker network inspect &lt;NETWORK&gt;
+</pre>  <p>The network information includes a list of the containers on the node that are attached to the network. For instance:</p> <pre class="highlight" data-language="bash">$ docker network inspect my-network
+[
+    {
+        "Name": "my-network",
+        "Id": "273d53261bcdfda5f198587974dae3827e947ccd7e74a41bf1f482ad17fa0d33",
+        "Scope": "swarm",
+        "Driver": "overlay",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "10.0.9.0/24",
+                    "Gateway": "10.0.9.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Containers": {
+            "404d1dec939a021678132a35259c3604b9657649437e59060621a17edae7a819": {
+                "Name": "my-web.1.63s86gf6a0ms34mvboniev7bs",
+                "EndpointID": "3c9588d04db9bc2bf8749cb079689a3072c44c68e544944cbea8e4bc20eb7de7",
+                "MacAddress": "02:42:0a:00:09:03",
+                "IPv4Address": "10.0.9.3/24",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.driver.overlay.vxlanid_list": "257"
+        },
+        "Labels": {}
+    }
+]
+</pre>  <p>In the example above, the container <code class="highlighter-rouge">my-web.1.63s86gf6a0ms34mvboniev7bs</code> for the <code class="highlighter-rouge">my-web</code> service is attached to the <code class="highlighter-rouge">my-network</code> network on node1.</p> <h2 id="use-swarm-mode-service-discovery">Use swarm mode service discovery</h2> <p>By default, when you create a service attached to a network, the swarm assigns the service a VIP. The VIP maps to a DNS alias based upon the service name. Containers on the network share DNS mappings for the service via gossip so any container on the network can access the service via its service name.</p> <p>You don’t need to expose service-specific ports to make the service available to other services on the same overlay network. The swarm’s internal load balancer automatically distributes requests to the service VIP among the active tasks.</p> <p>You can inspect the service to view the virtual IP. For example:</p> <pre class="highlight" data-language="bash">$ docker service inspect \
+  --format='{{json .Endpoint.VirtualIPs}}' \
+  my-web
+
+[{"NetworkID":"7m2rjx0a97n88wzr4nu8772r3" "Addr":"10.0.0.2/24"}]
+</pre>  <p>The following example shows how you can add a <code class="highlighter-rouge">busybox</code> service on the same network as the <code class="highlighter-rouge">nginx</code> service and the busybox service is able to access <code class="highlighter-rouge">nginx</code> using the DNS name <code class="highlighter-rouge">my-web</code>:</p> <ol> <li> <p>From a manager node, deploy a busybox service to the same network as <code class="highlighter-rouge">my-web</code>:</p> <pre class="highlight" data-language="bash">$ docker service create \
+  --name my-busybox \
+  --network my-network \
+  busybox \
+  sleep 3000
+</pre>  </li> <li> <p>Lookup the node where <code class="highlighter-rouge">my-busybox</code> is running:</p> <pre class="highlight" data-language="bash">$ docker service ps my-busybox
+
+NAME                                    IMAGE    NODE   DESIRED STATE  CURRENT STATE          ERROR
+my-busybox.1.1dok2cmx2mln5hbqve8ilnair  busybox  node1  Running        Running 5 seconds ago
+</pre>  </li> <li> <p>From the node where the busybox task is running, open an interactive shell to the busybox container:</p> <pre class="highlight" data-language="bash">$ docker exec -it my-busybox.1.1dok2cmx2mln5hbqve8ilnair /bin/sh
+</pre>  <p>You can deduce the container name as <code class="highlighter-rouge">&lt;TASK-NAME&gt;</code>+<code class="highlighter-rouge">&lt;ID&gt;</code>. Alternatively, you can run <code class="highlighter-rouge">docker ps</code> on the node where the task is running.</p> </li> <li> <p>From inside the busybox container, query the DNS to view the VIP for the <code class="highlighter-rouge">my-web</code> service:</p> <pre class="highlight" data-language="bash">$ nslookup my-web
+
+Server:    127.0.0.11
+Address 1: 127.0.0.11
+
+Name:      my-web
+Address 1: 10.0.9.2 ip-10-0-9-2.us-west-2.compute.internal
+</pre>  <blockquote> <p><strong>Note:</strong> the examples here use <code class="highlighter-rouge">nslookup</code>, but you can use <code class="highlighter-rouge">dig</code> or any available DNS query tool.</p> </blockquote> </li> <li> <p>From inside the busybox container, query the DNS using a special query &lt;tasks.SERVICE-NAME&gt; to find the IP addresses of all the containers for the <code class="highlighter-rouge">my-web</code> service:</p> <pre class="highlight" data-language="bash">$ nslookup tasks.my-web
+
+Server:    127.0.0.11
+Address 1: 127.0.0.11
+
+Name:      tasks.my-web
+Address 1: 10.0.9.4 my-web.2.6b3q2qbjveo4zauc6xig7au10.my-network
+Address 2: 10.0.9.3 my-web.1.63s86gf6a0ms34mvboniev7bs.my-network
+Address 3: 10.0.9.5 my-web.3.66u2hcrz0miqpc8h0y0f3v7aw.my-network
+</pre>  </li> <li> <p>From inside the busybox container, run <code class="highlighter-rouge">wget</code> to access the nginx web server running in the <code class="highlighter-rouge">my-web</code> service:</p> <pre class="highlight" data-language="bash">$ wget -O- my-web
+
+Connecting to my-web (10.0.9.2:80)
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+...snip...
+</pre>  <p>The swarm load balancer automatically routes the HTTP request to the service’s VIP to an active task. It distributes subsequent requests to other tasks using round-robin selection.</p> </li> </ol> <h2 id="use-dns-round-robin-for-a-service">Use DNS round-robin for a service</h2> <p>You can configure the service to use DNS round-robin directly without using a VIP, by setting the <code class="highlighter-rouge">--endpoint-mode dnsrr</code> when you create the service. DNS round-robin is useful in cases where you want to use your own load balancer.</p> <p>The following example shows a service with <code class="highlighter-rouge">dnsrr</code> endpoint mode:</p> <pre class="highlight" data-language="bash">$ docker service create \
+  --replicas 3 \
+  --name my-dnsrr-service \
+  --network my-network \
+  --endpoint-mode dnsrr \
+  nginx
+</pre>  <p>When you query the DNS for the service name, the DNS service returns the IP addresses for all the task containers:</p> <pre class="highlight" data-language="bash">$ nslookup my-dnsrr-service
+Server:    127.0.0.11
+Address 1: 127.0.0.11
+
+Name:      my-dnsrr
+Address 1: 10.0.9.8 my-dnsrr-service.1.bd3a67p61by5dfdkyk7kog7pr.my-network
+Address 2: 10.0.9.10 my-dnsrr-service.3.0sb1jxr99bywbvzac8xyw73b1.my-network
+Address 3: 10.0.9.9 my-dnsrr-service.2.am6fx47p3bropyy2dy4f8hofb.my-network
+</pre>  <h2 id="confirm-vip-connectivity">Confirm VIP connectivity</h2> <p>In genaral we recommend you use <code class="highlighter-rouge">dig</code>, <code class="highlighter-rouge">nslookup</code>, or another DNS query tool to test access to the service name via DNS. Because a VIP is a logical IP, <code class="highlighter-rouge">ping</code> is not the right tool to confirm VIP connectivity.</p> <h2 id="learn-more">Learn More</h2> <ul> <li><a href="../services/">Deploy services to a swarm</a></li> <li><a href="../admin_guide/">Swarm administration guide</a></li> <li><a href="../../reference/commandline/docker/">Docker Engine command line reference</a></li> <li><a href="../swarm-tutorial/">Swarm mode tutorial</a></li> </ul>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2013–2016 Docker, Inc.<br>Licensed under the Apache License, Version 2.0.<br>Docker and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.<br>Docker, Inc. and other parties may also have trademark rights in other terms used herein.<br>
+    <a href="https://docs.docker.com/engine/swarm/networking/" class="_attribution-link" target="_blank">https://docs.docker.com/engine/swarm/networking/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
