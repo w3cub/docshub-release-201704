@@ -1,0 +1,204 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Conditional Expressions - Django 1.8 - W3cubDocs</title>
+  
+  <meta name="description" content="Conditional expressions let you use if ... elif ... else logic within filters, annotations, aggregations, and updates. A conditional expression &hellip;">
+  <meta name="keywords" content="conditional, expressions, -, django, django~1.8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/django~1.8/ref/models/conditional-expressions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/django~1.8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/django~1.8/" class="_nav-link" title="" style="margin-left:0;">Django 1.8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="conditional-expressions">Conditional Expressions</h1>  <p>Conditional expressions let you use <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#if" title="(in Python v3.6)" target="_blank"><code>if</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#elif" title="(in Python v3.6)" target="_blank"><code>elif</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#else" title="(in Python v3.6)" target="_blank"><code>else</code></a> logic within filters, annotations, aggregations, and updates. A conditional expression evaluates a series of conditions for each row of a table and returns the matching result expression. Conditional expressions can also be combined and nested like other <a class="reference internal" href="../expressions/"><span class="doc">expressions</span></a>.</p>  <h2 id="the-conditional-expression-classes">The conditional expression classes</h2> <p>We’ll be using the following model in the subsequent examples:</p> <pre data-language="python">from django.db import models
+
+class Client(models.Model):
+    REGULAR = 'R'
+    GOLD = 'G'
+    PLATINUM = 'P'
+    ACCOUNT_TYPE_CHOICES = (
+        (REGULAR, 'Regular'),
+        (GOLD, 'Gold'),
+        (PLATINUM, 'Platinum'),
+    )
+    name = models.CharField(max_length=50)
+    registered_on = models.DateField()
+    account_type = models.CharField(
+        max_length=1,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default=REGULAR,
+    )
+</pre>  <h3 id="when">When</h3> <dl class="class"> <dt id="django.db.models.expressions.When">
+<code>class When(condition=None, then=None, **lookups)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/expressions/#When" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>A <code>When()</code> object is used to encapsulate a condition and its result for use in the conditional expression. Using a <code>When()</code> object is similar to using the <a class="reference internal" href="../querysets/#django.db.models.query.QuerySet.filter" title="django.db.models.query.QuerySet.filter"><code>filter()</code></a> method. The condition can be specified using <a class="reference internal" href="../querysets/#field-lookups"><span class="std std-ref">field lookups</span></a> or <a class="reference internal" href="../querysets/#django.db.models.Q" title="django.db.models.Q"><code>Q</code></a> objects. The result is provided using the <code>then</code> keyword.</p> <p>Some examples:</p> <pre data-language="python">&gt;&gt;&gt; from django.db.models import When, F, Q
+&gt;&gt;&gt; # String arguments refer to fields; the following two examples are equivalent:
+&gt;&gt;&gt; When(account_type=Client.GOLD, then='name')
+&gt;&gt;&gt; When(account_type=Client.GOLD, then=F('name'))
+&gt;&gt;&gt; # You can use field lookups in the condition
+&gt;&gt;&gt; from datetime import date
+&gt;&gt;&gt; When(registered_on__gt=date(2014, 1, 1),
+...      registered_on__lt=date(2015, 1, 1),
+...      then='account_type')
+&gt;&gt;&gt; # Complex conditions can be created using Q objects
+&gt;&gt;&gt; When(Q(name__startswith="John") | Q(name__startswith="Paul"),
+...      then='name')
+</pre> <p>Keep in mind that each of these values can be an expression.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p>Since the <code>then</code> keyword argument is reserved for the result of the <code>When()</code>, there is a potential conflict if a <a class="reference internal" href="../instances/#django.db.models.Model" title="django.db.models.Model"><code>Model</code></a> has a field named <code>then</code>. This can be resolved in two ways:</p> <pre data-language="python">&gt;&gt;&gt; from django.db.models import Value
+&gt;&gt;&gt; When(then__exact=0, then=1)
+&gt;&gt;&gt; When(Q(then=0), then=1)
+</pre> </div>   <h3 id="case">Case</h3> <dl class="class"> <dt id="django.db.models.expressions.Case">
+<code>class Case(*cases, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/expressions/#Case" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>A <code>Case()</code> expression is like the <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#if" title="(in Python v3.6)" target="_blank"><code>if</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#elif" title="(in Python v3.6)" target="_blank"><code>elif</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#else" title="(in Python v3.6)" target="_blank"><code>else</code></a> statement in <code>Python</code>. Each <code>condition</code> in the provided <code>When()</code> objects is evaluated in order, until one evaluates to a truthful value. The <code>result</code> expression from the matching <code>When()</code> object is returned.</p> <p>A simple example:</p> <pre data-language="python">&gt;&gt;&gt;
+&gt;&gt;&gt; from datetime import date, timedelta
+&gt;&gt;&gt; from django.db.models import CharField, Case, Value, When
+&gt;&gt;&gt; Client.objects.create(
+...     name='Jane Doe',
+...     account_type=Client.REGULAR,
+...     registered_on=date.today() - timedelta(days=36))
+&gt;&gt;&gt; Client.objects.create(
+...     name='James Smith',
+...     account_type=Client.GOLD,
+...     registered_on=date.today() - timedelta(days=5))
+&gt;&gt;&gt; Client.objects.create(
+...     name='Jack Black',
+...     account_type=Client.PLATINUM,
+...     registered_on=date.today() - timedelta(days=10 * 365))
+&gt;&gt;&gt; # Get the discount for each Client based on the account type
+&gt;&gt;&gt; Client.objects.annotate(
+...     discount=Case(
+...         When(account_type=Client.GOLD, then=Value('5%')),
+...         When(account_type=Client.PLATINUM, then=Value('10%')),
+...         default=Value('0%'),
+...         output_field=CharField(),
+...     ),
+... ).values_list('name', 'discount')
+[('Jane Doe', '0%'), ('James Smith', '5%'), ('Jack Black', '10%')]
+</pre> <p><code>Case()</code> accepts any number of <code>When()</code> objects as individual arguments. Other options are provided using keyword arguments. If none of the conditions evaluate to <code>TRUE</code>, then the expression given with the <code>default</code> keyword argument is returned. If no <code>default</code> argument is provided, <code>Value(None)</code> is used.</p> <p>If we wanted to change our previous query to get the discount based on how long the <code>Client</code> has been with us, we could do so using lookups:</p> <pre data-language="python">&gt;&gt;&gt; a_month_ago = date.today() - timedelta(days=30)
+&gt;&gt;&gt; a_year_ago = date.today() - timedelta(days=365)
+&gt;&gt;&gt; # Get the discount for each Client based on the registration date
+&gt;&gt;&gt; Client.objects.annotate(
+...     discount=Case(
+...         When(registered_on__lte=a_year_ago, then=Value('10%')),
+...         When(registered_on__lte=a_month_ago, then=Value('5%')),
+...         default=Value('0%'),
+...         output_field=CharField(),
+...     )
+... ).values_list('name', 'discount')
+[('Jane Doe', '5%'), ('James Smith', '0%'), ('Jack Black', '10%')]
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Remember that the conditions are evaluated in order, so in the above example we get the correct result even though the second condition matches both Jane Doe and Jack Black. This works just like an <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#if" title="(in Python v3.6)" target="_blank"><code>if</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#elif" title="(in Python v3.6)" target="_blank"><code>elif</code></a> ... <a class="reference external" href="https://docs.python.org/3/reference/compound_stmts.html#else" title="(in Python v3.6)" target="_blank"><code>else</code></a> statement in <code>Python</code>.</p> </div>    <h2 id="advanced-queries">Advanced queries</h2> <p>Conditional expressions can be used in annotations, aggregations, lookups, and updates. They can also be combined and nested with other expressions. This allows you to make powerful conditional queries.</p>  <h3 id="conditional-update">Conditional update</h3> <p>Let’s say we want to change the <code>account_type</code> for our clients to match their registration dates. We can do this using a conditional expression and the <a class="reference internal" href="../querysets/#django.db.models.query.QuerySet.update" title="django.db.models.query.QuerySet.update"><code>update()</code></a> method:</p> <pre data-language="python">&gt;&gt;&gt; a_month_ago = date.today() - timedelta(days=30)
+&gt;&gt;&gt; a_year_ago = date.today() - timedelta(days=365)
+&gt;&gt;&gt; # Update the account_type for each Client from the registration date
+&gt;&gt;&gt; Client.objects.update(
+...     account_type=Case(
+...         When(registered_on__lte=a_year_ago,
+...              then=Value(Client.PLATINUM)),
+...         When(registered_on__lte=a_month_ago,
+...              then=Value(Client.GOLD)),
+...         default=Value(Client.REGULAR)
+...     ),
+... )
+&gt;&gt;&gt; Client.objects.values_list('name', 'account_type')
+[('Jane Doe', 'G'), ('James Smith', 'R'), ('Jack Black', 'P')]
+</pre>   <h3 id="conditional-aggregation">Conditional aggregation</h3> <p>What if we want to find out how many clients there are for each <code>account_type</code>? We can nest conditional expression within <a class="reference internal" href="../querysets/#aggregation-functions"><span class="std std-ref">aggregate functions</span></a> to achieve this:</p> <pre data-language="python">&gt;&gt;&gt; # Create some more Clients first so we can have something to count
+&gt;&gt;&gt; Client.objects.create(
+...     name='Jean Grey',
+...     account_type=Client.REGULAR,
+...     registered_on=date.today())
+&gt;&gt;&gt; Client.objects.create(
+...     name='James Bond',
+...     account_type=Client.PLATINUM,
+...     registered_on=date.today())
+&gt;&gt;&gt; Client.objects.create(
+...     name='Jane Porter',
+...     account_type=Client.PLATINUM,
+...     registered_on=date.today())
+&gt;&gt;&gt; # Get counts for each value of account_type
+&gt;&gt;&gt; from django.db.models import IntegerField, Sum
+&gt;&gt;&gt; Client.objects.aggregate(
+...     regular=Sum(
+...         Case(When(account_type=Client.REGULAR, then=1),
+...              output_field=IntegerField())
+...     ),
+...     gold=Sum(
+...         Case(When(account_type=Client.GOLD, then=1),
+...              output_field=IntegerField())
+...     ),
+...     platinum=Sum(
+...         Case(When(account_type=Client.PLATINUM, then=1),
+...              output_field=IntegerField())
+...     )
+... )
+{'regular': 2, 'gold': 1, 'platinum': 3}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Django Software Foundation and individual contributors<br>Licensed under the BSD License.<br>
+    <a href="https://docs.djangoproject.com/en/1.8/ref/models/conditional-expressions/" class="_attribution-link" target="_blank">https://docs.djangoproject.com/en/1.8/ref/models/conditional-expressions/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Database Functions - Django 1.8 - W3cubDocs</title>
+  
+  <meta name="description" content="The classes documented below provide a way for users to use functions provided by the underlying database as annotations, aggregations, or filters &hellip;">
+  <meta name="keywords" content="database, functions, -, django, django~1.8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/django~1.8/ref/models/database-functions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/django~1.8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/django~1.8/" class="_nav-link" title="" style="margin-left:0;">Django 1.8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="database-functions">Database Functions</h1>  <p>The classes documented below provide a way for users to use functions provided by the underlying database as annotations, aggregations, or filters in Django. Functions are also <a class="reference internal" href="../expressions/"><span class="doc">expressions</span></a>, so they can be used and combined with other expressions like <a class="reference internal" href="../querysets/#aggregation-functions"><span class="std std-ref">aggregate functions</span></a>.</p> <p>We’ll be using the following model in examples of each function:</p> <pre data-language="python">class Author(models.Model):
+    name = models.CharField(max_length=50)
+    age = models.PositiveIntegerField(null=True, blank=True)
+    alias = models.CharField(max_length=50, null=True, blank=True)
+    goes_by = models.CharField(max_length=50, null=True, blank=True)
+</pre> <p>We don’t usually recommend allowing <code>null=True</code> for <code>CharField</code> since this allows the field to have two “empty values”, but it’s important for the <code>Coalesce</code> example below.</p>  <h2 id="coalesce">Coalesce</h2> <dl class="class"> <dt id="django.db.models.functions.Coalesce">
+<code>class Coalesce(*expressions, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Coalesce" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Accepts a list of at least two field names or expressions and returns the first non-null value (note that an empty string is not considered a null value). Each argument must be of a similar type, so mixing text and numbers will result in a database error.</p> <p>Usage examples:</p> <pre data-language="python">&gt;&gt;&gt; # Get a screen name from least to most public
+&gt;&gt;&gt; from django.db.models import Sum, Value as V
+&gt;&gt;&gt; from django.db.models.functions import Coalesce
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith', goes_by='Maggie')
+&gt;&gt;&gt; author = Author.objects.annotate(
+...    screen_name=Coalesce('alias', 'goes_by', 'name')).get()
+&gt;&gt;&gt; print(author.screen_name)
+Maggie
+
+&gt;&gt;&gt; # Prevent an aggregate Sum() from returning None
+&gt;&gt;&gt; aggregated = Author.objects.aggregate(
+...    combined_age=Coalesce(Sum('age'), V(0)),
+...    combined_age_default=Sum('age'))
+&gt;&gt;&gt; print(aggregated['combined_age'])
+0
+&gt;&gt;&gt; print(aggregated['combined_age_default'])
+None
+</pre> <div class="admonition warning"> <p class="first admonition-title">Warning</p> <p>A Python value passed to <code>Coalesce</code> on MySQL may be converted to an incorrect type unless explicitly cast to the correct database type:</p> <pre data-language="python">&gt;&gt;&gt; from django.db.models.expressions import RawSQL
+&gt;&gt;&gt; from django.utils import timezone
+&gt;&gt;&gt; now = timezone.now()
+&gt;&gt;&gt; now_sql = RawSQL("cast(%s as datetime)", (now,))
+&gt;&gt;&gt; Coalesce('updated', now_sql)
+</pre> </div>   <h2 id="concat">Concat</h2> <dl class="class"> <dt id="django.db.models.functions.Concat">
+<code>class Concat(*expressions, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Concat" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Accepts a list of at least two text fields or expressions and returns the concatenated text. Each argument must be of a text or char type. If you want to concatenate a <code>TextField()</code> with a <code>CharField()</code>, then be sure to tell Django that the <code>output_field</code> should be a <code>TextField()</code>. This is also required when concatenating a <code>Value</code> as in the example below.</p> <p>This function will never have a null result. On backends where a null argument results in the entire expression being null, Django will ensure that each null part is converted to an empty string first.</p> <p>Usage example:</p> <pre data-language="python">&gt;&gt;&gt; # Get the display name as "name (goes_by)"
+&gt;&gt;&gt; from django.db.models import CharField, Value as V
+&gt;&gt;&gt; from django.db.models.functions import Concat
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith', goes_by='Maggie')
+&gt;&gt;&gt; author = Author.objects.annotate(
+...    screen_name=Concat('name', V(' ('), 'goes_by', V(')'),
+...    output_field=CharField())).get()
+&gt;&gt;&gt; print(author.screen_name)
+Margaret Smith (Maggie)
+</pre>   <h2 id="length">Length</h2> <dl class="class"> <dt id="django.db.models.functions.Length">
+<code>class Length(expression, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Length" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Accepts a single text field or expression and returns the number of characters the value has. If the expression is null, then the length will also be null.</p> <p>Usage example:</p> <pre data-language="python">&gt;&gt;&gt; # Get the length of the name and goes_by fields
+&gt;&gt;&gt; from django.db.models.functions import Length
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith')
+&gt;&gt;&gt; author = Author.objects.annotate(
+...    name_length=Length('name'),
+...    goes_by_length=Length('goes_by')).get()
+&gt;&gt;&gt; print(author.name_length, author.goes_by_length)
+(14, None)
+</pre>   <h2 id="lower">Lower</h2> <dl class="class"> <dt id="django.db.models.functions.Lower">
+<code>class Lower(expression, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Lower" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Accepts a single text field or expression and returns the lowercase representation.</p> <p>Usage example:</p> <pre data-language="python">&gt;&gt;&gt; from django.db.models.functions import Lower
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith')
+&gt;&gt;&gt; author = Author.objects.annotate(name_lower=Lower('name')).get()
+&gt;&gt;&gt; print(author.name_lower)
+margaret smith
+</pre>   <h2 id="substr">Substr</h2> <dl class="class"> <dt id="django.db.models.functions.Substr">
+<code>class Substr(expression, pos, length=None, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Substr" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Returns a substring of length <code>length</code> from the field or expression starting at position <code>pos</code>. The position is 1-indexed, so the position must be greater than 0. If <code>length</code> is <code>None</code>, then the rest of the string will be returned.</p> <p>Usage example:</p> <pre data-language="python">&gt;&gt;&gt; # Set the alias to the first 5 characters of the name as lowercase
+&gt;&gt;&gt; from django.db.models.functions import Substr, Lower
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith')
+&gt;&gt;&gt; Author.objects.update(alias=Lower(Substr('name', 1, 5)))
+1
+&gt;&gt;&gt; print(Author.objects.get(name='Margaret Smith').alias)
+marga
+</pre>   <h2 id="upper">Upper</h2> <dl class="class"> <dt id="django.db.models.functions.Upper">
+<code>class Upper(expression, **extra)</code> <a class="reference internal" href="https://docs.djangoproject.com/en/1.8/_modules/django/db/models/functions/#Upper" target="_blank"><span class="viewcode-link">[source]</span></a>
+</dt> 
+</dl> <p>Accepts a single text field or expression and returns the uppercase representation.</p> <p>Usage example:</p> <pre data-language="python">&gt;&gt;&gt; from django.db.models.functions import Upper
+&gt;&gt;&gt; Author.objects.create(name='Margaret Smith')
+&gt;&gt;&gt; author = Author.objects.annotate(name_upper=Upper('name')).get()
+&gt;&gt;&gt; print(author.name_upper)
+MARGARET SMITH
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © Django Software Foundation and individual contributors<br>Licensed under the BSD License.<br>
+    <a href="https://docs.djangoproject.com/en/1.8/ref/models/database-functions/" class="_attribution-link" target="_blank">https://docs.djangoproject.com/en/1.8/ref/models/database-functions/</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
