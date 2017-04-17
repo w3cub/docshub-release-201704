@@ -1,0 +1,113 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Rate Limiting - Yii 2.0 - W3cubDocs</title>
+  
+  <meta name="description" content="To prevent abuse, you should consider adding rate limiting to your APIs. For example, you may want to limit the API usage of each user to be at most &hellip;">
+  <meta name="keywords" content="rate, limiting, -, yii, yii~2.0">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/yii~2.0/guide-rest-rate-limiting/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/yii~2.0.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/yii~2.0/" class="_nav-link" title="" style="margin-left:0;">Yii 2.0</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _yii">
+				
+<h1>Rate Limiting 
+</h1>
+<p>To prevent abuse, you should consider adding <em>rate limiting</em> to your APIs. For example, you may want to limit the API usage of each user to be at most 100 API calls within a period of 10 minutes. If too many requests are received from a user within the stated period of the time, a response with status code 429 (meaning "Too Many Requests") should be returned.</p> <p>To enable rate limiting, the <a href="../yii-web-user/#%24identityClass-detail">user identity class</a> should implement <a href="../yii-filters-ratelimitinterface/">yii\filters\RateLimitInterface</a>. This interface requires implementation of three methods:</p> <ul> <li>
+<code>getRateLimit()</code>: returns the maximum number of allowed requests and the time period (e.g., <code>[100, 600]</code> means there can be at most 100 API calls within 600 seconds).</li> <li>
+<code>loadAllowance()</code>: returns the number of remaining requests allowed and the corresponding UNIX timestamp when the rate limit was last checked.</li> <li>
+<code>saveAllowance()</code>: saves both the number of remaining requests allowed and the current UNIX timestamp.</li> </ul> <p>You may want to use two columns in the user table to record the allowance and timestamp information. With those defined, then <code>loadAllowance()</code> and <code>saveAllowance()</code> can be implemented to read and save the values of the two columns corresponding to the current authenticated user. To improve performance, you may also consider storing these pieces of information in a cache or NoSQL storage.</p> <p>Implementation in the <code>User</code> model could look like the following:</p> <pre data-language="php">public function getRateLimit($request, $action)
+{
+    return [$this-&gt;rateLimit, 1]; // $rateLimit requests per second
+}
+
+public function loadAllowance($request, $action)
+{
+    return [$this-&gt;allowance, $this-&gt;allowance_updated_at];
+}
+
+public function saveAllowance($request, $action, $allowance, $timestamp)
+{
+    $this-&gt;allowance = $allowance;
+    $this-&gt;allowance_updated_at = $timestamp;
+    $this-&gt;save();
+}
+</pre> <p>Once the identity class implements the required interface, Yii will automatically use <a href="../yii-filters-ratelimiter/">yii\filters\RateLimiter</a> configured as an action filter for <a href="../yii-rest-controller/">yii\rest\Controller</a> to perform rate limiting check. The rate limiter will throw a <a href="../yii-web-toomanyrequestshttpexception/">yii\web\TooManyRequestsHttpException</a> when the rate limit is exceeded. </p> <p>You may configure the rate limiter as follows in your REST controller classes:</p> <pre data-language="php">public function behaviors()
+{
+    $behaviors = parent::behaviors();
+    $behaviors['rateLimiter']['enableRateLimitHeaders'] = false;
+    return $behaviors;
+}
+</pre> <p>When rate limiting is enabled, by default every response will be sent with the following HTTP headers containing the current rate limiting information:</p> <ul> <li>
+<code>X-Rate-Limit-Limit</code>, the maximum number of requests allowed with a time period</li> <li>
+<code>X-Rate-Limit-Remaining</code>, the number of remaining requests in the current time period</li> <li>
+<code>X-Rate-Limit-Reset</code>, the number of seconds to wait in order to get the maximum number of allowed requests</li> </ul> <p>You may disable these headers by configuring <a href="../yii-filters-ratelimiter/#%24enableRateLimitHeaders-detail">yii\filters\RateLimiter::$enableRateLimitHeaders</a> to be <code>false</code>, as shown in the above code example.</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2008–2017 by Yii Software LLC<br>Licensed under the three clause BSD license.<br>
+    <a href="http://www.yiiframework.com/doc-2.0/guide-rest-rate-limiting.html" class="_attribution-link" target="_blank">http://www.yiiframework.com/doc-2.0/guide-rest-rate-limiting.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

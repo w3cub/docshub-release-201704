@@ -1,0 +1,142 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Collecting Tabular Input - Yii 2.0 - W3cubDocs</title>
+  
+  <meta name="description" content="Sometimes you need to handle multiple models of the same kind in a single form. For example, multiple settings, where each setting is stored as a &hellip;">
+  <meta name="keywords" content="collecting, tabular, input, -, yii, yii~2.0">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/yii~2.0/guide-input-tabular-input/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/yii~2.0.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/yii~2.0/" class="_nav-link" title="" style="margin-left:0;">Yii 2.0</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _yii">
+				
+<h1>Collecting tabular input 
+</h1>
+<p>Sometimes you need to handle multiple models of the same kind in a single form. For example, multiple settings, where each setting is stored as a name-value pair and is represented by a <code>Setting</code> <a href="../guide-db-active-record/">active record</a> model. This kind of form is also often referred to as "tabular input". In contrast to this, handling different models of different kind, is handled in the section <a href="../guide-input-multiple-models/">Complex Forms with Multiple Models</a>.</p> <p>The following shows how to implement tabular input with Yii.</p> <p>There are three different situations to cover, which have to be handled slightly different:</p> <ul> <li>Updating a fixed set of records from the database</li> <li>Creating a dynamic set of new records</li> <li>Updating, creating and deleting of records on one page</li> </ul> <p>In contrast to the single model forms explained before, we are working with an array of models now. This array is passed to the view to display the input fields for each model in a table like style and we will use helper methods of <a href="../yii-base-model/">yii\base\Model</a> that allow loading and validating multiple models at once:</p> <ul> <li>
+<a href="../yii-base-model/#loadMultiple()-detail">Model::loadMultiple()</a> load post data into an array of models.</li> <li>
+<a href="../yii-base-model/#validateMultiple()-detail">Model::validateMultiple()</a> validates an array of models.</li> </ul> <h3>Updating a fixed set of records 
+</h3>
+<p>Let's start with the controller action:</p> <pre data-language="php">&lt;?php
+
+namespace app\controllers;
+
+use Yii;
+use yii\base\Model;
+use yii\web\Controller;
+use app\models\Setting;
+
+class SettingsController extends Controller
+{
+    // ...
+
+    public function actionUpdate()
+    {
+        $settings = Setting::find()-&gt;indexBy('id')-&gt;all();
+
+        if (Model::loadMultiple($settings, Yii::$app-&gt;request-&gt;post()) &amp;&amp; Model::validateMultiple($settings)) {
+            foreach ($settings as $setting) {
+                $setting-&gt;save(false);
+            }
+            return $this-&gt;redirect('index');
+        }
+
+        return $this-&gt;render('update', ['settings' =&gt; $settings]);
+    }
+}
+</pre> <p>In the code above we're using <a href="../yii-db-querytrait/#indexBy()-detail">indexBy()</a> when retrieving models from the database to populate an array indexed by models primary keys. These will be later used to identify form fields. <a href="../yii-base-model/#loadMultiple()-detail">Model::loadMultiple()</a> fills multiple models with the form data coming from POST and <a href="../yii-base-model/#validateMultiple()-detail">Model::validateMultiple()</a> validates all models at once. As we have validated our models before, using <code>validateMultiple()</code>, we're now passing <code>false</code> as a parameter to <a href="../yii-db-baseactiverecord/#save()-detail">save()</a> to not run validation twice.</p> <p>Now the form that's in <code>update</code> view:</p> <pre data-language="php">&lt;?php
+use yii\helpers\Html;
+use yii\widgets\ActiveForm;
+
+$form = ActiveForm::begin();
+
+foreach ($settings as $index =&gt; $setting) {
+    echo $form-&gt;field($setting, "[$index]value")-&gt;label($setting-&gt;name);
+}
+
+ActiveForm::end();
+</pre> <p>Here for each setting we are rendering name and an input with a value. It is important to add a proper index to input name since that is how <a href="../yii-base-model/#loadMultiple()-detail">Model::loadMultiple()</a> determines which model to fill with which values.</p> <h3>Creating a dynamic set of new records 
+</h3>
+<p>Creating new records is similar to updating, except the part, where we instantiate the models:</p> <pre data-language="php">public function actionCreate()
+{
+    $count = count(Yii::$app-&gt;request-&gt;post('Setting', []));
+    $settings = [new Setting()];
+    for($i = 1; $i &lt; $count; $i++) {
+        $settings[] = new Setting();
+    }
+
+    // ...
+}
+</pre> <p>Here we create an initial <code>$settings</code> array containing one model by default so that always at least one text field will be visible in the view. Additionally we add more models for each line of input we may have received.</p> <p>In the view you can use javascript to add new input lines dynamically.</p> <h3>Combining Update, Create and Delete on one page 
+</h3>
+<blockquote class="note">
+<p><strong>Note: </strong>This section is under development.</p> <p>It has no content yet.</p> </blockquote> <p>TBD</p> <div class="_attribution">
+  <p class="_attribution-p">
+    © 2008–2017 by Yii Software LLC<br>Licensed under the three clause BSD license.<br>
+    <a href="http://www.yiiframework.com/doc-2.0/guide-input-tabular-input.html" class="_attribution-link" target="_blank">http://www.yiiframework.com/doc-2.0/guide-input-tabular-input.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
