@@ -1,0 +1,152 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Creating a RESTful Web Service With Spring Boot - Kotlin - W3cubDocs</title>
+  
+  <meta name="description" content="Kotlin works quite smoothly with Spring Boot and many of the steps found on the Spring Guides for creating a RESTful service can be followed &hellip;">
+  <meta name="keywords" content="creating, restful, web, service, with, spring, boot, -, kotlin">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/kotlin/docs/tutorials/spring-boot-restful/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/kotlin.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/kotlin/" class="_nav-link" title="" style="margin-left:0;">Kotlin</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _kotlin">
+				
+<h1> Creating a RESTful Web Service with Spring Boot </h1> <table> <tr> <td> <strong>Author</strong> </td> <td> Hadi Hariri, Edoardo Vacchi </td> </tr> <tr> <td> <strong>Last Updated</strong> </td> <td> 31 October 2015 </td> </tr> <tr> <td> <strong>Source</strong> </td> <td> <a href="https://kotlinlang.org/tutorials/spring-boot-restful" target="_blank">On GitHub</a> </td> </tr> </table> This tutorial walks us through the process of creating a simple REST controller with Spring Boot <br> <br> <p>Kotlin works quite smoothly with Spring Boot and many of the steps found on the <a href="https://spring.io/guides" target="_blank">Spring Guides</a> for creating a RESTful service can be followed verbatim for Kotlin. There are some minor differences however when it comes to defining the Gradle configuration and the project layout structure, as well as the initialization code.</p> <p>In this tutorial we'll walk through the steps required. For a more thorough explanation of Spring Boot and RESTful services, please see <a href="https://spring.io/guides/gs/rest-service/" target="_blank">Building a RESTful Web Service</a>.</p> <p>Note that all classes in this tutorial are in the <code>kotlin.demo</code> package.</p> <h3 id="defining-the-project-and-dependencies">Defining the project and dependencies</h3> <p>In this tutorial we're going to be using Gradle but the same can be accomplished using either IntelliJ IDEA project structure or Maven. For details on setting up Gradle to work with Kotlin, see <a href="../../reference/using-gradle/">Using Gradle</a>.</p> <p>The Gradle file is pretty much standard for Spring Boot. The only difference is the structure layout for source folders for Kotlin, and the required Kotlin dependencies</p> <pre>buildscript {
+    ext.kotlin_version = '1.0.0' // Required for Kotlin integration
+    ext.spring_boot_version = '1.3.0.RELEASE'
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Required for Kotlin integration
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:$spring_boot_version"
+    }
+}
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'kotlin' // Required for Kotlin integration
+apply plugin: 'spring-boot'
+apply plugin: 'application'
+
+jar {
+    baseName = 'gs-rest-service'
+    version = '0.1.0'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version" // Required for Kotlin integration
+    compile 'org.springframework.boot:spring-boot-starter-web'
+    testCompile 'junit:junit'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.9'
+}
+</pre> <h3 id="creating-a-greeting-data-class-and-controller">Creating a Greeting Data Class and Controller</h3> <p>The next step is to create Greeting Data class that has two properties: <em>id</em> and a <em>content</em></p> <pre data-language="kotlin">data class Greeting(val id: Long, val content: String)
+</pre> <p>We now define the <em>GreetingController</em> which serves requests of the form <em>/greeting?name={value}</em> and returns a JSON object representing an instance of <em>Greeting</em></p> <pre data-language="kotlin">@RestController
+class GreetingController {
+
+        val counter = AtomicLong()
+
+        @RequestMapping("/greeting")
+        fun greeting(@RequestParam(value = "name", defaultValue = "World") name: String): Greeting {
+                return Greeting(counter.incrementAndGet(), "Hello, $name")
+        }
+}
+</pre> <p>As can be seen, this is again pretty much a one-to-one translation of Java to Kotlin, with nothing special required for Kotlin.</p> <h3 id="creating-the-application-class">Creating the Application class</h3> <p>Finally we need to define an Application class. As Spring Boot looks for a public static main method, we need to define this in Kotlin using the <em>@JvmStatic</em> annotation. For this, we create a standard <em>Application</em> class and define a companion object inside where we can then create a function annotated with <em>@JvmStatic</em></p> <p>Note: JvmStatic is an annotation in Kotlin which is used for interoperability with Java, so that the resulting method is defined as static when called from Java.</p> <p>The other change needed for Spring Boot is to mark the class as open. Spring boot <em>@Configuration</em> classes cannot be final. Classes in Kotlin are final by default without the <em>open</em> modifier.</p> <pre data-language="kotlin">@SpringBootApplication
+open class Application {
+        companion object {
+                @JvmStatic fun main(args: Array&lt;String&gt;) {
+                        SpringApplication.run(Application::class.java, *args)
+                }
+        }
+}
+</pre> <h3 id="alternative-application-class-definition">Alternative Application class definition</h3> <p>In Java, the <code>main()</code> method of a Spring Boot application is conventionally defined within the annotated application class. This is because Java <em>does not</em> support top-level methods. In Kotlin, however, we <em>do</em> have <a href="../../reference/functions/">top-level functions</a>. Thus, we can make the Spring main entry point much simpler:</p> <pre data-language="kotlin">@SpringBootApplication
+open class Application
+
+fun main(args: Array&lt;String&gt;) {
+	SpringApplication.run(Application::class.java, *args)
+}
+</pre> <p>The only requirement for this variant to work is to declare in your <code>build.gradle</code> file to look for <em>this</em> main function. This is done through the <code>mainClass</code> property of the <code>springBoot</code> section:</p> <pre>springBoot {
+    mainClass = 'my.package.YourMainClass'
+}
+</pre> <p>In Kotlin, top-level functions are compiled into static members of an automatically-generated class. The name of this class is derived from the name of the source file. For instance, a top-level function in the <code>Application.kt</code> file would be defined in a class named <code>ApplicationKt</code>. You may add the following lines to your <code>build.gradle</code>:</p> <pre>springBoot {
+    mainClass = 'kotlin.demo.ApplicationKt'
+}
+</pre> <h3 id="running-the-application">Running the application</h3> <p>We can now use the any of the standard Gradle tasks for Spring Boot to run the application. As such, running</p> <pre>    gradle bootRun
+</pre> <p>the application is compiled, resources bundled and launched, allowing us to access is via the browser (default port is 8080)</p> <p><img alt="Running App" src="https://kotlinlang.org/assets/images/tutorials/spring-boot-restful/running-app.png"></p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 JetBrains s.r.o.<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://kotlinlang.org/docs/tutorials/spring-boot-restful.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/tutorials/spring-boot-restful.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

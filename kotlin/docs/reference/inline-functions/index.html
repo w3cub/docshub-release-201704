@@ -1,0 +1,151 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Inline Functions - Kotlin - W3cubDocs</title>
+  
+  <meta name="description" content="Using higher-order functions imposes certain runtime penalties&#58; each function is an object, and it captures a closure, i.e. those variables that &hellip;">
+  <meta name="keywords" content="inline, functions, -, kotlin">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/kotlin/docs/reference/inline-functions/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/kotlin.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/kotlin/" class="_nav-link" title="" style="margin-left:0;">Kotlin</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _kotlin">
+				
+<h1 id="inline-functions">Inline Functions</h1> <p>Using <a href="../lambdas/">higher-order functions</a> imposes certain runtime penalties: each function is an object, and it captures a closure, i.e. those variables that are accessed in the body of the function. Memory allocations (both for function objects and classes) and virtual calls introduce runtime overhead.</p> <p>But it appears that in many cases this kind of overhead can be eliminated by inlining the lambda expressions. The functions shown below are good examples of this situation. I.e., the <code>lock()</code> function could be easily inlined at call-sites. Consider the following case:</p> <pre data-language="kotlin">lock(l) { foo() }
+</pre> <p>Instead of creating a function object for the parameter and generating a call, the compiler could emit the following code</p> <pre data-language="kotlin">l.lock()
+try {
+    foo()
+}
+finally {
+    l.unlock()
+}
+</pre> <p>Isn't it what we wanted from the very beginning?</p> <p>To make the compiler do this, we need to mark the <code>lock()</code> function with the <code>inline</code> modifier:</p> <pre data-language="kotlin">inline fun lock&lt;T&gt;(lock: Lock, body: () -&gt; T): T {
+    // ...
+}
+</pre> <p>The <code>inline</code> modifier affects both the function itself and the lambdas passed to it: all of those will be inlined into the call site.</p> <p>Inlining may cause the generated code to grow, but if we do it in a reasonable way (do not inline big functions) it will pay off in performance, especially at "megamorphic" call-sites inside loops.</p> <h2 id="noinline">noinline</h2> <p>In case you want only some of the lambdas passed to an inline function to be inlined, you can mark some of your function parameters with the <code>noinline</code> modifier:</p> <pre data-language="kotlin">inline fun foo(inlined: () -&gt; Unit, noinline notInlined: () -&gt; Unit) {
+    // ...
+}
+</pre> <p>Inlinable lambdas can only be called inside the inline functions or passed as inlinable arguments, but <code>noinline</code> ones can be manipulated in any way we like: stored in fields, passed around etc.</p> <p>Note that if an inline function has no inlinable function parameters and no <a href="#reified-type-parameters">reified type parameters</a>, the compiler will issue a warning, since inlining such functions is very unlikely to be beneficial (you can suppress the warning if you are sure the inlining is needed).</p> <h2 id="non-local-returns">Non-local returns</h2> <p>In Kotlin, we can only use a normal, unqualified <code>return</code> to exit a named function or an anonymous function. This means that to exit a lambda, we have to use a <a href="../returns/#return-at-labels">label</a>, and a bare <code>return</code> is forbidden inside a lambda, because a lambda can not make the enclosing function return:</p> <pre data-language="kotlin">fun foo() {
+    ordinaryFunction {
+        return // ERROR: can not make `foo` return here
+    }
+}
+</pre> <p>But if the function the lambda is passed to is inlined, the return can be inlined as well, so it is allowed:</p> <pre data-language="kotlin">fun foo() {
+    inlineFunction {
+        return // OK: the lambda is inlined
+    }
+}
+</pre> <p>Such returns (located in a lambda, but exiting the enclosing function) are called <em>non-local</em> returns. We are used to this sort of constructs in loops, which inline functions often enclose:</p> <pre data-language="kotlin">fun hasZeros(ints: List&lt;Int&gt;): Boolean {
+    ints.forEach {
+        if (it == 0) return true // returns from hasZeros
+    }
+    return false
+}
+</pre> <p>Note that some inline functions may call the lambdas passed to them as parameters not directly from the function body, but from another execution context, such as a local object or a nested function. In such cases, non-local control flow is also not allowed in the lambdas. To indicate that, the lambda parameter needs to be marked with the <code>crossinline</code> modifier:</p> <pre data-language="kotlin">inline fun f(crossinline body: () -&gt; Unit) {
+    val f = object: Runnable {
+        override fun run() = body()
+    }
+    // ...
+}
+</pre> <blockquote> <p><code>break</code> and <code>continue</code> are not yet available in inlined lambdas, but we are planning to support them too</p> </blockquote> <h2 id="reified-type-parameters">Reified type parameters</h2> <p>Sometimes we need to access a type passed to us as a parameter:</p> <pre data-language="kotlin">fun &lt;T&gt; TreeNode.findParentOfType(clazz: Class&lt;T&gt;): T? {
+    var p = parent
+    while (p != null &amp;&amp; !clazz.isInstance(p)) {
+        p = p?.parent
+    }
+    @Suppress("UNCHECKED_CAST")
+    return p as T
+}
+</pre> <p>Here, we walk up a tree and use reflection to check if a node has a certain type. It’s all fine, but the call site is not very pretty:</p> <pre data-language="kotlin">myTree.findParentOfType(MyTreeNodeType::class.java)
+</pre> <p>What we actually want is simply pass a type to this function, i.e. call it like this:</p> <pre data-language="kotlin">myTree.findParentOfType&lt;MyTreeNodeType&gt;()
+</pre> <p>To enable this, inline functions support <em>reified type parameters</em>, so we can write something like this:</p> <pre data-language="kotlin">inline fun &lt;reified T&gt; TreeNode.findParentOfType(): T? {
+    var p = parent
+    while (p != null &amp;&amp; p !is T) {
+        p = p?.parent
+    }
+    return p as T
+}
+</pre> <p>We qualified the type parameter with the <code>reified</code> modifier, now it’s accessible inside the function, almost as if it were a normal class. Since the function is inlined, no reflection is needed, normal operators like <code>!is</code> and <code>as</code> are working now. Also, we can call it as mentioned above: <code>myTree.findParentOfType&lt;MyTreeNodeType&gt;()</code>.</p> <p>Though reflection may not be needed in many cases, we can still use it with a reified type parameter:</p> <pre data-language="kotlin">inline fun &lt;reified T&gt; membersOf() = T::class.members
+
+fun main(s: Array&lt;String&gt;) {
+    println(membersOf&lt;StringBuilder&gt;().joinToString("\n"))
+}
+</pre> <p>Normal functions (not marked as inline) can not have reified parameters. A type that does not have a run-time representation (e.g. a non-reified type parameter or a fictitious type like <code>Nothing</code>) can not be used as an argument for a reified type parameter.</p> <p>For a low-level description, see the <a href="https://github.com/JetBrains/kotlin/blob/master/spec-docs/reified-type-parameters.md" target="_blank">spec document</a>.</p> <h2 id="inline-properties-since-11">Inline properties (since 1.1)</h2> <p>The <code>inline</code> modifier can be used on accessors of properties that don't have a backing field. You can annotate individual property accessors:</p> <pre data-language="kotlin">val foo: Foo
+    inline get() = Foo()
+
+var bar: Bar
+    get() = ...
+    inline set(v) { ... }
+</pre> <p>You can also annotate an entire property, which marks both of its accessors as inline:</p> <pre data-language="kotlin">inline var bar: Bar
+    get() = ...
+    set(v) { ... }
+</pre> <p>At the call site, inline accessors are inlined as regular inline functions.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 JetBrains s.r.o.<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://kotlinlang.org/docs/reference/inline-functions.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/reference/inline-functions.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

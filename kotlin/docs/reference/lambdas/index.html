@@ -1,0 +1,160 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Higher-Order Functions and Lambdas - Kotlin - W3cubDocs</title>
+  
+  <meta name="description" content="A higher-order function is a function that takes functions as parameters, or returns a function. A good example of such a function is lock() that &hellip;">
+  <meta name="keywords" content="higher-order, functions, and, lambdas, -, kotlin">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/kotlin/docs/reference/lambdas/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/kotlin.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/kotlin/" class="_nav-link" title="" style="margin-left:0;">Kotlin</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _kotlin">
+				
+<h1 id="higher-order-functions-and-lambdas">Higher-Order Functions and Lambdas</h1> <h2 id="higher-order-functions">Higher-Order Functions</h2> <p>A higher-order function is a function that takes functions as parameters, or returns a function. A good example of such a function is <code>lock()</code> that takes a lock object and a function, acquires the lock, runs the function and releases the lock:</p> <pre data-language="kotlin">fun &lt;T&gt; lock(lock: Lock, body: () -&gt; T): T {
+    lock.lock()
+    try {
+        return body()
+    }
+    finally {
+        lock.unlock()
+    }
+}
+</pre> <p>Let's examine the code above: <code>body</code> has a <a href="#function-types">function type</a>: <code>() -&gt; T</code>, so it's supposed to be a function that takes no parameters and returns a value of type <code>T</code>. It is invoked inside the <em class="keyword">try</em>-block, while protected by the <code>lock</code>, and its result is returned by the <code>lock()</code> function.</p> <p>If we want to call <code>lock()</code>, we can pass another function to it as an argument (see <a href="../reflection/#function-references">function references</a>):</p> <pre data-language="kotlin">fun toBeSynchronized() = sharedResource.operation()
+
+val result = lock(lock, ::toBeSynchronized)
+</pre> <p>Another, often more convenient way is to pass a <a href="#lambda-expressions-and-anonymous-functions">lambda expression</a>:</p> <pre data-language="kotlin">val result = lock(lock, { sharedResource.operation() })
+</pre> <p>Lambda expressions are described in more <a href="#lambda-expressions-and-anonymous-functions">detail below</a>, but for purposes of continuing this section, let's see a brief overview:</p> <ul> <li>A lambda expression is always surrounded by curly braces,</li> <li>Its parameters (if any) are declared before <code>-&gt;</code> (parameter types may be omitted),</li> <li>The body goes after <code>-&gt;</code> (when present).</li> </ul> <p>In Kotlin, there is a convention that if the last parameter to a function is a function, and you're passing a lambda expression as the corresponding argument, you can specify it outside of parentheses:</p> <pre data-language="kotlin">lock (lock) {
+    sharedResource.operation()
+}
+</pre> <p>Another example of a higher-order function would be <code>map()</code>:</p> <pre data-language="kotlin">fun &lt;T, R&gt; List&lt;T&gt;.map(transform: (T) -&gt; R): List&lt;R&gt; {
+    val result = arrayListOf&lt;R&gt;()
+    for (item in this)
+        result.add(transform(item))
+    return result
+}
+</pre> <p>This function can be called as follows:</p> <pre data-language="kotlin">val doubled = ints.map { it -&gt; it * 2 }
+</pre> <p>Note that the parentheses in a call can be omitted entirely if the lambda is the only argument to that call.</p> <h3 id="it-implicit-name-of-a-single-parameter">
+<code>it</code>: implicit name of a single parameter</h3> <p>One other helpful convention is that if a function literal has only one parameter, its declaration may be omitted (along with the <code>-&gt;</code>), and its name will be <code>it</code>:</p> <pre data-language="kotlin">ints.map { it * 2 }
+</pre> <p>These conventions allow to write <a href="http://msdn.microsoft.com/en-us/library/bb308959.aspx" target="_blank">LINQ-style</a> code:</p> <pre data-language="kotlin">strings.filter { it.length == 5 }.sortBy { it }.map { it.toUpperCase() }
+</pre> <h3 id="underscore-for-unused-variables-since-11">Underscore for unused variables (since 1.1)</h3> <p>If the lambda parameter is unused, you can place an underscore instead of its name:</p> <pre data-language="kotlin">map.forEach { _, value -&gt; println("$value!") }
+</pre> <h3 id="destructuring-in-lambdas-since-11">Destructuring in Lambdas (since 1.1)</h3> <p>Destructuring in lambdas is described as a part of <a href="../multi-declarations/#destructuring-in-lambdas-since-11">destructuring declarations</a>.</p> <h2 id="inline-functions">Inline Functions</h2> <p>Sometimes it is beneficial to enhance performance of higher-order functions using <a href="../inline-functions/">inline functions</a>.</p> <h2 id="lambda-expressions-and-anonymous-functions">Lambda Expressions and Anonymous Functions</h2> <p>A lambda expression or an anonymous function is a "function literal", i.e. a function that is not declared, but passed immediately as an expression. Consider the following example:</p> <pre data-language="kotlin">max(strings, { a, b -&gt; a.length &lt; b.length })
+</pre> <p>Function <code>max</code> is a higher-order function, i.e. it takes a function value as the second argument. This second argument is an expression that is itself a function, i.e. a function literal. As a function, it is equivalent to</p> <pre data-language="kotlin">fun compare(a: String, b: String): Boolean = a.length &lt; b.length
+</pre> <h3 id="function-types">Function Types</h3> <p>For a function to accept another function as a parameter, we have to specify a function type for that parameter. For example the abovementioned function <code>max</code> is defined as follows:</p> <pre data-language="kotlin">fun &lt;T&gt; max(collection: Collection&lt;T&gt;, less: (T, T) -&gt; Boolean): T? {
+    var max: T? = null
+    for (it in collection)
+        if (max == null || less(max, it))
+            max = it
+    return max
+}
+</pre> <p>The parameter <code>less</code> is of type <code>(T, T) -&gt; Boolean</code>, i.e. a function that takes two parameters of type <code>T</code> and returns a <code>Boolean</code>: true if the first one is smaller than the second one.</p> <p>In the body, line 4, <code>less</code> is used as a function: it is called by passing two arguments of type <code>T</code>.</p> <p>A function type is written as above, or may have named parameters, if you want to document the meaning of each parameter.</p> <pre data-language="kotlin">val compare: (x: T, y: T) -&gt; Int = ...
+</pre> <h3 id="lambda-expression-syntax">Lambda Expression Syntax</h3> <p>The full syntactic form of lambda expressions, i.e. literals of function types, is as follows:</p> <pre data-language="kotlin">val sum = { x: Int, y: Int -&gt; x + y }
+</pre> <p>A lambda expression is always surrounded by curly braces, parameter declarations in the full syntactic form go inside parentheses and have optional type annotations, the body goes after an <code>-&gt;</code> sign. If the inferred return type of the lambda is not <code>Unit</code>, the last (or possibly single) expression inside the lambda body is treated as the return value.</p> <p>If we leave all the optional annotations out, what's left looks like this:</p> <pre data-language="kotlin">val sum: (Int, Int) -&gt; Int = { x, y -&gt; x + y }
+</pre> <p>It's very common that a lambda expression has only one parameter. If Kotlin can figure the signature out itself, it allows us not to declare the only parameter, and will implicitly declare it for us under the name <code>it</code>:</p> <pre data-language="kotlin">ints.filter { it &gt; 0 } // this literal is of type '(it: Int) -&gt; Boolean'
+</pre> <p>We can explicitly return a value from the lambda using the <a href="../returns/#return-at-labels">qualified return</a> syntax. Otherwise, the value of the last expression is implictly returned. Therefore, the two following snippets are equivalent:</p> <pre data-language="kotlin">ints.filter {
+    val shouldFilter = it &gt; 0 
+    shouldFilter
+}
+
+ints.filter {
+    val shouldFilter = it &gt; 0 
+    return@filter shouldFilter
+}
+</pre> <p>Note that if a function takes another function as the last parameter, the lambda expression argument can be passed outside the parenthesized argument list. See the grammar for <a href="https://kotlinlang.org/docs/reference/grammar.html#callSuffix" target="_blank">callSuffix</a>.</p> <h3 id="anonymous-functions">Anonymous Functions</h3> <p>One thing missing from the lambda expression syntax presented above is the ability to specify the return type of the function. In most cases, this is unnecessary because the return type can be inferred automatically. However, if you do need to specify it explicitly, you can use an alternative syntax: an <em>anonymous function</em>.</p> <pre data-language="kotlin">fun(x: Int, y: Int): Int = x + y
+</pre> <p>An anonymous function looks very much like a regular function declaration, except that its name is omitted. Its body can be either an expression (as shown above) or a block:</p> <pre data-language="kotlin">fun(x: Int, y: Int): Int {
+    return x + y
+}
+</pre> <p>The parameters and the return type are specified in the same way as for regular functions, except that the parameter types can be omitted if they can be inferred from context:</p> <pre data-language="kotlin">ints.filter(fun(item) = item &gt; 0)
+</pre> <p>The return type inference for anonymous functions works just like for normal functions: the return type is inferred automatically for anonymous functions with an expression body and has to be specified explicitly (or is assumed to be <code>Unit</code>) for anonymous functions with a block body.</p> <p>Note that anonymous function parameters are always passed inside the parentheses. The shorthand syntax allowing to leave the function outside the parentheses works only for lambda expressions.</p> <p>One other difference between lambda expressions and anonymous functions is the behavior of <a href="../inline-functions/#non-local-returns">non-local returns</a>. A <em class="keyword">return</em> statement without a label always returns from the function declared with the <em class="keyword">fun</em> keyword. This means that a <em class="keyword">return</em> inside a lambda expression will return from the enclosing function, whereas a <em class="keyword">return</em> inside an anonymous function will return from the anonymous function itself.</p> <h3 id="closures">Closures</h3> <p>A lambda expression or anonymous function (as well as a <a href="../functions/#local-functions">local function</a> and an <a href="../object-declarations/#object-expressions">object expression</a>) can access its <em>closure</em>, i.e. the variables declared in the outer scope. Unlike Java, the variables captured in the closure can be modified:</p> <pre data-language="kotlin">var sum = 0
+ints.filter { it &gt; 0 }.forEach {
+    sum += it
+}
+print(sum)
+</pre> <h3 id="function-literals-with-receiver">Function Literals with Receiver</h3> <p>Kotlin provides the ability to call a function literal with a specified <em>receiver object</em>. Inside the body of the function literal, you can call methods on that receiver object without any additional qualifiers. This is similar to extension functions, which allow you to access members of the receiver object inside the body of the function. One of the most important examples of their usage is <a href="../type-safe-builders/">Type-safe Groovy-style builders</a>.</p> <p>The type of such a function literal is a function type with receiver:</p> <pre data-language="kotlin">sum : Int.(other: Int) -&gt; Int
+</pre> <p>The function literal can be called as if it were a method on the receiver object:</p> <pre data-language="kotlin">1.sum(2)
+</pre> <p>The anonymous function syntax allows you to specify the receiver type of a function literal directly. This can be useful if you need to declare a variable of a function type with receiver, and to use it later.</p> <pre data-language="kotlin">val sum = fun Int.(other: Int): Int = this + other
+</pre> <p>Lambda expressions can be used as function literals with receiver when the receiver type can be inferred from context.</p> <pre data-language="kotlin">class HTML {
+    fun body() { ... }
+}
+
+fun html(init: HTML.() -&gt; Unit): HTML {
+    val html = HTML()  // create the receiver object
+    html.init()        // pass the receiver object to the lambda
+    return html
+}
+
+
+html {       // lambda with receiver begins here
+    body()   // calling a method on the receiver object
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010–2017 JetBrains s.r.o.<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://kotlinlang.org/docs/reference/lambdas.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/reference/lambdas.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
