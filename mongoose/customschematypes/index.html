@@ -1,0 +1,120 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Creating a Basic Custom Schema Type - Mongoose - W3cubDocs</title>
+  
+  <meta name="description" content="New in Mongoose 4.4.0&#58; Mongoose supports custom types. Before you reach for a custom type, however, know that a custom type is overkill for most &hellip;">
+  <meta name="keywords" content="creating, basic, custom, schema, type, -, mongoose">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/mongoose/customschematypes/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/mongoose.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/mongoose/" class="_nav-link" title="" style="margin-left:0;">Mongoose</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mongoose">
+				
+<h1 id="creating-a-basic-custom-schema-type">Creating a Basic Custom Schema Type</h1> <p><em>New in Mongoose 4.4.0:</em> Mongoose supports custom types. Before you reach for a custom type, however, know that a custom type is overkill for most use cases. You can do most basic tasks with <a href="../2.7.x/docs/getters-setters/">custom getters/setters</a>, <a href="../guide/#virtuals">virtuals</a>, and <a href="../subdocs/#single-embedded">single embedded docs</a>.</p> <p>Let's take a look at an example of a basic schema type: a 1-byte integer. To create a new schema type, you need to inherit from <code>mongoose.SchemaType</code> and add the corresponding property to <code>mongoose.Schema.Types</code>. The one method you need to implement is the <code>cast()</code> method.</p> <pre data-language="javascript">
+    <span class="function"><span class="keyword">function</span> <span class="title">Int8</span><span class="params">(key, options)</span> {</span>
+      mongoose.SchemaType.call(<span class="keyword">this</span>, key, options, <span class="string">'Int8'</span>);
+    }
+    Int8.prototype = Object.create(mongoose.SchemaType.prototype);
+
+    <span class="comment">// `cast()` takes a parameter that can be anything. You need to</span>
+    <span class="comment">// validate the provided `val` and throw a `CastError` if you</span>
+    <span class="comment">// can't convert it.</span>
+    Int8.prototype.cast = <span class="keyword">function</span>(val) {
+      <span class="keyword">var</span> _val = Number(val);
+      <span class="keyword">if</span> (isNaN(_val)) {
+        <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">'Int8: '</span> + val + <span class="string">' is not a number'</span>);
+      }
+      _val = Math.round(_val);
+      <span class="keyword">if</span> (_val &lt; -<span class="number">0x80</span> || _val &gt; <span class="number">0x7F</span>) {
+        <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">'Int8: '</span> + val +
+          <span class="string">' is outside of the range of valid 8-bit ints'</span>);
+      }
+      <span class="keyword">return</span> _val;
+    };
+
+    <span class="comment">// Don't forget to add `Int8` to the type registry</span>
+    mongoose.Schema.Types.Int8 = Int8;
+
+    <span class="keyword">var</span> testSchema = <span class="keyword">new</span> Schema({ test: Int8 });
+    <span class="keyword">var</span> Test = mongoose.model(<span class="string">'Test'</span>, testSchema);
+
+    <span class="keyword">var</span> t = <span class="keyword">new</span> Test();
+    t.test = <span class="string">'abc'</span>;
+    assert.ok(t.validateSync());
+    assert.equal(t.validateSync().errors[<span class="string">'test'</span>].name, <span class="string">'CastError'</span>);
+    assert.equal(t.validateSync().errors[<span class="string">'test'</span>].message,
+      <span class="string">'Cast to Int8 failed for value "abc" at path "test"'</span>);
+    assert.equal(t.validateSync().errors[<span class="string">'test'</span>].reason.message,
+      <span class="string">'Int8: abc is not a number'</span>);
+  </pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 LearnBoost<br>Licensed under the MIT License.<br>
+    <a href="http://mongoosejs.com/docs/customschematypes.html" class="_attribution-link" target="_blank">http://mongoosejs.com/docs/customschematypes.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
