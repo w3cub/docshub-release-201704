@@ -1,0 +1,199 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Direct Manipulation - React Native - W3cubDocs</title>
+  
+  <meta name="description" content="It is sometimes necessary to make changes directly to a component without using state&#47;props to trigger a re-render of the entire subtree. When &hellip;">
+  <meta name="keywords" content="direct, manipulation, -, react, native, react_native">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/react_native/direct-manipulation/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/react_native.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/react_native/" class="_nav-link" title="" style="margin-left:0;">React Native</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1 id="direct-manipulation">
+Direct Manipulation </h1>
+<p>It is sometimes necessary to make changes directly to a component without using state/props to trigger a re-render of the entire subtree. When using React in the browser for example, you sometimes need to directly modify a DOM node, and the same is true for views in mobile apps. <code>setNativeProps</code> is the React Native equivalent to setting properties directly on a DOM node.</p>
+<blockquote>
+<p>Use setNativeProps when frequent re-rendering creates a performance bottleneck</p>
+<p>Direct manipulation will not be a tool that you reach for frequently; you will typically only be using it for creating continuous animations to avoid the overhead of rendering the component hierarchy and reconciling many views. <code>setNativeProps</code> is imperative and stores state in the native layer (DOM, UIView, etc.) and not within your React components, which makes your code more difficult to reason about. Before you use it, try to solve your problem with <code>setState</code> and <a href="http://facebook.github.io/react/docs/advanced-performance.html#shouldcomponentupdate-in-action" target="_blank">shouldComponentUpdate</a>.</p>
+</blockquote>
+<h2 id="setnativeprops-with-touchableopacity">
+setNativeProps with TouchableOpacity </h2>
+<p><a href="https://github.com/facebook/react-native/blob/master/Libraries/Components/Touchable/TouchableOpacity.js" target="_blank">TouchableOpacity</a> uses <code>setNativeProps</code> internally to update the opacity of its child component:</p>
+<pre class="prism language-javascript" data-language="javascript">setOpacityTo(value) {
+  // Redacted: animation related code
+  this.refs[CHILD_REF].setNativeProps({
+    opacity: value
+  });
+},</pre>
+<p>This allows us to write the following code and know that the child will have its opacity updated in response to taps, without the child having any knowledge of that fact or requiring any changes to its implementation:</p>
+<pre class="prism language-javascript" data-language="javascript">&lt;TouchableOpacity onPress={this._handlePress}&gt;
+  &lt;View style={styles.button}&gt;
+    &lt;Text&gt;Press me!&lt;/Text&gt;
+  &lt;/View&gt;
+&lt;/TouchableOpacity&gt;</pre>
+<p>Let's imagine that <code>setNativeProps</code> was not available. One way that we might implement it with that constraint is to store the opacity value in the state, then update that value whenever <code>onPress</code> is fired:</p>
+<pre class="prism language-javascript" data-language="javascript">constructor(props) {
+  super(props);
+  this.state = { myButtonOpacity: 1, };
+}
+
+render() {
+  return (
+    &lt;TouchableOpacity onPress={() =&gt; this.setState({myButtonOpacity: 0.5})}
+                      onPressOut={() =&gt; this.setState({myButtonOpacity: 1})}&gt;
+      &lt;View style={[styles.button, {opacity: this.state.myButtonOpacity}]}&gt;
+        &lt;Text&gt;Press me!&lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/TouchableOpacity&gt;
+  )
+}</pre>
+<p>This is computationally intensive compared to the original example - React needs to re-render the component hierarchy each time the opacity changes, even though other properties of the view and its children haven't changed. Usually this overhead isn't a concern but when performing continuous animations and responding to gestures, judiciously optimizing your components can improve your animations' fidelity.</p>
+<p>If you look at the implementation of <code>setNativeProps</code> in <a href="https://github.com/facebook/react/blob/master/src/renderers/native/NativeMethodsMixin.js" target="_blank">NativeMethodsMixin.js</a> you will notice that it is a wrapper around <code>RCTUIManager.updateView</code> - this is the exact same function call that results from re-rendering - see <a href="https://github.com/facebook/react/blob/master/src/renderers/native/ReactNativeBaseComponent.js" target="_blank">receiveComponent in ReactNativeBaseComponent.js</a>.</p>
+<h2 id="composite-components-and-setnativeprops">
+Composite components and setNativeProps </h2>
+<p>Composite components are not backed by a native view, so you cannot call <code>setNativeProps</code> on them. Consider this example:</p>
+<pre class="prism language-javascript" data-language="javascript">class MyButton extends React.Component {
+  render() {
+    return (
+      &lt;View&gt;
+        &lt;Text&gt;{this.props.label}&lt;/Text&gt;
+      &lt;/View&gt;
+    )
+  }
+}
+
+class App extends React.Component {
+  render() {
+    return (
+      &lt;TouchableOpacity&gt;
+        &lt;MyButton label="Press me!" /&gt;
+      &lt;/TouchableOpacity&gt;
+    )
+  }
+}</pre>
+<p><a href="https://rnplay.org/apps/JXkgmQ" target="_blank">Run this example</a></p>
+<p>If you run this you will immediately see this error: <code>Touchable child
+must either be native or forward setNativeProps to a native component</code>. This occurs because <code>MyButton</code> isn't directly backed by a native view whose opacity should be set. You can think about it like this: if you define a component with <code>React.createClass</code> you would not expect to be able to set a style prop on it and have that work - you would need to pass the style prop down to a child, unless you are wrapping a native component. Similarly, we are going to forward <code>setNativeProps</code> to a native-backed child component.</p>
+<h4 id="forward-setnativeprops-to-a-child">
+Forward setNativeProps to a child </h4>
+<p>All we need to do is provide a <code>setNativeProps</code> method on our component that calls <code>setNativeProps</code> on the appropriate child with the given arguments.</p>
+<pre class="prism language-javascript" data-language="javascript">class MyButton extends React.Component {
+  setNativeProps(nativeProps) {
+    this._root.setNativeProps(nativeProps);
+  }
+
+  render() {
+    return (
+      &lt;View ref={component =&gt; this._root = component} {...this.props}&gt;
+        &lt;Text&gt;{this.props.label}&lt;/Text&gt;
+      &lt;/View&gt;
+    )
+  }
+}</pre>
+<p><a href="https://rnplay.org/apps/YJxnEQ" target="_blank">Run this example</a></p>
+<p>You can now use <code>MyButton</code> inside of <code>TouchableOpacity</code>! A sidenote for clarity: we used the <a href="https://facebook.github.io/react/docs/more-about-refs.html#the-ref-callback-attribute" target="_blank">ref callback</a> syntax here, rather than the traditional string-based ref.</p>
+<p>You may have noticed that we passed all of the props down to the child view using <code>{...this.props}</code>. The reason for this is that <code>TouchableOpacity</code> is actually a composite component, and so in addition to depending on <code>setNativeProps</code> on its child, it also requires that the child perform touch handling. To do this, it passes on <a href="../view/#onmoveshouldsetresponder">various props</a> that call back to the <code>TouchableOpacity</code> component. <code>TouchableHighlight</code>, in contrast, is backed by a native view and only requires that we implement <code>setNativeProps</code>.</p>
+<h2 id="setnativeprops-to-clear-textinput-value">
+setNativeProps to clear TextInput value </h2>
+<p>Another very common use case of <code>setNativeProps</code> is to clear the value of a TextInput. The <code>controlled</code> prop of TextInput can sometimes drop characters when the <code>bufferDelay</code> is low and the user types very quickly. Some developers prefer to skip this prop entirely and instead use <code>setNativeProps</code> to directly manipulate the TextInput value when necessary. For example, the following code demonstrates clearing the input when you tap a button:</p>
+<pre class="prism language-javascript" data-language="javascript">class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.clearText = this.clearText.bind(this);
+  }
+
+  clearText() {
+    this._textInput.setNativeProps({text: ''});
+  }
+
+  render() {
+    return (
+      &lt;View style={styles.container}&gt;
+        &lt;TextInput ref={component =&gt; this._textInput = component}
+                   style={styles.textInput} /&gt;
+        &lt;TouchableOpacity onPress={this.clearText}&gt;
+          &lt;Text&gt;Clear text&lt;/Text&gt;
+        &lt;/TouchableOpacity&gt;
+      &lt;/View&gt;
+    );
+  }
+}</pre>
+<p><a href="https://rnplay.org/plays/pOI9bA" target="_blank">Run this example</a></p>
+<h2 id="avoiding-conflicts-with-the-render-function">
+Avoiding conflicts with the render function </h2>
+<p>If you update a property that is also managed by the render function, you might end up with some unpredictable and confusing bugs because anytime the component re-renders and that property changes, whatever value was previously set from <code>setNativeProps</code> will be completely ignored and overridden. <a href="https://rnplay.org/apps/bp1DvQ" target="_blank">See this example</a> for a demonstration of what can happen if these two collide - notice the jerky animation each 250ms when <code>setState</code> triggers a re-render.</p>
+<h2 id="setnativeprops-shouldcomponentupdate">
+setNativeProps &amp; shouldComponentUpdate </h2>
+<p>By <a href="https://facebook.github.io/react/docs/advanced-performance.html#avoiding-reconciling-the-dom" target="_blank">intelligently applying <code>shouldComponentUpdate</code></a> you can avoid the unnecessary overhead involved in reconciling unchanged component subtrees, to the point where it may be performant enough to use <code>setState</code> instead of <code>setNativeProps</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015–2017 Facebook Inc.<br>Licensed under the Creative Commons Attribution 4.0 International Public License.<br>
+    <a href="https://facebook.github.io/react-native/docs/direct-manipulation.html" class="_attribution-link" target="_blank">https://facebook.github.io/react-native/docs/direct-manipulation.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

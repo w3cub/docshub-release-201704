@@ -1,0 +1,404 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Native Modules - React Native - W3cubDocs</title>
+  
+  <meta name="description" content="Sometimes an app needs access to platform API, and React Native doesn&#39;t have a corresponding module yet. Maybe you want to reuse some existing &hellip;">
+  <meta name="keywords" content="native, modules, -, react, react_native">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/react_native/native-modules-ios/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/react_native.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/react_native/" class="_nav-link" title="" style="margin-left:0;">React Native</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _react">
+				
+<h1 id="native-modules">
+Native Modules </h1>
+<p>Sometimes an app needs access to platform API, and React Native doesn't have a corresponding module yet. Maybe you want to reuse some existing Objective-C, Swift or C++ code without having to reimplement it in JavaScript, or write some high performance, multi-threaded code such as for image processing, a database, or any number of advanced extensions.</p>
+<p>We designed React Native such that it is possible for you to write real native code and have access to the full power of the platform. This is a more advanced feature and we don't expect it to be part of the usual development process, however it is essential that it exists. If React Native doesn't support a native feature that you need, you should be able to build it yourself.</p>
+<p>This is a more advanced guide that shows how to build a native module. It assumes the reader knows Objective-C or Swift and core libraries (Foundation, UIKit).</p>
+<h2 id="ios-calendar-module-example">
+iOS Calendar Module Example </h2>
+<p>This guide will use the <a href="https://developer.apple.com/library/mac/documentation/DataManagement/Conceptual/EventKitProgGuide/Introduction/Introduction.html" target="_blank">iOS Calendar API</a> example. Let's say we would like to be able to access the iOS calendar from JavaScript.</p>
+<p>A native module is just an Objective-C class that implements the <code>RCTBridgeModule</code> protocol. If you are wondering, RCT is an abbreviation of ReaCT.</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager.h
+#import &lt;React/RCTBridgeModule.h&gt;
+
+@interface CalendarManager : NSObject &lt;RCTBridgeModule&gt;
+@end</pre>
+<p>In addition to implementing the <code>RCTBridgeModule</code> protocol, your class must also include the <code>RCT_EXPORT_MODULE()</code> macro. This takes an optional argument that specifies the name that the module will be accessible as in your JavaScript code (more on this later). If you do not specify a name, the JavaScript module name will match the Objective-C class name.</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager.m
+@implementation CalendarManager
+
+// To export a module named CalendarManager
+RCT_EXPORT_MODULE();
+
+// This would name the module AwesomeCalendarManager instead
+// RCT_EXPORT_MODULE(AwesomeCalendarManager);
+
+@end</pre>
+<p>React Native will not expose any methods of <code>CalendarManager</code> to JavaScript unless explicitly told to. This is done using the <code>RCT_EXPORT_METHOD()</code> macro:</p>
+<pre class="prism language-javascript" data-language="javascript">#import "CalendarManager.h"
+#import &lt;React/RCTLog.h&gt;
+
+@implementation CalendarManager
+
+RCT_EXPORT_MODULE();
+
+RCT_EXPORT_METHOD(addEvent:(NSString *)name location:(NSString *)location)
+{
+  RCTLogInfo(@"Pretending to create an event %@ at %@", name, location);
+}</pre>
+<p>Now, from your JavaScript file you can call the method like this:</p>
+<pre class="prism language-javascript" data-language="javascript">import { NativeModules } from 'react-native';
+var CalendarManager = NativeModules.CalendarManager;
+CalendarManager.addEvent('Birthday Party', '4 Privet Drive, Surrey');</pre>
+<blockquote>
+<p><strong>NOTE</strong>: JavaScript method names</p>
+<p>The name of the method exported to JavaScript is the native method's name up to the first colon. React Native also defines a macro called <code>RCT_REMAP_METHOD()</code> to specify the JavaScript method's name. This is useful when multiple native methods are the same up to the first colon and would have conflicting JavaScript names.</p>
+</blockquote>
+<p>The CalendarManager module is instantiated on the Objective-C side using a [CalendarManager new] call. The return type of bridge methods is always <code>void</code>. React Native bridge is asynchronous, so the only way to pass a result to JavaScript is by using callbacks or emitting events (see below).</p>
+<h2 id="argument-types">
+Argument Types </h2>
+<p><code>RCT_EXPORT_METHOD</code> supports all standard JSON object types, such as:</p>
+<ul>
+<li>string (<code>NSString</code>)</li>
+<li>number (<code>NSInteger</code>, <code>float</code>, <code>double</code>, <code>CGFloat</code>, <code>NSNumber</code>)</li>
+<li>boolean (<code>BOOL</code>, <code>NSNumber</code>)</li>
+<li>array (<code>NSArray</code>) of any types from this list</li>
+<li>object (<code>NSDictionary</code>) with string keys and values of any type from this list</li>
+<li>function (<code>RCTResponseSenderBlock</code>)</li>
+</ul>
+<p>But it also works with any type that is supported by the <code>RCTConvert</code> class (see <a href="https://github.com/facebook/react-native/blob/master/React/Base/RCTConvert.h" target="_blank"><code>RCTConvert</code></a> for details). The <code>RCTConvert</code> helper functions all accept a JSON value as input and map it to a native Objective-C type or class.</p>
+<p>In our <code>CalendarManager</code> example, we need to pass the event date to the native method. We can't send JavaScript Date objects over the bridge, so we need to convert the date to a string or number. We could write our native function like this:</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_EXPORT_METHOD(addEvent:(NSString *)name location:(NSString *)location date:(nonnull NSNumber *)secondsSinceUnixEpoch)
+{
+  NSDate *date = [RCTConvert NSDate:secondsSinceUnixEpoch];
+}</pre>
+<p>or like this:</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_EXPORT_METHOD(addEvent:(NSString *)name location:(NSString *)location date:(NSString *)ISO8601DateString)
+{
+  NSDate *date = [RCTConvert NSDate:ISO8601DateString];
+}</pre>
+<p>But by using the automatic type conversion feature, we can skip the manual conversion step completely, and just write:</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_EXPORT_METHOD(addEvent:(NSString *)name location:(NSString *)location date:(NSDate *)date)
+{
+  // Date is ready to use!
+}</pre>
+<p>You would then call this from JavaScript by using either:</p>
+<pre class="prism language-javascript" data-language="javascript">CalendarManager.addEvent('Birthday Party', '4 Privet Drive, Surrey', date.getTime()); // passing date as number of seconds since Unix epoch</pre>
+<p>or</p>
+<pre class="prism language-javascript" data-language="javascript">CalendarManager.addEvent('Birthday Party', '4 Privet Drive, Surrey', date.toISOString()); // passing date as ISO-8601 string</pre>
+<p>And both values would get converted correctly to the native <code>NSDate</code>. A bad value, like an <code>Array</code>, would generate a helpful "RedBox" error message.</p>
+<p>As <code>CalendarManager.addEvent</code> method gets more and more complex, the number of arguments will grow. Some of them might be optional. In this case it's worth considering changing the API a little bit to accept a dictionary of event attributes, like this:</p>
+<pre class="prism language-javascript" data-language="javascript">#import &lt;React/RCTConvert.h&gt;
+
+RCT_EXPORT_METHOD(addEvent:(NSString *)name details:(NSDictionary *)details)
+{
+  NSString *location = [RCTConvert NSString:details[@"location"]];
+  NSDate *time = [RCTConvert NSDate:details[@"time"]];
+  ...
+}</pre>
+<p>and call it from JavaScript:</p>
+<pre class="prism language-javascript" data-language="javascript">CalendarManager.addEvent('Birthday Party', {
+  location: '4 Privet Drive, Surrey',
+  time: date.getTime(),
+  description: '...'
+})</pre>
+<blockquote>
+<p><strong>NOTE</strong>: About array and map</p>
+<p>Objective-C doesn't provide any guarantees about the types of values in these structures. Your native module might expect an array of strings, but if JavaScript calls your method with an array containing numbers and strings, you'll get an <code>NSArray</code> containing a mix of <code>NSNumber</code> and <code>NSString</code>. For arrays, <code>RCTConvert</code> provides some typed collections you can use in your method declaration, such as <code>NSStringArray</code>, or <code>UIColorArray</code>. For maps, it is the developer's responsibility to check the value types individually by manually calling <code>RCTConvert</code> helper methods.</p>
+</blockquote>
+<h2 id="callbacks">
+Callbacks </h2>
+<blockquote>
+<p><strong>WARNING</strong></p>
+<p>This section is more experimental than others because we don't have a solid set of best practices around callbacks yet.</p>
+</blockquote>
+<p>Native modules also supports a special kind of argument- a callback. In most cases it is used to provide the function call result to JavaScript.</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_EXPORT_METHOD(findEvents:(RCTResponseSenderBlock)callback)
+{
+  NSArray *events = ...
+  callback(@[[NSNull null], events]);
+}</pre>
+<p><code>RCTResponseSenderBlock</code> accepts only one argument - an array of parameters to pass to the JavaScript callback. In this case we use Node's convention to make the first parameter an error object (usually <code>null</code> when there is no error) and the rest are the results of the function.</p>
+<pre class="prism language-javascript" data-language="javascript">CalendarManager.findEvents((error, events) =&gt; {
+  if (error) {
+    console.error(error);
+  } else {
+    this.setState({events: events});
+  }
+})</pre>
+<p>A native module should invoke its callback exactly once. It's okay to store the callback and invoke it later. This pattern is often used to wrap iOS APIs that require delegates - see <a href="https://github.com/facebook/react-native/blob/master/React/Modules/RCTAlertManager.m" target="_blank"><code>RCTAlertManager</code></a> for an example. If the callback is never invoked, some memory is leaked. If both <code>onSuccess</code> and <code>onFail</code> callbacks are passed, you should only invoke one of them.</p>
+<p>If you want to pass error-like objects to JavaScript, use <code>RCTMakeError</code> from <a href="https://github.com/facebook/react-native/blob/master/React/Base/RCTUtils.h" target="_blank"><code>RCTUtils.h</code></a>. Right now this just passes an Error-shaped dictionary to JavaScript, but we would like to automatically generate real JavaScript <code>Error</code> objects in the future.</p>
+<h2 id="promises">
+Promises </h2>
+<p>Native modules can also fulfill a promise, which can simplify your code, especially when using ES2016's <code>async/await</code> syntax. When the last parameters of a bridged native method are an <code>RCTPromiseResolveBlock</code> and <code>RCTPromiseRejectBlock</code>, its corresponding JS method will return a JS Promise object.</p>
+<p>Refactoring the above code to use a promise instead of callbacks looks like this:</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_REMAP_METHOD(findEvents,
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+  NSArray *events = ...
+  if (events) {
+    resolve(events);
+  } else {
+    NSError *error = ...
+    reject(@"no_events", @"There were no events", error);
+  }
+}</pre>
+<p>The JavaScript counterpart of this method returns a Promise. This means you can use the <code>await</code> keyword within an async function to call it and wait for its result:</p>
+<pre class="prism language-javascript" data-language="javascript">async function updateEvents() {
+  try {
+    var events = await CalendarManager.findEvents();
+
+    this.setState({ events });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+updateEvents();</pre>
+<h2 id="threading">
+Threading </h2>
+<p>The native module should not have any assumptions about what thread it is being called on. React Native invokes native modules methods on a separate serial GCD queue, but this is an implementation detail and might change. The <code>- (dispatch_queue_t)methodQueue</code> method allows the native module to specify which queue its methods should be run on. For example, if it needs to use a main-thread-only iOS API, it should specify this via:</p>
+<pre class="prism language-javascript" data-language="javascript">- (dispatch_queue_t)methodQueue
+{
+  return dispatch_get_main_queue();
+}</pre>
+<p>Similarly, if an operation may take a long time to complete, the native module should not block and can specify it's own queue to run operations on. For example, the <code>RCTAsyncLocalStorage</code> module creates it's own queue so the React queue isn't blocked waiting on potentially slow disk access:</p>
+<pre class="prism language-javascript" data-language="javascript">- (dispatch_queue_t)methodQueue
+{
+  return dispatch_queue_create("com.facebook.React.AsyncLocalStorageQueue", DISPATCH_QUEUE_SERIAL);
+}</pre>
+<p>The specified <code>methodQueue</code> will be shared by all of the methods in your module. If <em>just one</em> of your methods is long-running (or needs to be run on a different queue than the others for some reason), you can use <code>dispatch_async</code> inside the method to perform that particular method's code on another queue, without affecting the others:</p>
+<pre class="prism language-javascript" data-language="javascript">RCT_EXPORT_METHOD(doSomethingExpensive:(NSString *)param callback:(RCTResponseSenderBlock)callback)
+{
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    // Call long-running code on background thread
+    ...
+    // You can invoke callback from any thread/queue
+    callback(@[...]);
+  });
+}</pre>
+<blockquote>
+<p><strong>NOTE</strong>: Sharing dispatch queues between modules</p>
+<p>The <code>methodQueue</code> method will be called once when the module is initialized, and then retained by the bridge, so there is no need to retain the queue yourself, unless you wish to make use of it within your module. However, if you wish to share the same queue between multiple modules then you will need to ensure that you retain and return the same queue instance for each of them; merely returning a queue of the same name for each won't work.</p>
+</blockquote>
+<h2 id="dependency-injection">
+Dependency Injection </h2>
+<p>The bridge initializes any registered RCTBridgeModules automatically, however you may wish to instantiate your own module instances (so you may inject dependencies, for example).</p>
+<p>You can do this by creating a class that implements the RCTBridgeDelegate Protocol, initializing an RCTBridge with the delegate as an argument and initialising a RCTRootView with the initialized bridge.</p>
+<pre class="prism language-javascript" data-language="javascript">id&lt;RCTBridgeDelegate&gt; moduleInitialiser = [[classThatImplementsRCTBridgeDelegate alloc] init];
+
+RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:moduleInitialiser launchOptions:nil];
+
+RCTRootView *rootView = [[RCTRootView alloc]
+                        initWithBridge:bridge
+                            moduleName:kModuleName
+                     initialProperties:nil];</pre>
+<h2 id="exporting-constants">
+Exporting Constants </h2>
+<p>A native module can export constants that are immediately available to JavaScript at runtime. This is useful for communicating static data that would otherwise require a round-trip through the bridge.</p>
+<pre class="prism language-javascript" data-language="javascript">- (NSDictionary *)constantsToExport
+{
+  return @{ @"firstDayOfTheWeek": @"Monday" };
+}</pre>
+<p>JavaScript can use this value right away, synchronously:</p>
+<pre class="prism language-javascript" data-language="javascript">console.log(CalendarManager.firstDayOfTheWeek);</pre>
+<p>Note that the constants are exported only at initialization time, so if you change <code>constantsToExport</code> values at runtime it won't affect the JavaScript environment.</p>
+<h3 id="enum-constants">
+Enum Constants </h3>
+<p>Enums that are defined via <code>NS_ENUM</code> cannot be used as method arguments without first extending RCTConvert.</p>
+<p>In order to export the following <code>NS_ENUM</code> definition:</p>
+<pre class="prism language-javascript" data-language="javascript">typedef NS_ENUM(NSInteger, UIStatusBarAnimation) {
+    UIStatusBarAnimationNone,
+    UIStatusBarAnimationFade,
+    UIStatusBarAnimationSlide,
+};</pre>
+<p>You must create a class extension of RCTConvert like so:</p>
+<pre class="prism language-javascript" data-language="javascript">@implementation RCTConvert (StatusBarAnimation)
+  RCT_ENUM_CONVERTER(UIStatusBarAnimation, (@{ @"statusBarAnimationNone" : @(UIStatusBarAnimationNone),
+                                               @"statusBarAnimationFade" : @(UIStatusBarAnimationFade),
+                                               @"statusBarAnimationSlide" : @(UIStatusBarAnimationSlide)}),
+                      UIStatusBarAnimationNone, integerValue)
+@end</pre>
+<p>You can then define methods and export your enum constants like this:</p>
+<pre class="prism language-javascript" data-language="javascript">- (NSDictionary *)constantsToExport
+{
+  return @{ @"statusBarAnimationNone" : @(UIStatusBarAnimationNone),
+            @"statusBarAnimationFade" : @(UIStatusBarAnimationFade),
+            @"statusBarAnimationSlide" : @(UIStatusBarAnimationSlide) }
+};
+
+RCT_EXPORT_METHOD(updateStatusBarAnimation:(UIStatusBarAnimation)animation
+                                completion:(RCTResponseSenderBlock)callback)</pre>
+<p>Your enum will then be automatically unwrapped using the selector provided (<code>integerValue</code> in the above example) before being passed to your exported method.</p>
+<h2 id="sending-events-to-javascript">
+Sending Events to JavaScript </h2>
+<p>The native module can signal events to JavaScript without being invoked directly. The preferred way to do this is to subclass <code>RCTEventEmitter</code>, implement <code>suppportEvents</code> and call <code>self sendEventWithName</code>:</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager.h
+#import &lt;React/RCTBridgeModule.h&gt;
+#import &lt;React/RCTEventEmitter.h&gt;
+
+@interface CalendarManager : RCTEventEmitter &lt;RCTBridgeModule&gt;
+
+@end</pre>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager.m
+#import "CalendarManager.h"
+
+@implementation CalendarManager
+
+RCT_EXPORT_MODULE();
+
+- (NSArray&lt;NSString *&gt; *)supportedEvents
+{
+  return @[@"EventReminder"];
+}
+
+- (void)calendarEventReminderReceived:(NSNotification *)notification
+{
+  NSString *eventName = notification.userInfo[@"name"];
+  [self sendEventWithName:@"EventReminder" body:@{@"name": eventName}];
+}
+
+@end</pre>
+<p>JavaScript code can subscribe to these events by creating a new <code>NativeEventEmitter</code> instance around your module.</p>
+<pre class="prism language-javascript" data-language="javascript">import { NativeEventEmitter, NativeModules } from 'react-native';
+const { CalendarManager } = NativeModules;
+
+const calendarManagerEmitter = new NativeEventEmitter(CalendarManager);
+
+const subscription = calendarManagerEmitter.addListener(
+  'EventReminder',
+  (reminder) =&gt; console.log(reminder.name)
+);
+...
+// Don't forget to unsubscribe, typically in componentWillUnmount
+subscription.remove();</pre>
+<p>For more examples of sending events to JavaScript, see <a href="https://github.com/facebook/react-native/blob/master/Libraries/Geolocation/RCTLocationObserver.m" target="_blank"><code>RCTLocationObserver</code></a>.</p>
+<h3 id="optimizing-for-zero-listeners">
+Optimizing for zero listeners </h3>
+<p>You will receive a warning if you expend resources unnecessarily by emitting an event while there are no listeners. To avoid this, and to optimize your module's workload (e.g. by unsubscribing from upstream notifications or pausing background tasks), you can override <code>startObserving</code> and <code>stopObserving</code> in your <code>RCTEventEmitter</code> subclass.</p>
+<pre class="prism language-javascript" data-language="javascript">@implementation CalendarManager
+{
+  bool hasListeners;
+}
+
+// Will be called when this module's first listener is added.
+-(void)startObserving { 
+    hasListeners = YES;
+    // Set up any upstream listeners or background tasks as necessary
+}
+
+// Will be called when this module's last listener is removed, or on dealloc.
+-(void)stopObserving { 
+    hasListeners = NO;
+    // Remove upstream listeners, stop unnecessary background tasks
+}
+
+- (void)calendarEventReminderReceived:(NSNotification *)notification
+{
+  NSString *eventName = notification.userInfo[@"name"];
+  if (hasListeners) { // Only send events if anyone is listening
+    [self sendEventWithName:@"EventReminder" body:@{@"name": eventName}];
+  }
+}</pre>
+<h2 id="exporting-swift">
+Exporting Swift </h2>
+<p>Swift doesn't have support for macros so exposing it to React Native requires a bit more setup but works relatively the same.</p>
+<p>Let's say we have the same <code>CalendarManager</code> but as a Swift class:</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager.swift
+
+@objc(CalendarManager)
+class CalendarManager: NSObject {
+
+  @objc(addEvent:location:date:)
+  func addEvent(name: String, location: String, date: NSNumber) -&gt; Void {
+    // Date is ready to use!
+  }
+
+}</pre>
+<blockquote><p><strong>NOTE</strong>: It is important to use the @objc modifiers to ensure the class and functions are exported properly to the Objective-C runtime.</p></blockquote>
+<p>Then create a private implementation file that will register the required information with the React Native bridge:</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManagerBridge.m
+#import &lt;React/RCTBridgeModule.h&gt;
+
+@interface RCT_EXTERN_MODULE(CalendarManager, NSObject)
+
+RCT_EXTERN_METHOD(addEvent:(NSString *)name location:(NSString *)location date:(nonnull NSNumber *)date)
+
+@end</pre>
+<p>For those of you new to Swift and Objective-C, whenever you <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/MixandMatch.html" target="_blank">mix the two languages in an iOS project</a>, you will also need an additional bridging file, known as a bridging header, to expose the Objective-C files to Swift. Xcode will offer to create this header file for you if you add your Swift file to your app through the Xcode <code>File&gt;New File</code> menu option. You will need to import <code>RCTBridgeModule.h</code> in this header file.</p>
+<pre class="prism language-javascript" data-language="javascript">// CalendarManager-Bridging-Header.h
+#import &lt;React/RCTBridgeModule.h&gt;</pre>
+<p>You can also use <code>RCT_EXTERN_REMAP_MODULE</code> and <code>RCT_EXTERN_REMAP_METHOD</code> to alter the JavaScript name of the module or methods you are exporting. For more information see <a href="https://github.com/facebook/react-native/blob/master/React/Base/RCTBridgeModule.h" target="_blank"><code>RCTBridgeModule</code></a>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2015–2017 Facebook Inc.<br>Licensed under the Creative Commons Attribution 4.0 International Public License.<br>
+    <a href="https://facebook.github.io/react-native/docs/native-modules-ios.html" class="_attribution-link" target="_blank">https://facebook.github.io/react-native/docs/native-modules-ios.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

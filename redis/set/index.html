@@ -1,0 +1,95 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Set - Redis - W3cubDocs</title>
+  
+  <meta name="description" content=" Available since 1.0.0. ">
+  <meta name="keywords" content="set, -, redis">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/redis/set/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/redis.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/redis/" class="_nav-link" title="" style="margin-left:0;">Redis</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _redis">
+				
+<h1 class="command">SET</h1>
+<pre>SET key value [EX seconds] [PX milliseconds] [NX|XX]</pre>   <div class="metadata"> <p><strong>Available since 1.0.0.</strong></p> <p><strong>Time complexity:</strong> O(1)</p> </div> <p>Set <code>key</code> to hold the string <code>value</code>. If <code>key</code> already holds a value, it is overwritten, regardless of its type. Any previous time to live associated with the key is discarded on successful <a href="../set/">SET</a> operation.</p> <h2>Options</h2> <p>Starting with Redis 2.6.12 <a href="../set/">SET</a> supports a set of options that modify its behavior:</p> <ul> <li>
+<code>EX</code> <em>seconds</em> -- Set the specified expire time, in seconds.</li> <li>
+<code>PX</code> <em>milliseconds</em> -- Set the specified expire time, in milliseconds.</li> <li>
+<code>NX</code> -- Only set the key if it does not already exist.</li> <li>
+<code>XX</code> -- Only set the key if it already exist.</li> </ul> <p>Note: Since the <a href="../set/">SET</a> command options can replace <a href="../setnx/">SETNX</a>, <a href="../setex/">SETEX</a>, <a href="../psetex/">PSETEX</a>, it is possible that in future versions of Redis these three commands will be deprecated and finally removed.</p> <h2>Return value</h2> <p><a href="https://redis.io/topics/protocol#simple-string-reply" target="_blank">Simple string reply</a>: <code>OK</code> if <a href="../set/">SET</a> was executed correctly. <a href="https://redis.io/topics/protocol#nil-reply" target="_blank">Null reply</a>: a Null Bulk Reply is returned if the <a href="../set/">SET</a> operation was not performed because the user specified the <code>NX</code> or <code>XX</code> option but the condition was not met.</p> <h2>Examples</h2> <div class="example" data-session="a1c33aeff02c064c69c73277ea78cf1d"> <span class="monospace prompt">redis&gt; </span> <span class="monospace command">SET mykey "Hello"</span> <code>"OK"</code> <span class="monospace prompt">redis&gt; </span> <span class="monospace command">GET mykey</span> <code>"Hello"</code>
+</div> <h2>Patterns</h2> <p><strong>Note:</strong> The following pattern is discouraged in favor of <a href="http://redis.io/topics/distlock" target="_blank">the Redlock algorithm</a> which is only a bit more complex to implement, but offers better guarantees and is fault tolerant.</p> <p>The command <code>SET resource-name anystring NX EX max-lock-time</code> is a simple way to implement a locking system with Redis.</p> <p>A client can acquire the lock if the above command returns <code>OK</code> (or retry after some time if the command returns Nil), and remove the lock just using <a href="../del/">DEL</a>.</p> <p>The lock will be auto-released after the expire time is reached.</p> <p>It is possible to make this system more robust modifying the unlock schema as follows:</p> <ul> <li>Instead of setting a fixed string, set a non-guessable large random string, called token.</li> <li>Instead of releasing the lock with <a href="../del/">DEL</a>, send a script that only removes the key if the value matches.</li> </ul> <p>This avoids that a client will try to release the lock after the expire time deleting the key created by another client that acquired the lock later.</p> <p>An example of unlock script would be similar to the following:</p> <pre>if redis.call("get",KEYS[1]) == ARGV[1]
+then
+    return redis.call("del",KEYS[1])
+else
+    return 0
+end
+</pre> <p>The script should be called with <code>EVAL ...script... 1 resource-name token-value</code></p>  <div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2017 Salvatore Sanfilippo<br>Licensed under the Creative Commons Attribution-ShareAlike License 4.0.<br>
+    <a href="https://redis.io/commands/set" class="_attribution-link" target="_blank">https://redis.io/commands/set</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

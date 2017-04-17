@@ -1,0 +1,84 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Cluster Failover - Redis - W3cubDocs</title>
+  
+  <meta name="description" content=" Available since 3.0.0. ">
+  <meta name="keywords" content="cluster, failover, -, redis">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/redis/cluster-failover/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/redis.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/redis/" class="_nav-link" title="" style="margin-left:0;">Redis</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _redis">
+				
+<h1 class="command">CLUSTER</h1>
+<pre>CLUSTER FAILOVER [FORCE|TAKEOVER]</pre>   <div class="metadata"> <p><strong>Available since 3.0.0.</strong></p> <p><strong>Time complexity:</strong> O(1)</p> </div> <p>This command, that can only be send to a Redis Cluster slave node, forces the slave to start a manual failover of its master instance.</p> <p>A manual failover is a special kind of failover that is usually executed when there are no actual failures, but we wish to swap the current master with one of its slaves (which is the node we send the command to), in a safe way, without any window for data loss. It works in the following way:</p> <ol> <li>The slave tells the master to stop processing queries from clients.</li> <li>The master replies to the slave with the current <em>replication offset</em>.</li> <li>The slave waits for the replication offset to match on its side, to make sure it processed all the data from the master before it continues.</li> <li>The slave starts a failover, obtains a new configuration epoch from the majority of the masters, and broadcast the new configuration.</li> <li>The old master receives the configuration update: unblocks its clients and start replying with redirection messages so that they'll continue the chat with the new master.</li> </ol> <p>This way clients are moved away from the old master to the new master atomically and only when the slave that is turning in the new master processed all the replication stream from the old master.</p> <h2>FORCE option: manual failover when the master is down</h2> <p>The command behavior can be modified by two options: <strong>FORCE</strong> and <strong>TAKEOVER</strong>.</p> <p>If the <strong>FORCE</strong> option is given, the slave does not perform any handshake with the master, that may be not reachable, but instead just starts a failover ASAP starting from point 4. This is useful when we want to start a manual failover while the master is no longer reachable.</p> <p>However using <strong>FORCE</strong> we still need the majority of masters to be available in order to authorize the failover and generate a new configuration epoch for the slave that is going to become master.</p> <h2>TAKEOVER option: manual failover without cluster consensus</h2> <p>There are situations where this is not enough, and we want a slave to failover without any agreement with the rest of the cluster. A real world use case for this is to mass promote slaves in a different data center to masters in order to perform a data center switch, while all the masters are down or partitioned away.</p> <p>The <strong>TAKEOVER</strong> option implies everything <strong>FORCE</strong> implies, but also does not uses any cluster authorization in order to failover. A slave receiving <code>CLUSTER FAILOVER TAKEOVER</code> will instead:</p> <ol> <li>Generate a new <code>configEpoch</code> unilaterally, just taking the current greatest epoch available and incrementing it if its local configuration epoch is not already the greatest.</li> <li>Assign itself all the hash slots of its master, and propagate the new configuration to every node which is reachable ASAP, and eventually to every other node.</li> </ol> <p>Note that <strong>TAKEOVER violates the last-failover-wins principle</strong> of Redis Cluster, since the configuration epoch generated by the slave violates the normal generation of configuration epochs in several ways:</p> <ol> <li>There is no guarantee that it is actually the higher configuration epoch, since, for example, we can use the <strong>TAKEOVER</strong> option within a minority, nor any message exchange is performed to generate the new configuration epoch.</li> <li>If we generate a configuration epoch which happens to collide with another instance, eventually our configuration epoch, or the one of another instance with our same epoch, will be moved away using the <em>configuration epoch collision resolution algorithm</em>.</li> </ol> <p>Because of this the <strong>TAKEOVER</strong> option should be used with care.</p> <h2>Implementation details and notes</h2> <p><a href="../cluster-failover/">CLUSTER FAILOVER</a>, unless the <strong>TAKEOVER</strong> option is specified, does not execute a failover synchronously, it only <em>schedules</em> a manual failover, bypassing the failure detection stage, so to check if the failover actually happened, <a href="../cluster-nodes/">CLUSTER NODES</a> or other means should be used in order to verify that the state of the cluster changes after some time the command was sent.</p> <h2>Return value</h2> <p><a href="https://redis.io/topics/protocol#simple-string-reply" target="_blank">Simple string reply</a>: <code>OK</code> if the command was accepted and a manual failover is going to be attempted. An error if the operation cannot be executed, for example if we are talking with a node which is already a master.</p>  <div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2017 Salvatore Sanfilippo<br>Licensed under the Creative Commons Attribution-ShareAlike License 4.0.<br>
+    <a href="https://redis.io/commands/cluster-failover" class="_attribution-link" target="_blank">https://redis.io/commands/cluster-failover</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
