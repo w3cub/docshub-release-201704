@@ -1,0 +1,375 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>OpenSSL - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" OpenSSL provides SSL, TLS and general purpose cryptography. It wraps the OpenSSL library. ">
+  <meta name="keywords" content="module, openssl, examples, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/openssl/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-OpenSSL" class="module"> module OpenSSL </h1> <section class="description"> <p><a href="../openssl/">OpenSSL</a> provides <a href="../openssl/ssl/">SSL</a>, TLS and general purpose cryptography. It wraps the <a href="http://www.openssl.org/" target="_blank">OpenSSL</a> library.</p> <h1 id="module-OpenSSL-label-Examples">Examples</h1> <p>All examples assume you have loaded <a href="../openssl/">OpenSSL</a> with:</p> <pre class="ruby">require 'openssl'
+</pre> <p>These examples build atop each other. For example the key created in the next is used in throughout these examples.</p> <h2 id="module-OpenSSL-label-Keys">Keys</h2> <h3 id="module-OpenSSL-label-Creating+a+Key">Creating a Key</h3> <p>This example creates a 2048 bit RSA keypair and writes it to the current directory.</p> <pre class="ruby">key = OpenSSL::PKey::RSA.new 2048
+
+open 'private_key.pem', 'w' do |io| io.write key.to_pem end
+open 'public_key.pem', 'w' do |io| io.write key.public_key.to_pem end
+</pre> <h3 id="module-OpenSSL-label-Exporting+a+Key">Exporting a Key</h3> <p>Keys saved to disk without encryption are not secure as anyone who gets ahold of the key may use it unless it is encrypted. In order to securely export a key you may export it with a pass phrase.</p> <pre class="ruby">cipher = OpenSSL::Cipher.new 'AES-128-CBC'
+pass_phrase = 'my secure pass phrase goes here'
+
+key_secure = key.export cipher, pass_phrase
+
+open 'private.secure.pem', 'w' do |io|
+  io.write key_secure
+end
+</pre> <p><a href="../openssl/cipher/#method-c-ciphers">OpenSSL::Cipher.ciphers</a> returns a list of available ciphers.</p> <h3 id="module-OpenSSL-label-Loading+a+Key">Loading a Key</h3> <p>A key can also be loaded from a file.</p> <pre class="ruby">key2 = OpenSSL::PKey::RSA.new File.read 'private_key.pem'
+key2.public? # =&gt; true
+</pre> <p>or</p> <pre class="ruby">key3 = OpenSSL::PKey::RSA.new File.read 'public_key.pem'
+key3.private? # =&gt; false
+</pre> <h3 id="module-OpenSSL-label-Loading+an+Encrypted+Key">Loading an Encrypted Key</h3> <p><a href="../openssl/">OpenSSL</a> will prompt you for your pass phrase when loading an encrypted key. If you will not be able to type in the pass phrase you may provide it when loading the key:</p> <pre class="ruby">key4_pem = File.read 'private.secure.pem'
+key4 = OpenSSL::PKey::RSA.new key4_pem, pass_phrase
+</pre> <h2 id="module-OpenSSL-label-RSA+Encryption">RSA Encryption</h2> <p>RSA provides encryption and decryption using the public and private keys. You can use a variety of padding methods depending upon the intended use of encrypted data.</p> <h3 id="module-OpenSSL-label-Encryption+-26+Decryption">Encryption &amp; Decryption</h3> <p>Asymmetric public/private key encryption is slow and victim to attack in cases where it is used without padding or directly to encrypt larger chunks of data. Typical use cases for RSA encryption involve “wrapping” a symmetric key with the public key of the recipient who would “unwrap” that symmetric key again using their private key. The following illustrates a simplified example of such a key transport scheme. It shouldn't be used in practice, though, standardized protocols should always be preferred.</p> <pre class="ruby">wrapped_key = key.public_encrypt key
+</pre> <p>A symmetric key encrypted with the public key can only be decrypted with the corresponding private key of the recipient.</p> <pre class="ruby">original_key = key.private_decrypt wrapped_key
+</pre> <p>By default PKCS#1 padding will be used, but it is also possible to use other forms of padding, see <a href="../openssl/pkey/rsa/">PKey::RSA</a> for further details.</p> <h3 id="module-OpenSSL-label-Signatures">Signatures</h3> <p>Using “private_encrypt” to encrypt some data with the private key is equivalent to applying a digital signature to the data. A verifying party may validate the signature by comparing the result of decrypting the signature with “public_decrypt” to the original data. However, <a href="../openssl/pkey/">OpenSSL::PKey</a> already has methods “sign” and “verify” that handle digital signatures in a standardized way - “private_encrypt” and “public_decrypt” shouldn't be used in practice.</p> <p>To sign a document, a cryptographically secure hash of the document is computed first, which is then signed using the private key.</p> <pre class="ruby">digest = OpenSSL::Digest::SHA256.new
+signature = key.sign digest, document
+</pre> <p>To validate the signature, again a hash of the document is computed and the signature is decrypted using the public key. The result is then compared to the hash just computed, if they are equal the signature was valid.</p> <pre class="ruby">digest = OpenSSL::Digest::SHA256.new
+if key.verify digest, signature, document
+  puts 'Valid'
+else
+  puts 'Invalid'
+end
+</pre> <h2 id="module-OpenSSL-label-PBKDF2+Password-based+Encryption">PBKDF2 Password-based Encryption</h2> <p>If supported by the underlying <a href="../openssl/">OpenSSL</a> version used, Password-based Encryption should use the features of <a href="../openssl/pkcs5/">PKCS5</a>. If not supported or if required by legacy applications, the older, less secure methods specified in RFC 2898 are also supported (see below).</p> <p><a href="../openssl/pkcs5/">PKCS5</a> supports PBKDF2 as it was specified in PKCS#5 <a href="http://www.rsa.com/rsalabs/node.asp?id=2127" target="_blank">v2.0</a>. It still uses a password, a salt, and additionally a number of iterations that will slow the key derivation process down. The slower this is, the more work it requires being able to brute-force the resulting key.</p> <h3 id="module-OpenSSL-label-Encryption">Encryption</h3> <p>The strategy is to first instantiate a <a href="../openssl/cipher/">Cipher</a> for encryption, and then to generate a random IV plus a key derived from the password using PBKDF2. PKCS #5 v2.0 recommends at least 8 bytes for the salt, the number of iterations largely depends on the hardware being used.</p> <pre>cipher = OpenSSL::Cipher.new 'AES-128-CBC'
+cipher.encrypt
+iv = cipher.random_iv
+
+pwd = 'some hopefully not to easily guessable password'
+salt = OpenSSL::Random.random_bytes 16
+iter = 20000
+key_len = cipher.key_len
+digest = OpenSSL::Digest::SHA256.new
+
+key = OpenSSL::PKCS5.pbkdf2_hmac(pwd, salt, iter, key_len, digest)
+cipher.key = key
+
+Now encrypt the data:
+
+encrypted = cipher.update document
+encrypted &lt;&lt; cipher.final</pre> <h3 id="module-OpenSSL-label-Decryption">Decryption</h3> <p>Use the same steps as before to derive the symmetric AES key, this time setting the <a href="../openssl/cipher/">Cipher</a> up for decryption.</p> <pre>cipher = OpenSSL::Cipher.new 'AES-128-CBC'
+cipher.decrypt
+cipher.iv = iv # the one generated with #random_iv
+
+pwd = 'some hopefully not to easily guessable password'
+salt = ... # the one generated above
+iter = 20000
+key_len = cipher.key_len
+digest = OpenSSL::Digest::SHA256.new
+
+key = OpenSSL::PKCS5.pbkdf2_hmac(pwd, salt, iter, key_len, digest)
+cipher.key = key
+
+Now decrypt the data:
+
+decrypted = cipher.update encrypted
+decrypted &lt;&lt; cipher.final</pre> <h2 id="module-OpenSSL-label-PKCS+-235+Password-based+Encryption">PKCS #5 Password-based Encryption</h2> <p>PKCS #5 is a password-based encryption standard documented at <a href="http://www.ietf.org/rfc/rfc2898.txt" target="_blank">RFC2898</a>. It allows a short password or passphrase to be used to create a secure encryption key. If possible, PBKDF2 as described above should be used if the circumstances allow it.</p> <p>PKCS #5 uses a <a href="../openssl/cipher/">Cipher</a>, a pass phrase and a salt to generate an encryption key.</p> <pre class="ruby">pass_phrase = 'my secure pass phrase goes here'
+salt = '8 octets'
+</pre> <h3 id="module-OpenSSL-label-Encryption">Encryption</h3> <p>First set up the cipher for encryption</p> <pre class="ruby">encryptor = OpenSSL::Cipher.new 'AES-128-CBC'
+encryptor.encrypt
+encryptor.pkcs5_keyivgen pass_phrase, salt
+</pre> <p>Then pass the data you want to encrypt through</p> <pre class="ruby">encrypted = encryptor.update 'top secret document'
+encrypted &lt;&lt; encryptor.final
+</pre> <h3 id="module-OpenSSL-label-Decryption">Decryption</h3> <p>Use a new <a href="../openssl/cipher/">Cipher</a> instance set up for decryption</p> <pre class="ruby">decryptor = OpenSSL::Cipher.new 'AES-128-CBC'
+decryptor.decrypt
+decryptor.pkcs5_keyivgen pass_phrase, salt
+</pre> <p>Then pass the data you want to decrypt through</p> <pre class="ruby">plain = decryptor.update encrypted
+plain &lt;&lt; decryptor.final
+</pre> <h2 id="module-OpenSSL-label-X509+Certificates">
+<a href="../openssl/x509/">X509</a> Certificates</h2> <h3 id="module-OpenSSL-label-Creating+a+Certificate">Creating a Certificate</h3> <p>This example creates a self-signed certificate using an RSA key and a SHA1 signature.</p> <pre class="ruby">name = OpenSSL::X509::Name.parse 'CN=nobody/DC=example'
+
+cert = OpenSSL::X509::Certificate.new
+cert.version = 2
+cert.serial = 0
+cert.not_before = Time.now
+cert.not_after = Time.now + 3600
+
+cert.public_key = key.public_key
+cert.subject = name
+</pre> <h3 id="module-OpenSSL-label-Certificate+Extensions">Certificate Extensions</h3> <p>You can add extensions to the certificate with OpenSSL::SSL::ExtensionFactory to indicate the purpose of the certificate.</p> <pre class="ruby">extension_factory = OpenSSL::X509::ExtensionFactory.new nil, cert
+
+cert.add_extension    extension_factory.create_extension('basicConstraints', 'CA:FALSE', true)
+
+cert.add_extension    extension_factory.create_extension(
+    'keyUsage', 'keyEncipherment,dataEncipherment,digitalSignature')
+
+cert.add_extension    extension_factory.create_extension('subjectKeyIdentifier', 'hash')
+</pre> <p>The list of supported extensions (and in some cases their possible values) can be derived from the “objects.h” file in the <a href="../openssl/">OpenSSL</a> source code.</p> <h3 id="module-OpenSSL-label-Signing+a+Certificate">Signing a Certificate</h3> <p>To sign a certificate set the issuer and use <a href="../openssl/x509/certificate/#method-i-sign">OpenSSL::X509::Certificate#sign</a> with a digest algorithm. This creates a self-signed cert because we're using the same name and key to sign the certificate as was used to create the certificate.</p> <pre class="ruby">cert.issuer = name
+cert.sign key, OpenSSL::Digest::SHA1.new
+
+open 'certificate.pem', 'w' do |io| io.write cert.to_pem end
+</pre> <h3 id="module-OpenSSL-label-Loading+a+Certificate">Loading a Certificate</h3> <p>Like a key, a cert can also be loaded from a file.</p> <pre class="ruby">cert2 = OpenSSL::X509::Certificate.new File.read 'certificate.pem'
+</pre> <h3 id="module-OpenSSL-label-Verifying+a+Certificate">Verifying a Certificate</h3> <p>Certificate#verify will return true when a certificate was signed with the given public key.</p> <pre class="ruby">raise 'certificate can not be verified' unless cert2.verify key
+</pre> <h2 id="module-OpenSSL-label-Certificate+Authority">Certificate Authority</h2> <p>A certificate authority (CA) is a trusted third party that allows you to verify the ownership of unknown certificates. The CA issues key signatures that indicate it trusts the user of that key. A user encountering the key can verify the signature by using the CA's public key.</p> <h3 id="module-OpenSSL-label-CA+Key">CA Key</h3> <p>CA keys are valuable, so we encrypt and save it to disk and make sure it is not readable by other users.</p> <pre class="ruby">ca_key = OpenSSL::PKey::RSA.new 2048
+
+cipher = OpenSSL::Cipher::Cipher.new 'AES-128-CBC'
+
+open 'ca_key.pem', 'w', 0400 do |io|
+  io.write ca_key.export(cipher, pass_phrase)
+end
+</pre> <h3 id="module-OpenSSL-label-CA+Certificate">CA Certificate</h3> <p>A CA certificate is created the same way we created a certificate above, but with different extensions.</p> <pre class="ruby">ca_name = OpenSSL::X509::Name.parse 'CN=ca/DC=example'
+
+ca_cert = OpenSSL::X509::Certificate.new
+ca_cert.serial = 0
+ca_cert.version = 2
+ca_cert.not_before = Time.now
+ca_cert.not_after = Time.now + 86400
+
+ca_cert.public_key = ca_key.public_key
+ca_cert.subject = ca_name
+ca_cert.issuer = ca_name
+
+extension_factory = OpenSSL::X509::ExtensionFactory.new
+extension_factory.subject_certificate = ca_cert
+extension_factory.issuer_certificate = ca_cert
+
+ca_cert.add_extension    extension_factory.create_extension('subjectKeyIdentifier', 'hash')
+</pre> <p>This extension indicates the CA's key may be used as a CA.</p> <pre class="ruby">ca_cert.add_extension    extension_factory.create_extension('basicConstraints', 'CA:TRUE', true)
+</pre> <p>This extension indicates the CA's key may be used to verify signatures on both certificates and certificate revocations.</p> <pre class="ruby">ca_cert.add_extension    extension_factory.create_extension(
+    'keyUsage', 'cRLSign,keyCertSign', true)
+</pre> <p>Root CA certificates are self-signed.</p> <pre class="ruby">ca_cert.sign ca_key, OpenSSL::Digest::SHA1.new
+</pre> <p>The CA certificate is saved to disk so it may be distributed to all the users of the keys this CA will sign.</p> <pre class="ruby">open 'ca_cert.pem', 'w' do |io|
+  io.write ca_cert.to_pem
+end
+</pre> <h3 id="module-OpenSSL-label-Certificate+Signing+Request">Certificate Signing Request</h3> <p>The CA signs keys through a Certificate Signing Request (CSR). The CSR contains the information necessary to identify the key.</p> <pre class="ruby">csr = OpenSSL::X509::Request.new
+csr.version = 0
+csr.subject = name
+csr.public_key = key.public_key
+csr.sign key, OpenSSL::Digest::SHA1.new
+</pre> <p>A CSR is saved to disk and sent to the CA for signing.</p> <pre class="ruby">open 'csr.pem', 'w' do |io|
+  io.write csr.to_pem
+end
+</pre> <h3 id="module-OpenSSL-label-Creating+a+Certificate+from+a+CSR">Creating a Certificate from a CSR</h3> <p>Upon receiving a CSR the CA will verify it before signing it. A minimal verification would be to check the CSR's signature.</p> <pre class="ruby">csr = OpenSSL::X509::Request.new File.read 'csr.pem'
+
+raise 'CSR can not be verified' unless csr.verify csr.public_key
+</pre> <p>After verification a certificate is created, marked for various usages, signed with the CA key and returned to the requester.</p> <pre class="ruby">csr_cert = OpenSSL::X509::Certificate.new
+csr_cert.serial = 0
+csr_cert.version = 2
+csr_cert.not_before = Time.now
+csr_cert.not_after = Time.now + 600
+
+csr_cert.subject = csr.subject
+csr_cert.public_key = csr.public_key
+csr_cert.issuer = ca_cert.subject
+
+extension_factory = OpenSSL::X509::ExtensionFactory.new
+extension_factory.subject_certificate = csr_cert
+extension_factory.issuer_certificate = ca_cert
+
+csr_cert.add_extension    extension_factory.create_extension('basicConstraints', 'CA:FALSE')
+
+csr_cert.add_extension    extension_factory.create_extension(
+    'keyUsage', 'keyEncipherment,dataEncipherment,digitalSignature')
+
+csr_cert.add_extension    extension_factory.create_extension('subjectKeyIdentifier', 'hash')
+
+csr_cert.sign ca_key, OpenSSL::Digest::SHA1.new
+
+open 'csr_cert.pem', 'w' do |io|
+  io.write csr_cert.to_pem
+end
+</pre> <h2 id="module-OpenSSL-label-SSL+and+TLS+Connections">
+<a href="../openssl/ssl/">SSL</a> and TLS Connections</h2> <p>Using our created key and certificate we can create an <a href="../openssl/ssl/">SSL</a> or TLS connection. An SSLContext is used to set up an <a href="../openssl/ssl/">SSL</a> session.</p> <pre class="ruby">context = OpenSSL::SSL::SSLContext.new
+</pre> <h3 id="module-OpenSSL-label-SSL+Server">
+<a href="../openssl/ssl/">SSL</a> Server</h3> <p>An <a href="../openssl/ssl/">SSL</a> server requires the certificate and private key to communicate securely with its clients:</p> <pre class="ruby">context.cert = cert
+context.key = key
+</pre> <p>Then create an SSLServer with a TCP server socket and the context. Use the SSLServer like an ordinary TCP server.</p> <pre class="ruby">require 'socket'
+
+tcp_server = TCPServer.new 5000
+ssl_server = OpenSSL::SSL::SSLServer.new tcp_server, context
+
+loop do
+  ssl_connection = ssl_server.accept
+
+  data = connection.gets
+
+  response = "I got #{data.dump}"
+  puts response
+
+  connection.puts "I got #{data.dump}"
+  connection.close
+end
+</pre> <h3 id="module-OpenSSL-label-SSL+client">
+<a href="../openssl/ssl/">SSL</a> client</h3> <p>An <a href="../openssl/ssl/">SSL</a> client is created with a TCP socket and the context. SSLSocket#connect must be called to initiate the <a href="../openssl/ssl/">SSL</a> handshake and start encryption. A key and certificate are not required for the client socket.</p> <pre class="ruby">require 'socket'
+
+tcp_client = TCPSocket.new 'localhost', 5000
+ssl_client = OpenSSL::SSL::SSLSocket.new client_socket, context
+ssl_client.connect
+
+ssl_client.puts "hello server!"
+puts ssl_client.gets
+</pre> <h3 id="module-OpenSSL-label-Peer+Verification">Peer Verification</h3> <p>An unverified <a href="../openssl/ssl/">SSL</a> connection does not provide much security. For enhanced security the client or server can verify the certificate of its peer.</p> <p>The client can be modified to verify the server's certificate against the certificate authority's certificate:</p> <pre class="ruby">context.ca_file = 'ca_cert.pem'
+context.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+require 'socket'
+
+tcp_client = TCPSocket.new 'localhost', 5000
+ssl_client = OpenSSL::SSL::SSLSocket.new client_socket, context
+ssl_client.connect
+
+ssl_client.puts "hello server!"
+puts ssl_client.gets
+</pre> <p>If the server certificate is invalid or <code>context.ca_file</code> is not set when verifying peers an <a href="../openssl/ssl/sslerror/">OpenSSL::SSL::SSLError</a> will be raised.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section class="constants-list"> <header> <h3>Constants</h3> </header> <dl> <dt id="OPENSSL_FIPS">OPENSSL_FIPS </dt>
+
+<dt id="OPENSSL_LIBRARY_VERSION">OPENSSL_LIBRARY_VERSION </dt>
+<dd>
+<p>Version of <a href="../openssl/">OpenSSL</a> the ruby <a href="../openssl/">OpenSSL</a> extension is running with</p> </dd>
+<dt id="OPENSSL_VERSION">OPENSSL_VERSION </dt>
+<dd>
+<p>Version of <a href="../openssl/">OpenSSL</a> the ruby <a href="../openssl/">OpenSSL</a> extension was built with</p> </dd>
+<dt id="OPENSSL_VERSION_NUMBER">OPENSSL_VERSION_NUMBER </dt>
+<dd>
+<p>Version number of <a href="../openssl/">OpenSSL</a> the ruby <a href="../openssl/">OpenSSL</a> extension was built with (base 16)</p> </dd>
+<dt id="VERSION">VERSION </dt>
+<dd>
+<p><a href="../openssl/">OpenSSL</a> ruby extension version</p> </dd>
+</dl> </section> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-Digest"> <span class="method-name">Digest</span><span class="method-args">(name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns a <a href="../openssl/digest/">Digest</a> subclass by <code>name</code>.</p> <pre class="ruby">require 'openssl'
+
+OpenSSL::Digest("MD5")
+# =&gt; OpenSSL::Digest::MD5
+
+Digest("Foo")
+# =&gt; NameError: wrong constant name Foo
+</pre> <div class="method-source-code" id="Digest-source"> <pre class="ruby"># File ext/openssl/lib/openssl/digest.rb, line 81
+def Digest(name)
+  OpenSSL::Digest.const_get(name)
+end</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-c-debug"> <span class="method-callseq"> debug → true | false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="debug-source"> <pre class="c">static VALUE
+ossl_debug_get(VALUE self)
+{
+    return dOSSL;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-c-debug-3D"> <span class="method-callseq"> debug = boolean → boolean </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Turns on or off CRYPTO_MEM_CHECK. Also shows some debugging message on stderr.</p> <div class="method-source-code" id="debug-3D-source"> <pre class="c">static VALUE
+ossl_debug_set(VALUE self, VALUE val)
+{
+    VALUE old = dOSSL;
+    dOSSL = val;
+
+    if (old != dOSSL) {
+        if (dOSSL == Qtrue) {
+            CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
+            fprintf(stderr, "OSSL_DEBUG: IS NOW ON!\n");
+        } else if (old == Qtrue) {
+            CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_OFF);
+            fprintf(stderr, "OSSL_DEBUG: IS NOW OFF!\n");
+        }
+    }
+    return val;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-c-errors"> <span class="method-callseq"> errors → [String...] </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>See any remaining errors held in queue.</p> <p>Any errors you see here are probably due to a bug in ruby's <a href="../openssl/">OpenSSL</a> implementation.</p> <div class="method-source-code" id="errors-source"> <pre class="c">VALUE
+ossl_get_errors(void)
+{
+    VALUE ary;
+    long e;
+
+    ary = rb_ary_new();
+    while ((e = ERR_get_error()) != 0){
+        rb_ary_push(ary, rb_str_new2(ERR_error_string(e, NULL)));
+    }
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-c-fips_mode-3D"> <span class="method-callseq"> fips_mode = boolean → boolean </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Turns FIPS mode on or off. Turning on FIPS mode will obviously only have an effect for FIPS-capable installations of the <a href="../openssl/">OpenSSL</a> library. Trying to do so otherwise will result in an error.</p> <h3 id="method-c-fips_mode-3D-label-Examples">Examples</h3> <p>OpenSSL.fips_mode = true # turn FIPS mode on OpenSSL.fips_mode = false # and off again</p> <div class="method-source-code" id="fips_mode-3D-source"> <pre class="c">static VALUE
+ossl_fips_mode_set(VALUE self, VALUE enabled)
+{
+
+#ifdef HAVE_OPENSSL_FIPS
+    if (RTEST(enabled)) {
+        int mode = FIPS_mode();
+        if(!mode &amp;&amp; !FIPS_mode_set(1)) /* turning on twice leads to an error */
+            ossl_raise(eOSSLError, "Turning on FIPS mode failed");
+    } else {
+        if(!FIPS_mode_set(0)) /* turning off twice is OK */
+            ossl_raise(eOSSLError, "Turning off FIPS mode failed");
+    }
+    return enabled;
+#else
+    if (RTEST(enabled))
+        ossl_raise(eOSSLError, "This version of OpenSSL does not support FIPS mode");
+    return enabled;
+#endif
+}</pre> </div> </div> </div> </section> <section id="private-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Private Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-Digest"> <span class="method-name">Digest</span><span class="method-args">(name)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns a <a href="../openssl/digest/">Digest</a> subclass by <code>name</code>.</p> <pre class="ruby">require 'openssl'
+
+OpenSSL::Digest("MD5")
+# =&gt; OpenSSL::Digest::MD5
+
+Digest("Foo")
+# =&gt; NameError: wrong constant name Foo
+</pre> <div class="method-source-code" id="Digest-source"> <pre class="ruby"># File ext/openssl/lib/openssl/digest.rb, line 81
+def Digest(name)
+  OpenSSL::Digest.const_get(name)
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

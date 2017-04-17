@@ -1,0 +1,460 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Proc - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content="Proc objects are blocks of code that have been bound to a set of local variables. Once bound, the code may be called in different contexts and still &hellip;">
+  <meta name="keywords" content="class, proc, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/proc/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-Proc" class="class"> class Proc </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../object/">Object</a></dd>
+</dl> <section class="description"> <p><code>Proc</code> objects are blocks of code that have been bound to a set of local variables. Once bound, the code may be called in different contexts and still access those variables.</p> <pre class="ruby">def gen_times(factor)
+  return Proc.new {|n| n*factor }
+end
+
+times3 = gen_times(3)
+times5 = gen_times(5)
+
+times3.call(12)               #=&gt; 36
+times5.call(5)                #=&gt; 25
+times3.call(times5.call(4))   #=&gt; 60
+</pre> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-callseq"> new {|...| block } → a_proc </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> new → a_proc </span> </div> <div class="method-description"> <p>Creates a new <code>Proc</code> object, bound to the current context. <code>Proc::new</code> may be called without a block only within a method with an attached block, in which case that block is converted to the <code>Proc</code> object.</p> <pre class="ruby">def proc_from
+  Proc.new
+end
+proc = proc_from { "hello" }
+proc.call   #=&gt; "hello"
+</pre> <div class="method-source-code" id="new-source"> <pre class="c">static VALUE
+rb_proc_s_new(int argc, VALUE *argv, VALUE klass)
+{
+    VALUE block = proc_new(klass, FALSE);
+
+    rb_obj_call_init(block, argc, argv);
+    return block;
+}</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-3D-3D-3D"> <span class="method-callseq"> proc === obj → result_of_proc </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Invokes the block with <code>obj</code> as the proc's parameter like <a href="../proc/#method-i-call">#call</a>. It is to allow a proc object to be a target of <code>when</code> clause in a case statement.</p> <div class="method-source-code" id="3D-3D-3D-source"> <pre class="c">static VALUE
+proc_call(int argc, VALUE *argv, VALUE procval)
+{
+    VALUE vret;
+    rb_proc_t *proc;
+    rb_block_t *blockptr = 0;
+    rb_iseq_t *iseq;
+    VALUE passed_procval;
+    GetProcPtr(procval, proc);
+
+    iseq = proc-&gt;block.iseq;
+    if (RUBY_VM_IFUNC_P(iseq) || iseq-&gt;param.flags.has_block) {
+        if (rb_block_given_p()) {
+            rb_proc_t *passed_proc;
+            RB_GC_GUARD(passed_procval) = rb_block_proc();
+            GetProcPtr(passed_procval, passed_proc);
+            blockptr = &amp;passed_proc-&gt;block;
+        }
+    }
+
+    vret = rb_vm_invoke_proc(GET_THREAD(), proc, argc, argv, blockptr);
+    RB_GC_GUARD(procval);
+    return vret;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-5B-5D"> <span class="method-callseq"> prc[params,...] → obj </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Invokes the block, setting the block's parameters to the values in <em>params</em> using something close to method calling semantics. Generates a warning if multiple values are passed to a proc that expects just one (previously this silently converted the parameters to an array). Note that prc.() invokes prc.call() with the parameters given. It's a syntax sugar to hide “call”.</p> <p>For procs created using <code>lambda</code> or <code>-&gt;()</code> an error is generated if the wrong number of parameters are passed to a <a href="../proc/">Proc</a> with multiple parameters. For procs created using <code>Proc.new</code> or <code>Kernel.proc</code>, extra parameters are silently discarded.</p> <p>Returns the value of the last expression evaluated in the block. See also <code>Proc#yield</code>.</p> <pre class="ruby">a_proc = Proc.new {|a, *b| b.collect {|i| i*a }}
+a_proc.call(9, 1, 2, 3)   #=&gt; [9, 18, 27]
+a_proc[9, 1, 2, 3]        #=&gt; [9, 18, 27]
+a_proc = lambda {|a,b| a}
+a_proc.call(1,2,3)
+</pre> <p><em>produces:</em></p> <pre>prog.rb:4:in `block in &lt;main&gt;': wrong number of arguments (3 for 2) (ArgumentError)
+ from prog.rb:5:in `call'
+ from prog.rb:5:in `&lt;main&gt;'</pre> <div class="method-source-code" id="5B-5D-source"> <pre class="c">static VALUE
+proc_call(int argc, VALUE *argv, VALUE procval)
+{
+    VALUE vret;
+    rb_proc_t *proc;
+    rb_block_t *blockptr = 0;
+    rb_iseq_t *iseq;
+    VALUE passed_procval;
+    GetProcPtr(procval, proc);
+
+    iseq = proc-&gt;block.iseq;
+    if (RUBY_VM_IFUNC_P(iseq) || iseq-&gt;param.flags.has_block) {
+        if (rb_block_given_p()) {
+            rb_proc_t *passed_proc;
+            RB_GC_GUARD(passed_procval) = rb_block_proc();
+            GetProcPtr(passed_procval, passed_proc);
+            blockptr = &amp;passed_proc-&gt;block;
+        }
+    }
+
+    vret = rb_vm_invoke_proc(GET_THREAD(), proc, argc, argv, blockptr);
+    RB_GC_GUARD(procval);
+    return vret;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-arity"> <span class="method-callseq"> arity → fixnum </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the number of mandatory arguments. If the block is declared to take no arguments, returns 0. If the block is known to take exactly n arguments, returns n. If the block has optional arguments, returns -n-1, where n is the number of mandatory arguments, with the exception for blocks that are not lambdas and have only a finite number of optional arguments; in this latter case, returns n. Keywords arguments will considered as a single additional argument, that argument being mandatory if any keyword argument is mandatory. A <code>proc</code> with no argument declarations is the same as a block declaring <code>||</code> as its arguments.</p> <pre class="ruby">proc {}.arity                  #=&gt;  0
+proc { || }.arity              #=&gt;  0
+proc { |a| }.arity             #=&gt;  1
+proc { |a, b| }.arity          #=&gt;  2
+proc { |a, b, c| }.arity       #=&gt;  3
+proc { |*a| }.arity            #=&gt; -1
+proc { |a, *b| }.arity         #=&gt; -2
+proc { |a, *b, c| }.arity      #=&gt; -3
+proc { |x:, y:, z:0| }.arity   #=&gt;  1
+proc { |*a, x:, y:0| }.arity   #=&gt; -2
+
+proc   { |x=0| }.arity         #=&gt;  0
+lambda { |x=0| }.arity         #=&gt; -1
+proc   { |x=0, y| }.arity      #=&gt;  1
+lambda { |x=0, y| }.arity      #=&gt; -2
+proc   { |x=0, y=0| }.arity    #=&gt;  0
+lambda { |x=0, y=0| }.arity    #=&gt; -1
+proc   { |x, y=0| }.arity      #=&gt;  1
+lambda { |x, y=0| }.arity      #=&gt; -2
+proc   { |(x, y), z=0| }.arity #=&gt;  1
+lambda { |(x, y), z=0| }.arity #=&gt; -2
+proc   { |a, x:0, y:0| }.arity #=&gt;  1
+lambda { |a, x:0, y:0| }.arity #=&gt; -2
+</pre> <div class="method-source-code" id="arity-source"> <pre class="c">static VALUE
+proc_arity(VALUE self)
+{
+    int arity = rb_proc_arity(self);
+    return INT2FIX(arity);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-binding"> <span class="method-callseq"> binding → binding </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the binding associated with <em>prc</em>. Note that <code>Kernel#eval</code> accepts either a <code>Proc</code> or a <code>Binding</code> object as its second parameter.</p> <pre class="ruby">def fred(param)
+  proc {}
+end
+
+b = fred(99)
+eval("param", b.binding)   #=&gt; 99
+</pre> <div class="method-source-code" id="binding-source"> <pre class="c">static VALUE
+proc_binding(VALUE self)
+{
+    rb_proc_t *proc;
+    VALUE bindval, envval;
+    rb_binding_t *bind;
+    rb_iseq_t *iseq;
+
+    GetProcPtr(self, proc);
+    envval = proc-&gt;envval;
+    iseq = proc-&gt;block.iseq;
+    if (RUBY_VM_IFUNC_P(iseq)) {
+        rb_env_t *env;
+        if (!IS_METHOD_PROC_NODE((NODE *)iseq)) {
+            rb_raise(rb_eArgError, "Can't create Binding from C level Proc");
+        }
+        iseq = rb_method_get_iseq(RNODE(iseq)-&gt;u2.value);
+        GetEnvPtr(envval, env);
+        if (iseq &amp;&amp; env-&gt;local_size &lt; iseq-&gt;local_size) {
+            int prev_local_size = env-&gt;local_size;
+            int local_size = iseq-&gt;local_size;
+            VALUE newenvval = TypedData_Wrap_Struct(RBASIC_CLASS(envval), RTYPEDDATA_TYPE(envval), 0);
+            rb_env_t *newenv = xmalloc(sizeof(rb_env_t) + ((local_size + 1) * sizeof(VALUE)));
+            RTYPEDDATA_DATA(newenvval) = newenv;
+            newenv-&gt;env_size = local_size + 2;
+            newenv-&gt;local_size = local_size;
+            newenv-&gt;prev_envval = env-&gt;prev_envval;
+            newenv-&gt;block = env-&gt;block;
+            MEMCPY(newenv-&gt;env, env-&gt;env, VALUE, prev_local_size + 1);
+            rb_mem_clear(newenv-&gt;env + prev_local_size + 1, local_size - prev_local_size);
+            newenv-&gt;env[local_size + 1] = newenvval;
+            envval = newenvval;
+        }
+    }
+
+    bindval = rb_binding_alloc(rb_cBinding);
+    GetBindingPtr(bindval, bind);
+    bind-&gt;env = envval;
+    bind-&gt;blockprocval = proc-&gt;blockprocval;
+    if (RUBY_VM_NORMAL_ISEQ_P(iseq)) {
+        bind-&gt;path = iseq-&gt;location.path;
+        bind-&gt;first_lineno = FIX2INT(rb_iseq_first_lineno(iseq-&gt;self));
+    }
+    else {
+        bind-&gt;path = Qnil;
+        bind-&gt;first_lineno = 0;
+    }
+    return bindval;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-call"> <span class="method-callseq"> call(params,...) → obj </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Invokes the block, setting the block's parameters to the values in <em>params</em> using something close to method calling semantics. Generates a warning if multiple values are passed to a proc that expects just one (previously this silently converted the parameters to an array). Note that prc.() invokes prc.call() with the parameters given. It's a syntax sugar to hide “call”.</p> <p>For procs created using <code>lambda</code> or <code>-&gt;()</code> an error is generated if the wrong number of parameters are passed to a <a href="../proc/">Proc</a> with multiple parameters. For procs created using <code>Proc.new</code> or <code>Kernel.proc</code>, extra parameters are silently discarded.</p> <p>Returns the value of the last expression evaluated in the block. See also <code>Proc#yield</code>.</p> <pre class="ruby">a_proc = Proc.new {|a, *b| b.collect {|i| i*a }}
+a_proc.call(9, 1, 2, 3)   #=&gt; [9, 18, 27]
+a_proc[9, 1, 2, 3]        #=&gt; [9, 18, 27]
+a_proc = lambda {|a,b| a}
+a_proc.call(1,2,3)
+</pre> <p><em>produces:</em></p> <pre>prog.rb:4:in `block in &lt;main&gt;': wrong number of arguments (3 for 2) (ArgumentError)
+ from prog.rb:5:in `call'
+ from prog.rb:5:in `&lt;main&gt;'</pre> <div class="method-source-code" id="call-source"> <pre class="c">static VALUE
+proc_call(int argc, VALUE *argv, VALUE procval)
+{
+    VALUE vret;
+    rb_proc_t *proc;
+    rb_block_t *blockptr = 0;
+    rb_iseq_t *iseq;
+    VALUE passed_procval;
+    GetProcPtr(procval, proc);
+
+    iseq = proc-&gt;block.iseq;
+    if (RUBY_VM_IFUNC_P(iseq) || iseq-&gt;param.flags.has_block) {
+        if (rb_block_given_p()) {
+            rb_proc_t *passed_proc;
+            RB_GC_GUARD(passed_procval) = rb_block_proc();
+            GetProcPtr(passed_procval, passed_proc);
+            blockptr = &amp;passed_proc-&gt;block;
+        }
+    }
+
+    vret = rb_vm_invoke_proc(GET_THREAD(), proc, argc, argv, blockptr);
+    RB_GC_GUARD(procval);
+    return vret;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-curry"> <span class="method-callseq"> curry → a_proc </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> curry(arity) → a_proc </span> </div> <div class="method-description"> <p>Returns a curried proc. If the optional <em>arity</em> argument is given, it determines the number of arguments. A curried proc receives some arguments. If a sufficient number of arguments are supplied, it passes the supplied arguments to the original proc and returns the result. Otherwise, returns another curried proc that takes the rest of arguments.</p> <pre class="ruby">b = proc {|x, y, z| (x||0) + (y||0) + (z||0) }
+p b.curry[1][2][3]           #=&gt; 6
+p b.curry[1, 2][3, 4]        #=&gt; 6
+p b.curry(5)[1][2][3][4][5]  #=&gt; 6
+p b.curry(5)[1, 2][3, 4][5]  #=&gt; 6
+p b.curry(1)[1]              #=&gt; 1
+
+b = proc {|x, y, z, *w| (x||0) + (y||0) + (z||0) + w.inject(0, &amp;:+) }
+p b.curry[1][2][3]           #=&gt; 6
+p b.curry[1, 2][3, 4]        #=&gt; 10
+p b.curry(5)[1][2][3][4][5]  #=&gt; 15
+p b.curry(5)[1, 2][3, 4][5]  #=&gt; 15
+p b.curry(1)[1]              #=&gt; 1
+
+b = lambda {|x, y, z| (x||0) + (y||0) + (z||0) }
+p b.curry[1][2][3]           #=&gt; 6
+p b.curry[1, 2][3, 4]        #=&gt; wrong number of arguments (4 for 3)
+p b.curry(5)                 #=&gt; wrong number of arguments (5 for 3)
+p b.curry(1)                 #=&gt; wrong number of arguments (1 for 3)
+
+b = lambda {|x, y, z, *w| (x||0) + (y||0) + (z||0) + w.inject(0, &amp;:+) }
+p b.curry[1][2][3]           #=&gt; 6
+p b.curry[1, 2][3, 4]        #=&gt; 10
+p b.curry(5)[1][2][3][4][5]  #=&gt; 15
+p b.curry(5)[1, 2][3, 4][5]  #=&gt; 15
+p b.curry(1)                 #=&gt; wrong number of arguments (1 for 3)
+
+b = proc { :foo }
+p b.curry[]                  #=&gt; :foo
+</pre> <div class="method-source-code" id="curry-source"> <pre class="c">static VALUE
+proc_curry(int argc, const VALUE *argv, VALUE self)
+{
+    int sarity, max_arity, min_arity = rb_proc_min_max_arity(self, &amp;max_arity);
+    VALUE arity;
+
+    rb_scan_args(argc, argv, "01", &amp;arity);
+    if (NIL_P(arity)) {
+        arity = INT2FIX(min_arity);
+    }
+    else {
+        sarity = FIX2INT(arity);
+        if (rb_proc_lambda_p(self)) {
+            rb_check_arity(sarity, min_arity, max_arity);
+        }
+    }
+
+    return make_curry_proc(self, rb_ary_new(), arity);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-hash"> <span class="method-callseq"> hash → integer </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns a hash value corresponding to proc body.</p> <p>See also <a href="../object/#method-i-hash">Object#hash</a>.</p> <div class="method-source-code" id="hash-source"> <pre class="c">static VALUE
+proc_hash(VALUE self)
+{
+    st_index_t hash;
+    hash = rb_hash_start(0);
+    hash = rb_hash_proc(hash, self);
+    hash = rb_hash_end(hash);
+    return LONG2FIX(hash);
+}</pre> </div> </div> </div> <div class="method-detail method-alias"> <div class="method-heading" id="method-i-inspect"> <span class="method-name">inspect</span><span class="method-args">()</span> </div>  <div class="aliases"> Alias for: <a href="../proc/#method-i-to_s">to_s</a> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-lambda-3F"> <span class="method-callseq"> lambda? → true or false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns <code>true</code> for a <a href="../proc/">Proc</a> object for which argument handling is rigid. Such procs are typically generated by <code>lambda</code>.</p> <p>A <a href="../proc/">Proc</a> object generated by <code>proc</code> ignores extra arguments.</p> <pre class="ruby">proc {|a,b| [a,b] }.call(1,2,3)    #=&gt; [1,2]
+</pre> <p>It provides <code>nil</code> for missing arguments.</p> <pre class="ruby">proc {|a,b| [a,b] }.call(1)        #=&gt; [1,nil]
+</pre> <p>It expands a single array argument.</p> <pre class="ruby">proc {|a,b| [a,b] }.call([1,2])    #=&gt; [1,2]
+</pre> <p>A <a href="../proc/">Proc</a> object generated by <code>lambda</code> doesn't have such tricks.</p> <pre class="ruby">lambda {|a,b| [a,b] }.call(1,2,3)  #=&gt; ArgumentError
+lambda {|a,b| [a,b] }.call(1)      #=&gt; ArgumentError
+lambda {|a,b| [a,b] }.call([1,2])  #=&gt; ArgumentError
+</pre> <p><a href="../proc/#method-i-lambda-3F">#lambda?</a> is a predicate for the tricks. It returns <code>true</code> if no tricks apply.</p> <pre class="ruby">lambda {}.lambda?            #=&gt; true
+proc {}.lambda?              #=&gt; false
+</pre> <p><a href="../proc/#method-c-new">::new</a> is the same as <code>proc</code>.</p> <pre class="ruby">Proc.new {}.lambda?          #=&gt; false
+</pre> <p><code>lambda</code>, <code>proc</code> and <a href="../proc/#method-c-new">::new</a> preserve the tricks of a <a href="../proc/">Proc</a> object given by <code>&amp;</code> argument.</p> <pre class="ruby">lambda(&amp;lambda {}).lambda?   #=&gt; true
+proc(&amp;lambda {}).lambda?     #=&gt; true
+Proc.new(&amp;lambda {}).lambda? #=&gt; true
+
+lambda(&amp;proc {}).lambda?     #=&gt; false
+proc(&amp;proc {}).lambda?       #=&gt; false
+Proc.new(&amp;proc {}).lambda?   #=&gt; false
+</pre> <p>A <a href="../proc/">Proc</a> object generated by <code>&amp;</code> argument has the tricks</p> <pre class="ruby">def n(&amp;b) b.lambda? end
+n {}                         #=&gt; false
+</pre> <p>The <code>&amp;</code> argument preserves the tricks if a <a href="../proc/">Proc</a> object is given by <code>&amp;</code> argument.</p> <pre class="ruby">n(&amp;lambda {})                #=&gt; true
+n(&amp;proc {})                  #=&gt; false
+n(&amp;Proc.new {})              #=&gt; false
+</pre> <p>A <a href="../proc/">Proc</a> object converted from a method has no tricks.</p> <pre class="ruby">def m() end
+method(:m).to_proc.lambda?   #=&gt; true
+
+n(&amp;method(:m))               #=&gt; true
+n(&amp;method(:m).to_proc)       #=&gt; true
+</pre> <p><code>define_method</code> is treated the same as method definition. The defined method has no tricks.</p> <pre class="ruby">class C
+  define_method(:d) {}
+end
+C.new.d(1,2)       #=&gt; ArgumentError
+C.new.method(:d).to_proc.lambda?   #=&gt; true
+</pre> <p><code>define_method</code> always defines a method without the tricks, even if a non-lambda <a href="../proc/">Proc</a> object is given. This is the only exception for which the tricks are not preserved.</p> <pre class="ruby">class C
+  define_method(:e, &amp;proc {})
+end
+C.new.e(1,2)       #=&gt; ArgumentError
+C.new.method(:e).to_proc.lambda?   #=&gt; true
+</pre> <p>This exception insures that methods never have tricks and makes it easy to have wrappers to define methods that behave as usual.</p> <pre class="ruby">class C
+  def self.def2(name, &amp;body)
+    define_method(name, &amp;body)
+  end
+
+  def2(:f) {}
+end
+C.new.f(1,2)       #=&gt; ArgumentError
+</pre> <p>The wrapper <em>def2</em> defines a method which has no tricks.</p> <div class="method-source-code" id="lambda-3F-source"> <pre class="c">VALUE
+rb_proc_lambda_p(VALUE procval)
+{
+    rb_proc_t *proc;
+    GetProcPtr(procval, proc);
+
+    return proc-&gt;is_lambda ? Qtrue : Qfalse;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-parameters"> <span class="method-callseq"> parameters → array </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the parameter information of this proc.</p> <pre class="ruby">prc = lambda{|x, y=42, *other|}
+prc.parameters  #=&gt; [[:req, :x], [:opt, :y], [:rest, :other]]
+</pre> <div class="method-source-code" id="parameters-source"> <pre class="c">static VALUE
+rb_proc_parameters(VALUE self)
+{
+    int is_proc;
+    rb_iseq_t *iseq = get_proc_iseq(self, &amp;is_proc);
+    if (!iseq) {
+        return unnamed_parameters(rb_proc_arity(self));
+    }
+    return rb_iseq_parameters(iseq, is_proc);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-source_location"> <span class="method-callseq"> source_location → [String, Fixnum] </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the Ruby source filename and line number containing this proc or <code>nil</code> if this proc was not defined in Ruby (i.e. native)</p> <div class="method-source-code" id="source_location-source"> <pre class="c">VALUE
+rb_proc_location(VALUE self)
+{
+    return iseq_location(get_proc_iseq(self, 0));
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_proc"> <span class="method-callseq"> to_proc → proc </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Part of the protocol for converting objects to <code>Proc</code> objects. Instances of class <code>Proc</code> simply return themselves.</p> <div class="method-source-code" id="to_proc-source"> <pre class="c">static VALUE
+proc_to_proc(VALUE self)
+{
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_s"> <span class="method-callseq"> to_s → string </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns the unique identifier for this proc, along with an indication of where the proc was defined.</p> <div class="method-source-code" id="to_s-source"> <pre class="c">static VALUE
+proc_to_s(VALUE self)
+{
+    VALUE str = 0;
+    rb_proc_t *proc;
+    const char *cname = rb_obj_classname(self);
+    rb_iseq_t *iseq;
+    const char *is_lambda;
+
+    GetProcPtr(self, proc);
+    iseq = proc-&gt;block.iseq;
+    is_lambda = proc-&gt;is_lambda ? " (lambda)" : "";
+
+    if (RUBY_VM_NORMAL_ISEQ_P(iseq)) {
+        int first_lineno = 0;
+
+        if (iseq-&gt;line_info_table) {
+            first_lineno = FIX2INT(rb_iseq_first_lineno(iseq-&gt;self));
+        }
+        str = rb_sprintf("#&lt;%s:%p@%"PRIsVALUE":%d%s&gt;", cname, (void *)self,
+                         iseq-&gt;location.path, first_lineno, is_lambda);
+    }
+    else {
+        str = rb_sprintf("#&lt;%s:%p%s&gt;", cname, (void *)proc-&gt;block.iseq,
+                         is_lambda);
+    }
+
+    if (OBJ_TAINTED(self)) {
+        OBJ_TAINT(str);
+    }
+    return str;
+}</pre> </div> </div> <div class="aliases"> Also aliased as: <a href="../proc/#method-i-inspect">inspect</a> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-yield"> <span class="method-callseq"> call(params,...) → obj </span> <a class="method-click-advice">Show source</a> </div> <div class="method-heading"> <span class="method-callseq"> prc[params,...] → obj </span> </div> <div class="method-heading"> <span class="method-callseq"> (params,...) → obj </span> </div> <div class="method-description"> <p>Invokes the block, setting the block's parameters to the values in <em>params</em> using something close to method calling semantics. Generates a warning if multiple values are passed to a proc that expects just one (previously this silently converted the parameters to an array). Note that prc.() invokes prc.call() with the parameters given. It's a syntax sugar to hide “call”.</p> <p>For procs created using <code>lambda</code> or <code>-&gt;()</code> an error is generated if the wrong number of parameters are passed to a <a href="../proc/">Proc</a> with multiple parameters. For procs created using <code>Proc.new</code> or <code>Kernel.proc</code>, extra parameters are silently discarded.</p> <p>Returns the value of the last expression evaluated in the block. See also <code>Proc#yield</code>.</p> <pre class="ruby">a_proc = Proc.new {|a, *b| b.collect {|i| i*a }}
+a_proc.call(9, 1, 2, 3)   #=&gt; [9, 18, 27]
+a_proc[9, 1, 2, 3]        #=&gt; [9, 18, 27]
+a_proc = lambda {|a,b| a}
+a_proc.call(1,2,3)
+</pre> <p><em>produces:</em></p> <pre>prog.rb:4:in `block in &lt;main&gt;': wrong number of arguments (3 for 2) (ArgumentError)
+ from prog.rb:5:in `call'
+ from prog.rb:5:in `&lt;main&gt;'</pre> <div class="method-source-code" id="yield-source"> <pre class="c">static VALUE
+proc_call(int argc, VALUE *argv, VALUE procval)
+{
+    VALUE vret;
+    rb_proc_t *proc;
+    rb_block_t *blockptr = 0;
+    rb_iseq_t *iseq;
+    VALUE passed_procval;
+    GetProcPtr(procval, proc);
+
+    iseq = proc-&gt;block.iseq;
+    if (RUBY_VM_IFUNC_P(iseq) || iseq-&gt;param.flags.has_block) {
+        if (rb_block_given_p()) {
+            rb_proc_t *passed_proc;
+            RB_GC_GUARD(passed_procval) = rb_block_proc();
+            GetProcPtr(passed_procval, passed_proc);
+            blockptr = &amp;passed_proc-&gt;block;
+        }
+    }
+
+    vret = rb_vm_invoke_proc(GET_THREAD(), proc, argc, argv, blockptr);
+    RB_GC_GUARD(procval);
+    return vret;
+}</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

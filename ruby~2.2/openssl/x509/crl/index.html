@@ -1,0 +1,432 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>OpenSSL&#58;&#58;X509&#58;&#58;CRL - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Gets X509v3 extensions as array of X509Ext objects ">
+  <meta name="keywords" content="class, openssl, x, crl, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/openssl/x509/crl/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-OpenSSL::X509::CRL" class="class"> class OpenSSL::X509::CRL </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../../../object/">Object</a></dd>
+</dl>  <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-name">new</span><span class="method-args">(p1 = v1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="new-source"> <pre class="c">static VALUE
+ossl_x509crl_initialize(int argc, VALUE *argv, VALUE self)
+{
+    BIO *in;
+    X509_CRL *crl, *x = DATA_PTR(self);
+    VALUE arg;
+
+    if (rb_scan_args(argc, argv, "01", &amp;arg) == 0) {
+        return self;
+    }
+    arg = ossl_to_der_if_possible(arg);
+    in = ossl_obj2bio(arg);
+    crl = PEM_read_bio_X509_CRL(in, &amp;x, NULL, NULL);
+    DATA_PTR(self) = x;
+    if (!crl) {
+        OSSL_BIO_reset(in);
+        crl = d2i_X509_CRL_bio(in, &amp;x);
+        DATA_PTR(self) = x;
+    }
+    BIO_free(in);
+    if (!crl) ossl_raise(eX509CRLError, NULL);
+
+    return self;
+}</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-add_extension"> <span class="method-name">add_extension</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="add_extension-source"> <pre class="c">static VALUE
+ossl_x509crl_add_extension(VALUE self, VALUE extension)
+{
+    X509_CRL *crl;
+    X509_EXTENSION *ext;
+
+    GetX509CRL(self, crl);
+    ext = DupX509ExtPtr(extension);
+    if (!X509_CRL_add_ext(crl, ext, -1)) { /* DUPs ext - FREE it */
+        X509_EXTENSION_free(ext);
+        ossl_raise(eX509CRLError, NULL);
+    }
+    X509_EXTENSION_free(ext);
+
+    return extension;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-add_revoked"> <span class="method-name">add_revoked</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="add_revoked-source"> <pre class="c">static VALUE
+ossl_x509crl_add_revoked(VALUE self, VALUE revoked)
+{
+    X509_CRL *crl;
+    X509_REVOKED *rev;
+
+    GetX509CRL(self, crl);
+    rev = DupX509RevokedPtr(revoked);
+    if (!X509_CRL_add0_revoked(crl, rev)) { /* NO DUP - don't free! */
+        ossl_raise(eX509CRLError, NULL);
+    }
+    X509_CRL_sort(crl);
+
+    return revoked;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-extensions"> <span class="method-name">extensions</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Gets X509v3 extensions as array of X509Ext objects</p> <div class="method-source-code" id="extensions-source"> <pre class="c">static VALUE
+ossl_x509crl_get_extensions(VALUE self)
+{
+    X509_CRL *crl;
+    int count, i;
+    X509_EXTENSION *ext;
+    VALUE ary;
+
+    GetX509CRL(self, crl);
+    count = X509_CRL_get_ext_count(crl);
+    if (count &lt; 0) {
+        OSSL_Debug("count &lt; 0???");
+        return rb_ary_new();
+    }
+    ary = rb_ary_new2(count);
+    for (i=0; i&lt;count; i++) {
+        ext = X509_CRL_get_ext(crl, i); /* NO DUP - don't free! */
+        rb_ary_push(ary, ossl_x509ext_new(ext));
+    }
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-extensions-3D"> <span class="method-name">extensions=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Sets X509_EXTENSIONs</p> <div class="method-source-code" id="extensions-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_extensions(VALUE self, VALUE ary)
+{
+    X509_CRL *crl;
+    X509_EXTENSION *ext;
+    int i;
+
+    Check_Type(ary, T_ARRAY);
+    /* All ary members should be X509 Extensions */
+    for (i=0; i&lt;RARRAY_LEN(ary); i++) {
+        OSSL_Check_Kind(RARRAY_PTR(ary)[i], cX509Ext);
+    }
+    GetX509CRL(self, crl);
+    sk_X509_EXTENSION_pop_free(crl-&gt;crl-&gt;extensions, X509_EXTENSION_free);
+    crl-&gt;crl-&gt;extensions = NULL;
+    for (i=0; i&lt;RARRAY_LEN(ary); i++) {
+        ext = DupX509ExtPtr(RARRAY_PTR(ary)[i]);
+        if(!X509_CRL_add_ext(crl, ext, -1)) { /* DUPs ext - FREE it */
+            X509_EXTENSION_free(ext);
+            ossl_raise(eX509CRLError, NULL);
+        }
+        X509_EXTENSION_free(ext);
+    }
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-issuer"> <span class="method-name">issuer</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="issuer-source"> <pre class="c">static VALUE
+ossl_x509crl_get_issuer(VALUE self)
+{
+    X509_CRL *crl;
+
+    GetX509CRL(self, crl);
+
+    return ossl_x509name_new(X509_CRL_get_issuer(crl)); /* NO DUP - don't free */
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-issuer-3D"> <span class="method-name">issuer=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="issuer-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_issuer(VALUE self, VALUE issuer)
+{
+    X509_CRL *crl;
+
+    GetX509CRL(self, crl);
+
+    if (!X509_CRL_set_issuer_name(crl, GetX509NamePtr(issuer))) { /* DUPs name */
+        ossl_raise(eX509CRLError, NULL);
+    }
+    return issuer;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-last_update"> <span class="method-name">last_update</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="last_update-source"> <pre class="c">static VALUE
+ossl_x509crl_get_last_update(VALUE self)
+{
+    X509_CRL *crl;
+
+    GetX509CRL(self, crl);
+
+    return asn1time_to_time(X509_CRL_get_lastUpdate(crl));
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-last_update-3D"> <span class="method-name">last_update=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="last_update-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_last_update(VALUE self, VALUE time)
+{
+    X509_CRL *crl;
+    time_t sec;
+
+    sec = time_to_time_t(time);
+    GetX509CRL(self, crl);
+    if (!X509_time_adj(crl-&gt;crl-&gt;lastUpdate, 0, &amp;sec)) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+
+    return time;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-next_update"> <span class="method-name">next_update</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="next_update-source"> <pre class="c">static VALUE
+ossl_x509crl_get_next_update(VALUE self)
+{
+    X509_CRL *crl;
+
+    GetX509CRL(self, crl);
+
+    return asn1time_to_time(X509_CRL_get_nextUpdate(crl));
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-next_update-3D"> <span class="method-name">next_update=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="next_update-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_next_update(VALUE self, VALUE time)
+{
+    X509_CRL *crl;
+    time_t sec;
+
+    sec = time_to_time_t(time);
+    GetX509CRL(self, crl);
+    /* This must be some thinko in OpenSSL */
+    if (!(crl-&gt;crl-&gt;nextUpdate = X509_time_adj(crl-&gt;crl-&gt;nextUpdate, 0, &amp;sec))){
+        ossl_raise(eX509CRLError, NULL);
+    }
+
+    return time;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-revoked"> <span class="method-name">revoked</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="revoked-source"> <pre class="c">static VALUE
+ossl_x509crl_get_revoked(VALUE self)
+{
+    X509_CRL *crl;
+    int i, num;
+    X509_REVOKED *rev;
+    VALUE ary, revoked;
+
+    GetX509CRL(self, crl);
+    num = sk_X509_REVOKED_num(X509_CRL_get_REVOKED(crl));
+    if (num &lt; 0) {
+        OSSL_Debug("num &lt; 0???");
+        return rb_ary_new();
+    }
+    ary = rb_ary_new2(num);
+    for(i=0; i&lt;num; i++) {
+        /* NO DUP - don't free! */
+        rev = sk_X509_REVOKED_value(X509_CRL_get_REVOKED(crl), i);
+        revoked = ossl_x509revoked_new(rev);
+        rb_ary_push(ary, revoked);
+    }
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-revoked-3D"> <span class="method-name">revoked=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="revoked-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_revoked(VALUE self, VALUE ary)
+{
+    X509_CRL *crl;
+    X509_REVOKED *rev;
+    int i;
+
+    Check_Type(ary, T_ARRAY);
+    /* All ary members should be X509 Revoked */
+    for (i=0; i&lt;RARRAY_LEN(ary); i++) {
+        OSSL_Check_Kind(RARRAY_PTR(ary)[i], cX509Rev);
+    }
+    GetX509CRL(self, crl);
+    sk_X509_REVOKED_pop_free(crl-&gt;crl-&gt;revoked, X509_REVOKED_free);
+    crl-&gt;crl-&gt;revoked = NULL;
+    for (i=0; i&lt;RARRAY_LEN(ary); i++) {
+        rev = DupX509RevokedPtr(RARRAY_PTR(ary)[i]);
+        if (!X509_CRL_add0_revoked(crl, rev)) { /* NO DUP - don't free! */
+            ossl_raise(eX509CRLError, NULL);
+        }
+    }
+    X509_CRL_sort(crl);
+
+    return ary;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-sign"> <span class="method-name">sign</span><span class="method-args">(p1, p2)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="sign-source"> <pre class="c">static VALUE
+ossl_x509crl_sign(VALUE self, VALUE key, VALUE digest)
+{
+    X509_CRL *crl;
+    EVP_PKEY *pkey;
+    const EVP_MD *md;
+
+    GetX509CRL(self, crl);
+    pkey = GetPrivPKeyPtr(key); /* NO NEED TO DUP */
+    md = GetDigestPtr(digest);
+    if (!X509_CRL_sign(crl, pkey, md)) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-signature_algorithm"> <span class="method-name">signature_algorithm</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="signature_algorithm-source"> <pre class="c">static VALUE
+ossl_x509crl_get_signature_algorithm(VALUE self)
+{
+    X509_CRL *crl;
+    BIO *out;
+    BUF_MEM *buf;
+    VALUE str;
+
+    GetX509CRL(self, crl);
+    if (!(out = BIO_new(BIO_s_mem()))) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+    if (!i2a_ASN1_OBJECT(out, crl-&gt;sig_alg-&gt;algorithm)) {
+        BIO_free(out);
+        ossl_raise(eX509CRLError, NULL);
+    }
+    BIO_get_mem_ptr(out, &amp;buf);
+    str = rb_str_new(buf-&gt;data, buf-&gt;length);
+    BIO_free(out);
+    return str;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_der"> <span class="method-name">to_der</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="to_der-source"> <pre class="c">static VALUE
+ossl_x509crl_to_der(VALUE self)
+{
+    X509_CRL *crl;
+    BIO *out;
+    BUF_MEM *buf;
+    VALUE str;
+
+    GetX509CRL(self, crl);
+    if (!(out = BIO_new(BIO_s_mem()))) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+    if (!i2d_X509_CRL_bio(out, crl)) {
+        BIO_free(out);
+        ossl_raise(eX509CRLError, NULL);
+    }
+    BIO_get_mem_ptr(out, &amp;buf);
+    str = rb_str_new(buf-&gt;data, buf-&gt;length);
+    BIO_free(out);
+
+    return str;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_pem"> <span class="method-name">to_pem</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="to_pem-source"> <pre class="c">static VALUE
+ossl_x509crl_to_pem(VALUE self)
+{
+    X509_CRL *crl;
+    BIO *out;
+    BUF_MEM *buf;
+    VALUE str;
+
+    GetX509CRL(self, crl);
+    if (!(out = BIO_new(BIO_s_mem()))) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+    if (!PEM_write_bio_X509_CRL(out, crl)) {
+        BIO_free(out);
+        ossl_raise(eX509CRLError, NULL);
+    }
+    BIO_get_mem_ptr(out, &amp;buf);
+    str = rb_str_new(buf-&gt;data, buf-&gt;length);
+    BIO_free(out);
+
+    return str;
+}</pre> </div> </div> <div class="aliases"> Also aliased as: <a href="../crl/#method-i-to_s">to_s</a> </div> </div> <div class="method-detail method-alias"> <div class="method-heading" id="method-i-to_s"> <span class="method-name">to_s</span><span class="method-args">()</span> </div>  <div class="aliases"> Alias for: <a href="../crl/#method-i-to_pem">to_pem</a> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-to_text"> <span class="method-name">to_text</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="to_text-source"> <pre class="c">static VALUE
+ossl_x509crl_to_text(VALUE self)
+{
+    X509_CRL *crl;
+    BIO *out;
+    BUF_MEM *buf;
+    VALUE str;
+
+    GetX509CRL(self, crl);
+    if (!(out = BIO_new(BIO_s_mem()))) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+    if (!X509_CRL_print(out, crl)) {
+        BIO_free(out);
+        ossl_raise(eX509CRLError, NULL);
+    }
+    BIO_get_mem_ptr(out, &amp;buf);
+    str = rb_str_new(buf-&gt;data, buf-&gt;length);
+    BIO_free(out);
+
+    return str;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-verify"> <span class="method-name">verify</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="verify-source"> <pre class="c">static VALUE
+ossl_x509crl_verify(VALUE self, VALUE key)
+{
+    X509_CRL *crl;
+    int ret;
+
+    GetX509CRL(self, crl);
+    if ((ret = X509_CRL_verify(crl, GetPKeyPtr(key))) &lt; 0) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+    if (ret == 1) {
+        return Qtrue;
+    }
+
+    return Qfalse;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-version"> <span class="method-name">version</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="version-source"> <pre class="c">static VALUE
+ossl_x509crl_get_version(VALUE self)
+{
+    X509_CRL *crl;
+    long ver;
+
+    GetX509CRL(self, crl);
+    ver = X509_CRL_get_version(crl);
+
+    return LONG2NUM(ver);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-version-3D"> <span class="method-name">version=</span><span class="method-args">(p1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <div class="method-source-code" id="version-3D-source"> <pre class="c">static VALUE
+ossl_x509crl_set_version(VALUE self, VALUE version)
+{
+    X509_CRL *crl;
+    long ver;
+
+    if ((ver = NUM2LONG(version)) &lt; 0) {
+        ossl_raise(eX509CRLError, "version must be &gt;= 0!");
+    }
+    GetX509CRL(self, crl);
+    if (!X509_CRL_set_version(crl, ver)) {
+        ossl_raise(eX509CRLError, NULL);
+    }
+
+    return version;
+}</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

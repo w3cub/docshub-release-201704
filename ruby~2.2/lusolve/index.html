@@ -1,0 +1,186 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>LUSolve - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Solves a&#42;x &#61; b for x, using LU decomposition. ">
+  <meta name="keywords" content="module, lusolve, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/lusolve/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-LUSolve" class="module"> module LUSolve </h1> <section class="description"> <p>Solves a*x = b for x, using LU decomposition.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-ludecomp"> <span class="method-name">ludecomp</span><span class="method-args">(a,n,zero=0,one=1)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Performs LU decomposition of the n by n matrix a.</p> <div class="method-source-code" id="ludecomp-source"> <pre class="ruby"># File ext/bigdecimal/lib/bigdecimal/ludcmp.rb, line 10
+  def ludecomp(a,n,zero=0,one=1)
+    prec = BigDecimal.limit(nil)
+    ps     = []
+    scales = []
+    for i in 0...n do  # pick up largest(abs. val.) element in each row.
+      ps &lt;&lt;= i
+      nrmrow  = zero
+      ixn = i*n
+      for j in 0...n do
+        biggst = a[ixn+j].abs
+        nrmrow = biggst if biggst&gt;nrmrow
+      end
+      if nrmrow&gt;zero then
+        scales &lt;&lt;= one.div(nrmrow,prec)
+      else
+        raise "Singular matrix"
+      end
+    end
+    n1          = n - 1
+    for k in 0...n1 do # Gaussian elimination with partial pivoting.
+      biggst  = zero;
+      for i in k...n do
+        size = a[ps[i]*n+k].abs*scales[ps[i]]
+        if size&gt;biggst then
+          biggst = size
+          pividx  = i
+        end
+      end
+      raise "Singular matrix" if biggst&lt;=zero
+      if pividx!=k then
+        j = ps[k]
+        ps[k] = ps[pividx]
+        ps[pividx] = j
+      end
+      pivot   = a[ps[k]*n+k]
+      for i in (k+1)...n do
+        psin = ps[i]*n
+        a[psin+k] = mult = a[psin+k].div(pivot,prec)
+        if mult!=zero then
+          pskn = ps[k]*n
+          for j in (k+1)...n do
+            a[psin+j] -= mult.mult(a[pskn+j],prec)
+          end
+        end
+      end
+    end
+    raise "Singular matrix" if a[ps[n1]*n+n1] == zero
+    ps
+  end
+
+  # Solves a*x = b for x, using LU decomposition.
+  #
+  # a is a matrix, b is a constant vector, x is the solution vector.
+  #
+  # ps is the pivot, a vector which indicates the permutation of rows performed
+  # during LU decomposition.
+  def lusolve(a,b,ps,zero=0.0)
+    prec = BigDecimal.limit(nil)
+    n = ps.size
+    x = []
+    for i in 0...n do
+      dot = zero
+      psin = ps[i]*n
+      for j in 0...i do
+        dot = a[psin+j].mult(x[j],prec) + dot
+      end
+      x &lt;&lt;= b[ps[i]] - dot
+    end
+    (n-1).downto(0) do |i|
+      dot = zero
+      psin = ps[i]*n
+      for j in (i+1)...n do
+        dot = a[psin+j].mult(x[j],prec) + dot
+      end
+      x[i]  = (x[i]-dot).div(a[psin+i],prec)
+    end
+    x
+  end
+end
+</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-lusolve"> <span class="method-name">lusolve</span><span class="method-args">(a,b,ps,zero=0.0)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Solves a*x = b for x, using LU decomposition.</p> <p>a is a matrix, b is a constant vector, x is the solution vector.</p> <p>ps is the pivot, a vector which indicates the permutation of rows performed during LU decomposition.</p> <div class="method-source-code" id="lusolve-source"> <pre class="ruby"># File ext/bigdecimal/lib/bigdecimal/ludcmp.rb, line 66
+  def lusolve(a,b,ps,zero=0.0)
+    prec = BigDecimal.limit(nil)
+    n = ps.size
+    x = []
+    for i in 0...n do
+      dot = zero
+      psin = ps[i]*n
+      for j in 0...i do
+        dot = a[psin+j].mult(x[j],prec) + dot
+      end
+      x &lt;&lt;= b[ps[i]] - dot
+    end
+    (n-1).downto(0) do |i|
+      dot = zero
+      psin = ps[i]*n
+      for j in (i+1)...n do
+        dot = a[psin+j].mult(x[j],prec) + dot
+      end
+      x[i]  = (x[i]-dot).div(a[psin+i],prec)
+    end
+    x
+  end
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

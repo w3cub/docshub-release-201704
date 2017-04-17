@@ -1,0 +1,232 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>OpenSSL&#58;&#58;OCSP - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" OpenSSL&#58;&#58;OCSP implements Online Certificate Status Protocol requests and responses. ">
+  <meta name="keywords" content="module, openssl, ocsp, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/openssl/ocsp/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="module-OpenSSL::OCSP" class="module"> module OpenSSL::OCSP </h1> <section class="description"> <p><a href="../ocsp/">OpenSSL::OCSP</a> implements Online Certificate Status Protocol requests and responses.</p> <p>Creating and sending an <a href="../ocsp/">OCSP</a> request requires a subject certificate that contains an <a href="../ocsp/">OCSP</a> URL in an authorityInfoAccess extension and the issuer certificate for the subject certificate. First, load the issuer and subject certificates:</p> <pre class="ruby">subject = OpenSSL::X509::Certificate.new subject_pem
+issuer  = OpenSSL::X509::Certificate.new issuer_pem
+</pre> <p>To create the request we need to create a certificate ID for the subject certificate so the CA knows which certificate we are asking about:</p> <pre class="ruby">digest = OpenSSL::Digest::SHA1.new
+certificate_id =
+  OpenSSL::OCSP::CertificateId.new subject, issuer, digest
+</pre> <p>Then create a request and add the certificate ID to it:</p> <pre class="ruby">request = OpenSSL::OCSP::Request.new
+request.add_certid certificate_id
+</pre> <p>Adding a nonce to the request protects against replay attacks but not all CA process the nonce.</p> <pre class="ruby">request.add_nonce
+</pre> <p>To submit the request to the CA for verification we need to extract the <a href="../ocsp/">OCSP</a> <a href="../../uri/">URI</a> from the subject certificate:</p> <pre class="ruby">authority_info_access = subject.extensions.find do |extension|
+  extension.oid == 'authorityInfoAccess'
+end
+
+descriptions = authority_info_access.value.split "\n"
+ocsp = descriptions.find do |description|
+  description.start_with? 'OCSP'
+end
+
+require 'uri'
+
+ocsp_uri = URI ocsp[/URI:(.*)/, 1]
+</pre> <p>To submit the request we'll POST the request to the <a href="../ocsp/">OCSP</a> <a href="../../uri/">URI</a> (per RFC 2560). Note that we only handle HTTP requests and don't handle any redirects in this example, so this is insufficient for serious use.</p> <pre class="ruby">require 'net/http'
+
+http_response =
+  Net::HTTP.start ocsp_uri.hostname, ocsp.port do |http|
+    http.post ocsp_uri.path, request.to_der,
+              'content-type' =&gt; 'application/ocsp-request'
+end
+
+response = OpenSSL::OCSP::Response.new http_response.body
+response_basic = response.basic
+</pre> <p>First we check if the response has a valid signature. Without a valid signature we cannot trust it. If you get a failure here you may be missing a system certificate store or may be missing the intermediate certificates.</p> <pre class="ruby">store = OpenSSL::X509::Store.new
+store.set_default_paths
+
+unless response.verify [], store then
+  raise 'response is not signed by a trusted certificate'
+end
+</pre> <p>The response contains the status information (success/fail). We can display the status as a string:</p> <pre class="ruby">puts response.status_string #=&gt; successful
+</pre> <p>Next we need to know the response details to determine if the response matches our request. First we check the nonce. Again, not all CAs support a nonce. See <a href="../ocsp/request/#method-i-check_nonce">OpenSSL::OCSP::Request#check_nonce</a> for the meanings of the return values.</p> <pre class="ruby">p request.check_nonce basic_response #=&gt; value from -1 to 3
+</pre> <p>Then extract the status information from the basic response. (You can check multiple certificates in a request, but for this example we only submitted one.)</p> <pre class="ruby">response_certificate_id, status, reason, revocation_time,
+  this_update, next_update, extensions = basic_response.status
+</pre> <p>Then check the various fields.</p> <pre class="ruby">unless response_certificate_id == certificate_id then
+  raise 'certificate id mismatch'
+end
+
+now = Time.now
+
+if this_update &gt; now then
+  raise 'update date is in the future'
+end
+
+if now &gt; next_update then
+  raise 'next update time has passed'
+end
+</pre> </section> <section id="5Buntitled-5D" class="documentation-section"> <section class="constants-list"> <header> <h3>Constants</h3> </header> <dl> <dt id="NOCASIGN">NOCASIGN </dt>
+<dd>
+<p>(This flag is not used by <a href="../../openssl/">OpenSSL</a> 1.0.1g)</p> </dd>
+<dt id="NOCERTS">NOCERTS </dt>
+<dd>
+<p>Do not include certificates in the response</p> </dd>
+<dt id="NOCHAIN">NOCHAIN </dt>
+<dd>
+<p>Do not verify the certificate chain on the response</p> </dd>
+<dt id="NOCHECKS">NOCHECKS </dt>
+<dd>
+<p>Do not make additional signing certificate checks</p> </dd>
+<dt id="NODELEGATED">NODELEGATED </dt>
+<dd>
+<p>(This flag is not used by <a href="../../openssl/">OpenSSL</a> 1.0.1g)</p> </dd>
+<dt id="NOEXPLICIT">NOEXPLICIT </dt>
+<dd>
+<p>Do not check trust</p> </dd>
+<dt id="NOINTERN">NOINTERN </dt>
+<dd>
+<p>Do not search certificates contained in the response for a signer</p> </dd>
+<dt id="NOSIGS">NOSIGS </dt>
+<dd>
+<p>Do not check the signature on the response</p> </dd>
+<dt id="NOTIME">NOTIME </dt>
+<dd>
+<p>Do not include producedAt time in response</p> </dd>
+<dt id="NOVERIFY">NOVERIFY </dt>
+<dd>
+<p>Do not verify the response at all</p> </dd>
+<dt id="RESPID_KEY">RESPID_KEY </dt>
+<dd>
+<p>Identify the response by signing the certificate key ID</p> </dd>
+<dt id="RESPONSE_STATUS_INTERNALERROR">RESPONSE_STATUS_INTERNALERROR </dt>
+<dd>
+<p>Internal error in issuer</p> </dd>
+<dt id="RESPONSE_STATUS_MALFORMEDREQUEST">RESPONSE_STATUS_MALFORMEDREQUEST </dt>
+<dd>
+<p>Illegal confirmation request</p> </dd>
+<dt id="RESPONSE_STATUS_SIGREQUIRED">RESPONSE_STATUS_SIGREQUIRED </dt>
+<dd>
+<p>You must sign the request and resubmit</p> </dd>
+<dt id="RESPONSE_STATUS_SUCCESSFUL">RESPONSE_STATUS_SUCCESSFUL </dt>
+<dd>
+<p><a href="../ocsp/response/">Response</a> has valid confirmations</p> </dd>
+<dt id="RESPONSE_STATUS_TRYLATER">RESPONSE_STATUS_TRYLATER </dt>
+<dd>
+<p>Try again later</p> </dd>
+<dt id="RESPONSE_STATUS_UNAUTHORIZED">RESPONSE_STATUS_UNAUTHORIZED </dt>
+<dd>
+<p>Your request is unauthorized.</p> </dd>
+<dt id="REVOKED_STATUS_AFFILIATIONCHANGED">REVOKED_STATUS_AFFILIATIONCHANGED </dt>
+<dd>
+<p>The certificate subject's name or other information changed</p> </dd>
+<dt id="REVOKED_STATUS_CACOMPROMISE">REVOKED_STATUS_CACOMPROMISE </dt>
+<dd>
+<p>This CA certificate was revoked due to a key compromise</p> </dd>
+<dt id="REVOKED_STATUS_CERTIFICATEHOLD">REVOKED_STATUS_CERTIFICATEHOLD </dt>
+<dd>
+<p>The certificate is on hold</p> </dd>
+<dt id="REVOKED_STATUS_CESSATIONOFOPERATION">REVOKED_STATUS_CESSATIONOFOPERATION </dt>
+<dd>
+<p>The certificate is no longer needed</p> </dd>
+<dt id="REVOKED_STATUS_KEYCOMPROMISE">REVOKED_STATUS_KEYCOMPROMISE </dt>
+<dd>
+<p>The certificate was revoked due to a key compromise</p> </dd>
+<dt id="REVOKED_STATUS_NOSTATUS">REVOKED_STATUS_NOSTATUS </dt>
+<dd>
+<p>The certificate was revoked for an unknown reason</p> </dd>
+<dt id="REVOKED_STATUS_REMOVEFROMCRL">REVOKED_STATUS_REMOVEFROMCRL </dt>
+<dd>
+<p>The certificate was previously on hold and should now be removed from the CRL</p> </dd>
+<dt id="REVOKED_STATUS_SUPERSEDED">REVOKED_STATUS_SUPERSEDED </dt>
+<dd>
+<p>The certificate was superseded by a new certificate</p> </dd>
+<dt id="REVOKED_STATUS_UNSPECIFIED">REVOKED_STATUS_UNSPECIFIED </dt>
+<dd>
+<p>The certificate was revoked for an unspecified reason</p> </dd>
+<dt id="TRUSTOTHER">TRUSTOTHER </dt>
+<dd>
+<p>Do not verify additional certificates</p> </dd>
+<dt id="V_CERTSTATUS_GOOD">V_CERTSTATUS_GOOD </dt>
+<dd>
+<p>Indicates the certificate is not revoked but does not necessarily mean the certificate was issued or that this response is within the certificate's validity interval</p> </dd>
+<dt id="V_CERTSTATUS_REVOKED">V_CERTSTATUS_REVOKED </dt>
+<dd>
+<p>Indicates the certificate has been revoked either permanently or temporarily (on hold).</p> </dd>
+<dt id="V_CERTSTATUS_UNKNOWN">V_CERTSTATUS_UNKNOWN </dt>
+<dd>
+<p>Indicates the responder does not know about the certificate being requested.</p> </dd>
+<dt id="V_RESPID_KEY">V_RESPID_KEY </dt>
+<dd>
+<p>The responder ID is based on the public key.</p> </dd>
+<dt id="V_RESPID_NAME">V_RESPID_NAME </dt>
+<dd>
+<p>The responder ID is based on the key name.</p> </dd>
+</dl> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

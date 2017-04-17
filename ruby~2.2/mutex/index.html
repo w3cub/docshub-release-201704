@@ -1,0 +1,234 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Mutex - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Mutex implements a simple semaphore that can be used to coordinate access to shared data from multiple concurrent threads. ">
+  <meta name="keywords" content="class, mutex, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/mutex/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-Mutex" class="class"> class Mutex </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../object/">Object</a></dd>
+</dl> <section class="description"> <p><a href="../mutex/">Mutex</a> implements a simple semaphore that can be used to coordinate access to shared data from multiple concurrent threads.</p> <p>Example:</p> <pre class="ruby">require 'thread'
+semaphore = Mutex.new
+
+a = Thread.new {
+  semaphore.synchronize {
+    # access shared resource
+  }
+}
+
+b = Thread.new {
+  semaphore.synchronize {
+    # access shared resource
+  }
+}
+</pre> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-callseq"> new → mutex </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Creates a new <a href="../mutex/">Mutex</a></p> <div class="method-source-code" id="new-source"> <pre class="c">static VALUE
+mutex_initialize(VALUE self)
+{
+    return self;
+}</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-lock"> <span class="method-callseq"> lock → self </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Attempts to grab the lock and waits if it isn't available. Raises <code>ThreadError</code> if <code>mutex</code> was locked by the current thread.</p> <div class="method-source-code" id="lock-source"> <pre class="c">VALUE
+rb_mutex_lock(VALUE self)
+{
+    rb_thread_t *th = GET_THREAD();
+    rb_mutex_t *mutex;
+    GetMutexPtr(self, mutex);
+
+    /* When running trap handler */
+    if (!mutex-&gt;allow_trap &amp;&amp; th-&gt;interrupt_mask &amp; TRAP_INTERRUPT_MASK) {
+        rb_raise(rb_eThreadError, "can't be called from trap context");
+    }
+
+    if (rb_mutex_trylock(self) == Qfalse) {
+        if (mutex-&gt;th == GET_THREAD()) {
+            rb_raise(rb_eThreadError, "deadlock; recursive locking");
+        }
+
+        while (mutex-&gt;th != th) {
+            int interrupted;
+            enum rb_thread_status prev_status = th-&gt;status;
+            volatile int timeout_ms = 0;
+            struct rb_unblock_callback oldubf;
+
+            set_unblock_function(th, lock_interrupt, mutex, &amp;oldubf, FALSE);
+            th-&gt;status = THREAD_STOPPED_FOREVER;
+            th-&gt;locking_mutex = self;
+
+            native_mutex_lock(&amp;mutex-&gt;lock);
+            th-&gt;vm-&gt;sleeper++;
+            /*
+             * Carefully! while some contended threads are in lock_func(),
+             * vm-&gt;sleepr is unstable value. we have to avoid both deadlock
+             * and busy loop.
+             */
+            if ((vm_living_thread_num(th-&gt;vm) == th-&gt;vm-&gt;sleeper) &amp;&amp;
+                !patrol_thread) {
+                timeout_ms = 100;
+                patrol_thread = th;
+            }
+
+            GVL_UNLOCK_BEGIN();
+            interrupted = lock_func(th, mutex, (int)timeout_ms);
+            native_mutex_unlock(&amp;mutex-&gt;lock);
+            GVL_UNLOCK_END();
+
+            if (patrol_thread == th)
+                patrol_thread = NULL;
+
+            reset_unblock_function(th, &amp;oldubf);
+
+            th-&gt;locking_mutex = Qfalse;
+            if (mutex-&gt;th &amp;&amp; interrupted == 2) {
+                rb_check_deadlock(th-&gt;vm);
+            }
+            if (th-&gt;status == THREAD_STOPPED_FOREVER) {
+                th-&gt;status = prev_status;
+            }
+            th-&gt;vm-&gt;sleeper--;
+
+            if (mutex-&gt;th == th) mutex_locked(th, self);
+
+            if (interrupted) {
+                RUBY_VM_CHECK_INTS_BLOCKING(th);
+            }
+        }
+    }
+    return self;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-locked-3F"> <span class="method-callseq"> locked? → true or false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns <code>true</code> if this lock is currently held by some thread.</p> <div class="method-source-code" id="locked-3F-source"> <pre class="c">VALUE
+rb_mutex_locked_p(VALUE self)
+{
+    rb_mutex_t *mutex;
+    GetMutexPtr(self, mutex);
+    return mutex-&gt;th ? Qtrue : Qfalse;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-owned-3F"> <span class="method-callseq"> owned? → true or false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns <code>true</code> if this lock is currently held by current thread. <em>This API is experimental, and subject to change.</em></p> <div class="method-source-code" id="owned-3F-source"> <pre class="c">VALUE
+rb_mutex_owned_p(VALUE self)
+{
+    VALUE owned = Qfalse;
+    rb_thread_t *th = GET_THREAD();
+    rb_mutex_t *mutex;
+
+    GetMutexPtr(self, mutex);
+
+    if (mutex-&gt;th == th)
+        owned = Qtrue;
+
+    return owned;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-sleep"> <span class="method-callseq"> sleep(timeout = nil) → number </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Releases the lock and sleeps <code>timeout</code> seconds if it is given and non-nil or forever. Raises <code>ThreadError</code> if <code>mutex</code> wasn't locked by the current thread.</p> <p>When the thread is next woken up, it will attempt to reacquire the lock.</p> <p>Note that this method can wakeup without explicit <a href="../thread/#method-i-wakeup">Thread#wakeup</a> call. For example, receiving signal and so on.</p> <div class="method-source-code" id="sleep-source"> <pre class="c">static VALUE
+mutex_sleep(int argc, VALUE *argv, VALUE self)
+{
+    VALUE timeout;
+
+    rb_scan_args(argc, argv, "01", &amp;timeout);
+    return rb_mutex_sleep(self, timeout);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-synchronize"> <span class="method-callseq"> synchronize { ... } → result of the block </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Obtains a lock, runs the block, and releases the lock when the block completes. See the example under <code>Mutex</code>.</p> <div class="method-source-code" id="synchronize-source"> <pre class="c">static VALUE
+rb_mutex_synchronize_m(VALUE self, VALUE args)
+{
+    if (!rb_block_given_p()) {
+        rb_raise(rb_eThreadError, "must be called with a block");
+    }
+
+    return rb_mutex_synchronize(self, rb_yield, Qundef);
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-try_lock"> <span class="method-callseq"> try_lock → true or false </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Attempts to obtain the lock and returns immediately. Returns <code>true</code> if the lock was granted.</p> <div class="method-source-code" id="try_lock-source"> <pre class="c">VALUE
+rb_mutex_trylock(VALUE self)
+{
+    rb_mutex_t *mutex;
+    VALUE locked = Qfalse;
+    GetMutexPtr(self, mutex);
+
+    native_mutex_lock(&amp;mutex-&gt;lock);
+    if (mutex-&gt;th == 0) {
+        mutex-&gt;th = GET_THREAD();
+        locked = Qtrue;
+
+        mutex_locked(GET_THREAD(), self);
+    }
+    native_mutex_unlock(&amp;mutex-&gt;lock);
+
+    return locked;
+}</pre> </div> </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-unlock"> <span class="method-callseq"> unlock → self </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Releases the lock. Raises <code>ThreadError</code> if <code>mutex</code> wasn't locked by the current thread.</p> <div class="method-source-code" id="unlock-source"> <pre class="c">VALUE
+rb_mutex_unlock(VALUE self)
+{
+    const char *err;
+    rb_mutex_t *mutex;
+    GetMutexPtr(self, mutex);
+
+    err = rb_mutex_unlock_th(mutex, GET_THREAD());
+    if (err) rb_raise(rb_eThreadError, "%s", err);
+
+    return self;
+}</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

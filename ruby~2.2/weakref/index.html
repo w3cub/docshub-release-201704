@@ -1,0 +1,129 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>WeakRef - Ruby 2.2 - W3cubDocs</title>
+  
+  <meta name="description" content=" Weak Reference class that allows a referenced object to be garbage-collected. ">
+  <meta name="keywords" content="class, weakref, -, ruby, ruby~2.2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/ruby~2.2/weakref/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/ruby~2.2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/ruby~2.2/" class="_nav-link" title="" style="margin-left:0;">Ruby 2.2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rdoc">
+				
+<h1 id="class-WeakRef" class="class"> class WeakRef </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../delegator/">Delegator</a></dd>
+</dl> <section class="description"> <p>Weak Reference class that allows a referenced object to be garbage-collected.</p> <p>A <a href="../weakref/">WeakRef</a> may be used exactly like the object it references.</p> <p>Usage:</p> <pre class="ruby">foo = Object.new            # create a new object instance
+p foo.to_s                  # original's class
+foo = WeakRef.new(foo)      # reassign foo with WeakRef instance
+p foo.to_s                  # should be same class
+GC.start                    # start the garbage collector
+p foo.to_s                  # should raise exception (recycled)
+</pre> <h2 id="class-WeakRef-label-Example">Example</h2> <p>With help from <a href="../weakref/">WeakRef</a>, we can implement our own rudimentary WeakHash class.</p> <p>We will call it WeakHash, since it's really just a <a href="../hash/">Hash</a> except all of it's keys and values can be garbage collected.</p> <pre class="ruby">require 'weakref'
+
+class WeakHash &lt; Hash
+  def []= key, obj
+    super WeakRef.new(key), WeakRef.new(obj)
+  end
+end
+</pre> <p>This is just a simple implementation, we've opened the <a href="../hash/">Hash</a> class and changed <a href="../hash/#method-i-store">Hash#store</a> to create a new <a href="../weakref/">WeakRef</a> object with <code>key</code> and <code>obj</code> parameters before passing them as our key-value pair to the hash.</p> <p>With this you will have to limit your self to String keys, otherwise you will get an <a href="../argumenterror/">ArgumentError</a> because <a href="../weakref/">WeakRef</a> cannot create a finalizer for a <a href="../symbol/">Symbol</a>. Symbols are immutable and cannot be garbage collected.</p> <p>Let's see it in action:</p> <pre class="ruby">omg = "lol"
+c = WeakHash.new
+c['foo'] = "bar"
+c['baz'] = Object.new
+c['qux'] = omg
+puts c.inspect
+#=&gt; {"foo"=&gt;"bar", "baz"=&gt;#&lt;Object:0x007f4ddfc6cb48&gt;, "qux"=&gt;"lol"}
+
+# Now run the garbage collector
+GC.start
+c['foo'] #=&gt; nil
+c['baz'] #=&gt; nil
+c['qux'] #=&gt; nil
+omg      #=&gt; "lol"
+
+puts c.inspect
+#=&gt; WeakRef::RefError: Invalid Reference - probably recycled
+</pre> <p>You can see the local variable <code>omg</code> stayed, although its reference in our hash object was garbage collected, along with the rest of the keys and values. Also, when we tried to inspect our hash, we got a <a href="../weakref/referror/">WeakRef::RefError</a>. This is because these objects were also garbage collected.</p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-class-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Class Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-c-new"> <span class="method-name">new</span><span class="method-args">(orig)</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Creates a weak reference to <code>orig</code></p> <p>Raises an <a href="../argumenterror/">ArgumentError</a> if the given <code>orig</code> is immutable, such as <a href="../symbol/">Symbol</a>, <a href="../fixnum/">Fixnum</a>, or <a href="../float/">Float</a>.</p> <div class="method-calls-super"> Calls superclass method <a href="../delegator/#method-c-new">Delegator.new</a> </div> <div class="method-source-code" id="new-source"> <pre class="ruby"># File lib/weakref.rb, line 82
+def initialize(orig)
+  case orig
+  when true, false, nil
+    @delegate_sd_obj = orig
+  else
+    @@__map[self] = orig
+  end
+  super
+end</pre> </div> </div> </div> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-weakref_alive-3F"> <span class="method-name">weakref_alive?</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description"> <p>Returns true if the referenced object is still alive.</p> <div class="method-source-code" id="weakref_alive-3F-source"> <pre class="ruby"># File lib/weakref.rb, line 103
+def weakref_alive?
+  @@__map.key?(self) or defined?(@delegate_sd_obj)
+end</pre> </div> </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core © 1993–2016 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library © contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
