@@ -1,0 +1,191 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Command Line Applications - Phalcon 2 - W3cubDocs</title>
+  
+  <meta name="description" content=" CLI applications are executed from the command line. They are useful to create cron jobs, scripts, command utilities and more. ">
+  <meta name="keywords" content="command, line, applications, -, phalcon, phalcon~2">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/phalcon~2/reference/cli/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/phalcon~2.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/phalcon~2/" class="_nav-link" title="" style="margin-left:0;">Phalcon 2</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _phalcon">
+				
+<h1 id="command-line-applications">Command Line Applications</h1> <p>CLI applications are executed from the command line. They are useful to create cron jobs, scripts, command utilities and more.</p>  <h2 id="structure">Structure</h2> <p>A minimal structure of a CLI application will look like this:</p> <ul class="simple"> <li>app/config/config.php</li> <li>app/tasks/MainTask.php</li> <li>app/cli.php &lt;– main bootstrap file</li> </ul>   <h2 id="creating-a-bootstrap">Creating a Bootstrap</h2> <p>As in regular MVC applications, a bootstrap file is used to bootstrap the application. Instead of the index.php bootstrapper in web applications, we use a cli.php file for bootstrapping the application.</p> <p>Below is a sample bootstrap that is being used for this example.</p> <pre class="highlight-php" data-language="php">use Phalcon\DI\FactoryDefault\CLI as CliDI,
+     Phalcon\CLI\Console as ConsoleApp;
+
+ define('VERSION', '1.0.0');
+
+ //Using the CLI factory default services container
+ $di = new CliDI();
+
+ // Define path to application directory
+ defined('APPLICATION_PATH')
+ || define('APPLICATION_PATH', realpath(dirname(__FILE__)));
+
+ /**
+  * Register the autoloader and tell it to register the tasks directory
+  */
+ $loader = new \Phalcon\Loader();
+ $loader-&gt;registerDirs(
+     array(
+         APPLICATION_PATH . '/tasks'
+     )
+ );
+ $loader-&gt;register();
+
+ // Load the configuration file (if any)
+ if(is_readable(APPLICATION_PATH . '/config/config.php')) {
+     $config = include APPLICATION_PATH . '/config/config.php';
+     $di-&gt;set('config', $config);
+ }
+
+ //Create a console application
+ $console = new ConsoleApp();
+ $console-&gt;setDI($di);
+
+ /**
+ * Process the console arguments
+ */
+ $arguments = array();
+ foreach($argv as $k =&gt; $arg) {
+     if($k == 1) {
+         $arguments['task'] = $arg;
+     } elseif($k == 2) {
+         $arguments['action'] = $arg;
+     } elseif($k &gt;= 3) {
+        $arguments['params'][] = $arg;
+     }
+ }
+
+ // define global constants for the current task and action
+ define('CURRENT_TASK', (isset($argv[1]) ? $argv[1] : null));
+ define('CURRENT_ACTION', (isset($argv[2]) ? $argv[2] : null));
+
+ try {
+     // handle incoming arguments
+     $console-&gt;handle($arguments);
+ }
+ catch (\Phalcon\Exception $e) {
+     echo $e-&gt;getMessage();
+     exit(255);
+ }
+</pre> <p>This piece of code can be run using:</p> <pre class="highlight-bash" data-language="bash">$ php app/cli.php
+
+This is the default task and the default action
+</pre>   <h2 id="tasks">Tasks</h2> <p>Tasks work similar to controllers. Any CLI application needs at least a mainTask and a mainAction and every task needs to have a mainAction which will run if no action is given explicitly.</p> <p>Below is an example of the app/tasks/MainTask.php file</p> <pre class="highlight-php" data-language="php">class MainTask extends \Phalcon\CLI\Task
+{
+    public function mainAction() {
+         echo "\nThis is the default task and the default action \n";
+    }
+}
+</pre>   <h2 id="processing-action-parameters">Processing action parameters</h2> <p>It’s possible to pass parameters to actions, the code for this is already present in the sample bootstrap.</p> <p>If you run the the application with the following parameters and action:</p> <pre class="highlight-php" data-language="php">class MainTask extends \Phalcon\CLI\Task
+{
+    public function mainAction() {
+         echo "\nThis is the default task and the default action \n";
+    }
+
+    /**
+    * @param array $params
+    */
+   public function testAction(array $params) {
+       echo sprintf('hello %s', $params[0]) . PHP_EOL;
+       echo sprintf('best regards, %s', $params[1]) . PHP_EOL;
+   }
+}
+</pre> <pre class="highlight-bash" data-language="bash">$ php app/cli.php main test world universe
+
+hello world
+best regards, universe
+</pre>   <h2 id="running-tasks-in-a-chain">Running tasks in a chain</h2> <p>It’s also possible to run tasks in a chain if it’s required. To accomplish this you must add the console itself to the DI:</p> <pre class="highlight-php" data-language="php">$di-&gt;setShared('console', $console);
+
+try {
+    // handle incoming arguments
+    $console-&gt;handle($arguments);
+}
+</pre> <p>Then you can use the console inside of any task. Below is an example of a modified MainTask.php:</p> <pre class="highlight-php" data-language="php">class MainTask extends \Phalcon\CLI\Task
+{
+    public function mainAction() {
+        echo "\nThis is the default task and the default action \n";
+
+        $this-&gt;console-&gt;handle(array(
+           'task' =&gt; 'main',
+           'action' =&gt; 'test'
+        ));
+    }
+
+    public function testAction() {
+        echo '\nI will get printed too!\n';
+    }
+}
+</pre> <p>However, it’s a better idea to extend \Phalcon\CLI\Task and implement this kind of logic there.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2011–2016 Phalcon Framework Team<br>Licensed under the Creative Commons Attribution License 3.0.<br>
+    <a href="https://docs.phalconphp.com/en/2.0.0/reference/cli.html" class="_attribution-link" target="_blank">https://docs.phalconphp.com/en/2.0.0/reference/cli.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
