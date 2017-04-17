@@ -1,0 +1,101 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>03 - Docker and Private Modules - Npm - W3cubDocs</title>
+  
+  <meta name="description" content="If you&#39;ve read through Working with private modules, you&#39;ll know that in order to use private modules, you need to be logged in to npm via &hellip;">
+  <meta name="keywords" content="docker, and, private, modules, -, npm">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/npm/private-modules/docker-and-private-modules/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/npm.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/npm/" class="_nav-link" title="" style="margin-left:0;">npm</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _npm">
+				
+<h1 id="docker-and-private-modules">Docker and private modules</h1> <p>If you've read through <a href="../intro/">Working with private modules</a>, you'll know that in order to use private modules, you need to be <a href="../../cli/adduser/">logged in</a> to npm via the npm CLI.</p> <p>If you're using npm private modules in an environment where you're not directly able to log in, such as inside a <a href="../ci-server-config/">CI Server</a> or a <a href="https://www.docker.com/" target="_blank">Docker</a> container, you'll need to get and export an npm token as an environment variable. That token should look like <code>NPM_TOKEN=00000000-0000-0000-0000-000000000000</code>.</p> <p>The <a href="../ci-server-config/#getting-an-authentication-token">Getting an Authentication Token</a> should help you generate that token.</p> <p>If this is the workflow you need, please read the <a href="../ci-server-config/">CI Server Config doc</a>. If that works with your system then perfect.</p> <p>If it doesn't, here we'll look at the problems with this workflow when running <code>npm install</code> inside a Docker container.</p> <h2 id="runtime-variables">Runtime Variables</h2> <p>If you had the following Dockerfile:</p> <div class="highlight "><pre class="editor editor-colors">FROM risingstack/alpine:3.3-v4.3.1-3.0.1
+ 
+COPY package.json package.json  
+RUN npm install
+ 
+# Add your source files
+COPY . .  
+CMD npm start  </pre></div> <p>Which will use the RisingStack <a href="https://hub.docker.com/r/risingstack/alpine/" target="_blank">Alpine Node.JS Docker image</a>, copy the <code>package.json</code> into our container, installs dependencies, copies the source files and runs the start command as specified in the <code>package.json</code>.</p> <p>In order to install private packages, you may think that we could just add a line before we run <code>npm install</code>, using the <a href="https://docs.docker.com/engine/reference/builder/#env" target="_blank">ENV parameter</a>:</p> <div class="highlight "><pre class="editor editor-colors">ENV NPM_TOKEN=00000000-0000-0000-0000-000000000000</pre></div> <p>However this doesn't work as you would expect, because you want the npm install to occur when you run <code>docker build</code>, and in this instance, <code>ENV</code> variables aren't used, they are set for runtime only.</p> <h2 id="build-time-variables">Build-time variables</h2> <p>We have to take advantage of a different way of passing environment variables to Docker, available since Docker 1.9. We'll use the slightly confusingly named <a href="https://docs.docker.com/engine/reference/builder/#arg" target="_blank">ARG parameter</a>.</p> <p>A complete example that will allow us to use <code>--build-arg</code> to pass in our NPM_TOKEN requires adding a <code>.npmrc</code> file to the project. That file should contain the following content:</p> <div class="highlight "><pre class="editor editor-colors">//registry.npmjs.org/:_authToken=${NPM_TOKEN}</pre></div> <p>The Dockerfile that takes advantage of this has a few more lines in it than our example earlier that allows us to use the <code>.npmrc</code> file and the <code>ARG</code> parameter.</p> <div class="highlight "><pre class="editor editor-colors">FROM risingstack/alpine:3.3-v4.3.1-3.0.1
+ 
+ARG NPM_TOKEN  
+COPY .npmrc .npmrc  
+COPY package.json package.json  
+RUN npm install  
+RUN rm -f .npmrc
+ 
+# Add your source files
+COPY . .  
+CMD npm start</pre></div> <p>This adds the expected <code>ARG NPM_TOKEN</code>, but also copies the <code>.npmrc</code> file, and removes it when npm install completes.</p> <p>To build the image using this Dockerfile and the token, you can run the following (note the <code>.</code> at the end to give docker build the current directory as an argument):</p> <div class="highlight "><pre class="editor editor-colors">docker build --build-arg NPM_TOKEN=${NPM_TOKEN} .</pre></div> <p>This will take your current <code>NPM_TOKEN</code> environment variable, and will build the docker image using it, so you can run <code>npm install</code> inside your container as the current logged in user!</p> <p>Note: Even if you delete the <code>.npmrc</code> file, it'll be kept in the commit history - to clean your secret up entirely make sure to squash them.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © npm, Inc. and Contributors<br>Licensed under the npm License.<br>npm is a trademark of npm, Inc.<br>
+    <a href="https://docs.npmjs.com/private-modules/docker-and-private-modules" class="_attribution-link" target="_blank">https://docs.npmjs.com/private-modules/docker-and-private-modules</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

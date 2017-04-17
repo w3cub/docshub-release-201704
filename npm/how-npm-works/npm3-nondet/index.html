@@ -1,0 +1,118 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>05 - Npm V3 Non-determinism - Npm - W3cubDocs</title>
+  
+  <meta name="description" content=" As stated a few pages back in our example&#58; ">
+  <meta name="keywords" content="npm, non-determinism, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/npm/how-npm-works/npm3-nondet/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/npm.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/npm/" class="_nav-link" title="" style="margin-left:0;">npm</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _npm">
+				
+<h1 id="npm3-non-determinism">npm3 Non-determinism</h1> <p>As stated a few pages back in our example:</p> <p><img src="https://docs.npmjs.com/images/install-order.png" alt="install order"></p> <p>If you, and your development team, use a <code>package.json</code>, as well as the interactive <code>npm install</code> command to add pkgs (like most teams using npm do), it is likely that you will run into a situation where your local <code>node_modules</code> directory will differ from both your coworkers' <code>node_modules</code> directories, as well as the <code>node_modules</code> directories on your staging, testing, or production servers.</p> <p>In short? <strong>npm3 does not install dependencies in a deterministic way.</strong></p> <p>That's probably not a comforting statement to read, but in this article we'll discuss why this happens, as well as assure you that it has no implications for your application, as well as explain the steps to reliably (re)create a single, consistent, <code>node_modules</code> directory, should you want to do that.</p> <h2 id="example">Example</h2> <p>Let's jump back to an example application from a few examples ago:</p> <p><img src="https://docs.npmjs.com/images/npm3deps8.png" alt="app"></p> <p>In this example, our app has the following <code>package.json</code>:</p> <div class="highlight "><pre class="editor editor-colors">{
+  "name": "example3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mod-a": "^1.0.0",
+    "mod-c": "^1.0.0",
+    "mod-d": "^1.0.0",
+    "mod-e": "^1.0.0"
+  }
+}</pre></div> <p>On an <code>npm install</code> we will see this in our terminal:</p> <p><img src="https://docs.npmjs.com/images/npm3deps14.png" alt="npm install"></p> <p>Now, let's say a developer on our team decides to complete a feature that requires that they update Module A to v2.0, which now has a dependency on Module B v2.0, instead of, as previously, Module B v1.0.</p> <p><img src="https://docs.npmjs.com/images/npm3deps9.png" alt="module a v2"></p> <p>Our developer uses the interactive <code>npm install</code> command to install the new version of Module A, and save it to the <code>package.json</code>:</p> <div class="highlight "><pre class="editor editor-colors">npm install mod-a@2 --save</pre></div> <p>The terminal outputs this:</p> <p><img src="https://docs.npmjs.com/images/npm3deps15.png" alt="interactive install mod a"></p> <p>We now have something that looks like this:</p> <p><img src="https://docs.npmjs.com/images/npm3deps10.png" alt="tree with mod a v2 interactive"></p> <p>Now let's say that our developer finished the feature requiring the new version of Module A and pushes the application to a testing server that runs <code>npm install</code> on the new <code>package.json</code>:</p> <div class="highlight "><pre class="editor editor-colors">{
+  "name": "example3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" &amp;&amp; exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mod-a": "^2.0.0",
+    "mod-c": "^1.0.0",
+    "mod-d": "^1.0.0",
+    "mod-e": "^1.0.0"
+  }
+}</pre></div> <p>The testing server's log shows this:</p> <p><img src="https://docs.npmjs.com/images/npm3deps16.png" alt="tree with mod a v2 packagejson"></p> <p>Which, when visualized, looks like this:</p> <p><img src="https://docs.npmjs.com/images/npm3deps17.png" alt="totally diff dep tree"></p> <p>Whoa, what?! This tree is completely different than the tree that exists on our developer's local machine. What happened?</p> <p><strong>Remember: install order matters.</strong></p> <p>When our developer updated Module A using the interactive <code>npm install</code> Module A v2.0 was functionally the <strong>last</strong> package installed. Because our developer had done an <code>npm install</code> when they first started working on the project, all modules listed in the <code>package.json</code> were already installed in the <code>node_modules</code> folder. <strong>Then</strong> Module A v2.0 was installed.</p> <p>It follows, then, that Module Bv1.0, a top level dependency because of Module A v1.0, then anchored by Module E v1.0, remains a top level dependency. Because Module Bv1.0 occupies the top-level, no other version of Module B can-- therefore, Module Bv2.0 remains a nested dependency under Module C v1.0 and Module D v1.0, and becomes a nested dependency for the new Module A v2.0 dependency.</p> <p>Let's consider what happened on the testing server. The project was pulled into a fresh directory, i.e. does not have a pre-existing <code>node_modules</code> directory. Then <code>npm install</code> is run, perhaps by a deploy script, to install dependencies from the <code>package.json</code>.</p> <p>This <code>package.json</code> now has Module A v2.0 listed in it, and thanks to alphabetical order (enforced by the <code>npm install</code> command), is now installed <strong>first</strong>, instead of <strong>last</strong>.</p> <p>When Module A v2.0 is installed first, in a clear <code>node_modules</code> directory, its dependencies are the <strong>first candidates</strong> for the top-level position. As a result, Module B v2.0 is installed in the top-level of the <code>node_modules</code> directory.</p> <p>Now, when it is time to install Module E v1.0, its dependency, Module B v1.0, cannot occupy the top-level of the <code>node_modules</code> directory, because Module B v2.0 is already there. Therefore, it is nested under Module E v1.0.</p> <h2 id="do-different-dependency-tree-structures-affect-my-app">Do different dependency tree structures affect my app?</h2> <p>No! Even though the trees are different, both sufficiently install and point all your dependencies at all their dependencies, and so on, down the tree. You still have everything you need, it just happens to be in a different configuration.</p> <h2 id="i-want-my-node_modules-directory-to-be-the-same-how-can-i-do-that">I want my <code>node_modules</code> directory to be the same. How can I do that?</h2> <p>The <code>npm install</code> command, when used exclusively to install packages from a <code>package.json</code>, will <strong>always produce the same tree</strong>. This is because install order from a <code>package.json</code> is <strong>always</strong> alphabetical. Same install order means that you will get the same tree.</p> <p>You can reliably get the same dependency tree by removing your <code>node_modules</code> directory and running <code>npm install</code> whenever you make a change to your <code>package.json</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © npm, Inc. and Contributors<br>Licensed under the npm License.<br>npm is a trademark of npm, Inc.<br>
+    <a href="https://docs.npmjs.com/how-npm-works/npm3-nondet" class="_attribution-link" target="_blank">https://docs.npmjs.com/how-npm-works/npm3-nondet</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
