@@ -1,0 +1,205 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Select&#58;&#58;__toString - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements PHP magic __toString method to convert the query to a string. ">
+  <meta name="keywords" content="public, function, select, tostring, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-database-query-select.php/function/select-__tostring/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function Select::__toString</h1>     <pre class="signature">public <a href="../../../class/select/8.1.x/">Select</a>::__toString()</pre> <p>Implements PHP magic __toString method to convert the query to a string.</p> <p>The toString operation is how we compile a query object to a prepared statement.</p> <h3>Return value</h3> <p> string A prepared statement query string for this object.</p> <p class="api-override">Overrides <a href="../../../../core-lib-drupal-core-database-query-query.php/function/query-__tostring/8.1.x/">Query::__toString</a></p> <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Database/Query/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Database%21Query%21Select.php/8.1.x" target="_blank">Select.php</a>, line 778</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/select/8.1.x/">Select</a> </dt> <dd>Query builder for SELECT statements.</dd> </dl> <h3>Namespace</h3> <a href="https://api.drupal.org/api/drupal/namespace/Drupal%21Core%21Database%21Query/8.1.x" target="_blank">Drupal\Core\Database\Query</a> <h3>Code</h3> <pre class="php" data-language="php">public function __toString() {
+  // For convenience, we compile the query ourselves if the caller forgot
+  // to do it. This allows constructs like "(string) $query" to work. When
+  // the query will be executed, it will be recompiled using the proper
+  // placeholder generator anyway.
+  if (!$this-&gt;compiled()) {
+    $this-&gt;compile($this-&gt;connection, $this);
+  }
+
+  // Create a sanitized comment string to prepend to the query.
+  $comments = $this-&gt;connection-&gt;makeComment($this-&gt;comments);
+
+  // SELECT
+  $query = $comments . 'SELECT ';
+  if ($this-&gt;distinct) {
+    $query .= 'DISTINCT ';
+  }
+
+  // FIELDS and EXPRESSIONS
+  $fields = array();
+  foreach ($this-&gt;tables as $alias =&gt; $table) {
+    if (!empty($table['all_fields'])) {
+      $fields[] = $this-&gt;connection-&gt;escapeTable($alias) . '.*';
+    }
+  }
+  foreach ($this-&gt;fields as $field) {
+    // Always use the AS keyword for field aliases, as some
+    // databases require it (e.g., PostgreSQL).
+    $fields[] = (isset($field['table']) ? $this-&gt;connection-&gt;escapeTable($field['table']) . '.' : '') . $this-&gt;connection-&gt;escapeField($field['field']) . ' AS ' . $this-&gt;connection-&gt;escapeAlias($field['alias']);
+  }
+  foreach ($this-&gt;expressions as $expression) {
+    $fields[] = $expression['expression'] . ' AS ' . $this-&gt;connection-&gt;escapeAlias($expression['alias']);
+  }
+  $query .= implode(', ', $fields);
+
+
+  // FROM - We presume all queries have a FROM, as any query that doesn't won't need the query builder anyway.
+  $query .= "\nFROM ";
+  foreach ($this-&gt;tables as $table) {
+    $query .= "\n";
+    if (isset($table['join type'])) {
+      $query .= $table['join type'] . ' JOIN ';
+    }
+
+    // If the table is a subquery, compile it and integrate it into this query.
+    if ($table['table'] instanceof SelectInterface) {
+      // Run preparation steps on this sub-query before converting to string.
+      $subquery = $table['table'];
+      $subquery-&gt;preExecute();
+      $table_string = '(' . (string) $subquery . ')';
+    }
+    else {
+      $table_string = $this-&gt;connection-&gt;escapeTable($table['table']);
+      // Do not attempt prefixing cross database / schema queries.
+      if (strpos($table_string, '.') === FALSE) {
+        $table_string = '{' . $table_string . '}';
+      }
+    }
+
+    // Don't use the AS keyword for table aliases, as some
+    // databases don't support it (e.g., Oracle).
+    $query .= $table_string . ' ' . $this-&gt;connection-&gt;escapeTable($table['alias']);
+
+    if (!empty($table['condition'])) {
+      $query .= ' ON ' . (string) $table['condition'];
+    }
+  }
+
+  // WHERE
+  if (count($this-&gt;condition)) {
+    // There is an implicit string cast on $this-&gt;condition.
+    $query .= "\nWHERE " . $this-&gt;condition;
+  }
+
+  // GROUP BY
+  if ($this-&gt;group) {
+    $query .= "\nGROUP BY " . implode(', ', $this-&gt;group);
+  }
+
+  // HAVING
+  if (count($this-&gt;having)) {
+    // There is an implicit string cast on $this-&gt;having.
+    $query .= "\nHAVING " . $this-&gt;having;
+  }
+
+  // ORDER BY
+  if ($this-&gt;order) {
+    $query .= "\nORDER BY ";
+    $fields = array();
+    foreach ($this-&gt;order as $field =&gt; $direction) {
+      $fields[] = $this-&gt;connection-&gt;escapeField($field) . ' ' . $direction;
+    }
+    $query .= implode(', ', $fields);
+  }
+
+  // RANGE
+  // There is no universal SQL standard for handling range or limit clauses.
+  // Fortunately, all core-supported databases use the same range syntax.
+  // Databases that need a different syntax can override this method and
+  // do whatever alternate logic they need to.
+  if (!empty($this-&gt;range)) {
+    $query .= "\nLIMIT " . (int) $this-&gt;range['length'] . " OFFSET " . (int) $this-&gt;range['start'];
+  }
+
+  // UNION is a little odd, as the select queries to combine are passed into
+  // this query, but syntactically they all end up on the same level.
+  if ($this-&gt;union) {
+    foreach ($this-&gt;union as $union) {
+      $query .= ' ' . $union['type'] . ' ' . (string) $union['query'];
+    }
+  }
+
+  if ($this-&gt;forUpdate) {
+    $query .= ' FOR UPDATE';
+  }
+
+  return $query;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Database!Query!Select.php/function/Select::__toString/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Database!Query!Select.php/function/Select::__toString/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

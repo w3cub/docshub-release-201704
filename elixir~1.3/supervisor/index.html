@@ -1,0 +1,220 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Supervisor - Elixir 1.3 - W3cubDocs</title>
+  
+  <meta name="description" content=" A behaviour module for implementing supervision functionality. ">
+  <meta name="keywords" content="supervisor, summary, types, functions, callbacks, -, elixir, elixir~1.3">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/elixir~1.3/supervisor/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/elixir~1.3.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/elixir~1.3/" class="_nav-link" title="" style="margin-left:0;">Elixir 1.3</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1>  Supervisor <small>behaviour</small>  </h1>  <p>A behaviour module for implementing supervision functionality.</p> <p>A supervisor is a process which supervises other processes, which we refer to as <em>child processes</em>. Supervisors are used to build a hierarchical process structure called a <em>supervision tree</em>. Supervision trees are a nice way to structure fault-tolerant applications.</p> <p>A supervisor implemented using this module has a standard set of interface functions and includes functionality for tracing and error reporting. It also fits into a supervision tree.</p> <h2 id="module-examples" class="section-heading">  Examples </h2> <p>In order to define a supervisor, we need to first define a child process that is going to be supervised. In order to do so, we will define a GenServer that represents a stack:</p> <pre data-language="elixir"><code class="elixir">defmodule Stack do
+  use GenServer
+
+  def start_link(state, opts \\ []) do
+    GenServer.start_link(__MODULE__, state, opts)
+  end
+
+  def handle_call(:pop, _from, [h | t]) do
+    {:reply, h, t}
+  end
+
+  def handle_cast({:push, h}, t) do
+    {:noreply, [h | t]}
+  end
+end</code></pre> <p>We can now define our supervisor and start it as follows:</p> <pre data-language="elixir"><code class="elixir"># Import helpers for defining supervisors
+import Supervisor.Spec
+
+# Supervise the Stack server which will be started with
+# a single argument [:hello] and the default registered
+# name of MyStack.
+children = [
+  worker(Stack, [[:hello], [name: MyStack]])
+]
+
+# Start the supervisor with our child
+{:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)</code></pre> <p>Notice that when starting the GenServer, we are registering it with name <code class="inline">MyStack</code>, which allows us to call it directly and get what is on the stack:</p> <pre data-language="elixir"><code class="elixir">GenServer.call(MyStack, :pop)
+#=&gt; :hello
+
+GenServer.cast(MyStack, {:push, :world})
+#=&gt; :ok
+
+GenServer.call(MyStack, :pop)
+#=&gt; :world</code></pre> <p>However, there is a bug in our stack server. If we call <code class="inline">:pop</code> and the stack is empty, it is going to crash because no clause matches:</p> <pre data-language="elixir"><code class="elixir">GenServer.call(:sup_stack, :pop)
+** (exit) exited in: GenServer.call(MyStack, :pop, 5000)</code></pre> <p>Luckily, since the server is being supervised by a supervisor, the supervisor will automatically start a new one, with the initial stack of <code class="inline">[:hello]</code>:</p> <pre data-language="elixir"><code class="elixir">GenServer.call(MyStack, :pop)
+#=&gt; :hello</code></pre> <p>Supervisors support different strategies; in the example above, we have chosen <code class="inline">:one_for_one</code>. Furthermore, each supervisor can have many workers and supervisors as children, each of them with their specific configuration, shutdown values, and restart strategies.</p> <p>The rest of this documentation will cover supervision strategies; also read the documentation for the <a href="../supervisor.spec/"><code class="inline">Supervisor.Spec</code></a> module to learn about the specification for workers and supervisors.</p> <h2 id="module-module-based-supervisors" class="section-heading">  Module-based supervisors </h2> <p>In the example above, a supervisor was started by passing the supervision structure to <a href="#start_link/2"><code class="inline">start_link/2</code></a>. However, supervisors can also be created by explicitly defining a supervision module:</p> <pre data-language="elixir"><code class="elixir">defmodule MyApp.Supervisor do
+  use Supervisor
+
+  def start_link do
+    Supervisor.start_link(__MODULE__, [])
+  end
+
+  def init([]) do
+    children = [
+      worker(Stack, [[:hello]])
+    ]
+
+    # supervise/2 is imported from Supervisor.Spec
+    supervise(children, strategy: :one_for_one)
+  end
+end</code></pre> <p>You may want to use a module-based supervisor if:</p> <ul> <li>
+<p>You need to perform some particular action on supervisor initialization, like setting up an ETS table.</p> </li> <li>You want to perform partial hot-code swapping of the tree. For example, if you add or remove children, the module-based supervision will add and remove the new children directly, while dynamic supervision requires the whole tree to be restarted in order to perform such swaps. </li> </ul> <h2 id="module-strategies" class="section-heading">  Strategies </h2> <p>Supervisors support different supervision strategies (through the <code class="inline">:strategy</code> option, as seen above):</p> <ul> <li>
+<p><code class="inline">:one_for_one</code> - if a child process terminates, only that process is restarted.</p> </li> <li>
+<p><code class="inline">:one_for_all</code> - if a child process terminates, all other child processes are terminated and then all child processes (including the terminated one) are restarted.</p> </li> <li>
+<p><code class="inline">:rest_for_one</code> - if a child process terminates, the “rest” of the child processes, i.e., the child processes after the terminated one in start order, are terminated. Then the terminated child process and the rest of the child processes are restarted.</p> </li> <li>
+<code class="inline">:simple_one_for_one</code> - similar to <code class="inline">:one_for_one</code> but suits better when dynamically attaching children. This strategy requires the supervisor specification to contain only one child. Many functions in this module behave slightly differently when this strategy is used. </li> </ul> <h2 id="module-simple-one-for-one" class="section-heading">  Simple one for one </h2> <p>The <code class="inline">:simple_one_for_one</code> supervisor is useful when you want to dynamically start and stop supervised children. For example, imagine you want to dynamically create multiple stacks. We can do so by defining a <code class="inline">:simple_one_for_one</code> supervisor:</p> <pre data-language="elixir"><code class="elixir"># Import helpers for defining supervisors
+import Supervisor.Spec
+
+# This time, we don't pass any argument because
+# the argument will be given when we start the child
+children = [
+  worker(Stack, [], restart: :transient)
+]
+
+# Start the supervisor with our one child
+{:ok, sup_pid} = Supervisor.start_link(children, strategy: :simple_one_for_one)</code></pre> <p>There are a couple differences here:</p> <ul> <li>
+<p>the simple one for one specification can define only one child which works as a template for when we call <a href="#start_child/2"><code class="inline">start_child/2</code></a></p> </li> <li>we have defined the child to have a restart strategy of <code class="inline">:transient</code>. This means that, if the child process exits due to a <code class="inline">:normal</code>, <code class="inline">:shutdown</code>, or <code class="inline">{:shutdown, term}</code> reason, it won’t be restarted. This is useful as it allows our workers to politely shutdown and be removed from the <code class="inline">:simple_one_for_one</code> supervisor, without being restarted. You can find more information about restart strategies in the documentation for the <a href="../supervisor.spec/"><code class="inline">Supervisor.Spec</code></a> module </li> </ul> <p>With the supervisor defined, let’s dynamically start stacks:</p> <pre data-language="elixir"><code class="elixir">{:ok, pid} = Supervisor.start_child(sup_pid, [[:hello, :world], []])
+GenServer.call(pid, :pop) #=&gt; :hello
+GenServer.call(pid, :pop) #=&gt; :world
+
+{:ok, pid} = Supervisor.start_child(sup_pid, [[:something, :else], []])
+GenServer.call(pid, :pop) #=&gt; :something
+GenServer.call(pid, :pop) #=&gt; :else
+
+Supervisor.count_children(sup_pid)
+#=&gt; %{active: 2, specs: 1, supervisors: 0, workers: 2}</code></pre> <h2 id="module-exit-reasons" class="section-heading">  Exit reasons </h2> <p>From the example above, you may have noticed that the <code class="inline">:transient</code> restart strategy for the worker does not restart the child in case it exits with reason <code class="inline">:normal</code>, <code class="inline">:shutdown</code> or <code class="inline">{:shutdown, term}</code>.</p> <p>So one may ask: which exit reason should I choose when exiting my worker? There are three options:</p> <ul> <li>
+<p><code class="inline">:normal</code> - in such cases, the exit won’t be logged, there is no restart in transient mode, and linked processes do not exit</p> </li> <li>
+<p><code class="inline">:shutdown</code> or <code class="inline">{:shutdown, term}</code> - in such cases, the exit won’t be logged, there is no restart in transient mode, and linked processes exit with the same reason unless they’re trapping exits</p> </li> <li>any other term - in such cases, the exit will be logged, there are restarts in transient mode, and linked processes exit with the same reason unless they’re trapping exits </li> </ul> <h2 id="module-name-registration" class="section-heading">  Name registration </h2> <p>A supervisor is bound to the same name registration rules as a <a href="../genserver/"><code class="inline">GenServer</code></a>. Read more about these rules in the documentation for <a href="../genserver/"><code class="inline">GenServer</code></a>.</p>   <h1 class="section-heading" id="summary">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">   <dt class="summary-signature"> <a href="#t:child/0">child()</a> </dt>   <dt class="summary-signature"> <a href="#t:name/0">name()</a> </dt> <dd class="summary-synopsis">
+<p>The Supervisor name</p> </dd>   <dt class="summary-signature"> <a href="#t:on_start/0">on_start()</a> </dt> <dd class="summary-synopsis">
+<p>Return values of <code class="inline">start_link</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:on_start_child/0">on_start_child()</a> </dt> <dd class="summary-synopsis">
+<p>Return values of <code class="inline">start_child</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:options/0">options()</a> </dt> <dd class="summary-synopsis">
+<p>Options used by the <code class="inline">start*</code> functions</p> </dd>   <dt class="summary-signature"> <a href="#t:supervisor/0">supervisor()</a> </dt> <dd class="summary-synopsis">
+<p>The supervisor reference</p> </dd>  </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">   <dt class="summary-signature"> <a href="#count_children/1">count_children(supervisor)</a> </dt> <dd class="summary-synopsis">
+<p>Returns a map containing count values for the given supervisor</p> </dd>   <dt class="summary-signature"> <a href="#delete_child/2">delete_child(supervisor, child_id)</a> </dt> <dd class="summary-synopsis">
+<p>Deletes the child specification identified by <code class="inline">child_id</code></p> </dd>   <dt class="summary-signature"> <a href="#restart_child/2">restart_child(supervisor, child_id)</a> </dt> <dd class="summary-synopsis">
+<p>Restarts a child process identified by <code class="inline">child_id</code></p> </dd>   <dt class="summary-signature"> <a href="#start_child/2">start_child(supervisor, child_spec_or_args)</a> </dt> <dd class="summary-synopsis">
+<p>Dynamically adds a child specification to <code class="inline">supervisor</code> and starts that child</p> </dd>   <dt class="summary-signature"> <a href="#start_link/2">start_link(children, options)</a> </dt> <dd class="summary-synopsis">
+<p>Starts a supervisor with the given children</p> </dd>   <dt class="summary-signature"> <a href="#start_link/3">start_link(module, arg, options \\ [])</a> </dt> <dd class="summary-synopsis">
+<p>Starts a supervisor module with the given <code class="inline">arg</code></p> </dd>   <dt class="summary-signature"> <a href="#stop/3">stop(supervisor, reason \\ :normal, timeout \\ :infinity)</a> </dt> <dd class="summary-synopsis">
+<p>Stops the given supervisor with the given <code class="inline">reason</code></p> </dd>   <dt class="summary-signature"> <a href="#terminate_child/2">terminate_child(supervisor, pid_or_child_id)</a> </dt> <dd class="summary-synopsis">
+<p>Terminates the given children, identified by pid or child id</p> </dd>   <dt class="summary-signature"> <a href="#which_children/1">which_children(supervisor)</a> </dt> <dd class="summary-synopsis">
+<p>Returns a list with information about all children of the given supervisor</p> </dd>  </dl> <h2> Callbacks </h2>
+<dl class="summary-callbacks summary">   <dt class="summary-signature"> <a href="#c:init/1">init(args)</a> </dt> <dd class="summary-synopsis">
+<p>Callback invoked to start the supervisor and during hot code upgrades</p> </dd>  </dl>   <h1 class="section-heading" id="types">  Types </h1>   <h3 class="detail-header type" id="t:child/0">  <span class="signature">child()</span>     </h3>
+<pre data-language="elixir">child() :: pid | :undefined</pre>     <h3 class="detail-header type" id="t:name/0">  <span class="signature">name()</span>     </h3>
+<pre data-language="elixir">name() :: atom | {:global, term} | {:via, module, term}</pre>  <p>The Supervisor name</p>    <h3 class="detail-header type" id="t:on_start/0">  <span class="signature">on_start()</span>     </h3>
+<pre data-language="elixir"><a href="#t:on_start/0">on_start</a> ::
+  {:ok, pid} |
+  :ignore |
+  {:error, {:already_started, pid} | {:shutdown, term} | term}</pre>  <p>Return values of <code class="inline">start_link</code> functions</p>    <h3 class="detail-header type" id="t:on_start_child/0">  <span class="signature">on_start_child()</span>     </h3>
+<pre data-language="elixir"><a href="#t:on_start_child/0">on_start_child</a> ::
+  {:ok, <a href="#t:child/0">child</a>} |
+  {:ok, <a href="#t:child/0">child</a>, info :: term} |
+  {:error, {:already_started, <a href="#t:child/0">child</a>} | :already_present | term}</pre>  <p>Return values of <code class="inline">start_child</code> functions</p>    <h3 class="detail-header type" id="t:options/0">  <span class="signature">options()</span>     </h3>
+<pre data-language="elixir">options() :: [name: <a href="#t:name/0">name</a>, strategy: <a href="../supervisor.spec/#t:strategy/0">Supervisor.Spec.strategy</a>, max_restarts: non_neg_integer, max_seconds: non_neg_integer]</pre>  <p>Options used by the <code class="inline">start*</code> functions</p>    <h3 class="detail-header type" id="t:supervisor/0">  <span class="signature">supervisor()</span>     </h3>
+<pre data-language="elixir">supervisor() :: pid | <a href="#t:name/0">name</a> | {atom, node}</pre>  <p>The supervisor reference</p>      <h1 class="section-heading" id="functions">  Functions </h1>  <h3 class="detail-header function" id="count_children/1">  <span class="signature">count_children(supervisor)</span>     </h3>
+<pre data-language="elixir">count_children(<a href="#t:supervisor/0">supervisor</a>) :: %{specs: non_neg_integer, active: non_neg_integer, supervisors: non_neg_integer, workers: non_neg_integer}</pre>  <p>Returns a map containing count values for the given supervisor.</p> <p>The map contains the following keys:</p> <ul> <li>
+<p><code class="inline">:specs</code> - the total count of children, dead or alive</p> </li> <li>
+<p><code class="inline">:active</code> - the count of all actively running child processes managed by this supervisor</p> </li> <li>
+<p><code class="inline">:supervisors</code> - the count of all supervisors whether or not these child supervisors are still alive</p> </li> <li>
+<code class="inline">:workers</code> - the count of all workers, whether or not these child workers are still alive </li> </ul>    <h3 class="detail-header function" id="delete_child/2">  <span class="signature">delete_child(supervisor, child_id)</span>     </h3>
+<pre data-language="elixir">delete_child(<a href="#t:supervisor/0">supervisor</a>, <a href="../supervisor.spec/#t:child_id/0">Supervisor.Spec.child_id</a>) ::
+  :ok |
+  {:error, error} when error: :not_found | :simple_one_for_one | :running | :restarting</pre>  <p>Deletes the child specification identified by <code class="inline">child_id</code>.</p> <p>The corresponding child process must not be running; use <a href="#terminate_child/2"><code class="inline">terminate_child/2</code></a> to terminate it if it’s running.</p> <p>If successful, this function returns <code class="inline">:ok</code>. This function may return an error with an appropriate error tuple if the <code class="inline">child_id</code> is not found, or if the current process is running or being restarted.</p> <p>This operation is not supported by <code class="inline">:simple_one_for_one</code> supervisors.</p>    <h3 class="detail-header function" id="restart_child/2">  <span class="signature">restart_child(supervisor, child_id)</span>     </h3>
+<pre data-language="elixir">restart_child(<a href="#t:supervisor/0">supervisor</a>, <a href="../supervisor.spec/#t:child_id/0">Supervisor.Spec.child_id</a>) ::
+  {:ok, <a href="#t:child/0">child</a>} |
+  {:ok, <a href="#t:child/0">child</a>, term} |
+  {:error, error} when error: :not_found | :simple_one_for_one | :running | :restarting | term</pre>  <p>Restarts a child process identified by <code class="inline">child_id</code>.</p> <p>The child specification must exist and the corresponding child process must not be running.</p> <p>Note that for temporary children, the child specification is automatically deleted when the child terminates, and thus it is not possible to restart such children.</p> <p>If the child process start function returns <code class="inline">{:ok, child}</code> or <code class="inline">{:ok, child, info}</code>, the pid is added to the supervisor and this function returns the same value.</p> <p>If the child process start function returns <code class="inline">:ignore</code>, the pid remains set to <code class="inline">:undefined</code> and this function returns <code class="inline">{:ok, :undefined}</code>.</p> <p>This function may return an error with an appropriate error tuple if the <code class="inline">child_id</code> is not found, or if the current process is running or being restarted.</p> <p>If the child process start function returns an error tuple or an erroneous value, or if it fails, this function returns <code class="inline">{:error, error}</code>.</p> <p>This operation is not supported by <code class="inline">:simple_one_for_one</code> supervisors.</p>    <h3 class="detail-header function" id="start_child/2">  <span class="signature">start_child(supervisor, child_spec_or_args)</span>     </h3>
+<pre data-language="elixir">start_child(<a href="#t:supervisor/0">supervisor</a>, <a href="../supervisor.spec/#t:spec/0">Supervisor.Spec.spec</a> | [term]) :: <a href="#t:on_start_child/0">on_start_child</a></pre>  <p>Dynamically adds a child specification to <code class="inline">supervisor</code> and starts that child.</p> <p><code class="inline">child_spec</code> should be a valid child specification (unless the supervisor is a <code class="inline">:simple_one_for_one</code> supervisor, see below). The child process will be started as defined in the child specification.</p> <p>In the case of <code class="inline">:simple_one_for_one</code>, the child specification defined in the supervisor is used and instead of a <code class="inline">child_spec</code>, an arbitrary list of terms is expected. The child process will then be started by appending the given list to the existing function arguments in the child specification.</p> <p>If a child specification with the specified id already exists, <code class="inline">child_spec</code> is discarded and this function returns an error with <code class="inline">:already_started</code> or <code class="inline">:already_present</code> if the corresponding child process is running or not, respectively.</p> <p>If the child process start function returns <code class="inline">{:ok, child}</code> or <code class="inline">{:ok, child,
+info}</code>, then child specification and pid are added to the supervisor and this function returns the same value.</p> <p>If the child process start function returns <code class="inline">:ignore</code>, the child specification is added to the supervisor, the pid is set to <code class="inline">:undefined</code> and this function returns <code class="inline">{:ok, :undefined}</code>.</p> <p>If the child process start function returns an error tuple or an erroneous value, or if it fails, the child specification is discarded and this function returns <code class="inline">{:error, error}</code> where <code class="inline">error</code> is a term containing information about the error and child specification.</p>    <h3 class="detail-header function" id="start_link/2">  <span class="signature">start_link(children, options)</span>      </h3>
+<pre data-language="elixir">start_link(module, term) :: <a href="#t:on_start/0">on_start</a></pre>
+<pre data-language="elixir">start_link([<a href="../supervisor.spec/#t:spec/0">Supervisor.Spec.spec</a>], <a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts a supervisor with the given children.</p> <p>A strategy is required to be provided through the <code class="inline">:strategy</code> option. Furthermore, the <code class="inline">:max_restarts</code> and <code class="inline">:max_seconds</code> options can be configured as described in the documentation for <a href="../supervisor.spec/#supervise/2"><code class="inline">Supervisor.Spec.supervise/2</code></a>.</p> <p>The options can also be used to register a supervisor name. The supported values are described under the “Name registration” section in the <a href="../genserver/"><code class="inline">GenServer</code></a> module docs.</p> <p>If the supervisor and its child processes are successfully created (i.e., if the start function of each child process returns <code class="inline">{:ok, child}</code>, <code class="inline">{:ok, child, info}</code>, or <code class="inline">:ignore</code>) this function returns <code class="inline">{:ok, pid}</code>, where <code class="inline">pid</code> is the pid of the supervisor. If a process with the specified name already exists, the function returns <code class="inline">{:error,
+ {:already_started, pid}}</code>, where <code class="inline">pid</code> is the pid of that process.</p> <p>If the start function of any of the child processes fails or returns an error tuple or an erroneous value, the supervisor first terminates with reason <code class="inline">:shutdown</code> all the child processes that have already been started, and then terminates itself and returns <code class="inline">{:error, {:shutdown, reason}}</code>.</p> <p>Note that a supervisor started with this function is linked to the parent process and exits not only on crashes but also if the parent process exits with <code class="inline">:normal</code> reason.</p>     <h3 class="detail-header function" id="start_link/3">  <span class="signature">start_link(module, arg, options \\ [])</span>     </h3>
+<pre data-language="elixir">start_link(module, term, <a href="#t:options/0">options</a>) :: <a href="#t:on_start/0">on_start</a></pre>  <p>Starts a supervisor module with the given <code class="inline">arg</code>.</p> <p>To start the supervisor, the <code class="inline">init/1</code> callback will be invoked in the given <code class="inline">module</code>, with <code class="inline">arg</code> as its argument. The <code class="inline">init/1</code> callback must return a supervisor specification which can be created with the help of the functions in the <a href="../supervisor.spec/"><code class="inline">Supervisor.Spec</code></a> module (especially <a href="../supervisor.spec/#supervise/2)"><code class="inline">Supervisor.Spec.supervise/2</code></a>.</p> <p>If the <code class="inline">init/1</code> callback returns <code class="inline">:ignore</code>, this function returns <code class="inline">:ignore</code> as well and the supervisor terminates with reason <code class="inline">:normal</code>. If it fails or returns an incorrect value, this function returns <code class="inline">{:error, term}</code> where <code class="inline">term</code> is a term with information about the error, and the supervisor terminates with reason <code class="inline">term</code>.</p> <p>The <code class="inline">:name</code> option can also be given in order to register a supervisor name, the supported values are described in the “Name registration” section in the <a href="../genserver/"><code class="inline">GenServer</code></a> module docs.</p>      <h3 class="detail-header function" id="stop/3">  <span class="signature">stop(supervisor, reason \\ :normal, timeout \\ :infinity)</span>     </h3>
+<pre data-language="elixir">stop(<a href="#t:supervisor/0">supervisor</a>, reason :: term, timeout) :: :ok</pre>  <p>Stops the given supervisor with the given <code class="inline">reason</code>.</p> <p>It returns <code class="inline">:ok</code> if the supervisor terminates with the given reason. If it terminates with another reason, the call exits.</p> <p>This function keeps OTP semantics regarding error reporting. If the reason is any other than <code class="inline">:normal</code>, <code class="inline">:shutdown</code> or <code class="inline">{:shutdown, _}</code>, an error report is logged.</p>    <h3 class="detail-header function" id="terminate_child/2">  <span class="signature">terminate_child(supervisor, pid_or_child_id)</span>     </h3>
+<pre data-language="elixir">terminate_child(<a href="#t:supervisor/0">supervisor</a>, pid | <a href="../supervisor.spec/#t:child_id/0">Supervisor.Spec.child_id</a>) ::
+  :ok |
+  {:error, error} when error: :not_found | :simple_one_for_one</pre>  <p>Terminates the given children, identified by pid or child id.</p> <p>If the supervisor is not a <code class="inline">:simple_one_for_one</code>, the child id is expected and the process, if there’s one, is terminated; the child specification is kept unless the child is temporary.</p> <p>In case of a <code class="inline">:simple_one_for_one</code> supervisor, a pid is expected. If the child specification identifier is given instead of a <code class="inline">pid</code>, this function returns <code class="inline">{:error, :simple_one_for_one}</code>.</p> <p>A non-temporary child process may later be restarted by the supervisor. The child process can also be restarted explicitly by calling <a href="#restart_child/2"><code class="inline">restart_child/2</code></a>. Use <a href="#delete_child/2"><code class="inline">delete_child/2</code></a> to remove the child specification.</p> <p>If successful, this function returns <code class="inline">:ok</code>. If there is no child specification for the given child id or there is no process with the given pid, this function returns <code class="inline">{:error, :not_found}</code>.</p>    <h3 class="detail-header function" id="which_children/1">  <span class="signature">which_children(supervisor)</span>     </h3>
+<pre data-language="elixir">which_children(<a href="#t:supervisor/0">supervisor</a>) :: [{<a href="../supervisor.spec/#t:child_id/0">Supervisor.Spec.child_id</a> | :undefined, <a href="#t:child/0">child</a> | :restarting, <a href="../supervisor.spec/#t:worker/0">Supervisor.Spec.worker</a>, <a href="../supervisor.spec/#t:modules/0">Supervisor.Spec.modules</a>}]</pre>  <p>Returns a list with information about all children of the given supervisor.</p> <p>Note that calling this function when supervising a large number of children under low memory conditions can cause an out of memory exception.</p> <p>This function returns a list of <code class="inline">{id, child, type, modules}</code> tuples, where:</p> <ul> <li>
+<p><code class="inline">id</code> - as defined in the child specification or <code class="inline">:undefined</code> in the case of a <code class="inline">simple_one_for_one</code> supervisor</p> </li> <li>
+<p><code class="inline">child</code> - the pid of the corresponding child process, <code class="inline">:restarting</code> if the process is about to be restarted, or <code class="inline">:undefined</code> if there is no such process</p> </li> <li>
+<p><code class="inline">type</code> - <code class="inline">:worker</code> or <code class="inline">:supervisor</code>, as specified by the child specification</p> </li> <li>
+<code class="inline">modules</code> - as specified by the child specification </li> </ul>     <h1 class="section-heading" id="callbacks">  Callbacks </h1>  <h3 class="detail-header callback" id="c:init/1">  <span class="signature">init(args)</span>     </h3>
+<pre data-language="elixir">init(args :: term) ::
+  {:ok, {:supervisor.sup_flags, [<a href="../supervisor.spec/#t:spec/0">Supervisor.Spec.spec</a>]}} |
+  :ignore</pre>  <p>Callback invoked to start the supervisor and during hot code upgrades.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="https://hexdocs.pm/elixir/1.3.3/Supervisor.html" class="_attribution-link" target="_blank">https://hexdocs.pm/elixir/1.3.3/Supervisor.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

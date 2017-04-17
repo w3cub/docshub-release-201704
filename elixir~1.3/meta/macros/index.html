@@ -1,0 +1,225 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Macros - Elixir 1.3 - W3cubDocs</title>
+  
+  <meta name="description" content="Even though Elixir attempts its best to provide a safe environment for macros, the major responsibility of writing clean code with macros falls on &hellip;">
+  <meta name="keywords" content="macros, -, elixir, elixir~1.3">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/elixir~1.3/meta/macros/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/elixir~1.3.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/elixir~1.3/" class="_nav-link" title="" style="margin-left:0;">Elixir 1.3</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _elixir">
+				
+<h1 id="macros">Macros</h1>  <h2 id="foreword">Foreword</h2> <p>Even though Elixir attempts its best to provide a safe environment for macros, the major responsibility of writing clean code with macros falls on developers. Macros are harder to write than ordinary Elixir functions and it’s considered to be bad style to use them when they’re not necessary. So write macros responsibly.</p> <p>Elixir already provides mechanisms to write your every day code in a simple and readable fashion by using its data structures and functions. Macros should only be used as a last resort. Remember that <strong>explicit is better than implicit</strong>. <strong>Clear code is better than concise code.</strong></p> <h2 id="our-first-macro">Our first macro</h2> <p>Macros in Elixir are defined via <code class="highlighter-rouge">defmacro/2</code>.</p> <blockquote> <p>For this chapter, we will be using files instead of running code samples in IEx. That’s because the code samples will span multiple lines of code and typing them all in IEx can be counter-productive. You should be able to run the code samples by saving them into a <code class="highlighter-rouge">macros.exs</code> file and running it with <code class="highlighter-rouge">elixir macros.exs</code> or <code class="highlighter-rouge">iex macros.exs</code>.</p> </blockquote> <p>In order to better understand how macros work, let’s create a new module where we are going to implement <code class="highlighter-rouge">unless</code>, which does the opposite of <code class="highlighter-rouge">if</code>, as a macro and as a function:</p> <pre class="highlight" data-language="elixir">defmodule Unless do
+  def fun_unless(clause, do: expression) do
+    if(!clause, do: expression)
+  end
+
+  defmacro macro_unless(clause, do: expression) do
+    quote do
+      if(!unquote(clause), do: unquote(expression))
+    end
+  end
+end
+</pre> <p>The function receives the arguments and passes them to <code class="highlighter-rouge">if</code>. However, as we learned in the <a href="../quote-and-unquote/">previous chapter</a>, the macro will receive quoted expressions, inject them into the quote, and finally return another quoted expression.</p> <p>Let’s start <code class="highlighter-rouge">iex</code> with the module above:</p> <pre class="highlight" data-language="bash">$ iex macros.exs
+</pre> <p>And play with those definitions:</p> <pre>iex&gt; require Unless
+iex&gt; Unless.macro_unless true, do: IO.puts "this should never be printed"
+nil
+iex&gt; Unless.fun_unless true, do: IO.puts "this should never be printed"
+"this should never be printed"
+nil
+</pre> <p>Note that in our macro implementation, the sentence was not printed, although it was printed in our function implementation. That’s because the arguments to a function call are evaluated before calling the function. However, macros do not evaluate their arguments. Instead, they receive the arguments as quoted expressions which are then transformed into other quoted expressions. In this case, we have rewritten our <code class="highlighter-rouge">unless</code> macro to become an <code class="highlighter-rouge">if</code> behind the scenes.</p> <p>In other words, when invoked as:</p> <pre class="highlight" data-language="elixir">Unless.macro_unless true, do: IO.puts "this should never be printed"
+</pre> <p>Our <code class="highlighter-rouge">macro_unless</code> macro received the following:</p> <pre class="highlight" data-language="elixir">macro_unless(true, [do: {{:., [], [{:__aliases__, [alias: false], [:IO]}, :puts]}, [], ["this should never be printed"]}])
+</pre> <p>And it then returned a quoted expression as follows:</p> <pre class="highlight" data-language="elixir">{:if, [],
+ [{:!, [], [true]},
+  [do: {{:., [],
+     [{:__aliases__,
+       [], [:IO]},
+      :puts]}, [], ["this should never be printed"]}]]}
+</pre> <p>We can actually verify that this is the case by using <code class="highlighter-rouge">Macro.expand_once/2</code>:</p> <pre>iex&gt; expr = quote do: Unless.macro_unless(true, do: IO.puts "this should never be printed")
+iex&gt; res  = Macro.expand_once(expr, __ENV__)
+iex&gt; IO.puts Macro.to_string(res)
+if(!true) do
+  IO.puts("this should never be printed")
+end
+:ok
+</pre> <p><code class="highlighter-rouge">Macro.expand_once/2</code> receives a quoted expression and expands it according to the current environment. In this case, it expanded/invoked the <code class="highlighter-rouge">Unless.macro_unless/2</code> macro and returned its result. We then proceeded to convert the returned quoted expression to a string and print it (we will talk about <code class="highlighter-rouge">__ENV__</code> later in this chapter).</p> <p>That’s what macros are all about. They are about receiving quoted expressions and transforming them into something else. In fact, <code class="highlighter-rouge">unless/2</code> in Elixir is implemented as a macro:</p> <pre class="highlight" data-language="elixir">defmacro unless(clause, do: expression) do
+  quote do
+    if(!unquote(clause), do: unquote(expression))
+  end
+end
+</pre> <p>Constructs such as <code class="highlighter-rouge">unless/2</code>, <code class="highlighter-rouge">defmacro/2</code>, <code class="highlighter-rouge">def/2</code>, <code class="highlighter-rouge">defprotocol/2</code>, and many others used throughout this getting started guide are implemented in pure Elixir, often as a macro. This means that the constructs being used to build the language can be used by developers to extend the language to the domains they are working on.</p> <p>We can define any function and macro we want, including ones that override the built-in definitions provided by Elixir. The only exceptions are Elixir special forms which are not implemented in Elixir and therefore cannot be overridden, <a href="https://hexdocs.pm/elixir/Kernel.SpecialForms.html#summary" target="_blank">the full list of special forms is available in <code class="highlighter-rouge">Kernel.SpecialForms</code></a>.</p> <h2 id="macros-hygiene">Macros hygiene</h2> <p>Elixir macros have late resolution. This guarantees that a variable defined inside a quote won’t conflict with a variable defined in the context where that macro is expanded. For example:</p> <pre class="highlight" data-language="elixir">defmodule Hygiene do
+  defmacro no_interference do
+    quote do: a = 1
+  end
+end
+
+defmodule HygieneTest do
+  def go do
+    require Hygiene
+    a = 13
+    Hygiene.no_interference
+    a
+  end
+end
+
+HygieneTest.go
+# =&gt; 13
+</pre> <p>In the example above, even though the macro injects <code class="highlighter-rouge">a = 1</code>, it does not affect the variable <code class="highlighter-rouge">a</code> defined by the <code class="highlighter-rouge">go</code> function. If a macro wants to explicitly affect the context, it can use <code class="highlighter-rouge">var!</code>:</p> <pre class="highlight" data-language="elixir">defmodule Hygiene do
+  defmacro interference do
+    quote do: var!(a) = 1
+  end
+end
+
+defmodule HygieneTest do
+  def go do
+    require Hygiene
+    a = 13
+    Hygiene.interference
+    a
+  end
+end
+
+HygieneTest.go
+# =&gt; 1
+</pre> <p>Variable hygiene only works because Elixir annotates variables with their context. For example, a variable <code class="highlighter-rouge">x</code> defined on line 3 of a module would be represented as:</p> <pre class="highlight" data-language="elixir">{:x, [line: 3], nil}
+</pre> <p>However, a quoted variable is represented as:</p> <pre class="highlight" data-language="elixir">defmodule Sample do
+  def quoted do
+    quote do: x
+  end
+end
+
+Sample.quoted #=&gt; {:x, [line: 3], Sample}
+</pre> <p>Notice that the third element in the quoted variable is the atom <code class="highlighter-rouge">Sample</code>, instead of <code class="highlighter-rouge">nil</code>, which marks the variable as coming from the <code class="highlighter-rouge">Sample</code> module. Therefore, Elixir considers these two variables as coming from different contexts and handles them accordingly.</p> <p>Elixir provides similar mechanisms for imports and aliases too. This guarantees that a macro will behave as specified by its source module rather than conflicting with the target module where the macro is expanded. Hygiene can be bypassed under specific situations by using macros like <code class="highlighter-rouge">var!/2</code> and <code class="highlighter-rouge">alias!/2</code>, although one must be careful when using those as they directly change the user environment.</p> <p>Sometimes variable names might be dynamically created. In such cases, <code class="highlighter-rouge">Macro.var/2</code> can be used to define new variables:</p> <pre class="highlight" data-language="elixir">defmodule Sample do
+  defmacro initialize_to_char_count(variables) do
+    Enum.map variables, fn(name) -&gt;
+      var = Macro.var(name, nil)
+      length = name |&gt; Atom.to_string |&gt; String.length
+      quote do
+        unquote(var) = unquote(length)
+      end
+    end
+  end
+
+  def run do
+    initialize_to_char_count [:red, :green, :yellow]
+    [red, green, yellow]
+  end
+end
+
+&gt; Sample.run #=&gt; [3, 5, 6]
+</pre> <p>Take note of the second argument to <code class="highlighter-rouge">Macro.var/2</code>. This is the context being used and will determine hygiene as described in the next section.</p> <h2 id="the-environment">The environment</h2> <p>When calling <code class="highlighter-rouge">Macro.expand_once/2</code> earlier in this chapter, we used the special form <code class="highlighter-rouge">__ENV__</code>.</p> <p><code class="highlighter-rouge">__ENV__</code> returns an instance of the <code class="highlighter-rouge">Macro.Env</code> struct which contains useful information about the compilation environment, including the current module, file and line, all variables defined in the current scope, as well as imports, requires and so on:</p> <pre>iex&gt; __ENV__.module
+nil
+iex&gt; __ENV__.file
+"iex"
+iex&gt; __ENV__.requires
+[IEx.Helpers, Kernel, Kernel.Typespec]
+iex&gt; require Integer
+nil
+iex&gt; __ENV__.requires
+[IEx.Helpers, Integer, Kernel, Kernel.Typespec]
+</pre> <p>Many of the functions in the <code class="highlighter-rouge">Macro</code> module expect an environment. You can read more about these functions in <a href="https://hexdocs.pm/elixir/Macro.html" target="_blank">the docs for the <code class="highlighter-rouge">Macro</code> module</a> and learn more about the compilation environment in the <a href="https://hexdocs.pm/elixir/Macro.Env.html" target="_blank">docs for <code class="highlighter-rouge">Macro.Env</code></a>.</p> <h2 id="private-macros">Private macros</h2> <p>Elixir also supports private macros via <code class="highlighter-rouge">defmacrop</code>. As private functions, these macros are only available inside the module that defines them, and only at compilation time.</p> <p>It is important that a macro is defined before its usage. Failing to define a macro before its invocation will raise an error at runtime, since the macro won’t be expanded and will be translated to a function call:</p> <pre>iex&gt; defmodule Sample do
+...&gt;  def four, do: two + two
+...&gt;  defmacrop two, do: 2
+...&gt; end
+** (CompileError) iex:2: function two/0 undefined
+</pre> <h2 id="write-macros-responsibly">Write macros responsibly</h2> <p>Macros are a powerful construct and Elixir provides many mechanisms to ensure they are used responsibly.</p> <ul> <li> <p>Macros are hygienic: by default, variables defined inside a macro are not going to affect the user code. Furthermore, function calls and aliases available in the macro context are not going to leak into the user context.</p> </li> <li> <p>Macros are lexical: it is impossible to inject code or macros globally. In order to use a macro, you need to explicitly <code class="highlighter-rouge">require</code> or <code class="highlighter-rouge">import</code> the module that defines the macro.</p> </li> <li> <p>Macros are explicit: it is impossible to run a macro without explicitly invoking it. For example, some languages allow developers to completely rewrite functions behind the scenes, often via parse transforms or via some reflection mechanisms. In Elixir, a macro must be explicitly invoked in the caller during compilation time.</p> </li> <li> <p>Macros’ language is clear: many languages provide syntax shortcuts for <code class="highlighter-rouge">quote</code> and <code class="highlighter-rouge">unquote</code>. In Elixir, we preferred to have them explicitly spelled out, in order to clearly delimit the boundaries of a macro definition and its quoted expressions.</p> </li> </ul> <p>Even with such guarantees, the developer plays a big role when writing macros responsibly. If you are confident you need to resort to macros, remember that macros are not your API. Keep your macro definitions short, including their quoted contents. For example, instead of writing a macro like this:</p> <pre class="highlight" data-language="elixir">defmodule MyModule do
+  defmacro my_macro(a, b, c) do
+    quote do
+      do_this(unquote(a))
+      ...
+      do_that(unquote(b))
+      ...
+      and_that(unquote(c))
+    end
+  end
+end
+</pre> <p>write:</p> <pre class="highlight" data-language="elixir">defmodule MyModule do
+  defmacro my_macro(a, b, c) do
+    quote do
+      # Keep what you need to do here to a minimum
+      # and move everything else to a function
+      do_this_that_and_that(unquote(a), unquote(b), unquote(c))
+    end
+  end
+
+  def do_this_that_and_that(a, b, c) do
+    do_this(a)
+    ...
+    do_that(b)
+    ...
+    and_that(c)
+  end
+end
+</pre> <p>This makes your code clearer and easier to test and maintain, as you can invoke and test <code class="highlighter-rouge">do_this_that_and_that/3</code> directly. It also helps you design an actual API for developers that do not want to rely on macros.</p> <p>With those lessons, we finish our introduction to macros. The next chapter is a brief discussion on DSLs that shows how we can mix macros and module attributes to annotate and extend modules and functions.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2012–2017 Plataformatec<br>Licensed under the Apache License, Version 2.0.<br>
+    <a href="http://elixir-lang.org/getting-started/meta/macros.html" class="_attribution-link" target="_blank">http://elixir-lang.org/getting-started/meta/macros.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

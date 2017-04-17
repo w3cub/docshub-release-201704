@@ -1,0 +1,123 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>RenderCache&#58;&#58;getCacheableRenderArray - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Gets a cacheable render array for a render array and its rendered output. ">
+  <meta name="keywords" content="public, function, rendercache, getcacheablerenderarray, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-render-rendercache.php/function/rendercache-getcacheablerenderarray/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function RenderCache::getCacheableRenderArray</h1>     <pre class="signature">public <a href="../../../class/rendercache/8.1.x/">RenderCache</a>::getCacheableRenderArray(array $elements)</pre> <p>Gets a cacheable render array for a render array and its rendered output.</p> <p>Given a render array and its rendered output (HTML string), return an array data structure that allows the render array and its associated metadata to be cached reliably (and is serialization-safe).</p> <p>If Drupal needs additional rendering metadata to be cached at some point, consumers of this method will continue to work. Those who only cache certain parts of a render array will cease to work.</p> <h3>Parameters</h3> <p> <strong>array $elements</strong>: A render array, on which <a href="../../../../core-lib-drupal-core-render-rendererinterface.php/function/rendererinterface-render/8.1.x/" title="Renders HTML given a structured array tree." class="local">\Drupal\Core\Render\RendererInterface::render</a>() has already been invoked.</p> <h3>Return value</h3> <p> array An array representing the cacheable data for this render array.</p> <p class="api-override">Overrides <a href="../../../../core-lib-drupal-core-render-rendercacheinterface.php/function/rendercacheinterface-getcacheablerenderarray/8.1.x/">RenderCacheInterface::getCacheableRenderArray</a></p>  <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Render/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Render%21RenderCache.php/8.1.x" target="_blank">RenderCache.php</a>, line 321</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/rendercache/8.1.x/">RenderCache</a> </dt> <dd>Wraps the caching logic for the render caching system.</dd> </dl> <h3>Namespace</h3> <a href="https://api.drupal.org/api/drupal/namespace/Drupal%21Core%21Render/8.1.x" target="_blank">Drupal\Core\Render</a> <h3>Code</h3> <pre class="php" data-language="php">public function getCacheableRenderArray(array $elements) {
+  $data = [
+    '#markup' =&gt; $elements['#markup'],
+    '#attached' =&gt; $elements['#attached'],
+    '#cache' =&gt; [
+      'contexts' =&gt; $elements['#cache']['contexts'],
+      'tags' =&gt; $elements['#cache']['tags'],
+      'max-age' =&gt; $elements['#cache']['max-age'],
+    ],
+  ];
+
+  // Preserve cacheable items if specified. If we are preserving any cacheable
+  // children of the element, we assume we are only interested in their
+  // individual markup and not the parent's one, thus we empty it to minimize
+  // the cache entry size.
+  if (!empty($elements['#cache_properties']) &amp;&amp; is_array($elements['#cache_properties'])) {
+    $data['#cache_properties'] = $elements['#cache_properties'];
+
+    // Extract all the cacheable items from the element using cache
+    // properties.
+    $cacheable_items = array_intersect_key($elements, array_flip($elements['#cache_properties']));
+    $cacheable_children = Element::children($cacheable_items);
+    if ($cacheable_children) {
+      $data['#markup'] = '';
+      // Cache only cacheable children's markup.
+      foreach ($cacheable_children as $key) {
+        // We can assume that #markup is safe at this point.
+        $cacheable_items[$key] = ['#markup' =&gt; Markup::create($cacheable_items[$key]['#markup'])];
+      }
+    }
+    $data += $cacheable_items;
+  }
+
+  $data['#markup'] = Markup::create($data['#markup']);
+  return $data;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Render!RenderCache.php/function/RenderCache::getCacheableRenderArray/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Render!RenderCache.php/function/RenderCache::getCacheableRenderArray/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,140 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Field_purge_batch - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Purges a batch of deleted Field API data, field storages, or fields. ">
+  <meta name="keywords" content="function, field, purge, batch, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-modules-field-field.purge.inc/function/field_purge_batch/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function field_purge_batch</h1>     <pre class="signature">field_purge_batch($batch_size, <del>$field_storage_uuid</del> = NULL)</pre> <p>Purges a batch of deleted Field API data, field storages, or fields.</p> <p>This function will purge deleted field data in batches. The batch size is defined as an argument to the function, and once each batch is finished, it continues with the next batch until all have completed. If a deleted field with no remaining data records is found, the field itself will be purged. If a deleted field storage with no remaining fields is found, the field storage itself will be purged.</p> <h3>Parameters</h3> <p> <strong>$batch_size</strong>: The maximum number of field data records to purge before returning.</p> <p><strong>string $field_storage_uuid</strong>: (optional) Limit the purge to a specific field storage.</p> <h3>Related topics</h3>   <dl api-related-topics> <dt><a href="../../../group/field_purge/8.1.x/">Field API bulk data deletion</a></dt> <dd>Cleans up after Field API bulk deletion operations.</dd> </dl>    <h3>File</h3> 
+<dl> <dt>core/modules/field/<a href="../../../8.1.x/">field.purge.inc</a>, line 75</dt> <dd>Provides support for field data purge after mass deletion.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function field_purge_batch($batch_size, $field_storage_uuid = NULL) {
+  $properties = array(
+    'deleted' =&gt; TRUE,
+    'include_deleted' =&gt; TRUE,
+  );
+  if ($field_storage_uuid) {
+    $properties['field_storage_uuid'] = $field_storage_uuid;
+  }
+  $fields = entity_load_multiple_by_properties('field_config', $properties);
+
+  $info = \Drupal::entityManager()-&gt;getDefinitions();
+  foreach ($fields as $field) {
+    $entity_type = $field-&gt;getTargetEntityTypeId();
+
+    // We cannot purge anything if the entity type is unknown (e.g. the
+    // providing module was uninstalled).
+    // @todo Revisit after https://www.drupal.org/node/2080823.
+    if (!isset($info[$entity_type])) {
+      continue;
+    }
+
+    $count_purged = \Drupal::entityManager()-&gt;getStorage($entity_type)-&gt;purgeFieldData($field, $batch_size);
+    if ($count_purged &lt; $batch_size || $count_purged == 0) {
+      // No field data remains for the field, so we can remove it.
+      field_purge_field($field);
+    }
+    $batch_size -= $count_purged;
+    // Only delete up to the maximum number of records.
+    if ($batch_size == 0) {
+      break;
+    }
+  }
+
+  // Retrieve all deleted field storages. Any that have no fields can be purged.
+  $deleted_storages = \Drupal::state()-&gt;get('field.storage.deleted') ? : array();
+  foreach ($deleted_storages as $field_storage) {
+    $field_storage = new FieldStorageConfig($field_storage);
+    if ($field_storage_uuid &amp;&amp; $field_storage-&gt;uuid() != $field_storage_uuid) {
+      // If a specific UUID is provided, only purge the corresponding field.
+      continue;
+    }
+
+    // We cannot purge anything if the entity type is unknown (e.g. the
+    // providing module was uninstalled).
+    // @todo Revisit after https://www.drupal.org/node/2080823.
+    if (!isset($info[$field_storage-&gt;getTargetEntityTypeId()])) {
+      continue;
+    }
+
+    $fields = entity_load_multiple_by_properties('field_config', array('field_storage_uuid' =&gt; $field_storage-&gt;uuid(), 'include_deleted' =&gt; TRUE));
+    if (empty($fields)) {
+      field_purge_field_storage($field_storage);
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!modules!field!field.purge.inc/function/field_purge_batch/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!modules!field!field.purge.inc/function/field_purge_batch/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

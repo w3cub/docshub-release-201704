@@ -1,0 +1,126 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>EntityConstraintViolationList&#58;&#58;filterByFields - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Filters this violation list by the given fields. ">
+  <meta name="keywords" content="public, function, entityconstraintviolationlist, filterbyfields, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-entity-entityconstraintviolationlist.php/function/entityconstraintviolationlist-filterbyfields/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function EntityConstraintViolationList::filterByFields</h1>     <pre class="signature">public <a href="../../../class/entityconstraintviolationlist/8.1.x/">EntityConstraintViolationList</a>::filterByFields(array $field_names)</pre> <p>Filters this violation list by the given fields.</p> <p>The returned object just has violations attached to the provided fields.</p> <p>When violations should be displayed for a sub-set of visible fields only, this method may be used to filter the set of visible violations first.</p> <h3>Parameters</h3> <p> <strong>string[] $field_names</strong>: The names of the fields to filter violations for.</p> <h3>Return value</h3> <p> $this</p> <p class="api-override">Overrides <a href="../../../../core-lib-drupal-core-entity-entityconstraintviolationlistinterface.php/function/entityconstraintviolationlistinterface-filterbyfields/8.1.x/">EntityConstraintViolationListInterface::filterByFields</a></p>  <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Entity/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Entity%21EntityConstraintViolationList.php/8.1.x" target="_blank">EntityConstraintViolationList.php</a>, line 115</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/entityconstraintviolationlist/8.1.x/">EntityConstraintViolationList</a> </dt> <dd>Implements an entity constraint violation list.</dd> </dl> <h3>Namespace</h3> <a href="https://api.drupal.org/api/drupal/namespace/Drupal%21Core%21Entity/8.1.x" target="_blank">Drupal\Core\Entity</a> <h3>Code</h3> <pre class="php" data-language="php">public function filterByFields(array $field_names) {
+  $this-&gt;groupViolationOffsets();
+  $new_violations = [];
+  foreach (array_intersect_key($this-&gt;violationOffsetsByField, array_flip($field_names)) as $field_name =&gt; $offsets) {
+    foreach ($offsets as $offset) {
+      $violation = $this-&gt;get($offset);
+      // Take care of composite field violations and re-map them to some
+      // covered field if necessary.
+      if ($violation-&gt;getConstraint() instanceof CompositeConstraintBase) {
+        $covered_fields = $violation-&gt;getConstraint()-&gt;coversFields();
+
+        // Keep the composite field if it covers some remaining field and put
+        // a violation on some other covered field instead.
+        if ($remaining_fields = array_diff($covered_fields, $field_names)) {
+          $message_params = ['%field_name' =&gt; $field_name];
+          $violation = new ConstraintViolation(
+          $this-&gt;t('The validation failed because the value conflicts with the value in %field_name, which you cannot access.', $message_params), 
+          'The validation failed because the value conflicts with the value in %field_name, which you cannot access.', 
+          $message_params, 
+          $violation-&gt;getRoot(), 
+          reset($remaining_fields), 
+          $violation-&gt;getInvalidValue(), 
+          $violation-&gt;getPlural(), 
+          $violation-&gt;getCode(), 
+          $violation-&gt;getConstraint(), 
+          $violation-&gt;getCause()
+          );
+          $new_violations[] = $violation;
+        }
+      }
+
+      $this-&gt;remove($offset);
+    }
+  }
+  foreach ($new_violations as $violation) {
+    $this-&gt;add($violation);
+  }
+  return $this;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Entity!EntityConstraintViolationList.php/function/EntityConstraintViolationList::filterByFields/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Entity!EntityConstraintViolationList.php/function/EntityConstraintViolationList::filterByFields/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

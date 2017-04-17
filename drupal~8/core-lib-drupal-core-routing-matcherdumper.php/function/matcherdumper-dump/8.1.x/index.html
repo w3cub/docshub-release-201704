@@ -1,0 +1,160 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>MatcherDumper&#58;&#58;dump - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Dumps a set of routes to the router table in the database. ">
+  <meta name="keywords" content="public, function, matcherdumper, dump, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-routing-matcherdumper.php/function/matcherdumper-dump/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">public function MatcherDumper::dump</h1>     <pre class="signature">public <a href="../../../class/matcherdumper/8.1.x/">MatcherDumper</a>::dump(array $options = array())</pre> <p>Dumps a set of routes to the router table in the database.</p> <p>Available options:</p> <ul> <li>
+<strong>provider</strong>: The route grouping that is being dumped. All existing routes with this provider will be deleted on dump.</li> <li>
+<strong>base_class</strong>: The base class name.</li> </ul> <h3>Parameters</h3> <p> <strong>array $options</strong>: An array of options.</p> <p class="api-override">Overrides <a href="https://api.drupal.org/api/drupal/vendor%21symfony%21routing%21Matcher%21Dumper%21MatcherDumperInterface.php/function/MatcherDumperInterface%3A%3Adump/8.1.x" target="_blank">MatcherDumperInterface::dump</a></p> <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Routing/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Routing%21MatcherDumper.php/8.1.x" target="_blank">MatcherDumper.php</a>, line 87</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/matcherdumper/8.1.x/">MatcherDumper</a> </dt> <dd>Dumps Route information to a database table.</dd> </dl> <h3>Namespace</h3> <a href="https://api.drupal.org/api/drupal/namespace/Drupal%21Core%21Routing/8.1.x" target="_blank">Drupal\Core\Routing</a> <h3>Code</h3> <pre class="php" data-language="php">public function dump(array $options = array()) {
+  // Convert all of the routes into database records.
+  // Accumulate the menu masks on top of any we found before.
+  $masks = array_flip($this-&gt;state-&gt;get('routing.menu_masks.' . $this-&gt;tableName, array()));
+  // Delete any old records first, then insert the new ones. That avoids
+  // stale data. The transaction makes it atomic to avoid unstable router
+  // states due to random failures.
+  $transaction = $this-&gt;connection-&gt;startTransaction();
+  try {
+    // We don't use truncate, because it is not guaranteed to be transaction
+    // safe.
+    try {
+      $this-&gt;connection-&gt;delete($this-&gt;tableName)
+        -&gt;execute();
+    }
+    catch (\Exception $e) {
+      $this-&gt;ensureTableExists();
+    }
+
+    // Split the routes into chunks to avoid big INSERT queries.
+    $route_chunks = array_chunk($this-&gt;routes-&gt;all(), 50, TRUE);
+    foreach ($route_chunks as $routes) {
+      $insert = $this-&gt;connection-&gt;insert($this-&gt;tableName)-&gt;fields(array(
+        'name',
+        'fit',
+        'path',
+        'pattern_outline',
+        'number_parts',
+        'route',
+      ));
+      $names = array();
+      foreach ($routes as $name =&gt; $route) {
+        /** @var \Symfony\Component\Routing\Route $route */
+        $route-&gt;setOption('compiler_class', '\Drupal\Core\Routing\RouteCompiler');
+        /** @var \Drupal\Core\Routing\CompiledRoute $compiled */
+        $compiled = $route-&gt;compile();
+        // The fit value is a binary number which has 1 at every fixed path
+        // position and 0 where there is a wildcard. We keep track of all such
+        // patterns that exist so that we can minimize the number of path
+        // patterns we need to check in the RouteProvider.
+        $masks[$compiled-&gt;getFit()] = 1;
+        $names[] = $name;
+        $values = array(
+          'name' =&gt; $name,
+          'fit' =&gt; $compiled-&gt;getFit(),
+          'path' =&gt; $route-&gt;getPath(),
+          'pattern_outline' =&gt; $compiled-&gt;getPatternOutline(),
+          'number_parts' =&gt; $compiled-&gt;getNumParts(),
+          'route' =&gt; serialize($route),
+        );
+        $insert-&gt;values($values);
+      }
+
+      // Insert all new routes.
+      $insert-&gt;execute();
+    }
+
+
+  }
+  catch (\Exception $e) {
+    $transaction-&gt;rollback();
+    watchdog_exception('Routing', $e);
+    throw $e;
+  }
+  // Sort the masks so they are in order of descending fit.
+  $masks = array_keys($masks);
+  rsort($masks);
+  $this-&gt;state-&gt;set('routing.menu_masks.' . $this-&gt;tableName, $masks);
+
+  $this-&gt;routes = NULL;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Routing!MatcherDumper.php/function/MatcherDumper::dump/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Routing!MatcherDumper.php/function/MatcherDumper::dump/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

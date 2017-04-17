@@ -1,0 +1,160 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_color_render_images - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Renders images that match a given palette. ">
+  <meta name="keywords" content="function, color, render, images, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-modules-color-color.module/function/_color_render_images/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _color_render_images</h1>     <pre class="signature">_color_render_images($theme, &amp;$info, &amp;$paths, $palette)</pre> <p>Renders images that match a given palette.</p>  <h3>File</h3> 
+<dl> <dt>core/modules/color/<a href="../../../8.1.x/">color.module</a>, line 592</dt> <dd>Allows users to change the color scheme of themes.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _color_render_images($theme, &amp;$info, &amp;$paths, $palette) {
+  // Prepare template image.
+  $source = $paths['source'] . '/' . $info['base_image'];
+  $source = imagecreatefrompng($source);
+  $width = imagesx($source);
+  $height = imagesy($source);
+
+  // Prepare target buffer.
+  $target = imagecreatetruecolor($width, $height);
+  imagealphablending($target, TRUE);
+
+  // Fill regions of solid color.
+  foreach ($info['fill'] as $color =&gt; $fill) {
+    imagefilledrectangle($target, $fill[0], $fill[1], $fill[0] + $fill[2], $fill[1] + $fill[3], _color_gd($target, $palette[$color]));
+  }
+
+  // Render gradients.
+  foreach ($info['gradients'] as $gradient) {
+    // Get direction of the gradient.
+    if (isset($gradient['direction']) &amp;&amp; $gradient['direction'] == 'horizontal') {
+      // Horizontal gradient.
+      for ($x = 0; $x &lt; $gradient['dimension'][2]; $x++) {
+        $color = _color_blend($target, $palette[$gradient['colors'][0]], $palette[$gradient['colors'][1]], $x / ($gradient['dimension'][2] - 1));
+        imagefilledrectangle($target, ($gradient['dimension'][0] + $x), $gradient['dimension'][1], ($gradient['dimension'][0] + $x + 1), ($gradient['dimension'][1] + $gradient['dimension'][3]), $color);
+      }
+    }
+    else {
+      // Vertical gradient.
+      for ($y = 0; $y &lt; $gradient['dimension'][3]; $y++) {
+        $color = _color_blend($target, $palette[$gradient['colors'][0]], $palette[$gradient['colors'][1]], $y / ($gradient['dimension'][3] - 1));
+        imagefilledrectangle($target, $gradient['dimension'][0], $gradient['dimension'][1] + $y, $gradient['dimension'][0] + $gradient['dimension'][2], $gradient['dimension'][1] + $y + 1, $color);
+      }
+    }
+  }
+
+  // Blend over template.
+  imagecopy($target, $source, 0, 0, 0, 0, $width, $height);
+
+  // Clean up template image.
+  imagedestroy($source);
+
+  // Cut out slices.
+  foreach ($info['slices'] as $file =&gt; $coord) {
+    list($x, $y, $width, $height) = $coord;
+    $base = drupal_basename($file);
+    $image = drupal_realpath($paths['target'] . $base);
+
+    // Cut out slice.
+    if ($file == 'screenshot.png') {
+      $slice = imagecreatetruecolor(150, 90);
+      imagecopyresampled($slice, $target, 0, 0, $x, $y, 150, 90, $width, $height);
+      \Drupal::configFactory()-&gt;getEditable('color.theme.' . $theme)
+        -&gt;set('screenshot', $image)
+        -&gt;save();
+    }
+    else {
+      $slice = imagecreatetruecolor($width, $height);
+      imagecopy($slice, $target, 0, 0, $x, $y, $width, $height);
+    }
+
+    // Save image.
+    imagepng($slice, $image);
+    imagedestroy($slice);
+    $paths['files'][] = $image;
+
+    // Set standard file permissions for webserver-generated files
+    drupal_chmod($image);
+
+    // Build before/after map of image paths.
+    $paths['map'][$file] = $base;
+  }
+
+  // Clean up target buffer.
+  imagedestroy($target);
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!modules!color!color.module/function/_color_render_images/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!modules!color!color.module/function/_color_render_images/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,94 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Locking Mechanisms - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Functions to coordinate long-running operations across requests. ">
+  <meta name="keywords" content="locking, mechanisms, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-lock-lockbackendinterface.php/group/lock/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">Locking mechanisms</h1>      <p>Functions to coordinate long-running operations across requests.</p> <p>In most environments, multiple Drupal page requests (a.k.a. threads or processes) will execute in parallel. This leads to potential conflicts or race conditions when two requests execute the same code at the same time. For instance, some implementations of <a href="../../../../core-core.api.php/function/hook_cron/8.1.x/" title="Perform periodic actions." class="local">hook_cron</a>() implicitly assume they are running only once, rather than having multiple calls in parallel. To prevent problems with such code, the cron system uses a locking process to ensure that cron is not started again if it is already running.</p> <p>This is a cooperative, advisory lock system. Any long-running operation that could potentially be attempted in parallel by multiple requests should try to acquire a lock before proceeding. By obtaining a lock, one request notifies any other requests that a specific operation is in progress which must not be executed in parallel.</p> <p>To use this API, pick a unique name for the lock. A sensible choice is the name of the function performing the operation. A very simple example use of this API:</p> <pre class="php" data-language="php">function mymodule_long_operation() {
+  $lock = \Drupal::lock();
+  if ($lock-&gt;acquire('mymodule_long_operation')) {
+    // Do the long operation here.
+    // ...
+    $lock-&gt;release('mymodule_long_operation');
+  }
+}
+</pre>
+<p> If a function acquires a lock it should always release it when the operation is complete by calling $lock-&gt;release(), as in the example.</p> <p>A function that has acquired a lock may attempt to renew a lock (extend the duration of the lock) by calling $lock-&gt;acquire() again during the operation. Failure to renew a lock is indicative that another request has acquired the lock, and that the current operation may need to be aborted.</p> <p>If a function fails to acquire a lock it may either immediately return, or it may call $lock-&gt;wait() if the rest of the current page request requires that the operation in question be complete. After $lock-&gt;wait() returns, the function may again attempt to acquire the lock, or may simply allow the page request to proceed on the assumption that a parallel request completed the operation.</p> <p>$lock-&gt;acquire() and $lock-&gt;wait() will automatically break (delete) a lock whose duration has exceeded the timeout specified when it was acquired.</p> <p>End of "defgroup lock".</p> <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21LockBackendInterface.php/8.1.x" target="_blank">LockBackendInterface.php</a>, line 5</dt>  </dl> <h3>Functions</h3>  <table> <thead> <tr> <th scope="col"> Name </th> <th scope="col"> Location </th> <th scope="col"> Description </th> </tr> </thead> <tbody> <tr> <td data-th="Name"> <a href="../../../../core-lib-drupal.php/function/drupal-lock/8.1.x/">Drupal::lock</a> </td> <td data-th="Location"> core/lib/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal.php/8.1.x" target="_blank">Drupal.php</a> </td> <td data-th="Description"> Returns the locking layer instance. </td> </tr> </tbody> </table>  <h3>Classes</h3>  <table> <thead> <tr> <th scope="col"> Name </th> <th scope="col"> Location </th> <th scope="col"> Description </th> </tr> </thead> <tbody> <tr> <td data-th="Name"> <a href="../../../../core-lib-drupal-core-lock-databaselockbackend.php/class/databaselockbackend/8.1.x/">DatabaseLockBackend</a> </td> <td data-th="Location"> core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21DatabaseLockBackend.php/8.1.x" target="_blank">DatabaseLockBackend.php</a> </td> <td data-th="Description"> Defines the database lock backend. This is the default backend in Drupal. </td> </tr> <tr> <td data-th="Name"> <a href="../../../../core-lib-drupal-core-lock-lockbackendabstract.php/class/lockbackendabstract/8.1.x/">LockBackendAbstract</a> </td> <td data-th="Location"> core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21LockBackendAbstract.php/8.1.x" target="_blank">LockBackendAbstract.php</a> </td> <td data-th="Description"> Non backend related common methods implementation for lock backends. </td> </tr> <tr> <td data-th="Name"> <a href="../../../../core-lib-drupal-core-lock-nulllockbackend.php/class/nulllockbackend/8.1.x/">NullLockBackend</a> </td> <td data-th="Location"> core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21NullLockBackend.php/8.1.x" target="_blank">NullLockBackend.php</a> </td> <td data-th="Description"> Defines a Null lock backend. </td> </tr> <tr> <td data-th="Name"> <a href="../../../../core-lib-drupal-core-lock-persistentdatabaselockbackend.php/class/persistentdatabaselockbackend/8.1.x/">PersistentDatabaseLockBackend</a> </td> <td data-th="Location"> core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21PersistentDatabaseLockBackend.php/8.1.x" target="_blank">PersistentDatabaseLockBackend.php</a> </td> <td data-th="Description"> Defines the persistent database lock backend. This backend is global for this Drupal installation. </td> </tr> </tbody> </table>  <h3>Interfaces</h3>  <table> <thead> <tr> <th scope="col"> Name </th> <th scope="col"> Location </th> <th scope="col"> Description </th> </tr> </thead> <tbody> <tr> <td data-th="Name"> <a href="../../../interface/lockbackendinterface/8.1.x/">LockBackendInterface</a> </td> <td data-th="Location"> core/lib/Drupal/Core/Lock/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Lock%21LockBackendInterface.php/8.1.x" target="_blank">LockBackendInterface.php</a> </td> <td data-th="Description"> Lock backend interface. </td> </tr> </tbody> </table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Lock!LockBackendInterface.php/group/lock/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Lock!LockBackendInterface.php/group/lock/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

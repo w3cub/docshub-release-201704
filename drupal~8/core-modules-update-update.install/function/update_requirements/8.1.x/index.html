@@ -1,0 +1,115 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Update_requirements - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Implements hook_requirements(). ">
+  <meta name="keywords" content="function, update, requirements, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-modules-update-update.install/function/update_requirements/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function update_requirements</h1>     <pre class="signature">update_requirements($phase)</pre> <p>Implements <a href="../../../../core-lib-drupal-core-extension-module.api.php/function/hook_requirements/8.1.x/" title="Check installation requirements and do status reporting." class="local">hook_requirements</a>().</p> <h3>Return value</h3> <p> An array describing the status of the site regarding available updates. If there is no update data, only one record will be returned, indicating that the status of core can't be determined. If data is available, there will be two records: one for core, and another for all of contrib (assuming there are any contributed modules or themes enabled on the site). In addition to the fields expected by hook_requirements ('value', 'severity', and optionally 'description'), this array will contain a 'reason' attribute, which is an integer constant to indicate why the given status is being returned (<a href="../../../../core-modules-update-update.module/constant/update_not_secure/8.1.x/" title="Project is missing security update(s)." class="local">UPDATE_NOT_SECURE</a>, <a href="../../../../core-modules-update-update.module/constant/update_not_current/8.1.x/" title="Project has a new release available, but it is not a security release." class="local">UPDATE_NOT_CURRENT</a>, or <a href="../../../../core-modules-update-update.module/constant/update_unknown/8.1.x/" title="No available update data was found for project." class="local">UPDATE_UNKNOWN</a>). This is used for generating the appropriate email notification messages during <a href="../../../../core-modules-update-update.module/function/update_cron/8.1.x/" title="Implements hook_cron()." class="local">update_cron</a>(), and might be useful for other modules that invoke <a href="../8.1.x/" title="Implements hook_requirements()." class="local active">update_requirements</a>() to find out if the site is up to date or not.</p> <h3>See also</h3> <p> <a href="../../../../core-modules-update-update.module/function/_update_message_text/8.1.x/" title="Returns the appropriate message text when site is out of date or not secure." class="local">_update_message_text</a>()</p> <p><a href="../../../../core-modules-update-update.fetch.inc/function/_update_cron_notify/8.1.x/" title="Performs any notifications that should be done once cron fetches new data." class="local">_update_cron_notify</a>()</p>  <h3>File</h3> 
+<dl> <dt>core/modules/update/<a href="../../../8.1.x/">update.install</a>, line 30</dt> <dd>Install, update, and uninstall functions for the Update Manager module.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function update_requirements($phase) {
+  $requirements = array();
+  if ($phase == 'runtime') {
+    if ($available = update_get_available(FALSE)) {
+      module_load_include('inc', 'update', 'update.compare');
+      $data = update_calculate_project_data($available);
+      // First, populate the requirements for core:
+      $requirements['update_core'] = _update_requirement_check($data['drupal'], 'core');
+      // We don't want to check drupal a second time.
+      unset($data['drupal']);
+      if (!empty($data)) {
+        // Now, sort our $data array based on each project's status. The
+        // status constants are numbered in the right order of precedence, so
+        // we just need to make sure the projects are sorted in ascending
+        // order of status, and we can look at the first project we find.
+        uasort($data, '_update_project_status_sort');
+        $first_project = reset($data);
+        $requirements['update_contrib'] = _update_requirement_check($first_project, 'contrib');
+      }
+    }
+    else {
+      $requirements['update_core']['title'] = t('Drupal core update status');
+      $requirements['update_core']['value'] = t('No update data available');
+      $requirements['update_core']['severity'] = REQUIREMENT_WARNING;
+      $requirements['update_core']['reason'] = UPDATE_UNKNOWN;
+      $requirements['update_core']['description'] = _update_no_data();
+    }
+  }
+  return $requirements;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!modules!update!update.install/function/update_requirements/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!modules!update!update.install/function/update_requirements/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

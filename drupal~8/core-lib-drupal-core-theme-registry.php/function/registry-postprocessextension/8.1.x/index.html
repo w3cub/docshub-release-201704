@@ -1,0 +1,169 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Registry&#58;&#58;postProcessExtension - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Completes the theme registry adding discovered functions and hooks. ">
+  <meta name="keywords" content="protected, function, registry, postprocessextension, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-lib-drupal-core-theme-registry.php/function/registry-postprocessextension/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">protected function Registry::postProcessExtension</h1>     <pre class="signature">protected <a href="../../../class/registry/8.1.x/">Registry</a>::postProcessExtension(array &amp;$cache, ActiveTheme $theme)</pre> <p>Completes the theme registry adding discovered functions and hooks.</p> <h3>Parameters</h3> <p> <strong>array $cache</strong>: The theme registry as documented in <a href="../../registry-processextension/8.1.x/" title="Process a single implementation of hook_theme()." class="local">\Drupal\Core\Theme\Registry::processExtension</a>().</p> <p><strong><a href="../../../../core-lib-drupal-core-theme-activetheme.php/class/activetheme/8.1.x/" title="Defines a theme and its information needed at runtime." class="local">\Drupal\Core\Theme\ActiveTheme</a> $theme</strong>: Current active theme.</p> <h3>See also</h3> <p> ::processExtension()</p>  <h3>File</h3> 
+<dl> <dt>core/lib/Drupal/Core/Theme/<a href="https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Theme%21Registry.php/8.1.x" target="_blank">Registry.php</a>, line 635</dt>  </dl> <h3>Class</h3> 
+<dl> <dt>
+<a href="../../../class/registry/8.1.x/">Registry</a> </dt> <dd>Defines the theme registry service.</dd> </dl> <h3>Namespace</h3> <a href="https://api.drupal.org/api/drupal/namespace/Drupal%21Core%21Theme/8.1.x" target="_blank">Drupal\Core\Theme</a> <h3>Code</h3> <pre class="php" data-language="php">protected function postProcessExtension(array &amp;$cache, ActiveTheme $theme) {
+  $grouped_functions = $this-&gt;getPrefixGroupedUserFunctions();
+
+  // Gather prefixes. This will be used to limit the found functions to the
+  // expected naming conventions.
+  $prefixes = array_keys((array) $this-&gt;moduleHandler-&gt;getModuleList());
+  foreach (array_reverse($theme-&gt;getBaseThemes()) as $base) {
+    $prefixes[] = $base-&gt;getName();
+  }
+  if ($theme-&gt;getEngine()) {
+    $prefixes[] = $theme-&gt;getEngine() . '_engine';
+  }
+  $prefixes[] = $theme-&gt;getName();
+
+  // Collect all variable preprocess functions in the correct order.
+  $suggestion_level = [];
+  $matches = [];
+  // Look for functions named according to the pattern and add them if they
+  // have matching hooks in the registry.
+  foreach ($prefixes as $prefix) {
+    // Grep only the functions which are within the prefix group.
+    list($first_prefix, ) = explode('_', $prefix, 2);
+    if (!isset($grouped_functions[$first_prefix])) {
+      continue;
+    }
+    // Add the function and the name of the associated theme hook to the list
+    // of preprocess functions grouped by suggestion specificity if a matching
+    // base hook is found.
+    foreach ($grouped_functions[$first_prefix] as $candidate) {
+      if (preg_match("/^{$prefix}_preprocess_(((?:[^_]++|_(?!_))+)__.*)/", $candidate, $matches)) {
+        if (isset($cache[$matches[2]])) {
+          $level = substr_count($matches[1], '__');
+          $suggestion_level[$level][$candidate] = $matches[1];
+        }
+      }
+    }
+  }
+
+  // Add missing variable preprocessors. This is needed for modules that do
+  // not explicitly register the hook. For example, when a theme contains a
+  // variable preprocess function but it does not implement a template, it
+  // will go missing. This will add the expected function. It also allows
+  // modules or themes to have a variable process function based on a pattern
+  // even if the hook does not exist.
+  ksort($suggestion_level);
+  foreach ($suggestion_level as $level =&gt; $item) {
+    foreach ($item as $preprocessor =&gt; $hook) {
+      if (isset($cache[$hook]['preprocess functions']) &amp;&amp; !in_array($hook, $cache[$hook]['preprocess functions'])) {
+        // Add missing preprocessor to existing hook.
+        $cache[$hook]['preprocess functions'][] = $preprocessor;
+      }
+      elseif (!isset($cache[$hook]) &amp;&amp; strpos($hook, '__')) {
+        // Process non-existing hook and register it.
+        // Look for a previously defined hook that is either a less specific
+        // suggestion hook or the base hook.
+        $this-&gt;completeSuggestion($hook, $cache);
+        $cache[$hook]['preprocess functions'][] = $preprocessor;
+      }
+    }
+  }
+  // Inherit all base hook variable preprocess functions into suggestion
+  // hooks. This ensures that derivative hooks have a complete set of variable
+  // preprocess functions.
+  foreach ($cache as $hook =&gt; $info) {
+    // The 'base hook' is only applied to derivative hooks already registered
+    // from a pattern. This is typically set from
+    // drupal_find_theme_functions() and drupal_find_theme_templates().
+    if (isset($info['incomplete preprocess functions'])) {
+      $this-&gt;completeSuggestion($hook, $cache);
+      unset($cache[$hook]['incomplete preprocess functions']);
+    }
+
+    // Optimize the registry.
+    if (isset($cache[$hook]['preprocess functions']) &amp;&amp; empty($cache[$hook]['preprocess functions'])) {
+      unset($cache[$hook]['preprocess functions']);
+    }
+    // Ensure uniqueness.
+    if (isset($cache[$hook]['preprocess functions'])) {
+      $cache[$hook]['preprocess functions'] = array_unique($cache[$hook]['preprocess functions']);
+    }
+  }
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Theme!Registry.php/function/Registry::postProcessExtension/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Theme!Registry.php/function/Registry::postProcessExtension/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

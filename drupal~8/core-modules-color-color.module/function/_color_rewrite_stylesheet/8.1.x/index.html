@@ -1,0 +1,151 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>_color_rewrite_stylesheet - Drupal 8 - W3cubDocs</title>
+  
+  <meta name="description" content=" Rewrites the stylesheet to match the colors in the palette. ">
+  <meta name="keywords" content="function, color, rewrite, stylesheet, -, drupal, drupal~8">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/drupal~8/core-modules-color-color.module/function/_color_rewrite_stylesheet/8.1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/drupal~8.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/drupal~8/" class="_nav-link" title="" style="margin-left:0;">Drupal 8</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _drupal">
+				
+<h1 id="page-subtitle">function _color_rewrite_stylesheet</h1>     <pre class="signature">_color_rewrite_stylesheet($theme, &amp;$info, &amp;$paths, $palette, <del>$style</del>)</pre> <p>Rewrites the stylesheet to match the colors in the palette.</p>  <h3>File</h3> 
+<dl> <dt>core/modules/color/<a href="../../../8.1.x/">color.module</a>, line 511</dt> <dd>Allows users to change the color scheme of themes.</dd> </dl> <h3>Code</h3> <pre class="php" data-language="php">function _color_rewrite_stylesheet($theme, &amp;$info, &amp;$paths, $palette, $style) {
+  // Prepare color conversion table.
+  $conversion = $palette;
+  foreach ($conversion as $k =&gt; $v) {
+    $conversion[$k] = Unicode::strtolower($v);
+  }
+  $default = color_get_palette($theme, TRUE);
+
+  // Split off the "Don't touch" section of the stylesheet.
+  $split = "Color Module: Don't touch";
+  if (strpos($style, $split) !== FALSE) {
+    list($style, $fixed) = explode($split, $style);
+  }
+
+  // Find all colors in the stylesheet and the chunks in between.
+  $style = preg_split('/(#[0-9a-f]{6}|#[0-9a-f]{3})/i', $style, -1, PREG_SPLIT_DELIM_CAPTURE);
+  $is_color = FALSE;
+  $output = '';
+  $base = 'base';
+
+  // Iterate over all the parts.
+  foreach ($style as $chunk) {
+    if ($is_color) {
+      $chunk = Unicode::strtolower($chunk);
+      // Check if this is one of the colors in the default palette.
+      if ($key = array_search($chunk, $default)) {
+        $chunk = $conversion[$key];
+      }
+      // Not a pre-set color. Extrapolate from the base.
+      else {
+        $chunk = _color_shift($palette[$base], $default[$base], $chunk, $info['blend_target']);
+      }
+    }
+    else {
+      // Determine the most suitable base color for the next color.
+
+      // 'a' declarations. Use link.
+      if (preg_match('@[^a-z0-9_-](a)[^a-z0-9_-][^/{]*{[^{]+$@i', $chunk)) {
+        $base = 'link';
+      }
+      // 'color:' styles. Use text.
+      elseif (preg_match('/(?&lt;!-)color[^{:]*:[^{#]*$/i', $chunk)) {
+        $base = 'text';
+      }
+      // Reset back to base.
+      else {
+        $base = 'base';
+      }
+    }
+    $output .= $chunk;
+    $is_color = !$is_color;
+  }
+  // Append fixed colors segment.
+  if (isset($fixed)) {
+    $output .= $fixed;
+  }
+
+  // Replace paths to images.
+  foreach ($paths['map'] as $before =&gt; $after) {
+    $before = base_path() . $paths['source'] . $before;
+    $before = preg_replace('`(^|/)(?!../)([^/]+)/../`', '$1', $before);
+    $output = str_replace($before, $after, $output);
+  }
+
+  return $output;
+}
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2001–2016 by the original authors<br>Licensed under the GNU General Public License, version 2 and later.<br>Drupal is a registered trademark of Dries Buytaert.<br>
+    <a href="https://api.drupal.org/api/drupal/core!modules!color!color.module/function/_color_rewrite_stylesheet/8.1.x" class="_attribution-link" target="_blank">https://api.drupal.org/api/drupal/core!modules!color!color.module/function/_color_rewrite_stylesheet/8.1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
