@@ -1,0 +1,89 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Connection Management in HTTP 1.x - HTTP - W3cubDocs</title>
+  
+  <meta name="description" content="Connection management is a key topic in HTTP&#58; opening and maintaining connections largely impacts the performance of Web sites and Web &hellip;">
+  <meta name="keywords" content="connection, management, http, x, -">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/http/connection_management_in_http_1.x/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/http.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/http/" class="_nav-link" title="" style="margin-left:0;">HTTP</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _mdn">
+				
+<h1>Connection management in HTTP 1.x</h1> <p class="summary">Connection management is a key topic in HTTP: opening and maintaining connections largely impacts the performance of Web sites and Web applications. In HTTP/1.x, there are several models: <em>short-lived connections</em>, <em>persistent connections</em>, and <em>HTTP pipelining. </em></p> <p>HTTP mostly relies on TCP for its transport protocol, providing a connection between the client and the server. In its infancy, HTTP used a single model to handle such connections. These connections were short-lived: a new one created each time a request needed sending, and closed once the answer had been received.</p> <p>This simple model held an innate limitation on performance: opening each TCP connection is a resource-consuming operation. Several messages must be exchanged between the client and the server. Network latency and bandwidth affect performance when a request needs sending. Modern Web pages require many requests (a dozen or more) to serve the amount of information needed, proving this earlier model inefficient.</p> <p>Two newer models were created in HTTP/1.1. The persistent-connection model keeps connections opened between successive requests, reducing the time needed to open new connections. The HTTP pipelining model goes one step further, by sending several successive requests without even waiting for an answer, reducing much of the latency in the network.</p> <p><img src="https://mdn.mozillademos.org/files/13727/HTTP1_x_Connections.png" style="height: 538px; width: 813px;" alt="Compares the performance of the three HTTP/1.x connection models: short-lived connections, persistent connections, and HTTP pipelining."></p> <div class="note"> <p>HTTP/2 adds additional models for connection management.</p> </div> <p>It's important point to note that connection management in HTTP applies to the connection between two consecutive nodes, which is <a href="../headers/#hbh">hop-by-hop</a> and not <a href="../headers/#e2e">end-to-end</a>. The model used in connections between a client and its first proxy may differ from the model between a proxy and the destination server (or any intermediate proxies). The HTTP headers involved in defining the connection model, like <a title="The Connection general header controls whether or not the network connection stays open after the current transaction finishes. If the value sent is keep-alive, the connection is persistent and not closed, allowing for subsequent requests to the same server to be done." href="../headers/connection/"><code>Connection</code></a> and <a title="The Keep-Alive general header allows the sender to hint about how the connection and may be used to set a timeout and a maximum amount of requests." href="../headers/keep-alive/"><code>Keep-Alive</code></a>, are <a href="../headers/#hbh">hop-by-hop</a> headers with their values able to be changed by intermediary nodes.</p> <h2 id="Short-lived_connections">Short-lived connections</h2> <p>The original model of HTTP, and the default one in HTTP/1.0, is <em>short-lived connections</em>. Each HTTP request is completed on its own connection; this means a TCP handshake happens before each HTTP request, and these are serialized.</p> <p>The TCP handshake itself is time-consuming, but a TCP connection adapts to its load, becoming more efficient with more sustained (or warm) connections. Short-lived connections do not make use of this efficiency feature of TCP, and performance degrades from optimum by persisting to transmit over a new, cold connection.</p> <p>This model is the default model used in HTTP/1.0 (if there is no <a title="The Connection general header controls whether or not the network connection stays open after the current transaction finishes. If the value sent is keep-alive, the connection is persistent and not closed, allowing for subsequent requests to the same server to be done." href="../headers/connection/"><code>Connection</code></a> header, or if its value is set to <code>close</code>). In HTTP/1.1, this model is only used when the <a title="The Connection general header controls whether or not the network connection stays open after the current transaction finishes. If the value sent is keep-alive, the connection is persistent and not closed, allowing for subsequent requests to the same server to be done." href="../headers/connection/"><code>Connection</code></a> header is sent with a value of <code>close</code>.</p> <div class="note"> <p>Unless dealing with a very old system, which doesn't support a persistent connection, there is no compelling reason to use this model.</p> </div> <h2 id="Persistent_connections">Persistent connections</h2> <p>Short-lived connections have two major hitches: the time taken to establish a new connection is significant, and performance of the underlying TCP connection gets better only when this connection has been in use for some time (warm connection). To ease these problems, the concept of a <em>persistent connection</em> has been designed, even prior to HTTP/1.1. Alternatively this may be called a <em>keep-alive connection</em>.</p> <p>A persistent connection is a one which remains open for a period, and can be reused for several requests, saving the the need for a new TCP handshake, and utilizing TCP's performance enhancing capabilities. This connection will not stay open forever: idle connections are closed after some time (a server may use the <a title="The Keep-Alive general header allows the sender to hint about how the connection and may be used to set a timeout and a maximum amount of requests." href="../headers/keep-alive/"><code>Keep-Alive</code></a> header to specify a minimum time the connection should be kept open).</p> <p>Persistent connections also have drawbacks; even when idling they consume server resources, and under heavy load, <a title="DoS attacks: DoS (Denial of Service) is a network attack that prevents legitimate use of server resources by flooding the server with requests." href="https://developer.mozilla.org/en-US/docs/Glossary/DoS_attack" class="glossaryLink" target="_blank">DoS attacks</a> can be conducted. In such cases, using non-persistent connections, which are closed as soon as they are idle, can provide better performance.</p> <p>HTTP/1.0 connections are not persistent by default. Setting <a title="The Connection general header controls whether or not the network connection stays open after the current transaction finishes. If the value sent is keep-alive, the connection is persistent and not closed, allowing for subsequent requests to the same server to be done." href="../headers/connection/"><code>Connection</code></a> to anything other than <code>close</code>, usually <code>retry-after</code>, will make them persistent.</p> <p>In HTTP/1.1, peristence is the default, and the header is no longer needed (but it is often added as a defensive measure against cases requiring a fallback to HTTP/1.0).</p> <h2 id="HTTP_pipelining">HTTP pipelining</h2> <div class="note"> <p>HTTP pipelining is not activated by default in modern browsers:</p> <ul> <li>Buggy <a href="https://en.wikipedia.org/wiki/Proxy_server" target="_blank">proxies</a> are still common and these lead to strange and erratic behaviors that Web developers cannot foresee and diagnose easily.</li> <li>Pipelining is complex to implement correctly: the size of the resource being transferred, the effective <a href="https://en.wikipedia.org/wiki/Round-trip_delay_time" target="_blank">RTT</a> that will be used, as well as the effective bandwidth, have a direct incidence on the improvement provided by the pipeline. Without knowing these, important messages may be delayed behind unimportant ones. The notion of important even evolves during page layout! HTTP pipelining therefore brings a marginal improvement in most cases only.</li> <li>Pipelining is subject to the <a href="https://en.wikipedia.org/wiki/Head-of-line_blocking" target="_blank">HOL</a> problem.</li> </ul> <p>For these reasons, pipelining has been superseded by a better algorithm, <em>multiplexing</em>, that is used by HTTP/2.</p> </div> <p>By default, <a title="en/HTTP" href="https://developer.mozilla.org/en/HTTP" target="_blank">HTTP</a> requests are issued sequentially. The next request is only issued once the response to the current request has been received. As they are affected by network latencies and bandwidth limitations, this can result in significant delay before the next request is <em>seen</em> by the server.</p> <p>Pipelining is the process to send successive requests, over the same persistent connection, without waiting for the answer. This avoids latency of the connection. Theoretically, performance could also be improved if two HTTP requests were to be packed into the same TCP message. The typical <a href="https://en.wikipedia.org/wiki/Maximum_segment_size" target="_blank">MSS</a> (Maximum Segment Size), is big enough to contain several simple requests, although the demand in size of HTTP requests continues to grow.</p> <p>Not all types of HTTP requests can be pipelined: only <a title="idempotent: An HTTP method is idempotent if an identical request can be made once or several times in a row with the same effect while leaving the server in the same state. In other words, an idempotent method should not have any side-effects (except for keeping statistics). Implemented correctly, the GET, HEAD, PUT, and DELETE method are idempotent, but not the POST method. All safe methods are also idempotent." href="https://developer.mozilla.org/en-US/docs/Glossary/idempotent" class="glossaryLink" target="_blank">idempotent</a> methods, that is <a title="The HTTP GET method requests a representation of the specified resource. Requests using GET should only retrieve data." href="../methods/get/"><code>GET</code></a>, <a title="The HTTP HEAD method requests the headers that are returned if the specified resource would be requested with an HTTP GET method. Such a request can be done before deciding to download a large resource to save bandwidth, for example." href="../methods/head/"><code>HEAD</code></a>, <a title="The documentation about this has not yet been written; please consider contributing!" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT" target="_blank"><code>PUT</code></a> and <a title="The documentation about this has not yet been written; please consider contributing!" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE" target="_blank"><code>DELETE</code></a>, can be replayed safely: should a failure happen, the pipeline content can simply be repeated.</p> <p>Today, every HTTP/1.1-compliant proxy and server should support pipelining, though many have limitations in practice: a significant reason no modern browser activates this feature by default.</p> <h2 id="Domain_sharding">Domain sharding</h2> <div class="note"> <p>Unless you have a very specific immediate need, don't use this deprecated technique; switch to HTTP/2 instead. In HTTP/2, domain sharding is no more useful: the HTTP/2 connection is able to handle parallel unprioritized requests very well. Domain sharding is even detrimental to performance. Most HTTP/2 implementation use a technique called <a href="../i%20wonder%20if%20it's%20related%20to%20the%20nobash/nobreak/nopick%20secret%20exit%20s%20of%20elrond's%20chambers./">connection coalescing</a> to revert eventual domain sharding.</p> </div> <p>As an HTTP/1.x connection is serializing requests, even without any ordering, it can't be optimal without large enough available bandwidth. As a solution, browsers open several connections to each domain, sending parallel requests. Default was once 2 to 3 connections, but this has now increased to a more common use of 6 parallel connections. There is a risk of triggering <a href="https://developer.mozilla.org/en-US/docs/Glossary/DOS_attack" target="_blank">DoS</a> protection on the server side if attempting more than this number.</p> <p>If the server wishes a faster Web site or application response, it is possible for the server to force the opening of more connections. For example, Instead of having all resources on the same domain, say <code>www.example.com</code>, it could split over several domains, <code>www1.example.com</code>, <code>www2.example.com</code>, <code>www3.example.com</code>. Each of these domains resolve to the <em>same</em> server, and the Web browser will open 6 connections to each (in our example, boosting the connections to 18). This technique is called <em>domain sharding</em>.</p> <p><img src="https://mdn.mozillademos.org/files/13783/HTTPSharding.png" style="height: 727px; width: 463px;" alt=""></p> <h2 id="Conclusion">Conclusion</h2> <p>Improved connection management allows considerable boosting of performance in HTTP. With HTTP/1.1 or HTTP/1.0, using a persistent connection – at least until it becomes idle – leads to the best performance. However, the failure of pipelining has lead to designing superior connection management models, which have been incorporated into HTTP/2.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x%24edit" class="_attribution-link" target="_blank">Edit this page on MDN</a>
+  </p>
+</div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2005–2017 Mozilla Developer Network and individual contributors.<br>Licensed under the Creative Commons Attribution-ShareAlike License v2.5 or later.<br>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
