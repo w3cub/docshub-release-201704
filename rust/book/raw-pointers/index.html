@@ -1,0 +1,114 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4.35. Raw Pointers - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="Rust has a number of different smart pointer types in its standard library, but there are two types that are extra-special. Much of Rust’s safety &hellip;">
+  <meta name="keywords" content="raw, pointers, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/raw-pointers/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Raw Pointers</h1> <p>Rust has a number of different smart pointer types in its standard library, but there are two types that are extra-special. Much of Rust’s safety comes from compile-time checks, but raw pointers don’t have such guarantees, and are <a href="../unsafe/">unsafe</a> to use.</p> <p><code>*const T</code> and <code>*mut T</code> are called ‘raw pointers’ in Rust. Sometimes, when writing certain kinds of libraries, you’ll need to get around Rust’s safety guarantees for some reason. In this case, you can use raw pointers to implement your library, while exposing a safe interface for your users. For example, <code>*</code> pointers are allowed to alias, allowing them to be used to write shared-ownership types, and even thread-safe shared memory types (the <code>Rc&lt;T&gt;</code> and <code>Arc&lt;T&gt;</code> types are both implemented entirely in Rust).</p> <p>Here are some things to remember about raw pointers that are different than other pointer types. They:</p> <ul> <li>are not guaranteed to point to valid memory and are not even guaranteed to be non-NULL (unlike both <code>Box</code> and <code>&amp;</code>);</li> <li>do not have any automatic clean-up, unlike <code>Box</code>, and so require manual resource management;</li> <li>are plain-old-data, that is, they don't move ownership, again unlike <code>Box</code>, hence the Rust compiler cannot protect against bugs like use-after-free;</li> <li>lack any form of lifetimes, unlike <code>&amp;</code>, and so the compiler cannot reason about dangling pointers; and</li> <li>have no guarantees about aliasing or mutability other than mutation not being allowed directly through a <code>*const T</code>.</li> </ul> <h2 id="basics" class="section-header">Basics</h2> <p>Creating a raw pointer is perfectly safe:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let x = 5;
+let raw = &amp;x as *const i32;
+
+let mut y = 10;
+let raw_mut = &amp;mut y as *mut i32;</pre> <p>However, dereferencing one is not. This won’t work:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let x = 5;
+let raw = &amp;x as *const i32;
+
+println!("raw points at {}", *raw);</pre> <p>It gives this error:</p> <pre>error: dereference of raw pointer requires unsafe function or block [E0133]
+     println!("raw points at {}", *raw);
+                                  ^~~~
+</pre> <p>When you dereference a raw pointer, you’re taking responsibility that it’s not pointing somewhere that would be incorrect. As such, you need <code>unsafe</code>:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let x = 5;
+let raw = &amp;x as *const i32;
+
+let points_at = unsafe { *raw };
+
+println!("raw points at {}", points_at);</pre> <p>For more operations on raw pointers, see <a href="../../std/primitive.pointer/">their API documentation</a>.</p> <h2 id="ffi" class="section-header">FFI</h2> <p>Raw pointers are useful for FFI: Rust’s <code>*const T</code> and <code>*mut T</code> are similar to C’s <code>const T*</code> and <code>T*</code>, respectively. For more about this use, consult the <a href="../ffi/">FFI chapter</a>.</p> <h2 id="references-and-raw-pointers" class="section-header">References and raw pointers</h2> <p>At runtime, a raw pointer <code>*</code> and a reference pointing to the same piece of data have an identical representation. In fact, an <code>&amp;T</code> reference will implicitly coerce to an <code>*const T</code> raw pointer in safe code and similarly for the <code>mut</code> variants (both coercions can be performed explicitly with, respectively, <code>value as *const T</code> and <code>value as *mut T</code>).</p> <p>Going the opposite direction, from <code>*const</code> to a reference <code>&amp;</code>, is not safe. A <code>&amp;T</code> is always valid, and so, at a minimum, the raw pointer <code>*const T</code> has to point to a valid instance of type <code>T</code>. Furthermore, the resulting pointer must satisfy the aliasing and mutability laws of references. The compiler assumes these properties are true for any references, no matter how they are created, and so any conversion from raw pointers is asserting that they hold. The programmer <em>must</em> guarantee this.</p> <p>The recommended method for the conversion is:</p> <pre class="rust rust-example-rendered" data-language="rust">
+// Explicit cast:
+let i: u32 = 1;
+let p_imm: *const u32 = &amp;i as *const u32;
+
+// Implicit coercion:
+let mut m: u32 = 2;
+let p_mut: *mut u32 = &amp;mut m;
+
+unsafe {
+    let ref_imm: &amp;u32 = &amp;*p_imm;
+    let ref_mut: &amp;mut u32 = &amp;mut *p_mut;
+}</pre> <p>The <code>&amp;*x</code> dereferencing style is preferred to using a <code>transmute</code>. The latter is far more powerful than necessary, and the more restricted operation is harder to use incorrectly; for example, it requires that <code>x</code> is a pointer (unlike <code>transmute</code>).</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/raw-pointers.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/raw-pointers.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

@@ -1,0 +1,124 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.5. Lang Items - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="Note&#58; lang items are often provided by crates in the Rust distribution, and lang items themselves have an unstable interface. It is recommended &hellip;">
+  <meta name="keywords" content="lang, items, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/lang-items/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Lang items</h1> <blockquote> <p><strong>Note</strong>: lang items are often provided by crates in the Rust distribution, and lang items themselves have an unstable interface. It is recommended to use officially distributed crates instead of defining your own lang items.</p> </blockquote> <p>The <code>rustc</code> compiler has certain pluggable operations, that is, functionality that isn't hard-coded into the language, but is implemented in libraries, with a special marker to tell the compiler it exists. The marker is the attribute <code>#[lang = "..."]</code> and there are various different values of <code>...</code>, i.e. various different 'lang items'.</p> <p>For example, <code>Box</code> pointers require two lang items, one for allocation and one for deallocation. A freestanding program that uses the <code>Box</code> sugar for dynamic allocations via <code>malloc</code> and <code>free</code>:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(lang_items, box_syntax, start, libc, core_intrinsics)]
+#![no_std]
+use core::intrinsics;
+
+extern crate libc;
+
+#[lang = "owned_box"]
+pub struct Box&lt;T&gt;(*mut T);
+
+#[lang = "exchange_malloc"]
+unsafe fn allocate(size: usize, _align: usize) -&gt; *mut u8 {
+    let p = libc::malloc(size as libc::size_t) as *mut u8;
+
+    // Check if `malloc` failed:
+    if p as usize == 0 {
+        intrinsics::abort();
+    }
+
+    p
+}
+
+#[lang = "exchange_free"]
+unsafe fn deallocate(ptr: *mut u8, _size: usize, _align: usize) {
+    libc::free(ptr as *mut libc::c_void)
+}
+
+#[lang = "box_free"]
+unsafe fn box_free&lt;T: ?Sized&gt;(ptr: *mut T) {
+    deallocate(ptr as *mut u8, ::core::mem::size_of_val(&amp;*ptr), ::core::mem::align_of_val(&amp;*ptr));
+}
+
+#[start]
+fn main(argc: isize, argv: *const *const u8) -&gt; isize {
+    let x = box 1;
+
+    0
+}
+
+#[lang = "eh_personality"] extern fn rust_eh_personality() {}
+#[lang = "panic_fmt"] extern fn rust_begin_panic() -&gt; ! { unsafe { intrinsics::abort() } }</pre> <p>Note the use of <code>abort</code>: the <code>exchange_malloc</code> lang item is assumed to return a valid pointer, and so needs to do the check internally.</p> <p>Other features provided by lang items include:</p> <ul> <li>overloadable operators via traits: the traits corresponding to the <code>==</code>, <code>&lt;</code>, dereferencing (<code>*</code>) and <code>+</code> (etc.) operators are all marked with lang items; those specific four are <code>eq</code>, <code>ord</code>, <code>deref</code>, and <code>add</code> respectively.</li> <li>stack unwinding and general failure; the <code>eh_personality</code>, <code>eh_unwind_resume</code>, <code>fail</code> and <code>fail_bounds_checks</code> lang items.</li> <li>the traits in <code>std::marker</code> used to indicate types of various kinds; lang items <code>send</code>, <code>sync</code> and <code>copy</code>.</li> <li>the marker types and variance indicators found in <code>std::marker</code>; lang items <code>covariant_type</code>, <code>contravariant_lifetime</code>, etc.</li> </ul> <p>Lang items are loaded lazily by the compiler; e.g. if one never uses <code>Box</code> then there is no need to define functions for <code>exchange_malloc</code> and <code>exchange_free</code>. <code>rustc</code> will emit an error when an item is needed but not found in the current crate or any that it depends on.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/lang-items.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/lang-items.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

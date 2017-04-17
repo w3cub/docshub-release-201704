@@ -1,0 +1,110 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>5.10. Borrow and AsRef - Rust - W3cubDocs</title>
+  
+  <meta name="description" content=" The Borrow and AsRef traits are very similar, but different. Here’s a quick refresher on what these two traits mean. ">
+  <meta name="keywords" content="borrow, and, asref, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/borrow-and-asref/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Borrow and AsRef</h1> <p>The <a href="../../std/borrow/trait.borrow/"><code>Borrow</code></a> and <a href="../../std/convert/trait.asref/"><code>AsRef</code></a> traits are very similar, but different. Here’s a quick refresher on what these two traits mean.</p> <h2 id="borrow" class="section-header">Borrow</h2> <p>The <code>Borrow</code> trait is used when you’re writing a data structure, and you want to use either an owned or borrowed type as synonymous for some purpose.</p> <p>For example, <a href="../../std/collections/struct.hashmap/"><code>HashMap</code></a> has a <a href="../../std/collections/struct.hashmap/#method.get"><code>get</code> method</a> which uses <code>Borrow</code>:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn get&lt;Q: ?Sized&gt;(&amp;self, k: &amp;Q) -&gt; Option&lt;&amp;V&gt;
+    where K: Borrow&lt;Q&gt;,
+          Q: Hash + Eq</pre> <p>This signature is pretty complicated. The <code>K</code> parameter is what we’re interested in here. It refers to a parameter of the <code>HashMap</code> itself:</p> <pre class="rust rust-example-rendered" data-language="rust">
+struct HashMap&lt;K, V, S = RandomState&gt; {</pre> <p>The <code>K</code> parameter is the type of <em>key</em> the <code>HashMap</code> uses. So, looking at the signature of <code>get()</code> again, we can use <code>get()</code> when the key implements <code>Borrow&lt;Q&gt;</code>. That way, we can make a <code>HashMap</code> which uses <code>String</code> keys, but use <code>&amp;str</code>s when we’re searching:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::collections::HashMap;
+
+let mut map = HashMap::new();
+map.insert("Foo".to_string(), 42);
+
+assert_eq!(map.get("Foo"), Some(&amp;42));</pre> <p>This is because the standard library has <code>impl Borrow&lt;str&gt; for String</code>.</p> <p>For most types, when you want to take an owned or borrowed type, a <code>&amp;T</code> is enough. But one area where <code>Borrow</code> is effective is when there’s more than one kind of borrowed value. This is especially true of references and slices: you can have both an <code>&amp;T</code> or a <code>&amp;mut T</code>. If we wanted to accept both of these types, <code>Borrow</code> is up for it:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::borrow::Borrow;
+use std::fmt::Display;
+
+fn foo&lt;T: Borrow&lt;i32&gt; + Display&gt;(a: T) {
+    println!("a is borrowed: {}", a);
+}
+
+let mut i = 5;
+
+foo(&amp;i);
+foo(&amp;mut i);</pre> <p>This will print out <code>a is borrowed: 5</code> twice.</p> <h2 id="asref" class="section-header">AsRef</h2> <p>The <code>AsRef</code> trait is a conversion trait. It’s used for converting some value to a reference in generic code. Like this:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let s = "Hello".to_string();
+
+fn foo&lt;T: AsRef&lt;str&gt;&gt;(s: T) {
+    let slice = s.as_ref();
+}</pre> <h2 id="which-should-i-use" class="section-header">Which should I use?</h2> <p>We can see how they’re kind of the same: they both deal with owned and borrowed versions of some type. However, they’re a bit different.</p> <p>Choose <code>Borrow</code> when you want to abstract over different kinds of borrowing, or when you’re building a data structure that treats owned and borrowed values in equivalent ways, such as hashing and comparison.</p> <p>Choose <code>AsRef</code> when you want to convert something to a reference directly, and you’re writing generic code.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/borrow-and-asref.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/borrow-and-asref.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

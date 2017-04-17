@@ -1,0 +1,143 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.8. Box Syntax and Patterns - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="Currently the only stable way to create a Box is via the Box&#58;&#58;new method. Also it is not possible in stable Rust to destructure a Box in a &hellip;">
+  <meta name="keywords" content="box, syntax, and, patterns, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/box-syntax-and-patterns/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Box Syntax and Patterns</h1> <p>Currently the only stable way to create a <code>Box</code> is via the <code>Box::new</code> method. Also it is not possible in stable Rust to destructure a <code>Box</code> in a match pattern. The unstable <code>box</code> keyword can be used to both create and destructure a <code>Box</code>. An example usage would be:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(box_syntax, box_patterns)]
+
+fn main() {
+    let b = Some(box 5);
+    match b {
+        Some(box n) if n &lt; 0 =&gt; {
+            println!("Box contains negative number {}", n);
+        },
+        Some(box n) if n &gt;= 0 =&gt; {
+            println!("Box contains non-negative number {}", n);
+        },
+        None =&gt; {
+            println!("No box");
+        },
+        _ =&gt; unreachable!()
+    }
+}</pre> <p>Note that these features are currently hidden behind the <code>box_syntax</code> (box creation) and <code>box_patterns</code> (destructuring and pattern matching) gates because the syntax may still change in the future.</p> <h2 id="returning-pointers" class="section-header">Returning Pointers</h2> <p>In many languages with pointers, you'd return a pointer from a function so as to avoid copying a large data structure. For example:</p> <pre class="rust rust-example-rendered" data-language="rust">
+struct BigStruct {
+    one: i32,
+    two: i32,
+    // Etc.
+    one_hundred: i32,
+}
+
+fn foo(x: Box&lt;BigStruct&gt;) -&gt; Box&lt;BigStruct&gt; {
+    Box::new(*x)
+}
+
+fn main() {
+    let x = Box::new(BigStruct {
+        one: 1,
+        two: 2,
+        one_hundred: 100,
+    });
+
+    let y = foo(x);
+}</pre> <p>The idea is that by passing around a box, you're only copying a pointer, rather than the hundred <code>i32</code>s that make up the <code>BigStruct</code>.</p> <p>This is an antipattern in Rust. Instead, write this:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(box_syntax)]
+
+struct BigStruct {
+    one: i32,
+    two: i32,
+    // Etc.
+    one_hundred: i32,
+}
+
+fn foo(x: Box&lt;BigStruct&gt;) -&gt; BigStruct {
+    *x
+}
+
+fn main() {
+    let x = Box::new(BigStruct {
+        one: 1,
+        two: 2,
+        one_hundred: 100,
+    });
+
+    let y: Box&lt;BigStruct&gt; = box foo(x);
+}</pre> <p>This gives you flexibility without sacrificing performance.</p> <p>You may think that this gives us terrible performance: return a value and then immediately box it up ?! Isn't this pattern the worst of both worlds? Rust is smarter than that. There is no copy in this code. <code>main</code> allocates enough room for the <code>box</code>, passes a pointer to that memory into <code>foo</code> as <code>x</code>, and then <code>foo</code> writes the value straight into the <code>Box&lt;T&gt;</code>.</p> <p>This is important enough that it bears repeating: pointers are not for optimizing returning values from your code. Allow the caller to choose how they want to use your output.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/box-syntax-and-patterns.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/box-syntax-and-patterns.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

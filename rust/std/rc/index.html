@@ -1,0 +1,208 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Std&#58;&#58;rc - Rust - W3cubDocs</title>
+  
+  <meta name="description" content=" Single-threaded reference-counting pointers. ">
+  <meta name="keywords" content="module, std, rc, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/std/rc/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="fqn">Module std::rc</h1> <p>Single-threaded reference-counting pointers.</p> <p>The type <a href="struct.rc/"><code>Rc&lt;T&gt;</code></a> provides shared ownership of a value of type <code>T</code>, allocated in the heap. Invoking <a href="../clone/trait.clone/#tymethod.clone"><code>clone()</code></a> on <a href="struct.rc/"><code>Rc</code></a> produces a new pointer to the same value in the heap. When the last <a href="struct.rc/"><code>Rc</code></a> pointer to a given value is destroyed, the pointed-to value is also destroyed.</p> <p>Shared references in Rust disallow mutation by default, and <code>Rc</code> is no exception. If you need to mutate through an <a href="struct.rc/"><code>Rc</code></a>, use <a href="../cell/struct.cell/"><code>Cell</code></a> or <a href="../cell/struct.refcell/"><code>RefCell</code></a>.</p> <p><a href="struct.rc/"><code>Rc</code></a> uses non-atomic reference counting. This means that overhead is very low, but an <a href="struct.rc/"><code>Rc</code></a> cannot be sent between threads, and consequently <a href="struct.rc/"><code>Rc</code></a> does not implement <a href="../marker/trait.send/"><code>Send</code></a>. As a result, the Rust compiler will check <em>at compile time</em> that you are not sending <a href="struct.rc/"><code>Rc</code></a>s between threads. If you need multi-threaded, atomic reference counting, use <a href="../sync/struct.arc/"><code>sync::Arc</code></a>.</p> <p>The <a href="struct.rc/#method.downgrade"><code>downgrade()</code></a> method can be used to create a non-owning <a href="struct.weak/"><code>Weak</code></a> pointer. A <a href="struct.weak/"><code>Weak</code></a> pointer can be <a href="struct.weak/#method.upgrade"><code>upgrade</code></a>d to an <a href="struct.rc/"><code>Rc</code></a>, but this will return <a href="../option/enum.option/#variant.None"><code>None</code></a> if the value has already been dropped.</p> <p>A cycle between <a href="struct.rc/"><code>Rc</code></a> pointers will never be deallocated. For this reason, <a href="struct.weak/"><code>Weak</code></a> is used to break cycles. For example, a tree could have strong <a href="struct.rc/"><code>Rc</code></a> pointers from parent nodes to children, and <a href="struct.weak/"><code>Weak</code></a> pointers from children back to their parents.</p> <p><code>Rc&lt;T&gt;</code> automatically dereferences to <code>T</code> (via the <a href="../ops/trait.deref/"><code>Deref</code></a> trait), so you can call <code>T</code>'s methods on a value of type <a href="struct.rc/"><code>Rc&lt;T&gt;</code></a>. To avoid name clashes with <code>T</code>'s methods, the methods of <a href="struct.rc/"><code>Rc&lt;T&gt;</code></a> itself are <a href="../../book/method-syntax/#associated-functions">associated functions</a>, called using function-like syntax:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::rc::Rc;
+let my_rc = Rc::new(());
+
+Rc::downgrade(&amp;my_rc);</pre> <p><a href="struct.weak/"><code>Weak&lt;T&gt;</code></a> does not auto-dereference to <code>T</code>, because the value may have already been destroyed.</p> <h4 id="examples" class="section-header">Examples</h4> <p>Consider a scenario where a set of <code>Gadget</code>s are owned by a given <code>Owner</code>. We want to have our <code>Gadget</code>s point to their <code>Owner</code>. We can't do this with unique ownership, because more than one gadget may belong to the same <code>Owner</code>. <a href="struct.rc/"><code>Rc</code></a> allows us to share an <code>Owner</code> between multiple <code>Gadget</code>s, and have the <code>Owner</code> remain allocated as long as any <code>Gadget</code> points at it.</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::rc::Rc;
+
+struct Owner {
+    name: String,
+    // ...other fields
+}
+
+struct Gadget {
+    id: i32,
+    owner: Rc&lt;Owner&gt;,
+    // ...other fields
+}
+
+fn main() {
+    // Create a reference-counted `Owner`.
+    let gadget_owner: Rc&lt;Owner&gt; = Rc::new(
+        Owner {
+            name: "Gadget Man".to_string(),
+        }
+    );
+
+    // Create `Gadget`s belonging to `gadget_owner`. Cloning the `Rc&lt;Owner&gt;`
+    // value gives us a new pointer to the same `Owner` value, incrementing
+    // the reference count in the process.
+    let gadget1 = Gadget {
+        id: 1,
+        owner: gadget_owner.clone(),
+    };
+    let gadget2 = Gadget {
+        id: 2,
+        owner: gadget_owner.clone(),
+    };
+
+    // Dispose of our local variable `gadget_owner`.
+    drop(gadget_owner);
+
+    // Despite dropping `gadget_owner`, we're still able to print out the name
+    // of the `Owner` of the `Gadget`s. This is because we've only dropped a
+    // single `Rc&lt;Owner&gt;`, not the `Owner` it points to. As long as there are
+    // other `Rc&lt;Owner&gt;` values pointing at the same `Owner`, it will remain
+    // allocated. The field projection `gadget1.owner.name` works because
+    // `Rc&lt;Owner&gt;` automatically dereferences to `Owner`.
+    println!("Gadget {} owned by {}", gadget1.id, gadget1.owner.name);
+    println!("Gadget {} owned by {}", gadget2.id, gadget2.owner.name);
+
+    // At the end of the function, `gadget1` and `gadget2` are destroyed, and
+    // with them the last counted references to our `Owner`. Gadget Man now
+    // gets destroyed as well.
+}</pre> <p>If our requirements change, and we also need to be able to traverse from <code>Owner</code> to <code>Gadget</code>, we will run into problems. An <a href="struct.rc/"><code>Rc</code></a> pointer from <code>Owner</code> to <code>Gadget</code> introduces a cycle between the values. This means that their reference counts can never reach 0, and the values will remain allocated forever: a memory leak. In order to get around this, we can use <a href="struct.weak/"><code>Weak</code></a> pointers.</p> <p>Rust actually makes it somewhat difficult to produce this loop in the first place. In order to end up with two values that point at each other, one of them needs to be mutable. This is difficult because <a href="struct.rc/"><code>Rc</code></a> enforces memory safety by only giving out shared references to the value it wraps, and these don't allow direct mutation. We need to wrap the part of the value we wish to mutate in a <a href="../cell/struct.refcell/"><code>RefCell</code></a>, which provides <em>interior mutability</em>: a method to achieve mutability through a shared reference. <a href="../cell/struct.refcell/"><code>RefCell</code></a> enforces Rust's borrowing rules at runtime.</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::rc::Rc;
+use std::rc::Weak;
+use std::cell::RefCell;
+
+struct Owner {
+    name: String,
+    gadgets: RefCell&lt;Vec&lt;Weak&lt;Gadget&gt;&gt;&gt;,
+    // ...other fields
+}
+
+struct Gadget {
+    id: i32,
+    owner: Rc&lt;Owner&gt;,
+    // ...other fields
+}
+
+fn main() {
+    // Create a reference-counted `Owner`. Note that we've put the `Owner`'s
+    // vector of `Gadget`s inside a `RefCell` so that we can mutate it through
+    // a shared reference.
+    let gadget_owner: Rc&lt;Owner&gt; = Rc::new(
+        Owner {
+            name: "Gadget Man".to_string(),
+            gadgets: RefCell::new(vec![]),
+        }
+    );
+
+    // Create `Gadget`s belonging to `gadget_owner`, as before.
+    let gadget1 = Rc::new(
+        Gadget {
+            id: 1,
+            owner: gadget_owner.clone(),
+        }
+    );
+    let gadget2 = Rc::new(
+        Gadget {
+            id: 2,
+            owner: gadget_owner.clone(),
+        }
+    );
+
+    // Add the `Gadget`s to their `Owner`.
+    {
+        let mut gadgets = gadget_owner.gadgets.borrow_mut();
+        gadgets.push(Rc::downgrade(&amp;gadget1));
+        gadgets.push(Rc::downgrade(&amp;gadget2));
+
+        // `RefCell` dynamic borrow ends here.
+    }
+
+    // Iterate over our `Gadget`s, printing their details out.
+    for gadget_weak in gadget_owner.gadgets.borrow().iter() {
+
+        // `gadget_weak` is a `Weak&lt;Gadget&gt;`. Since `Weak` pointers can't
+        // guarantee the value is still allocated, we need to call
+        // `upgrade`, which returns an `Option&lt;Rc&lt;Gadget&gt;&gt;`.
+        //
+        // In this case we know the value still exists, so we simply
+        // `unwrap` the `Option`. In a more complicated program, you might
+        // need graceful error handling for a `None` result.
+
+        let gadget = gadget_weak.upgrade().unwrap();
+        println!("Gadget {} owned by {}", gadget.id, gadget.owner.name);
+    }
+
+    // At the end of the function, `gadget_owner`, `gadget1`, and `gadget2`
+    // are destroyed. There are now no strong (`Rc`) pointers to the
+    // gadgets, so they are destroyed. This zeroes the reference count on
+    // Gadget Man, so he gets destroyed as well.
+}</pre> <h3 id="structs" class="section-header">Structs</h3> <table> <tr class=" module-item"> <td><a class="struct" href="struct.rc/" title="std::rc::Rc">Rc</a></td> <td class="docblock-short"> <p>A single-threaded reference-counting pointer.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.weak/" title="std::rc::Weak">Weak</a></td> <td class="docblock-short"> <p>A weak version of <a href="struct.rc/"><code>Rc</code></a>.</p> </td> </tr>
+</table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/std/rc/index.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/rc/index.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

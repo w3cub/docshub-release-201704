@@ -1,0 +1,147 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.6. Advanced Linking - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="The common cases of linking with Rust have been covered earlier in this book, but supporting the range of linking possibilities made available by &hellip;">
+  <meta name="keywords" content="advanced, linking, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/advanced-linking/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Advanced Linking</h1> <p>The common cases of linking with Rust have been covered earlier in this book, but supporting the range of linking possibilities made available by other languages is important for Rust to achieve seamless interaction with native libraries.</p> <h2 id="link-args" class="section-header">Link args</h2> <p>There is one other way to tell <code>rustc</code> how to customize linking, and that is via the <code>link_args</code> attribute. This attribute is applied to <code>extern</code> blocks and specifies raw flags which need to get passed to the linker when producing an artifact. An example usage would be:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(link_args)]
+
+#[link_args = "-foo -bar -baz"]
+extern {}</pre> <p>Note that this feature is currently hidden behind the <code>feature(link_args)</code> gate because this is not a sanctioned way of performing linking. Right now <code>rustc</code> shells out to the system linker (<code>gcc</code> on most systems, <code>link.exe</code> on MSVC), so it makes sense to provide extra command line arguments, but this will not always be the case. In the future <code>rustc</code> may use LLVM directly to link native libraries, in which case <code>link_args</code> will have no meaning. You can achieve the same effect as the <code>link_args</code> attribute with the <code>-C link-args</code> argument to <code>rustc</code>.</p> <p>It is highly recommended to <em>not</em> use this attribute, and rather use the more formal <code>#[link(...)]</code> attribute on <code>extern</code> blocks instead.</p> <h2 id="static-linking" class="section-header">Static linking</h2> <p>Static linking refers to the process of creating output that contains all required libraries and so doesn't need libraries installed on every system where you want to use your compiled project. Pure-Rust dependencies are statically linked by default so you can use created binaries and libraries without installing Rust everywhere. By contrast, native libraries (e.g. <code>libc</code> and <code>libm</code>) are usually dynamically linked, but it is possible to change this and statically link them as well.</p> <p>Linking is a very platform-dependent topic, and static linking may not even be possible on some platforms! This section assumes some basic familiarity with linking on your platform of choice.</p> <h3 id="linux" class="section-header">Linux</h3> <p>By default, all Rust programs on Linux will link to the system <code>libc</code> along with a number of other libraries. Let's look at an example on a 64-bit Linux machine with GCC and <code>glibc</code> (by far the most common <code>libc</code> on Linux):</p> <pre>$ cat example.rs
+fn main() {}
+$ rustc example.rs
+$ ldd example
+        linux-vdso.so.1 =&gt;  (0x00007ffd565fd000)
+        libdl.so.2 =&gt; /lib/x86_64-linux-gnu/libdl.so.2 (0x00007fa81889c000)
+        libpthread.so.0 =&gt; /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007fa81867e000)
+        librt.so.1 =&gt; /lib/x86_64-linux-gnu/librt.so.1 (0x00007fa818475000)
+        libgcc_s.so.1 =&gt; /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007fa81825f000)
+        libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa817e9a000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007fa818cf9000)
+        libm.so.6 =&gt; /lib/x86_64-linux-gnu/libm.so.6 (0x00007fa817b93000)
+</pre> <p>Dynamic linking on Linux can be undesirable if you wish to use new library features on old systems or target systems which do not have the required dependencies for your program to run.</p> <p>Static linking is supported via an alternative <code>libc</code>, <a href="http://www.musl-libc.org" target="_blank"><code>musl</code></a>. You can compile your own version of Rust with <code>musl</code> enabled and install it into a custom directory with the instructions below:</p> <pre>$ mkdir musldist
+$ PREFIX=$(pwd)/musldist
+$
+$ # Build musl
+$ curl -O http://www.musl-libc.org/releases/musl-1.1.10.tar.gz
+$ tar xf musl-1.1.10.tar.gz
+$ cd musl-1.1.10/
+musl-1.1.10 $ ./configure --disable-shared --prefix=$PREFIX
+musl-1.1.10 $ make
+musl-1.1.10 $ make install
+musl-1.1.10 $ cd ..
+$ du -h musldist/lib/libc.a
+2.2M    musldist/lib/libc.a
+$
+$ # Build libunwind.a
+$ curl -O http://llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz
+$ tar xf llvm-3.7.0.src.tar.xz
+$ cd llvm-3.7.0.src/projects/
+llvm-3.7.0.src/projects $ curl http://llvm.org/releases/3.7.0/libunwind-3.7.0.src.tar.xz | tar xJf -
+llvm-3.7.0.src/projects $ mv libunwind-3.7.0.src libunwind
+llvm-3.7.0.src/projects $ mkdir libunwind/build
+llvm-3.7.0.src/projects $ cd libunwind/build
+llvm-3.7.0.src/projects/libunwind/build $ cmake -DLLVM_PATH=../../.. -DLIBUNWIND_ENABLE_SHARED=0 ..
+llvm-3.7.0.src/projects/libunwind/build $ make
+llvm-3.7.0.src/projects/libunwind/build $ cp lib/libunwind.a $PREFIX/lib/
+llvm-3.7.0.src/projects/libunwind/build $ cd ../../../../
+$ du -h musldist/lib/libunwind.a
+164K    musldist/lib/libunwind.a
+$
+$ # Build musl-enabled rust
+$ git clone https://github.com/rust-lang/rust.git muslrust
+$ cd muslrust
+muslrust $ ./configure --target=x86_64-unknown-linux-musl --musl-root=$PREFIX --prefix=$PREFIX
+muslrust $ make
+muslrust $ make install
+muslrust $ cd ..
+$ du -h musldist/bin/rustc
+12K     musldist/bin/rustc
+</pre> <p>You now have a build of a <code>musl</code>-enabled Rust! Because we've installed it to a custom prefix we need to make sure our system can find the binaries and appropriate libraries when we try and run it:</p> <pre>$ export PATH=$PREFIX/bin:$PATH
+$ export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+</pre> <p>Let's try it out!</p> <pre>$ echo 'fn main() { println!("hi!"); panic!("failed"); }' &gt; example.rs
+$ rustc --target=x86_64-unknown-linux-musl example.rs
+$ ldd example
+        not a dynamic executable
+$ ./example
+hi!
+thread 'main' panicked at 'failed', example.rs:1
+</pre> <p>Success! This binary can be copied to almost any Linux machine with the same machine architecture and run without issues.</p> <p><code>cargo build</code> also permits the <code>--target</code> option so you should be able to build your crates as normal. However, you may need to recompile your native libraries against <code>musl</code> before they can be linked against.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/advanced-linking.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/advanced-linking.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

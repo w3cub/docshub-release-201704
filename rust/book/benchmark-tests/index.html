@@ -1,0 +1,148 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.7. Benchmark Tests - Rust - W3cubDocs</title>
+  
+  <meta name="description" content=" Rust supports benchmark tests, which can test the performance of your code. Let&#39;s make our src&#47;lib.rs look like this (comments elided)&#58; ">
+  <meta name="keywords" content="benchmark, tests, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/benchmark-tests/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Benchmark tests</h1> <p>Rust supports benchmark tests, which can test the performance of your code. Let's make our <code>src/lib.rs</code> look like this (comments elided):</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(test)]
+
+extern crate test;
+
+pub fn add_two(a: i32) -&gt; i32 {
+    a + 2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+
+    #[test]
+    fn it_works() {
+        assert_eq!(4, add_two(2));
+    }
+
+    #[bench]
+    fn bench_add_two(b: &amp;mut Bencher) {
+        b.iter(|| add_two(2));
+    }
+}</pre> <p>Note the <code>test</code> feature gate, which enables this unstable feature.</p> <p>We've imported the <code>test</code> crate, which contains our benchmarking support. We have a new function as well, with the <code>bench</code> attribute. Unlike regular tests, which take no arguments, benchmark tests take a <code>&amp;mut Bencher</code>. This <code>Bencher</code> provides an <code>iter</code> method, which takes a closure. This closure contains the code we'd like to benchmark.</p> <p>We can run benchmark tests with <code>cargo bench</code>:</p> <pre>$ cargo bench
+   Compiling adder v0.0.1 (file:///home/steve/tmp/adder)
+     Running target/release/adder-91b3e234d4ed382a
+
+running 2 tests
+test tests::it_works ... ignored
+test tests::bench_add_two ... bench:         1 ns/iter (+/- 0)
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 1 measured
+</pre> <p>Our non-benchmark test was ignored. You may have noticed that <code>cargo bench</code> takes a bit longer than <code>cargo test</code>. This is because Rust runs our benchmark a number of times, and then takes the average. Because we're doing so little work in this example, we have a <code>1 ns/iter (+/- 0)</code>, but this would show the variance if there was one.</p> <p>Advice on writing benchmarks:</p> <ul> <li>Move setup code outside the <code>iter</code> loop; only put the part you want to measure inside</li> <li>Make the code do "the same thing" on each iteration; do not accumulate or change state</li> <li>Make the outer function idempotent too; the benchmark runner is likely to run it many times</li> <li> Make the inner <code>iter</code> loop short and fast so benchmark runs are fast and the calibrator can adjust the run-length at fine resolution</li> <li>Make the code in the <code>iter</code> loop do something simple, to assist in pinpointing performance improvements (or regressions)</li> </ul> <h3 id="gotcha-optimizations" class="section-header">Gotcha: optimizations</h3> <p>There's another tricky part to writing benchmarks: benchmarks compiled with optimizations activated can be dramatically changed by the optimizer so that the benchmark is no longer benchmarking what one expects. For example, the compiler might recognize that some calculation has no external effects and remove it entirely.</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(test)]
+
+extern crate test;
+use test::Bencher;
+
+#[bench]
+fn bench_xor_1000_ints(b: &amp;mut Bencher) {
+    b.iter(|| {
+        (0..1000).fold(0, |old, new| old ^ new);
+    });
+}</pre> <p>gives the following results</p> <pre>running 1 test
+test bench_xor_1000_ints ... bench:         0 ns/iter (+/- 0)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 1 measured
+</pre> <p>The benchmarking runner offers two ways to avoid this. Either, the closure that the <code>iter</code> method receives can return an arbitrary value which forces the optimizer to consider the result used and ensures it cannot remove the computation entirely. This could be done for the example above by adjusting the <code>b.iter</code> call to</p> <pre class="rust rust-example-rendered" data-language="rust">
+b.iter(|| {
+    // Note lack of `;` (could also use an explicit `return`).
+    (0..1000).fold(0, |old, new| old ^ new)
+});</pre> <p>Or, the other option is to call the generic <code>test::black_box</code> function, which is an opaque "black box" to the optimizer and so forces it to consider any argument as used.</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(test)]
+
+extern crate test;
+
+b.iter(|| {
+    let n = test::black_box(1000);
+
+    (0..n).fold(0, |a, b| a ^ b)
+})</pre> <p>Neither of these read or modify the value, and are very cheap for small values. Larger values can be passed indirectly to reduce overhead (e.g. <code>black_box(&amp;huge_struct)</code>).</p> <p>Performing either of the above changes gives the following benchmarking results</p> <pre>running 1 test
+test bench_xor_1000_ints ... bench:       131 ns/iter (+/- 3)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 1 measured
+</pre> <p>However, the optimizer can still modify a testcase in an undesirable manner even when using either of the above.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/benchmark-tests.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/benchmark-tests.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

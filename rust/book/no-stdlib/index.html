@@ -1,0 +1,157 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.3. No Stdlib - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="Rust’s standard library provides a lot of useful functionality, but assumes support for various features of its host system&#58; threads, networking &hellip;">
+  <meta name="keywords" content="no, stdlib, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/no-stdlib/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">No stdlib</h1> <p>Rust’s standard library provides a lot of useful functionality, but assumes support for various features of its host system: threads, networking, heap allocation, and others. There are systems that do not have these features, however, and Rust can work with those too! To do so, we tell Rust that we don’t want to use the standard library via an attribute: <code>#![no_std]</code>.</p> <blockquote> <p>Note: This feature is technically stable, but there are some caveats. For one, you can build a <code>#![no_std]</code> <em>library</em> on stable, but not a <em>binary</em>. For details on libraries without the standard library, see <a href="../using-rust-without-the-standard-library/">the chapter on <code>#![no_std]</code></a></p> </blockquote> <p>Obviously there's more to life than just libraries: one can use <code>#[no_std]</code> with an executable.</p> <h3 id="using-libc" class="section-header">Using libc</h3> <p>In order to build a <code>#[no_std]</code> executable we will need libc as a dependency. We can specify this using our <code>Cargo.toml</code> file:</p> <pre>[dependencies]
+libc = { version = "0.2.14", default-features = false }
+</pre> <p>Note that the default features have been disabled. This is a critical step - <strong>the default features of libc include the standard library and so must be disabled.</strong></p> <h3 id="writing-an-executable-without-stdlib" class="section-header">Writing an executable without stdlib</h3> <p>Controlling the entry point is possible in two ways: the <code>#[start]</code> attribute, or overriding the default shim for the C <code>main</code> function with your own.</p> <p>The function marked <code>#[start]</code> is passed the command line parameters in the same format as C:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(lang_items, core_intrinsics)]
+#![feature(start)]
+#![no_std]
+use core::intrinsics;
+
+// Pull in the system libc library for what crt0.o likely requires.
+extern crate libc;
+
+// Entry point for this program.
+#[start]
+fn start(_argc: isize, _argv: *const *const u8) -&gt; isize {
+    0
+}
+
+// These functions are used by the compiler, but not
+// for a bare-bones hello world. These are normally
+// provided by libstd.
+#[lang = "eh_personality"]
+#[no_mangle]
+pub extern fn rust_eh_personality() {
+}
+
+// This function may be needed based on the compilation target.
+#[lang = "eh_unwind_resume"]
+#[no_mangle]
+pub extern fn rust_eh_unwind_resume() {
+}
+
+#[lang = "panic_fmt"]
+#[no_mangle]
+pub extern fn rust_begin_panic(_msg: core::fmt::Arguments,
+                               _file: &amp;'static str,
+                               _line: u32) -&gt; ! {
+    unsafe { intrinsics::abort() }
+}</pre> <p>To override the compiler-inserted <code>main</code> shim, one has to disable it with <code>#![no_main]</code> and then create the appropriate symbol with the correct ABI and the correct name, which requires overriding the compiler's name mangling too:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(lang_items, core_intrinsics)]
+#![feature(start)]
+#![no_std]
+#![no_main]
+use core::intrinsics;
+
+// Pull in the system libc library for what crt0.o likely requires.
+extern crate libc;
+
+// Entry point for this program.
+#[no_mangle] // ensure that this symbol is called `main` in the output
+pub extern fn main(_argc: i32, _argv: *const *const u8) -&gt; i32 {
+    0
+}
+
+// These functions are used by the compiler, but not
+// for a bare-bones hello world. These are normally
+// provided by libstd.
+#[lang = "eh_personality"]
+#[no_mangle]
+pub extern fn rust_eh_personality() {
+}
+
+// This function may be needed based on the compilation target.
+#[lang = "eh_unwind_resume"]
+#[no_mangle]
+pub extern fn rust_eh_unwind_resume() {
+}
+
+#[lang = "panic_fmt"]
+#[no_mangle]
+pub extern fn rust_begin_panic(_msg: core::fmt::Arguments,
+                               _file: &amp;'static str,
+                               _line: u32) -&gt; ! {
+    unsafe { intrinsics::abort() }
+}</pre> <h3 id="more-about-the-language-items" class="section-header">More about the language items</h3> <p>The compiler currently makes a few assumptions about symbols which are available in the executable to call. Normally these functions are provided by the standard library, but without it you must define your own. These symbols are called "language items", and they each have an internal name, and then a signature that an implementation must conform to.</p> <p>The first of these functions, <code>rust_eh_personality</code>, is used by the failure mechanisms of the compiler. This is often mapped to GCC's personality function (see the <a href="https://github.com/rust-lang/rust/blob/master/src/libpanic_unwind/gcc.rs" target="_blank">libstd implementation</a> for more information), but crates which do not trigger a panic can be assured that this function is never called. The language item's name is <code>eh_personality</code>.</p> <p>The second function, <code>rust_begin_panic</code>, is also used by the failure mechanisms of the compiler. When a panic happens, this controls the message that's displayed on the screen. While the language item's name is <code>panic_fmt</code>, the symbol name is <code>rust_begin_panic</code>.</p> <p>A third function, <code>rust_eh_unwind_resume</code>, is also needed if the <code>custom_unwind_resume</code> flag is set in the options of the compilation target. It allows customizing the process of resuming unwind at the end of the landing pads. The language item's name is <code>eh_unwind_resume</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/no-stdlib.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/no-stdlib.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

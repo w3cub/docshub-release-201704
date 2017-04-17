@@ -1,0 +1,178 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Std&#58;&#58;cell - Rust - W3cubDocs</title>
+  
+  <meta name="description" content=" Shareable mutable containers. ">
+  <meta name="keywords" content="module, std, cell, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/std/cell/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="fqn">Module std::cell</h1> <p>Shareable mutable containers.</p> <p>Values of the <code>Cell&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code> types may be mutated through shared references (i.e. the common <code>&amp;T</code> type), whereas most Rust types can only be mutated through unique (<code>&amp;mut T</code>) references. We say that <code>Cell&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code> provide 'interior mutability', in contrast with typical Rust types that exhibit 'inherited mutability'.</p> <p>Cell types come in two flavors: <code>Cell&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code>. <code>Cell&lt;T&gt;</code> provides <code>get</code> and <code>set</code> methods that change the interior value with a single method call. <code>Cell&lt;T&gt;</code> though is only compatible with types that implement <code>Copy</code>. For other types, one must use the <code>RefCell&lt;T&gt;</code> type, acquiring a write lock before mutating.</p> <p><code>RefCell&lt;T&gt;</code> uses Rust's lifetimes to implement 'dynamic borrowing', a process whereby one can claim temporary, exclusive, mutable access to the inner value. Borrows for <code>RefCell&lt;T&gt;</code>s are tracked 'at runtime', unlike Rust's native reference types which are entirely tracked statically, at compile time. Because <code>RefCell&lt;T&gt;</code> borrows are dynamic it is possible to attempt to borrow a value that is already mutably borrowed; when this happens it results in thread panic.</p> <h4 id="when-to-choose-interior-mutability" class="section-header">When to choose interior mutability</h4> <p>The more common inherited mutability, where one must have unique access to mutate a value, is one of the key language elements that enables Rust to reason strongly about pointer aliasing, statically preventing crash bugs. Because of that, inherited mutability is preferred, and interior mutability is something of a last resort. Since cell types enable mutation where it would otherwise be disallowed though, there are occasions when interior mutability might be appropriate, or even <em>must</em> be used, e.g.</p> <ul> <li>Introducing mutability 'inside' of something immutable</li> <li>Implementation details of logically-immutable methods.</li> <li>Mutating implementations of <code>Clone</code>.</li> </ul> <h3 id="introducing-mutability-inside-of-something-immutable" class="section-header">Introducing mutability 'inside' of something immutable</h3> <p>Many shared smart pointer types, including <code>Rc&lt;T&gt;</code> and <code>Arc&lt;T&gt;</code>, provide containers that can be cloned and shared between multiple parties. Because the contained values may be multiply-aliased, they can only be borrowed with <code>&amp;</code>, not <code>&amp;mut</code>. Without cells it would be impossible to mutate data inside of these smart pointers at all.</p> <p>It's very common then to put a <code>RefCell&lt;T&gt;</code> inside shared pointer types to reintroduce mutability:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let shared_map: Rc&lt;RefCell&lt;_&gt;&gt; = Rc::new(RefCell::new(HashMap::new()));
+    shared_map.borrow_mut().insert("africa", 92388);
+    shared_map.borrow_mut().insert("kyoto", 11837);
+    shared_map.borrow_mut().insert("piccadilly", 11826);
+    shared_map.borrow_mut().insert("marbles", 38);
+}</pre> <p>Note that this example uses <code>Rc&lt;T&gt;</code> and not <code>Arc&lt;T&gt;</code>. <code>RefCell&lt;T&gt;</code>s are for single-threaded scenarios. Consider using <code>RwLock&lt;T&gt;</code> or <code>Mutex&lt;T&gt;</code> if you need shared mutability in a multi-threaded situation.</p> <h3 id="implementation-details-of-logically-immutable-methods" class="section-header">Implementation details of logically-immutable methods</h3> <p>Occasionally it may be desirable not to expose in an API that there is mutation happening "under the hood". This may be because logically the operation is immutable, but e.g. caching forces the implementation to perform mutation; or because you must employ mutation to implement a trait method that was originally defined to take <code>&amp;self</code>.</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::cell::RefCell;
+
+struct Graph {
+    edges: Vec&lt;(i32, i32)&gt;,
+    span_tree_cache: RefCell&lt;Option&lt;Vec&lt;(i32, i32)&gt;&gt;&gt;
+}
+
+impl Graph {
+    fn minimum_spanning_tree(&amp;self) -&gt; Vec&lt;(i32, i32)&gt; {
+        // Create a new scope to contain the lifetime of the
+        // dynamic borrow
+        {
+            // Take a reference to the inside of cache cell
+            let mut cache = self.span_tree_cache.borrow_mut();
+            if cache.is_some() {
+                return cache.as_ref().unwrap().clone();
+            }
+
+            let span_tree = self.calc_span_tree();
+            *cache = Some(span_tree);
+        }
+
+        // Recursive call to return the just-cached value.
+        // Note that if we had not let the previous borrow
+        // of the cache fall out of scope then the subsequent
+        // recursive borrow would cause a dynamic thread panic.
+        // This is the major hazard of using `RefCell`.
+        self.minimum_spanning_tree()
+    }
+}</pre> <h3 id="mutating-implementations-of-clone" class="section-header">Mutating implementations of <code>Clone</code>
+</h3> <p>This is simply a special - but common - case of the previous: hiding mutability for operations that appear to be immutable. The <code>clone</code> method is expected to not change the source value, and is declared to take <code>&amp;self</code>, not <code>&amp;mut self</code>. Therefore any mutation that happens in the <code>clone</code> method must use cell types. For example, <code>Rc&lt;T&gt;</code> maintains its reference counts within a <code>Cell&lt;T&gt;</code>.</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(core_intrinsics)]
+#![feature(shared)]
+use std::cell::Cell;
+use std::ptr::Shared;
+use std::intrinsics::abort;
+use std::intrinsics::assume;
+
+struct Rc&lt;T: ?Sized&gt; {
+    ptr: Shared&lt;RcBox&lt;T&gt;&gt;
+}
+
+struct RcBox&lt;T: ?Sized&gt; {
+    strong: Cell&lt;usize&gt;,
+    refcount: Cell&lt;usize&gt;,
+    value: T,
+}
+
+impl&lt;T: ?Sized&gt; Clone for Rc&lt;T&gt; {
+    fn clone(&amp;self) -&gt; Rc&lt;T&gt; {
+        self.inc_strong();
+        Rc { ptr: self.ptr }
+    }
+}
+
+trait RcBoxPtr&lt;T: ?Sized&gt; {
+
+    fn inner(&amp;self) -&gt; &amp;RcBox&lt;T&gt;;
+
+    fn strong(&amp;self) -&gt; usize {
+        self.inner().strong.get()
+    }
+
+    fn inc_strong(&amp;self) {
+        self.inner()
+            .strong
+            .set(self.strong()
+                     .checked_add(1)
+                     .unwrap_or_else(|| unsafe { abort() }));
+    }
+}
+
+impl&lt;T: ?Sized&gt; RcBoxPtr&lt;T&gt; for Rc&lt;T&gt; {
+   fn inner(&amp;self) -&gt; &amp;RcBox&lt;T&gt; {
+       unsafe {
+           assume(!(*(&amp;self.ptr as *const _ as *const *const ())).is_null());
+           &amp;(**self.ptr)
+       }
+   }
+}</pre> <h3 id="structs" class="section-header">Structs</h3> <table> <tr class=" module-item"> <td><a class="struct" href="struct.borrowerror/" title="std::cell::BorrowError">BorrowError</a></td> <td class="docblock-short"> <p>An error returned by <a href="struct.refcell/#method.try_borrow"><code>RefCell::try_borrow</code></a>.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.borrowmuterror/" title="std::cell::BorrowMutError">BorrowMutError</a></td> <td class="docblock-short"> <p>An error returned by <a href="struct.refcell/#method.try_borrow_mut"><code>RefCell::try_borrow_mut</code></a>.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.cell/" title="std::cell::Cell">Cell</a></td> <td class="docblock-short"> <p>A mutable memory location that admits only <code>Copy</code> data.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.ref/" title="std::cell::Ref">Ref</a></td> <td class="docblock-short"> <p>Wraps a borrowed reference to a value in a <code>RefCell</code> box. A wrapper type for an immutably borrowed value from a <code>RefCell&lt;T&gt;</code>.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.refcell/" title="std::cell::RefCell">RefCell</a></td> <td class="docblock-short"> <p>A mutable memory location with dynamically checked borrow rules</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.refmut/" title="std::cell::RefMut">RefMut</a></td> <td class="docblock-short"> <p>A wrapper type for a mutably borrowed value from a <code>RefCell&lt;T&gt;</code>.</p> </td> </tr> <tr class=" module-item"> <td><a class="struct" href="struct.unsafecell/" title="std::cell::UnsafeCell">UnsafeCell</a></td> <td class="docblock-short"> <p>The core primitive for interior mutability in Rust.</p> </td> </tr>
+</table>
+<h3 id="enums" class="section-header">Enums</h3> <table> <tr class="unstable deprecated module-item"> <td><a class="enum" href="enum.borrowstate/" title="std::cell::BorrowState">BorrowState</a></td> <td class="docblock-short"> [<div class="stab deprecated">Deprecated</div>] [<div class="stab unstable">Experimental</div>] <p>An enumeration of values returned from the <code>state</code> method on a <code>RefCell&lt;T&gt;</code>.</p> </td> </tr>
+</table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/std/cell/index.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/cell/index.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

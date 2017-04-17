@@ -1,0 +1,139 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>std&#58;&#58;sync&#58;&#58;Condvar - Rust - W3cubDocs</title>
+  
+  <meta name="description" content=" A Condition Variable ">
+  <meta name="keywords" content="struct, std, sync, condvar, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/std/sync/struct.condvar/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="fqn">Struct std::sync::Condvar</h1> <pre class="rust struct" data-language="rust">pub struct Condvar { /* fields omitted */ }</pre>
+<p>A Condition Variable</p> <p>Condition variables represent the ability to block a thread such that it consumes no CPU time while waiting for an event to occur. Condition variables are typically associated with a boolean predicate (a condition) and a mutex. The predicate is always verified inside of the mutex before determining that thread must block.</p> <p>Functions in this module will block the current <strong>thread</strong> of execution and are bindings to system-provided condition variables where possible. Note that this module places one additional restriction over the system condition variables: each condvar can be used with precisely one mutex at runtime. Any attempt to use multiple mutexes on the same condition variable will result in a runtime panic. If this is not desired, then the unsafe primitives in <code>sys</code> do not have this restriction but may result in undefined behavior.</p> <h4 id="examples" class="section-header">Examples</h4> <pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+
+let pair = Arc::new((Mutex::new(false), Condvar::new()));
+let pair2 = pair.clone();
+
+// Inside of our lock, spawn a new thread, and then wait for it to start
+thread::spawn(move|| {
+    let &amp;(ref lock, ref cvar) = &amp;*pair2;
+    let mut started = lock.lock().unwrap();
+    *started = true;
+    cvar.notify_one();
+});
+
+// wait for the thread to start up
+let &amp;(ref lock, ref cvar) = &amp;*pair;
+let mut started = lock.lock().unwrap();
+while !*started {
+    started = cvar.wait(started).unwrap();
+}</pre> <h2 id="methods">Methods</h2>
+<h3 class="impl">
+<span class="in-band"><code>impl <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span><span class="out-of-band">
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/condvar.rs.html#79-241" title="goto source code" target="_blank">[src]</a></span>
+</h3> <h4 id="method.new" class="method"><span id="new.v" class="invisible"><code>fn <a href="#method.new" class="fnname">new</a>() -&gt; <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span></h4> <div class="docblock">
+<p>Creates a new condition variable which is ready to be waited on and notified.</p> </div>
+<h4 id="method.wait" class="method"><span id="wait.v" class="invisible"><code>fn <a href="#method.wait" class="fnname">wait</a>&lt;'a, T&gt;(&amp;self, guard: <a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;) -&gt; <a class="type" href="../type.lockresult/" title="std::sync::LockResult">LockResult</a>&lt;<a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;&gt;</code></span></h4> <div class="docblock">
+<p>Blocks the current thread until this condition variable receives a notification.</p> <p>This function will atomically unlock the mutex specified (represented by <code>mutex_guard</code>) and block the current thread. This means that any calls to <code>notify_*()</code> which happen logically after the mutex is unlocked are candidates to wake this thread up. When this function call returns, the lock specified will have been re-acquired.</p> <p>Note that this function is susceptible to spurious wakeups. Condition variables normally have a boolean predicate associated with them, and the predicate must always be checked each time this function returns to protect against spurious wakeups.</p> <h4 id="errors" class="section-header">Errors</h4> <p>This function will return an error if the mutex being waited on is poisoned when this thread re-acquires the lock. For more information, see information about poisoning on the Mutex type.</p> <h4 id="panics" class="section-header">Panics</h4> <p>This function will <code>panic!()</code> if it is used with more than one mutex over time. Each condition variable is dynamically bound to exactly one mutex to ensure defined behavior across platforms. If this functionality is not desired, then unsafe primitives in <code>sys</code> are provided.</p> </div>
+<h4 id="method.wait_timeout_ms" class="method"><span id="wait_timeout_ms.v" class="invisible"><code>fn <a href="#method.wait_timeout_ms" class="fnname">wait_timeout_ms</a>&lt;'a, T&gt;(&amp;self,<br>                          guard: <a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;,<br>                          ms: <a class="primitive" href="../../primitive.u32/">u32</a>)<br>                          -&gt; <a class="type" href="../type.lockresult/" title="std::sync::LockResult">LockResult</a>&lt;<a class="primitive" href="../../primitive.tuple/">(</a><a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;, <a class="primitive" href="../../primitive.bool/">bool</a><a class="primitive" href="../../primitive.tuple/">)</a>&gt;</code></span></h4> <div class="stability"><span class="stab deprecated">Deprecated since 1.6.0: replaced by std::sync::Condvar::wait_timeout </span></div>
+<div class="docblock">
+<p>Waits on this condition variable for a notification, timing out after a specified duration.</p> <p>The semantics of this function are equivalent to <code>wait()</code> except that the thread will be blocked for roughly no longer than <code>ms</code> milliseconds. This method should not be used for precise timing due to anomalies such as preemption or platform differences that may not cause the maximum amount of time waited to be precisely <code>ms</code>.</p> <p>Note that the best effort is made to ensure that the time waited is measured with a monotonic clock, and not affected by the changes made to the system time.</p> <p>The returned boolean is <code>false</code> only if the timeout is known to have elapsed.</p> <p>Like <code>wait</code>, the lock specified will be re-acquired when this function returns, regardless of whether the timeout elapsed or not.</p> </div>
+<h4 id="method.wait_timeout" class="method"><span id="wait_timeout.v" class="invisible"><code>fn <a href="#method.wait_timeout" class="fnname">wait_timeout</a>&lt;'a, T&gt;(&amp;self,<br>                       guard: <a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;,<br>                       dur: <a class="struct" href="../../time/struct.duration/" title="std::time::Duration">Duration</a>)<br>                       -&gt; <a class="type" href="../type.lockresult/" title="std::sync::LockResult">LockResult</a>&lt;<a class="primitive" href="../../primitive.tuple/">(</a><a class="struct" href="../struct.mutexguard/" title="std::sync::MutexGuard">MutexGuard</a>&lt;'a, T&gt;, <a class="struct" href="../struct.waittimeoutresult/" title="std::sync::WaitTimeoutResult">WaitTimeoutResult</a><a class="primitive" href="../../primitive.tuple/">)</a>&gt;</code><div class="since" title="Stable since Rust version 1.5.0">1.5.0</div></span></h4> <div class="docblock">
+<p>Waits on this condition variable for a notification, timing out after a specified duration.</p> <p>The semantics of this function are equivalent to <code>wait()</code> except that the thread will be blocked for roughly no longer than <code>dur</code>. This method should not be used for precise timing due to anomalies such as preemption or platform differences that may not cause the maximum amount of time waited to be precisely <code>dur</code>.</p> <p>Note that the best effort is made to ensure that the time waited is measured with a monotonic clock, and not affected by the changes made to the system time.</p> <p>The returned <code>WaitTimeoutResult</code> value indicates if the timeout is known to have elapsed.</p> <p>Like <code>wait</code>, the lock specified will be re-acquired when this function returns, regardless of whether the timeout elapsed or not.</p> </div>
+<h4 id="method.notify_one" class="method"><span id="notify_one.v" class="invisible"><code>fn <a href="#method.notify_one" class="fnname">notify_one</a>(&amp;self)</code></span></h4> <div class="docblock">
+<p>Wakes up one blocked thread on this condvar.</p> <p>If there is a blocked thread on this condition variable, then it will be woken up from its call to <code>wait</code> or <code>wait_timeout</code>. Calls to <code>notify_one</code> are not buffered in any way.</p> <p>To wake up all threads, see <code>notify_all()</code>.</p> </div>
+<h4 id="method.notify_all" class="method"><span id="notify_all.v" class="invisible"><code>fn <a href="#method.notify_all" class="fnname">notify_all</a>(&amp;self)</code></span></h4> <div class="docblock">
+<p>Wakes up all blocked threads on this condvar.</p> <p>This method will ensure that any current waiters on the condition variable are awoken. Calls to <code>notify_all()</code> are not buffered in any way.</p> <p>To wake up only one thread, see <code>notify_one()</code>.</p> </div>
+<h2 id="implementations">Trait Implementations</h2>
+<h3 class="impl">
+<span class="in-band"><code>impl <a class="trait" href="../../fmt/trait.debug/" title="std::fmt::Debug">Debug</a> for <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span><span class="out-of-band">
+<div class="since" title="Stable since Rust version 1.15.0">1.15.0</div>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/condvar.rs.html#244-248" title="goto source code" target="_blank">[src]</a></span>
+</h3> <h4 id="method.fmt" class="method"><span id="fmt.v" class="invisible"><code>fn <a href="../../fmt/trait.debug/#tymethod.fmt" class="fnname">fmt</a>(&amp;self, f: &amp;mut <a class="struct" href="../../fmt/struct.formatter/" title="std::fmt::Formatter">Formatter</a>) -&gt; <a class="type" href="../../fmt/type.result/" title="std::fmt::Result">Result</a></code></span></h4> <div class="docblock">
+<p>Formats the value using the given formatter.</p> </div>
+<h3 class="impl">
+<span class="in-band"><code>impl <a class="trait" href="../../default/trait.default/" title="std::default::Default">Default</a> for <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span><span class="out-of-band">
+<div class="since" title="Stable since Rust version 1.9.0">1.9.0</div>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/condvar.rs.html#251-256" title="goto source code" target="_blank">[src]</a></span>
+</h3> <h4 id="method.default" class="method"><span id="default.v" class="invisible"><code>fn <a href="../../default/trait.default/#tymethod.default" class="fnname">default</a>() -&gt; <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span></h4> <div class="docblock">
+<p>Creates a <code>Condvar</code> which is ready to be waited on and notified.</p> </div>
+<h3 class="impl">
+<span class="in-band"><code>impl <a class="trait" href="../../ops/trait.drop/" title="std::ops::Drop">Drop</a> for <a class="struct" href="../struct.condvar/" title="std::sync::Condvar">Condvar</a></code></span><span class="out-of-band">
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/condvar.rs.html#259-263" title="goto source code" target="_blank">[src]</a></span>
+</h3> <h4 id="method.drop" class="method"><span id="drop.v" class="invisible"><code>fn <a href="../../ops/trait.drop/#tymethod.drop" class="fnname">drop</a>(&amp;mut self)</code></span></h4> <div class="docblock">
+<p>A method called when the value goes out of scope. <a href="../../ops/trait.drop/#tymethod.drop">Read more</a></p> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/std/sync/struct.Condvar.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/sync/struct.Condvar.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

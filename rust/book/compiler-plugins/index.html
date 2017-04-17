@@ -1,0 +1,199 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>6.1. Compiler Plugins - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="rustc can load compiler plugins, which are user-provided libraries that extend the compiler&#39;s behavior with new syntax extensions, lint checks, &hellip;">
+  <meta name="keywords" content="compiler, plugins, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/compiler-plugins/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Compiler Plugins</h1> <h2 id="introduction" class="section-header">Introduction</h2> <p><code>rustc</code> can load compiler plugins, which are user-provided libraries that extend the compiler's behavior with new syntax extensions, lint checks, etc.</p> <p>A plugin is a dynamic library crate with a designated <em>registrar</em> function that registers extensions with <code>rustc</code>. Other crates can load these extensions using the crate attribute <code>#![plugin(...)]</code>. See the <code>rustc_plugin</code> documentation for more about the mechanics of defining and loading a plugin.</p> <p>If present, arguments passed as <code>#![plugin(foo(... args ...))]</code> are not interpreted by rustc itself. They are provided to the plugin through the <code>Registry</code>'s <code>args</code> method.</p> <p>In the vast majority of cases, a plugin should <em>only</em> be used through <code>#![plugin]</code> and not through an <code>extern crate</code> item. Linking a plugin would pull in all of libsyntax and librustc as dependencies of your crate. This is generally unwanted unless you are building another plugin. The <code>plugin_as_library</code> lint checks these guidelines.</p> <p>The usual practice is to put compiler plugins in their own crate, separate from any <code>macro_rules!</code> macros or ordinary Rust code meant to be used by consumers of a library.</p> <h2 id="syntax-extensions" class="section-header">Syntax extensions</h2> <p>Plugins can extend Rust's syntax in various ways. One kind of syntax extension is the procedural macro. These are invoked the same way as <a href="../macros/">ordinary macros</a>, but the expansion is performed by arbitrary Rust code that manipulates syntax trees at compile time.</p> <p>Let's write a plugin <a href="https://github.com/rust-lang/rust/blob/master/src/test/run-pass-fulldeps/auxiliary/roman_numerals.rs" target="_blank"><code>roman_numerals.rs</code></a> that implements Roman numeral integer literals.</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![crate_type="dylib"]
+#![feature(plugin_registrar, rustc_private)]
+
+extern crate syntax;
+extern crate rustc;
+extern crate rustc_plugin;
+
+use syntax::parse::token;
+use syntax::tokenstream::TokenTree;
+use syntax::ext::base::{ExtCtxt, MacResult, DummyResult, MacEager};
+use syntax::ext::build::AstBuilder;  // A trait for expr_usize.
+use syntax::ext::quote::rt::Span;
+use rustc_plugin::Registry;
+
+fn expand_rn(cx: &amp;mut ExtCtxt, sp: Span, args: &amp;[TokenTree])
+        -&gt; Box&lt;MacResult + 'static&gt; {
+
+    static NUMERALS: &amp;'static [(&amp;'static str, usize)] = &amp;[
+        ("M", 1000), ("CM", 900), ("D", 500), ("CD", 400),
+        ("C",  100), ("XC",  90), ("L",  50), ("XL",  40),
+        ("X",   10), ("IX",   9), ("V",   5), ("IV",   4),
+        ("I",    1)];
+
+    if args.len() != 1 {
+        cx.span_err(
+            sp,
+            &amp;format!("argument should be a single identifier, but got {} arguments", args.len()));
+        return DummyResult::any(sp);
+    }
+
+    let text = match args[0] {
+        TokenTree::Token(_, token::Ident(s)) =&gt; s.to_string(),
+        _ =&gt; {
+            cx.span_err(sp, "argument should be a single identifier");
+            return DummyResult::any(sp);
+        }
+    };
+
+    let mut text = &amp;*text;
+    let mut total = 0;
+    while !text.is_empty() {
+        match NUMERALS.iter().find(|&amp;&amp;(rn, _)| text.starts_with(rn)) {
+            Some(&amp;(rn, val)) =&gt; {
+                total += val;
+                text = &amp;text[rn.len()..];
+            }
+            None =&gt; {
+                cx.span_err(sp, "invalid Roman numeral");
+                return DummyResult::any(sp);
+            }
+        }
+    }
+
+    MacEager::expr(cx.expr_usize(sp, total))
+}
+
+#[plugin_registrar]
+pub fn plugin_registrar(reg: &amp;mut Registry) {
+    reg.register_macro("rn", expand_rn);
+}</pre> <p>Then we can use <code>rn!()</code> like any other macro:</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(plugin)]
+#![plugin(roman_numerals)]
+
+fn main() {
+    assert_eq!(rn!(MMXV), 2015);
+}</pre> <p>The advantages over a simple <code>fn(&amp;str) -&gt; u32</code> are:</p> <ul> <li>The (arbitrarily complex) conversion is done at compile time.</li> <li>Input validation is also performed at compile time.</li> <li>It can be extended to allow use in patterns, which effectively gives a way to define new literal syntax for any data type.</li> </ul> <p>In addition to procedural macros, you can define new <a href="../../reference/#derive"><code>derive</code></a>-like attributes and other kinds of extensions. See <code>Registry::register_syntax_extension</code> and the <code>SyntaxExtension</code> enum. For a more involved macro example, see <a href="https://github.com/rust-lang/regex/blob/master/regex_macros/src/lib.rs" target="_blank"><code>regex_macros</code></a>.</p> <h3 id="tips-and-tricks" class="section-header">Tips and tricks</h3> <p>Some of the <a href="../macros/#debugging-macro-code">macro debugging tips</a> are applicable.</p> <p>You can use <code>syntax::parse</code> to turn token trees into higher-level syntax elements like expressions:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn expand_foo(cx: &amp;mut ExtCtxt, sp: Span, args: &amp;[TokenTree])
+        -&gt; Box&lt;MacResult+'static&gt; {
+
+    let mut parser = cx.new_parser_from_tts(args);
+
+    let expr: P&lt;Expr&gt; = parser.parse_expr();</pre> <p>Looking through <a href="https://github.com/rust-lang/rust/blob/master/src/libsyntax/parse/parser.rs" target="_blank"><code>libsyntax</code> parser code</a> will give you a feel for how the parsing infrastructure works.</p> <p>Keep the <code>Span</code>s of everything you parse, for better error reporting. You can wrap <code>Spanned</code> around your custom data structures.</p> <p>Calling <code>ExtCtxt::span_fatal</code> will immediately abort compilation. It's better to instead call <code>ExtCtxt::span_err</code> and return <code>DummyResult</code> so that the compiler can continue and find further errors.</p> <p>To print syntax fragments for debugging, you can use <code>span_note</code> together with <code>syntax::print::pprust::*_to_string</code>.</p> <p>The example above produced an integer literal using <code>AstBuilder::expr_usize</code>. As an alternative to the <code>AstBuilder</code> trait, <code>libsyntax</code> provides a set of quasiquote macros. They are undocumented and very rough around the edges. However, the implementation may be a good starting point for an improved quasiquote as an ordinary plugin library.</p> <h2 id="lint-plugins" class="section-header">Lint plugins</h2> <p>Plugins can extend <a href="../../reference/#lint-check-attributes">Rust's lint infrastructure</a> with additional checks for code style, safety, etc. Now let's write a plugin <a href="https://github.com/rust-lang/rust/blob/master/src/test/run-pass-fulldeps/auxiliary/lint_plugin_test.rs" target="_blank"><code>lint_plugin_test.rs</code></a> that warns about any item named <code>lintme</code>.</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![feature(plugin_registrar)]
+#![feature(box_syntax, rustc_private)]
+
+extern crate syntax;
+
+// Load rustc as a plugin to get macros
+#[macro_use]
+extern crate rustc;
+extern crate rustc_plugin;
+
+use rustc::lint::{EarlyContext, LintContext, LintPass, EarlyLintPass,
+                  EarlyLintPassObject, LintArray};
+use rustc_plugin::Registry;
+use syntax::ast;
+
+declare_lint!(TEST_LINT, Warn, "Warn about items named 'lintme'");
+
+struct Pass;
+
+impl LintPass for Pass {
+    fn get_lints(&amp;self) -&gt; LintArray {
+        lint_array!(TEST_LINT)
+    }
+}
+
+impl EarlyLintPass for Pass {
+    fn check_item(&amp;mut self, cx: &amp;EarlyContext, it: &amp;ast::Item) {
+        if it.ident.name.as_str() == "lintme" {
+            cx.span_lint(TEST_LINT, it.span, "item is named 'lintme'");
+        }
+    }
+}
+
+#[plugin_registrar]
+pub fn plugin_registrar(reg: &amp;mut Registry) {
+    reg.register_early_lint_pass(box Pass as EarlyLintPassObject);
+}</pre> <p>Then code like</p> <pre class="rust rust-example-rendered" data-language="rust">
+#![plugin(lint_plugin_test)]
+
+fn lintme() { }</pre> <p>will produce a compiler warning:</p> <pre>foo.rs:4:1: 4:16 warning: item is named 'lintme', #[warn(test_lint)] on by default
+foo.rs:4 fn lintme() { }
+         ^~~~~~~~~~~~~~~
+</pre> <p>The components of a lint plugin are:</p> <ul> <li><p>one or more <code>declare_lint!</code> invocations, which define static <code>Lint</code> structs;</p></li> <li><p>a struct holding any state needed by the lint pass (here, none);</p></li> <li><p>a <code>LintPass</code> implementation defining how to check each syntax element. A single <code>LintPass</code> may call <code>span_lint</code> for several different <code>Lint</code>s, but should register them all through the <code>get_lints</code> method.</p></li> </ul> <p>Lint passes are syntax traversals, but they run at a late stage of compilation where type information is available. <code>rustc</code>'s <a href="https://github.com/rust-lang/rust/blob/master/src/librustc/lint/builtin.rs" target="_blank">built-in lints</a> mostly use the same infrastructure as lint plugins, and provide examples of how to access type information.</p> <p>Lints defined by plugins are controlled by the usual <a href="../../reference/#lint-check-attributes">attributes and compiler flags</a>, e.g. <code>#[allow(test_lint)]</code> or <code>-A test-lint</code>. These identifiers are derived from the first argument to <code>declare_lint!</code>, with appropriate case and punctuation conversion.</p> <p>You can run <code>rustc -W help foo.rs</code> to see a list of lints known to <code>rustc</code>, including those provided by plugins loaded by <code>foo.rs</code>.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/compiler-plugins.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/compiler-plugins.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

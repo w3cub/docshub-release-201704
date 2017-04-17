@@ -1,0 +1,264 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4.9. References and Borrowing - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="This is the second of three sections presenting Rust’s ownership system. This is one of Rust’s most distinct and compelling features, with which &hellip;">
+  <meta name="keywords" content="references, and, borrowing, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/references-and-borrowing/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">References and Borrowing</h1> <p>This is the second of three sections presenting Rust’s ownership system. This is one of Rust’s most distinct and compelling features, with which Rust developers should become quite acquainted. Ownership is how Rust achieves its largest goal, memory safety. There are a few distinct concepts, each with its own chapter:</p> <ul> <li>
+<a href="../ownership/">ownership</a>, the key concept</li> <li>borrowing, which you’re reading now</li> <li>
+<a href="../lifetimes/">lifetimes</a>, an advanced concept of borrowing</li> </ul> <p>These three chapters are related, and in order. You’ll need all three to fully understand the ownership system.</p> <h2 id="meta" class="section-header">Meta</h2> <p>Before we get to the details, two important notes about the ownership system.</p> <p>Rust has a focus on safety and speed. It accomplishes these goals through many ‘zero-cost abstractions’, which means that in Rust, abstractions cost as little as possible in order to make them work. The ownership system is a prime example of a zero-cost abstraction. All of the analysis we’ll talk about in this guide is <em>done at compile time</em>. You do not pay any run-time cost for any of these features.</p> <p>However, this system does have a certain cost: learning curve. Many new users to Rust experience something we like to call ‘fighting with the borrow checker’, where the Rust compiler refuses to compile a program that the author thinks is valid. This often happens because the programmer’s mental model of how ownership should work doesn’t match the actual rules that Rust implements. You probably will experience similar things at first. There is good news, however: more experienced Rust developers report that once they work with the rules of the ownership system for a period of time, they fight the borrow checker less and less.</p> <p>With that in mind, let’s learn about borrowing.</p> <h2 id="borrowing" class="section-header">Borrowing</h2> <p>At the end of the <a href="../ownership/">ownership</a> section, we had a nasty function that looked like this:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn foo(v1: Vec&lt;i32&gt;, v2: Vec&lt;i32&gt;) -&gt; (Vec&lt;i32&gt;, Vec&lt;i32&gt;, i32) {
+    // Do stuff with `v1` and `v2`.
+
+    // Hand back ownership, and the result of our function.
+    (v1, v2, 42)
+}
+
+let v1 = vec![1, 2, 3];
+let v2 = vec![1, 2, 3];
+
+let (v1, v2, answer) = foo(v1, v2);</pre> <p>This is not idiomatic Rust, however, as it doesn’t take advantage of borrowing. Here’s the first step:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn foo(v1: &amp;Vec&lt;i32&gt;, v2: &amp;Vec&lt;i32&gt;) -&gt; i32 {
+    // Do stuff with `v1` and `v2`.
+
+    // Return the answer.
+    42
+}
+
+let v1 = vec![1, 2, 3];
+let v2 = vec![1, 2, 3];
+
+let answer = foo(&amp;v1, &amp;v2);
+
+// We can use `v1` and `v2` here!</pre> <p>A more concrete example:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn main() {
+    // Don't worry if you don't understand how `fold` works, the point here is that an immutable reference is borrowed.
+    fn sum_vec(v: &amp;Vec&lt;i32&gt;) -&gt; i32 {
+        return v.iter().fold(0, |a, &amp;b| a + b);
+    }
+    // Borrow two vectors and sum them.
+    // This kind of borrowing does not allow mutation through the borrowed reference.
+    fn foo(v1: &amp;Vec&lt;i32&gt;, v2: &amp;Vec&lt;i32&gt;) -&gt; i32 {
+        // Do stuff with `v1` and `v2`.
+        let s1 = sum_vec(v1);
+        let s2 = sum_vec(v2);
+        // Return the answer.
+        s1 + s2
+    }
+
+    let v1 = vec![1, 2, 3];
+    let v2 = vec![4, 5, 6];
+
+    let answer = foo(&amp;v1, &amp;v2);
+    println!("{}", answer);
+}</pre> <p>Instead of taking <code>Vec&lt;i32&gt;</code>s as our arguments, we take a reference: <code>&amp;Vec&lt;i32&gt;</code>. And instead of passing <code>v1</code> and <code>v2</code> directly, we pass <code>&amp;v1</code> and <code>&amp;v2</code>. We call the <code>&amp;T</code> type a ‘reference’, and rather than owning the resource, it borrows ownership. A binding that borrows something does not deallocate the resource when it goes out of scope. This means that after the call to <code>foo()</code>, we can use our original bindings again.</p> <p>References are immutable, like bindings. This means that inside of <code>foo()</code>, the vectors can’t be changed at all:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn foo(v: &amp;Vec&lt;i32&gt;) {
+     v.push(5);
+}
+
+let v = vec![];
+
+foo(&amp;v);</pre> <p>will give us this error:</p> <pre>error: cannot borrow immutable borrowed content `*v` as mutable
+v.push(5);
+^
+</pre> <p>Pushing a value mutates the vector, and so we aren’t allowed to do it.</p> <h2 id="mut-references" class="section-header">&amp;mut references</h2> <p>There’s a second kind of reference: <code>&amp;mut T</code>. A ‘mutable reference’ allows you to mutate the resource you’re borrowing. For example:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let mut x = 5;
+{
+    let y = &amp;mut x;
+    *y += 1;
+}
+println!("{}", x);</pre> <p>This will print <code>6</code>. We make <code>y</code> a mutable reference to <code>x</code>, then add one to the thing <code>y</code> points at. You’ll notice that <code>x</code> had to be marked <code>mut</code> as well. If it wasn’t, we couldn’t take a mutable borrow to an immutable value.</p> <p>You'll also notice we added an asterisk (<code>*</code>) in front of <code>y</code>, making it <code>*y</code>, this is because <code>y</code> is a <code>&amp;mut</code> reference. You'll need to use asterisks to access the contents of a reference as well.</p> <p>Otherwise, <code>&amp;mut</code> references are like references. There <em>is</em> a large difference between the two, and how they interact, though. You can tell something is fishy in the above example, because we need that extra scope, with the <code>{</code> and <code>}</code>. If we remove them, we get an error:</p> <pre>error: cannot borrow `x` as immutable because it is also borrowed as mutable
+    println!("{}", x);
+                   ^
+note: previous borrow of `x` occurs here; the mutable borrow prevents
+subsequent moves, borrows, or modification of `x` until the borrow ends
+        let y = &amp;mut x;
+                     ^
+note: previous borrow ends here
+fn main() {
+
+}
+^
+</pre> <p>As it turns out, there are rules.</p> <h2 id="the-rules" class="section-header">The Rules</h2> <p>Here are the rules for borrowing in Rust:</p> <p>First, any borrow must last for a scope no greater than that of the owner. Second, you may have one or the other of these two kinds of borrows, but not both at the same time:</p> <ul> <li>one or more references (<code>&amp;T</code>) to a resource,</li> <li>exactly one mutable reference (<code>&amp;mut T</code>).</li> </ul> <p>You may notice that this is very similar to, though not exactly the same as, the definition of a data race:</p> <blockquote> <p>There is a ‘data race’ when two or more pointers access the same memory location at the same time, where at least one of them is writing, and the operations are not synchronized.</p> </blockquote> <p>With references, you may have as many as you’d like, since none of them are writing. However, as we can only have one <code>&amp;mut</code> at a time, it is impossible to have a data race. This is how Rust prevents data races at compile time: we’ll get errors if we break the rules.</p> <p>With this in mind, let’s consider our example again.</p> <h3 id="thinking-in-scopes" class="section-header">Thinking in scopes</h3> <p>Here’s the code:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn main() {
+    let mut x = 5;
+    let y = &amp;mut x;
+
+    *y += 1;
+
+    println!("{}", x);
+}</pre> <p>This code gives us this error:</p> <pre>error: cannot borrow `x` as immutable because it is also borrowed as mutable
+    println!("{}", x);
+                   ^
+</pre> <p>This is because we’ve violated the rules: we have a <code>&amp;mut T</code> pointing to <code>x</code>, and so we aren’t allowed to create any <code>&amp;T</code>s. It's one or the other. The note hints at how to think about this problem:</p> <pre>note: previous borrow ends here
+fn main() {
+
+}
+^
+</pre> <p>In other words, the mutable borrow is held through the rest of our example. What we want is for the mutable borrow by <code>y</code> to end so that the resource can be returned to the owner, <code>x</code>. <code>x</code> can then provide an immutable borrow to <code>println!</code>. In Rust, borrowing is tied to the scope that the borrow is valid for. And our scopes look like this:</p> <pre class="rust rust-example-rendered" data-language="rust">
+fn main() {
+    let mut x = 5;
+
+    let y = &amp;mut x;    // -+ &amp;mut borrow of `x` starts here.
+                       //  |
+    *y += 1;           //  |
+                       //  |
+    println!("{}", x); // -+ - Try to borrow `x` here.
+}                      // -+ &amp;mut borrow of `x` ends here.
+                       </pre> <p>The scopes conflict: we can’t make an <code>&amp;x</code> while <code>y</code> is in scope.</p> <p>So when we add the curly braces:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let mut x = 5;
+
+{
+    let y = &amp;mut x; // -+ &amp;mut borrow starts here.
+    *y += 1;        //  |
+}                   // -+ ... and ends here.
+
+println!("{}", x);  // &lt;- Try to borrow `x` here.</pre> <p>There’s no problem. Our mutable borrow goes out of scope before we create an immutable one. So scope is the key to seeing how long a borrow lasts for.</p> <h3 id="issues-borrowing-prevents" class="section-header">Issues borrowing prevents</h3> <p>Why have these restrictive rules? Well, as we noted, these rules prevent data races. What kinds of issues do data races cause? Here are a few.</p> <h3 id="iterator-invalidation" class="section-header">Iterator invalidation</h3> <p>One example is ‘iterator invalidation’, which happens when you try to mutate a collection that you’re iterating over. Rust’s borrow checker prevents this from happening:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let mut v = vec![1, 2, 3];
+
+for i in &amp;v {
+    println!("{}", i);
+}</pre> <p>This prints out one through three. As we iterate through the vector, we’re only given references to the elements. And <code>v</code> is itself borrowed as immutable, which means we can’t change it while we’re iterating:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let mut v = vec![1, 2, 3];
+
+for i in &amp;v {
+    println!("{}", i);
+    v.push(34);
+}</pre> <p>Here’s the error:</p> <pre>error: cannot borrow `v` as mutable because it is also borrowed as immutable
+    v.push(34);
+    ^
+note: previous borrow of `v` occurs here; the immutable borrow prevents
+subsequent moves or mutable borrows of `v` until the borrow ends
+for i in &amp;v {
+          ^
+note: previous borrow ends here
+for i in &amp;v {
+    println!(“{}”, i);
+    v.push(34);
+}
+^
+</pre> <p>We can’t modify <code>v</code> because it’s borrowed by the loop.</p> <h3 id="use-after-free" class="section-header">Use after free</h3> <p>References must not live longer than the resource they refer to. Rust will check the scopes of your references to ensure that this is true.</p> <p>If Rust didn’t check this property, we could accidentally use a reference which was invalid. For example:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let y: &amp;i32;
+{
+    let x = 5;
+    y = &amp;x;
+}
+
+println!("{}", y);</pre> <p>We get this error:</p> <pre>error: `x` does not live long enough
+    y = &amp;x;
+         ^
+note: reference must be valid for the block suffix following statement 0 at
+2:16...
+let y: &amp;i32;
+{
+    let x = 5;
+    y = &amp;x;
+}
+
+note: ...but borrowed value is only valid for the block suffix following
+statement 0 at 4:18
+    let x = 5;
+    y = &amp;x;
+}
+</pre> <p>In other words, <code>y</code> is only valid for the scope where <code>x</code> exists. As soon as <code>x</code> goes away, it becomes invalid to refer to it. As such, the error says that the borrow ‘doesn’t live long enough’ because it’s not valid for the right amount of time.</p> <p>The same problem occurs when the reference is declared <em>before</em> the variable it refers to. This is because resources within the same scope are freed in the opposite order they were declared:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let y: &amp;i32;
+let x = 5;
+y = &amp;x;
+
+println!("{}", y);</pre> <p>We get this error:</p> <pre>error: `x` does not live long enough
+y = &amp;x;
+     ^
+note: reference must be valid for the block suffix following statement 0 at
+2:16...
+    let y: &amp;i32;
+    let x = 5;
+    y = &amp;x;
+
+    println!("{}", y);
+}
+
+note: ...but borrowed value is only valid for the block suffix following
+statement 1 at 3:14
+    let x = 5;
+    y = &amp;x;
+
+    println!("{}", y);
+}
+</pre> <p>In the above example, <code>y</code> is declared before <code>x</code>, meaning that <code>y</code> lives longer than <code>x</code>, which is not allowed.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/references-and-borrowing.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/references-and-borrowing.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

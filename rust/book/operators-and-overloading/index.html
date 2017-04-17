@@ -1,0 +1,152 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>4.32. Operators and Overloading - Rust - W3cubDocs</title>
+  
+  <meta name="description" content="Rust allows for a limited form of operator overloading. There are certain operators that are able to be overloaded. To support a particular operator &hellip;">
+  <meta name="keywords" content="operators, and, overloading, -, rust">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/rust/book/operators-and-overloading/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/rust.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/rust/" class="_nav-link" title="" style="margin-left:0;">Rust</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _rust">
+				
+<h1 class="title">Operators and Overloading</h1> <p>Rust allows for a limited form of operator overloading. There are certain operators that are able to be overloaded. To support a particular operator between types, there’s a specific trait that you can implement, which then overloads the operator.</p> <p>For example, the <code>+</code> operator can be overloaded with the <code>Add</code> trait:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::ops::Add;
+
+#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+impl Add for Point {
+    type Output = Point;
+
+    fn add(self, other: Point) -&gt; Point {
+        Point { x: self.x + other.x, y: self.y + other.y }
+    }
+}
+
+fn main() {
+    let p1 = Point { x: 1, y: 0 };
+    let p2 = Point { x: 2, y: 3 };
+
+    let p3 = p1 + p2;
+
+    println!("{:?}", p3);
+}</pre> <p>In <code>main</code>, we can use <code>+</code> on our two <code>Point</code>s, since we’ve implemented <code>Add&lt;Output=Point&gt;</code> for <code>Point</code>.</p> <p>There are a number of operators that can be overloaded this way, and all of their associated traits live in the <a href="../../std/ops/"><code>std::ops</code></a> module. Check out its documentation for the full list.</p> <p>Implementing these traits follows a pattern. Let’s look at <a href="../../std/ops/trait.add/"><code>Add</code></a> in more detail:</p> <pre class="rust rust-example-rendered" data-language="rust">
+pub trait Add&lt;RHS = Self&gt; {
+    type Output;
+
+    fn add(self, rhs: RHS) -&gt; Self::Output;
+}</pre> <p>There’s three types in total involved here: the type you <code>impl Add</code> for, <code>RHS</code>, which defaults to <code>Self</code>, and <code>Output</code>. For an expression <code>let z = x + y</code>, <code>x</code> is the <code>Self</code> type, <code>y</code> is the RHS, and <code>z</code> is the <code>Self::Output</code> type.</p> <pre class="rust rust-example-rendered" data-language="rust">
+impl Add&lt;i32&gt; for Point {
+    type Output = f64;
+
+    fn add(self, rhs: i32) -&gt; f64 {
+        // Add an i32 to a Point and get an f64.
+    }
+}</pre> <p>will let you do this:</p> <pre class="rust rust-example-rendered" data-language="rust">
+let p: Point = // ...
+let x: f64 = p + 2i32;</pre> <h2 id="using-operator-traits-in-generic-structs" class="section-header">Using operator traits in generic structs</h2> <p>Now that we know how operator traits are defined, we can define our <code>HasArea</code> trait and <code>Square</code> struct from the <a href="../traits/">traits chapter</a> more generically:</p> <pre class="rust rust-example-rendered" data-language="rust">
+use std::ops::Mul;
+
+trait HasArea&lt;T&gt; {
+    fn area(&amp;self) -&gt; T;
+}
+
+struct Square&lt;T&gt; {
+    x: T,
+    y: T,
+    side: T,
+}
+
+impl&lt;T&gt; HasArea&lt;T&gt; for Square&lt;T&gt;
+        where T: Mul&lt;Output=T&gt; + Copy {
+    fn area(&amp;self) -&gt; T {
+        self.side * self.side
+    }
+}
+
+fn main() {
+    let s = Square {
+        x: 0.0f64,
+        y: 0.0f64,
+        side: 12.0f64,
+    };
+
+    println!("Area of s: {}", s.area());
+}</pre> <p>For <code>HasArea</code> and <code>Square</code>, we declare a type parameter <code>T</code> and replace <code>f64</code> with it. The <code>impl</code> needs more involved modifications:</p> <pre class="rust rust-example-rendered" data-language="rust">
+impl&lt;T&gt; HasArea&lt;T&gt; for Square&lt;T&gt;
+        where T: Mul&lt;Output=T&gt; + Copy { ... }</pre> <p>The <code>area</code> method requires that we can multiply the sides, so we declare that type <code>T</code> must implement <code>std::ops::Mul</code>. Like <code>Add</code>, mentioned above, <code>Mul</code> itself takes an <code>Output</code> parameter: since we know that numbers don't change type when multiplied, we also set it to <code>T</code>. <code>T</code> must also support copying, so Rust doesn't try to move <code>self.side</code> into the return value.</p>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2010 The Rust Project Developers<br>Licensed under the Apache License, Version 2.0 or the MIT license, at your option.<br>
+    <a href="https://doc.rust-lang.org/book/operators-and-overloading.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/operators-and-overloading.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
