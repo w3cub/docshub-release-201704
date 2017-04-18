@@ -1,0 +1,327 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Maximum Likelihood Estimation (Generic Models) - Statsmodels - W3cubDocs</title>
+  
+  <meta name="description" content=" Link to Notebook GitHub ">
+  <meta name="keywords" content="maximum, likelihood, estimation, generic, models, example, -, statsmodels">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/statsmodels/examples/notebooks/generated/generic_mle/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/statsmodels.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/statsmodels/" class="_nav-link" title="" style="margin-left:0;">Statsmodels</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="maximum-likelihood-estimation-generic-models">Maximum Likelihood Estimation (Generic models)</h1> <p id="generic-mle-notebook"><a class="reference external" href="https://github.com/statsmodels/statsmodels/blob/master/examples/notebooks/generic_mle.ipynb" target="_blank">Link to Notebook GitHub</a></p> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>This tutorial explains how to quickly implement new maximum likelihood models in <code>statsmodels</code>. We give two examples: </p> <ol> <li>Probit model for binary dependent variables</li> <li>Negative binomial model for count data</li> </ol> <p>The <code>GenericLikelihoodModel</code> class eases the process by providing tools such as automatic numeric differentiation and a unified interface to <code>scipy</code> optimization functions. Using <code>statsmodels</code>, users can fit new MLE models simply by "plugging-in" a log-likelihood function. </p> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h2 id="example-1-probit-model">Example 1: Probit model</h2> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [1]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="kn">as</span> <span class="nn">sm</span>
+<span class="kn">from</span> <span class="nn">statsmodels.base.model</span> <span class="kn">import</span> <span class="n">GenericLikelihoodModel</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>The <code>Spector</code> dataset is distributed with <code>statsmodels</code>. You can access a vector of values for the dependent variable (<code>endog</code>) and a matrix of regressors (<code>exog</code>) like this:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [2]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">data</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">spector</span><span class="o">.</span><span class="n">load_pandas</span><span class="p">()</span>
+<span class="n">exog</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">exog</span>
+<span class="n">endog</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">endog</span>
+<span class="k">print</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">spector</span><span class="o">.</span><span class="n">NOTE</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">exog</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+::
+
+    Number of Observations - 32
+
+    Number of Variables - 4
+
+    Variable name definitions::
+
+        Grade - binary variable indicating whether or not a student's grade
+                improved.  1 indicates an improvement.
+        TUCE  - Test score on economics test
+        PSI   - participation in program
+        GPA   - Student's grade point average
+
+    GPA  TUCE  PSI
+0  2.66    20    0
+1  2.89    22    0
+2  3.28    24    0
+3  2.92    12    0
+4  4.00    21    0
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Them, we add a constant to the matrix of regressors:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [3]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">exog</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">exog</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>To create your own Likelihood Model, you simply need to overwrite the loglike method.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [4]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">class</span> <span class="nc">MyProbit</span><span class="p">(</span><span class="n">GenericLikelihoodModel</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">loglike</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">exog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exog</span>
+        <span class="n">endog</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endog</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">endog</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">stats</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">logcdf</span><span class="p">(</span><span class="n">q</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">exog</span><span class="p">,</span> <span class="n">params</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Estimate the model and print a summary:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [5]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">sm_probit_manual</span> <span class="o">=</span> <span class="n">MyProbit</span><span class="p">(</span><span class="n">endog</span><span class="p">,</span> <span class="n">exog</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">sm_probit_manual</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+Optimization terminated successfully.
+         Current function value: 0.400588
+         Iterations: 292
+         Function evaluations: 494
+                               MyProbit Results
+==============================================================================
+Dep. Variable:                  GRADE   Log-Likelihood:                -12.819
+Model:                       MyProbit   AIC:                             33.64
+Method:            Maximum Likelihood   BIC:                             39.50
+Date:                Tue, 02 Dec 2014
+Time:                        12:54:20
+No. Observations:                  32
+Df Residuals:                      28
+Df Model:                           3
+==============================================================================
+                 coef    std err          z      P&gt;|z|      [95.0% Conf. Int.]
+------------------------------------------------------------------------------
+const         -7.4523      2.542     -2.931      0.003       -12.435    -2.469
+GPA            1.6258      0.694      2.343      0.019         0.266     2.986
+TUCE           0.0517      0.084      0.617      0.537        -0.113     0.216
+PSI            1.4263      0.595      2.397      0.017         0.260     2.593
+==============================================================================
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Compare your Probit implementation to <code>statsmodels</code>' "canned" implementation:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [6]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">sm_probit_canned</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">Probit</span><span class="p">(</span><span class="n">endog</span><span class="p">,</span> <span class="n">exog</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+Optimization terminated successfully.
+         Current function value: 0.400588
+         Iterations 6
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [7]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">sm_probit_canned</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">sm_probit_manual</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+const   -7.452320
+GPA      1.625810
+TUCE     0.051729
+PSI      1.426332
+dtype: float64
+[-7.4523  1.6258  0.0517  1.4263]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [8]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">sm_probit_canned</span><span class="o">.</span><span class="n">cov_params</span><span class="p">())</span>
+<span class="k">print</span><span class="p">(</span><span class="n">sm_probit_manual</span><span class="o">.</span><span class="n">cov_params</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+          const       GPA      TUCE       PSI
+const  6.464166 -1.169668 -0.101173 -0.594792
+GPA   -1.169668  0.481473 -0.018914  0.105439
+TUCE  -0.101173 -0.018914  0.007038  0.002472
+PSI   -0.594792  0.105439  0.002472  0.354070
+[[ 6.4642 -1.1697 -0.1012 -0.5948]
+ [-1.1697  0.4815 -0.0189  0.1054]
+ [-0.1012 -0.0189  0.007   0.0025]
+ [-0.5948  0.1054  0.0025  0.3541]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Notice that the <code>GenericMaximumLikelihood</code> class provides automatic differentiation, so we didn't have to provide Hessian or Score functions in order to calculate the covariance estimates.</p> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h2 id="example-2-negative-binomial-regression-for-count-data">Example 2: Negative Binomial Regression for Count Data</h2> <p>Consider a negative binomial regression model for count data with log-likelihood (type NB-2) function expressed as:</p> <p>$$ \mathcal{L}(\beta_j; y, \alpha) = \sum_{i=1}^n y_i ln \left ( \frac{\alpha exp(X_i'\beta)}{1+\alpha exp(X_i'\beta)} \right ) - \frac{1}{\alpha} ln(1+\alpha exp(X_i'\beta)) + ln \Gamma (y_i + 1/\alpha) - ln \Gamma (y_i+1) - ln \Gamma (1/\alpha) $$</p> <p>with a matrix of regressors $X$, a vector of coefficients $\beta$, and the negative binomial heterogeneity parameter $\alpha$. </p> <p>Using the <code>nbinom</code> distribution from <code>scipy</code>, we can write this likelihood simply as:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [9]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">nbinom</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [10]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">def</span> <span class="nf">_ll_nb2</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">alph</span><span class="p">):</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">beta</span><span class="p">))</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">alph</span>
+    <span class="n">prob</span> <span class="o">=</span> <span class="n">size</span><span class="o">/</span><span class="p">(</span><span class="n">size</span><span class="o">+</span><span class="n">mu</span><span class="p">)</span>
+    <span class="n">ll</span> <span class="o">=</span> <span class="n">nbinom</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">prob</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ll</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="new-model-class">New Model Class</h3> <p>We create a new model class which inherits from <code>GenericLikelihoodModel</code>:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [11]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">statsmodels.base.model</span> <span class="kn">import</span> <span class="n">GenericLikelihoodModel</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [12]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">class</span> <span class="nc">NBin</span><span class="p">(</span><span class="n">GenericLikelihoodModel</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">endog</span><span class="p">,</span> <span class="n">exog</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">NBin</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">endog</span><span class="p">,</span> <span class="n">exog</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">nloglikeobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">alph</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="n">params</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">ll</span> <span class="o">=</span> <span class="n">_ll_nb2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endog</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exog</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">alph</span><span class="p">)</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">ll</span>
+
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_params</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">maxiter</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">maxfun</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+        <span class="c"># we have one additional parameter and we need to add it for summary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exog_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">'alpha'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">start_params</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c"># Reasonable starting values</span>
+            <span class="n">start_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exog</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="o">.</span><span class="mi">5</span><span class="p">)</span>
+            <span class="c"># intercept</span>
+            <span class="n">start_params</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endog</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">NBin</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">start_params</span><span class="o">=</span><span class="n">start_params</span><span class="p">,</span>
+                                     <span class="n">maxiter</span><span class="o">=</span><span class="n">maxiter</span><span class="p">,</span> <span class="n">maxfun</span><span class="o">=</span><span class="n">maxfun</span><span class="p">,</span>
+                                     <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Two important things to notice: </p> <ul> <li>
+<code>nloglikeobs</code>: This function should return one evaluation of the negative log-likelihood function per observation in your dataset (i.e. rows of the endog/X matrix). </li> <li>
+<code>start_params</code>: A one-dimensional array of starting values needs to be provided. The size of this array determines the number of parameters that will be used in optimization.</li> </ul> <p>That's it! You're done!</p> <h3 id="usage-example">Usage Example</h3> <p>The <a href="http://vincentarelbundock.github.com/Rdatasets/doc/COUNT/medpar.html" target="_blank">Medpar</a> dataset is hosted in CSV format at the <a href="http://vincentarelbundock.github.com/Rdatasets" target="_blank">Rdatasets repository</a>. We use the <code>read_csv</code> function from the <a href="http://pandas.pydata.org" target="_blank">Pandas library</a> to load the data in memory. We then print the first few columns: </p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [13]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="kn">as</span> <span class="nn">sm</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [14]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">medpar</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">get_rdataset</span><span class="p">(</span><span class="s">"medpar"</span><span class="p">,</span> <span class="s">"COUNT"</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+
+<span class="n">medpar</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[14]:</div> <div class="output_html rendered_html output_subarea output_pyout"> <div style="max-height:1000px;max-width:1500px;overflow:auto;"> <table class="dataframe"> <thead> <tr style="text-align: right;"> <th></th> <th>los</th> <th>hmo</th> <th>white</th> <th>died</th> <th>age80</th> <th>type</th> <th>type1</th> <th>type2</th> <th>type3</th> <th>provnum</th> </tr> </thead>  <tr> <th>0</th> <td> 4</td> <td> 0</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 30001</td> </tr> <tr> <th>1</th> <td> 9</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 30001</td> </tr> <tr> <th>2</th> <td> 3</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 30001</td> </tr> <tr> <th>3</th> <td> 9</td> <td> 0</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 30001</td> </tr> <tr> <th>4</th> <td> 1</td> <td> 0</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 0</td> <td> 0</td> <td> 30001</td> </tr>  </table> </div> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>The model we are interested in has a vector of non-negative integers as dependent variable (<code>los</code>), and 5 regressors: <code>Intercept</code>, <code>type2</code>, <code>type3</code>, <code>hmo</code>, <code>white</code>.</p> <p>For estimation, we need to create two variables to hold our regressors and the outcome variable. These can be ndarrays or pandas objects.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [15]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">y</span> <span class="o">=</span> <span class="n">medpar</span><span class="o">.</span><span class="n">los</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">medpar</span><span class="p">[[</span><span class="s">"type2"</span><span class="p">,</span> <span class="s">"type3"</span><span class="p">,</span> <span class="s">"hmo"</span><span class="p">,</span> <span class="s">"white"</span><span class="p">]]</span>
+<span class="n">X</span><span class="p">[</span><span class="s">"constant"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Then, we fit the model and extract some information: </p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [16]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">NBin</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+Optimization terminated successfully.
+         Current function value: 3.209014
+         Iterations: 805
+         Function evaluations: 1238
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p> Extract parameter estimates, standard errors, p-values, AIC, etc.:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [17]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="s">'Parameters: '</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">'Standard errors: '</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">bse</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">'P-values: '</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">pvalues</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s">'AIC: '</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">aic</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+Parameters:  [ 0.2213  0.7061 -0.068  -0.129   2.3103  0.4458]
+Standard errors:  [ 0.0506  0.0761  0.0533  0.0685  0.0679  0.0198]
+P-values:  [ 0.      0.      0.2018  0.0597  0.      0.    ]
+AIC:  9604.95320583
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>As usual, you can obtain a full list of available information by typing <code>dir(res)</code>. We can also look at the summary of the estimation results.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [18]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                                 NBin Results
+==============================================================================
+Dep. Variable:                    los   Log-Likelihood:                -4797.5
+Model:                           NBin   AIC:                             9605.
+Method:            Maximum Likelihood   BIC:                             9632.
+Date:                Tue, 02 Dec 2014
+Time:                        12:54:24
+No. Observations:                1495
+Df Residuals:                    1490
+Df Model:                           4
+==============================================================================
+                 coef    std err          z      P&gt;|z|      [95.0% Conf. Int.]
+------------------------------------------------------------------------------
+type2          0.2213      0.051      4.373      0.000         0.122     0.320
+type3          0.7061      0.076      9.275      0.000         0.557     0.855
+hmo           -0.0680      0.053     -1.276      0.202        -0.172     0.036
+white         -0.1290      0.069     -1.883      0.060        -0.263     0.005
+constant       2.3103      0.068     34.001      0.000         2.177     2.443
+alpha          0.4458      0.020     22.495      0.000         0.407     0.485
+==============================================================================
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="testing">Testing</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>We can check the results by using the statsmodels implementation of the Negative Binomial model, which uses the analytic score function and Hessian.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [19]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">res_nbin</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">NegativeBinomial</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">disp</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res_nbin</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                     NegativeBinomial Regression Results
+==============================================================================
+Dep. Variable:                    los   No. Observations:                 1495
+Model:               NegativeBinomial   Df Residuals:                     1490
+Method:                           MLE   Df Model:                            4
+Date:                Tue, 02 Dec 2014   Pseudo R-squ.:                 0.01215
+Time:                        12:54:24   Log-Likelihood:                -4797.5
+converged:                       True   LL-Null:                       -4856.5
+                                        LLR p-value:                 1.404e-24
+==============================================================================
+                 coef    std err          z      P&gt;|z|      [95.0% Conf. Int.]
+------------------------------------------------------------------------------
+type2          0.2212      0.051      4.373      0.000         0.122     0.320
+type3          0.7062      0.076      9.276      0.000         0.557     0.855
+hmo           -0.0680      0.053     -1.277      0.202        -0.172     0.036
+white         -0.1291      0.069     -1.883      0.060        -0.263     0.005
+constant       2.3103      0.068     34.001      0.000         2.177     2.443
+alpha          0.4458      0.020     22.495      0.000         0.407     0.485
+==============================================================================
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [20]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">res_nbin</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+type2       0.221231
+type3       0.706175
+hmo        -0.067990
+white      -0.129065
+constant    2.310288
+alpha       0.445758
+dtype: float64
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [21]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">res_nbin</span><span class="o">.</span><span class="n">bse</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+type2       0.050592
+type3       0.076132
+hmo         0.053261
+white       0.068542
+constant    0.067947
+alpha       0.019816
+dtype: float64
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Or we could compare them to results obtained using the MASS implementation for R:</p> <pre><code>url = 'http://vincentarelbundock.github.com/Rdatasets/csv/COUNT/medpar.csv'
+medpar = read.csv(url)
+f = los~factor(type)+hmo+white
+
+library(MASS)
+mod = glm.nb(f, medpar)
+coef(summary(mod))
+                 Estimate Std. Error   z value      Pr(&gt;|z|)
+(Intercept)    2.31027893 0.06744676 34.253370 3.885556e-257
+factor(type)2  0.22124898 0.05045746  4.384861  1.160597e-05
+factor(type)3  0.70615882 0.07599849  9.291748  1.517751e-20
+hmo           -0.06795522 0.05321375 -1.277024  2.015939e-01
+white         -0.12906544 0.06836272 -1.887951  5.903257e-02
+</code></pre>
+<h3 id="numerical-precision">Numerical precision</h3> <p>The <code>statsmodels</code> generic MLE and <code>R</code> parameter estimates agree up to the fourth decimal. The standard errors, however, agree only up to the second decimal. This discrepancy is the result of imprecision in our Hessian numerical estimates. In the current context, the difference between <code>MASS</code> and <code>statsmodels</code> standard error estimates is substantively irrelevant, but it highlights the fact that users who need very precise estimates may not always want to rely on default settings when using numerical derivatives. In such cases, it is better to use analytical derivatives with the <code>LikelihoodModel</code> class.</p> </div> </div> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2012 Statsmodels Developers<br>© 2006–2008 Scipy Developers<br>© 2006 Jonathan E. Taylor<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://statsmodels.sourceforge.net/stable/examples/notebooks/generated/generic_mle.html" class="_attribution-link" target="_blank">http://statsmodels.sourceforge.net/stable/examples/notebooks/generated/generic_mle.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

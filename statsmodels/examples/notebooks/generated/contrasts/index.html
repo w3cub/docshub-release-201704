@@ -1,0 +1,655 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Example&#58; Contrasts Overview - Statsmodels - W3cubDocs</title>
+  
+  <meta name="description" content=" Link to Notebook GitHub ">
+  <meta name="keywords" content="contrasts, overview, example, -, statsmodels">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/statsmodels/examples/notebooks/generated/contrasts/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/statsmodels.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/statsmodels/" class="_nav-link" title="" style="margin-left:0;">Statsmodels</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="contrasts-overview">Contrasts Overview</h1> <p id="contrasts-notebook"><a class="reference external" href="https://github.com/statsmodels/statsmodels/blob/master/examples/notebooks/contrasts.ipynb" target="_blank">Link to Notebook GitHub</a></p> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [1]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="kn">as</span> <span class="nn">sm</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>This document is based heavily on this excellent resource from UCLA <a href="http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm" target="_blank">http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm</a></p> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>A categorical variable of K categories, or levels, usually enters a regression as a sequence of K-1 dummy variables. This amounts to a linear hypothesis on the level means. That is, each test statistic for these variables amounts to testing whether the mean for that level is statistically significantly different from the mean of the base category. This dummy coding is called Treatment coding in R parlance, and we will follow this convention. There are, however, different coding methods that amount to different sets of linear hypotheses.</p> <p>In fact, the dummy coding is not technically a contrast coding. This is because the dummy variables add to one and are not functionally independent of the model's intercept. On the other hand, a set of <em>contrasts</em> for a categorical variable with <code>k</code> levels is a set of <code>k-1</code> functionally independent linear combinations of the factor level means that are also independent of the sum of the dummy variables. The dummy coding isn't wrong <em>per se</em>. It captures all of the coefficients, but it complicates matters when the model assumes independence of the coefficients such as in ANOVA. Linear regression models do not assume independence of the coefficients and thus dummy coding is often the only coding that is taught in this context.</p> <p>To have a look at the contrast matrices in Patsy, we will use data from UCLA ATS. First let's load the data.</p> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h4 id="Example-Data">Example Data</h4> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [2]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s">'http://www.ats.ucla.edu/stat/data/hsb2.csv'</span>
+<span class="n">hsb2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">","</span><span class="p">)</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [3]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[3]:</div> <div class="output_html rendered_html output_subarea output_pyout"> <div style="max-height:1000px;max-width:1500px;overflow:auto;"> <table class="dataframe"> <thead> <tr style="text-align: right;"> <th></th> <th>id</th> <th>female</th> <th>race</th> <th>ses</th> <th>schtyp</th> <th>prog</th> <th>read</th> <th>write</th> <th>math</th> <th>science</th> <th>socst</th> </tr> </thead>  <tr> <th>0</th> <td> 70</td> <td> 0</td> <td> 4</td> <td> 1</td> <td> 1</td> <td> 1</td> <td> 57</td> <td> 52</td> <td> 41</td> <td> 47</td> <td> 57</td> </tr> <tr> <th>1</th> <td> 121</td> <td> 1</td> <td> 4</td> <td> 2</td> <td> 1</td> <td> 3</td> <td> 68</td> <td> 59</td> <td> 53</td> <td> 63</td> <td> 61</td> </tr> <tr> <th>2</th> <td> 86</td> <td> 0</td> <td> 4</td> <td> 3</td> <td> 1</td> <td> 1</td> <td> 44</td> <td> 33</td> <td> 54</td> <td> 58</td> <td> 31</td> </tr> <tr> <th>3</th> <td> 141</td> <td> 0</td> <td> 4</td> <td> 3</td> <td> 1</td> <td> 3</td> <td> 63</td> <td> 44</td> <td> 47</td> <td> 53</td> <td> 56</td> </tr> <tr> <th>4</th> <td> 172</td> <td> 0</td> <td> 4</td> <td> 2</td> <td> 1</td> <td> 2</td> <td> 47</td> <td> 52</td> <td> 57</td> <td> 53</td> <td> 61</td> </tr> <tr> <th>5</th> <td> 113</td> <td> 0</td> <td> 4</td> <td> 2</td> <td> 1</td> <td> 2</td> <td> 44</td> <td> 52</td> <td> 51</td> <td> 63</td> <td> 61</td> </tr> <tr> <th>6</th> <td> 50</td> <td> 0</td> <td> 3</td> <td> 2</td> <td> 1</td> <td> 1</td> <td> 50</td> <td> 59</td> <td> 42</td> <td> 53</td> <td> 61</td> </tr> <tr> <th>7</th> <td> 11</td> <td> 0</td> <td> 1</td> <td> 2</td> <td> 1</td> <td> 2</td> <td> 34</td> <td> 46</td> <td> 45</td> <td> 39</td> <td> 36</td> </tr> <tr> <th>8</th> <td> 84</td> <td> 0</td> <td> 4</td> <td> 2</td> <td> 1</td> <td> 1</td> <td> 63</td> <td> 57</td> <td> 54</td> <td> 58</td> <td> 51</td> </tr> <tr> <th>9</th> <td> 48</td> <td> 0</td> <td> 3</td> <td> 2</td> <td> 1</td> <td> 2</td> <td> 57</td> <td> 55</td> <td> 52</td> <td> 50</td> <td> 51</td> </tr>  </table> </div> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>It will be instructive to look at the mean of the dependent variable, write, for each level of race ((1 = Hispanic, 2 = Asian, 3 = African American and 4 = Caucasian)).</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [4]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)[</span><span class="s">'write'</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[4]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+race
+1       46.458333
+2       58.000000
+3       48.200000
+4       54.055172
+Name: write, dtype: float64
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h4 id="Treatment-(Dummy)-Coding">Treatment (Dummy) Coding</h4> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Dummy coding is likely the most well known coding scheme. It compares each level of the categorical variable to a base reference level. The base reference level is the value of the intercept. It is the default contrast in Patsy for unordered categorical factors. The Treatment contrast matrix for race would be</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [5]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">Treatment</span>
+<span class="n">levels</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">]</span>
+<span class="n">contrast</span> <span class="o">=</span> <span class="n">Treatment</span><span class="p">(</span><span class="n">reference</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[ 0.  0.  0.]
+ [ 1.  0.  0.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Here we used <code>reference=0</code>, which implies that the first level, Hispanic, is the reference category against which the other level effects are measured. As mentioned above, the columns do not sum to zero and are thus not independent of the intercept. To be explicit, let's look at how this would encode the <code>race</code> variable.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [6]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="o">.</span><span class="n">race</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[6]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+0    4
+1    4
+2    4
+3    4
+4    4
+5    4
+6    3
+7    1
+8    4
+9    3
+Name: race, dtype: int64
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [7]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">[</span><span class="n">hsb2</span><span class="o">.</span><span class="n">race</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:][:</span><span class="mi">20</span><span class="p">])</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  1.  0.]
+ [ 0.  0.  0.]
+ [ 0.  0.  1.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]
+ [ 0.  0.  1.]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [8]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">sm</span><span class="o">.</span><span class="n">categorical</span><span class="p">(</span><span class="n">hsb2</span><span class="o">.</span><span class="n">race</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[8]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+array([[ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 1.,  1.,  0.,  0.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 3.,  0.,  0.,  1.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 2.,  0.,  1.,  0.,  0.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.],
+       [ 4.,  0.,  0.,  0.,  1.]])
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>This is a bit of a trick, as the <code>race</code> category conveniently maps to zero-based indices. If it does not, this conversion happens under the hood, so this won't work in general but nonetheless is a useful exercise to fix ideas. The below illustrates the output using the three contrasts above</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [9]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">statsmodels.formula.api</span> <span class="kn">import</span> <span class="n">ols</span>
+<span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(race, Treatment)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:52:21   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3
+Covariance Type:            nonrobust
+===========================================================================================
+                              coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------------
+Intercept                  46.4583      1.842     25.218      0.000        42.825    50.091
+C(race, Treatment)[T.2]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Treatment)[T.3]     1.7417      2.732      0.637      0.525        -3.647     7.131
+C(race, Treatment)[T.4]     7.5968      1.989      3.820      0.000         3.675    11.519
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         8.25
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>We explicitly gave the contrast for race; however, since Treatment is the default, we could have omitted this.</p> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="Simple-Coding">Simple Coding</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Like Treatment Coding, Simple Coding compares each level to a fixed reference level. However, with simple coding, the intercept is the grand mean of all the levels of the factors. Patsy doesn't have the Simple contrast included, but you can easily define your own contrasts. To do so, write a class that contains a code_with_intercept and a code_without_intercept method that returns a patsy.contrast.ContrastMatrix instance</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [10]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">ContrastMatrix</span>
+
+<span class="k">def</span> <span class="nf">_name_levels</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s">"[</span><span class="si">%s%s</span><span class="s">]"</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">level</span><span class="p">)</span> <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">levels</span><span class="p">]</span>
+
+<span class="k">class</span> <span class="nc">Simple</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_simple_contrast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+        <span class="n">nlevels</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+        <span class="n">contr</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.</span><span class="o">/</span><span class="n">nlevels</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">nlevels</span><span class="p">,</span> <span class="n">nlevels</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">contr</span><span class="p">[</span><span class="mi">1</span><span class="p">:][</span><span class="n">np</span><span class="o">.</span><span class="n">diag_indices</span><span class="p">(</span><span class="n">nlevels</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span><span class="n">nlevels</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span><span class="o">/</span><span class="n">nlevels</span>
+        <span class="k">return</span> <span class="n">contr</span>
+
+    <span class="k">def</span> <span class="nf">code_with_intercept</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+        <span class="n">contrast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">levels</span><span class="p">)),</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">_simple_contrast</span><span class="p">(</span><span class="n">levels</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">ContrastMatrix</span><span class="p">(</span><span class="n">contrast</span><span class="p">,</span> <span class="n">_name_levels</span><span class="p">(</span><span class="s">"Simp."</span><span class="p">,</span> <span class="n">levels</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">code_without_intercept</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+        <span class="n">contrast</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simple_contrast</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ContrastMatrix</span><span class="p">(</span><span class="n">contrast</span><span class="p">,</span> <span class="n">_name_levels</span><span class="p">(</span><span class="s">"Simp."</span><span class="p">,</span> <span class="n">levels</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+</pre> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [11]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)[</span><span class="s">'write'</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[11]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+51.678376436781619
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [12]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">contrast</span> <span class="o">=</span> <span class="n">Simple</span><span class="p">()</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[-0.25 -0.25 -0.25]
+ [ 0.75 -0.25 -0.25]
+ [-0.25  0.75 -0.25]
+ [-0.25 -0.25  0.75]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [13]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(race, Simple)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:52:22   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3
+Covariance Type:            nonrobust
+===========================================================================================
+                              coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------------
+Intercept                  51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Simple)[Simp.1]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Simple)[Simp.2]     1.7417      2.732      0.637      0.525        -3.647     7.131
+C(race, Simple)[Simp.3]     7.5968      1.989      3.820      0.000         3.675    11.519
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         7.03
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="Sum-(Deviation)-Coding">Sum (Deviation) Coding</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Sum coding compares the mean of the dependent variable for a given level to the overall mean of the dependent variable over all the levels. That is, it uses contrasts between each of the first k-1 levels and level k In this example, level 1 is compared to all the others, level 2 to all the others, and level 3 to all the others.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [14]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">Sum</span>
+<span class="n">contrast</span> <span class="o">=</span> <span class="n">Sum</span><span class="p">()</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[ 1.  0.  0.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]
+ [-1. -1. -1.]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [15]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(race, Sum)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:52:22   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3
+Covariance Type:            nonrobust
+=====================================================================================
+                        coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------
+Intercept            51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Sum)[S.1]    -5.2200      1.631     -3.200      0.002        -8.437    -2.003
+C(race, Sum)[S.2]     6.3216      2.160      2.926      0.004         2.061    10.582
+C(race, Sum)[S.3]    -3.4784      1.732     -2.008      0.046        -6.895    -0.062
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         6.72
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>This corresponds to a parameterization that forces all the coefficients to sum to zero. Notice that the intercept here is the grand mean where the grand mean is the mean of means of the dependent variable by each level.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [16]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)[</span><span class="s">'write'</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[16]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+51.678376436781619
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="Backward-Difference-Coding">Backward Difference Coding</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>In backward difference coding, the mean of the dependent variable for a level is compared with the mean of the dependent variable for the prior level. This type of coding may be useful for a nominal or an ordinal variable.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [17]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">Diff</span>
+<span class="n">contrast</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">()</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[-0.75 -0.5  -0.25]
+ [ 0.25 -0.5  -0.25]
+ [ 0.25  0.5  -0.25]
+ [ 0.25  0.5   0.75]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [18]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(race, Diff)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:52:23   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3
+Covariance Type:            nonrobust
+======================================================================================
+                         coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+--------------------------------------------------------------------------------------
+Intercept             51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Diff)[D.1]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Diff)[D.2]    -9.8000      3.388     -2.893      0.004       -16.481    -3.119
+C(race, Diff)[D.3]     5.8552      2.153      2.720      0.007         1.610    10.101
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         8.30
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>For example, here the coefficient on level 1 is the mean of <code>write</code> at level 2 compared with the mean at level 1. Ie.,</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [19]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">res</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">"C(race, Diff)[D.1]"</span><span class="p">]</span>
+<span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> \
+     <span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[19]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+11.541666666666664
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="Helmert-Coding">Helmert Coding</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>Our version of Helmert coding is sometimes referred to as Reverse Helmert Coding. The mean of the dependent variable for a level is compared to the mean of the dependent variable over all previous levels. Hence, the name 'reverse' being sometimes applied to differentiate from forward Helmert coding. This comparison does not make much sense for a nominal variable such as race, but we would use the Helmert contrast like so:</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [20]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">Helmert</span>
+<span class="n">contrast</span> <span class="o">=</span> <span class="n">Helmert</span><span class="p">()</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[-1. -1. -1.]
+ [ 1. -1. -1.]
+ [ 0.  2. -1.]
+ [ 0.  0.  3.]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [21]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(race, Helmert)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:52:23   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3
+Covariance Type:            nonrobust
+=========================================================================================
+                            coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-----------------------------------------------------------------------------------------
+Intercept                51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Helmert)[H.2]     5.7708      1.643      3.512      0.001         2.530     9.011
+C(race, Helmert)[H.3]    -1.3431      0.867     -1.548      0.123        -3.054     0.368
+C(race, Helmert)[H.4]     0.7923      0.372      2.130      0.034         0.059     1.526
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         7.26
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>To illustrate, the comparison on level 4 is the mean of the dependent variable at the previous three levels taken from the mean at level 4</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [22]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">grouped</span> <span class="o">=</span> <span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'race'</span><span class="p">)</span>
+<span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[22]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+3.1690613026819818
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>As you can see, these are only equal up to a constant. Other versions of the Helmert contrast give the actual difference in means. Regardless, the hypothesis tests are the same.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [23]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">k</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="mf">1.</span><span class="o">/</span><span class="n">k</span> <span class="o">*</span> <span class="p">(</span><span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][:</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+<span class="n">k</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="mf">1.</span><span class="o">/</span><span class="n">k</span> <span class="o">*</span> <span class="p">(</span><span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="o">-</span> <span class="n">grouped</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">"write"</span><span class="p">][:</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[23]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+-1.3430555555555561
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <h3 id="Orthogonal-Polynomial-Coding">Orthogonal Polynomial Coding</h3> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>The coefficients taken on by polynomial coding for <code>k=4</code> levels are the linear, quadratic, and cubic trends in the categorical variable. The categorical variable here is assumed to be represented by an underlying, equally spaced numeric variable. Therefore, this type of encoding is used only for ordered categorical variables with equal spacing. In general, the polynomial contrast produces polynomials of order <code>k-1</code>. Since <code>race</code> is not an ordered factor variable let's use <code>read</code> as an example. First we need to create an ordered categorical from <code>read</code>.</p> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [24]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">hsb2</span><span class="p">[</span><span class="s">'readcat'</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">cut</span><span class="p">(</span><span class="n">hsb2</span><span class="o">.</span><span class="n">read</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">hsb2</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s">'readcat'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()[</span><span class="s">'write'</span><span class="p">]</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+<div class="prompt output_prompt"> Out[24]:</div> <div class="output_text output_subarea output_pyout"> <pre>
+readcat
+(27.952, 44]    45.000000
+(44, 60]        53.356436
+(60, 76]        60.127660
+Name: write, dtype: float64
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [25]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="kn">from</span> <span class="nn">patsy.contrasts</span> <span class="kn">import</span> <span class="n">Poly</span>
+<span class="n">levels</span> <span class="o">=</span> <span class="n">hsb2</span><span class="o">.</span><span class="n">readcat</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">contrast</span> <span class="o">=</span> <span class="n">Poly</span><span class="p">()</span><span class="o">.</span><span class="n">code_without_intercept</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">contrast</span><span class="o">.</span><span class="n">matrix</span><span class="p">)</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+[[-0.7071  0.4082]
+ [-0.     -0.8165]
+ [ 0.7071  0.4082]]
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing code_cell rendered"> <div class="input"> <div class="prompt input_prompt"> In [26]: </div> <div class="inner_cell"> <div class="input_area"> <pre data-language="python"><span class="n">mod</span> <span class="o">=</span> <span class="n">ols</span><span class="p">(</span><span class="s">"write ~ C(readcat, Poly)"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">hsb2</span><span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">mod</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="k">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre> </div> </div> </div> <div class="output_wrapper"> <div class="output"> <div class="output_area">
+ <div class="output_subarea output_stream output_stdout output_text"> <pre>
+                            OLS Regression Results
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.320
+Model:                            OLS   Adj. R-squared:                  0.313
+Method:                 Least Squares   F-statistic:                     46.32
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           3.25e-17
+Time:                        12:52:25   Log-Likelihood:                -694.55
+No. Observations:                 200   AIC:                             1395.
+Df Residuals:                     197   BIC:                             1405.
+Df Model:                           2
+Covariance Type:            nonrobust
+==============================================================================================
+                                 coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+----------------------------------------------------------------------------------------------
+Intercept                     52.8280      0.588     89.845      0.000        51.668    53.988
+C(readcat, Poly).Linear       10.6969      1.118      9.567      0.000         8.492    12.902
+C(readcat, Poly).Quadratic    -0.6472      0.908     -0.713      0.477        -2.438     1.143
+==============================================================================
+Omnibus:                        9.800   Durbin-Watson:                   1.698
+Prob(Omnibus):                  0.007   Jarque-Bera (JB):               10.330
+Skew:                          -0.536   Prob(JB):                      0.00571
+Kurtosis:                       2.702   Cond. No.                         2.08
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+
+</pre> </div> </div> </div> </div> </div> <div class="cell border-box-sizing text_cell rendered">  <div class="inner_cell"> <div class="text_cell_render border-box-sizing rendered_html"> <p>As you can see, readcat has a significant linear effect on the dependent variable <code>write</code> but not a significant quadratic or cubic effect.</p> </div> </div> </div>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2012 Statsmodels Developers<br>© 2006–2008 Scipy Developers<br>© 2006 Jonathan E. Taylor<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://statsmodels.sourceforge.net/stable/examples/notebooks/generated/contrasts.html" class="_attribution-link" target="_blank">http://statsmodels.sourceforge.net/stable/examples/notebooks/generated/contrasts.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

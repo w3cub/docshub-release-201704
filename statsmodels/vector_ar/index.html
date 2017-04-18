@@ -1,0 +1,315 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Manual&#58; Vector Autoregressions tsa.vector_ar - Statsmodels - W3cubDocs</title>
+  
+  <meta name="description" content="We are interested in modeling a multivariate time series , where denotes the number of observations and the number of variables. One way of &hellip;">
+  <meta name="keywords" content="vector, autoregressions, tsa, ar, manual, -, statsmodels">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/statsmodels/vector_ar/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/statsmodels.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/statsmodels/" class="_nav-link" title="" style="margin-left:0;">Statsmodels</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="var">Vector Autoregressions tsa.vector_ar</h1>  <h2 id="vector-autoregressions-tsa-vector-ar">VAR(p) processes</h2> <p>We are interested in modeling a <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/109f11ce65be4bd1c16ab4328964095a415e6d9e.png" alt="T \times K" style="vertical-align: 0px"> multivariate time series <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/00839aaaedc416a533d839086d66341205c7ffc4.png" alt="Y" style="vertical-align: 0px">, where <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/5830b1441ec19bff0c7f338ee28ccd12654c1f69.png" alt="T" style="vertical-align: 0px"> denotes the number of observations and <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/e1c28c5aafda6ce10cad81bcc71b15a182ee21cb.png" alt="K" style="vertical-align: 0px"> the number of variables. One way of estimating relationships between the time series and their lagged values is the <em>vector autoregression process</em>:</p> <div class="math"> <p><img src="http://statsmodels.sourceforge.net/stable/_images/math/652bccdc9aa717f450a04ae914ca766207716bf9.png" alt="Y_t = A_1 Y_{t-1} + \ldots + A_p Y_{t-p} + u_t
+
+u_t \sim {\sf Normal}(0, \Sigma_u)"></p> </div>
+<p>where <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/d7462593669cd2b400bdd2cf2700222e12284753.png" alt="A_i" style="vertical-align: -3px"> is a <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/9b9bcf0f86862c7e8b96ac2a8aa6f9ba477403fe.png" alt="K \times K" style="vertical-align: 0px"> coefficient matrix.</p> <p>We follow in large part the methods and notation of <a class="reference external" href="http://www.springer.com/economics/econometrics/book/978-3-540-40172-8?otherVersion=978-3-540-26239-8" target="_blank">Lutkepohl (2005)</a>, which we will not develop here.</p>  <h3 id="model-fitting">Model fitting</h3> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The classes referenced below are accessible via the <code>statsmodels.tsa.api</code> module.</p> </div> <p>To estimate a VAR model, one must first create the model using an <code>ndarray</code> of homogeneous or structured dtype. When using a structured or record array, the class will use the passed variable names. Otherwise they can be passed explicitly:</p> <pre data-language="python"># some example data
+&gt;&gt;&gt; import pandas
+&gt;&gt;&gt; mdata = sm.datasets.macrodata.load_pandas().data
+
+# prepare the dates index
+&gt;&gt;&gt; dates = mdata[['year', 'quarter']].astype(int).astype(str)
+&gt;&gt;&gt; quarterly = dates["year"] + "Q" + dates["quarter"]
+&gt;&gt;&gt; from statsmodels.tsa.base.datetools import dates_from_str
+&gt;&gt;&gt; quarterly = dates_from_str(quarterly)
+
+&gt;&gt;&gt; mdata = mdata[['realgdp','realcons','realinv']]
+&gt;&gt;&gt; mdata.index = pandas.DatetimeIndex(quarterly)
+&gt;&gt;&gt; data = np.log(mdata).diff().dropna()
+
+# make a VAR model
+&gt;&gt;&gt; model = VAR(data)
+</pre> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">The <a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.var/#statsmodels.tsa.vector_ar.var_model.VAR" title="statsmodels.tsa.vector_ar.var_model.VAR"><code>VAR</code></a> class assumes that the passed time series are stationary. Non-stationary or trending data can often be transformed to be stationary by first-differencing or some other method. For direct analysis of non-stationary time series, a standard stable VAR(p) model is not appropriate.</p> </div> <p>To actually do the estimation, call the <code>fit</code> method with the desired lag order. Or you can have the model select a lag order based on a standard information criterion (see below):</p> <pre data-language="python">&gt;&gt;&gt; results = model.fit(2)
+
+&gt;&gt;&gt; results.summary()
+
+  Summary of Regression Results
+==================================
+Model:                         VAR
+Method:                        OLS
+Date:           Fri, 08, Jul, 2011
+Time:                     11:30:22
+--------------------------------------------------------------------
+No. of Equations:         3.00000    BIC:                   -27.5830
+Nobs:                     200.000    HQIC:                  -27.7892
+Log likelihood:           1962.57    FPE:                7.42129e-13
+AIC:                     -27.9293    Det(Omega_mle):     6.69358e-13
+--------------------------------------------------------------------
+Results for equation realgdp
+==============================================================================
+                 coefficient       std. error           t-stat            prob
+------------------------------------------------------------------------------
+const               0.001527         0.001119            1.365           0.174
+L1.realgdp         -0.279435         0.169663           -1.647           0.101
+L1.realcons         0.675016         0.131285            5.142           0.000
+L1.realinv          0.033219         0.026194            1.268           0.206
+L2.realgdp          0.008221         0.173522            0.047           0.962
+L2.realcons         0.290458         0.145904            1.991           0.048
+L2.realinv         -0.007321         0.025786           -0.284           0.777
+==============================================================================
+
+Results for equation realcons
+==============================================================================
+                 coefficient       std. error           t-stat            prob
+------------------------------------------------------------------------------
+const               0.005460         0.000969            5.634           0.000
+L1.realgdp         -0.100468         0.146924           -0.684           0.495
+L1.realcons         0.268640         0.113690            2.363           0.019
+L1.realinv          0.025739         0.022683            1.135           0.258
+L2.realgdp         -0.123174         0.150267           -0.820           0.413
+L2.realcons         0.232499         0.126350            1.840           0.067
+L2.realinv          0.023504         0.022330            1.053           0.294
+==============================================================================
+
+Results for equation realinv
+==============================================================================
+                 coefficient       std. error           t-stat            prob
+------------------------------------------------------------------------------
+const              -0.023903         0.005863           -4.077           0.000
+L1.realgdp         -1.970974         0.888892           -2.217           0.028
+L1.realcons         4.414162         0.687825            6.418           0.000
+L1.realinv          0.225479         0.137234            1.643           0.102
+L2.realgdp          0.380786         0.909114            0.419           0.676
+L2.realcons         0.800281         0.764416            1.047           0.296
+L2.realinv         -0.124079         0.135098           -0.918           0.360
+==============================================================================
+
+Correlation matrix of residuals
+             realgdp  realcons   realinv
+realgdp     1.000000  0.603316  0.750722
+realcons    0.603316  1.000000  0.131951
+realinv     0.750722  0.131951  1.000000
+</pre> <p>Several ways to visualize the data using <code>matplotlib</code> are available.</p> <p>Plotting input time series:</p> <pre data-language="python">&gt;&gt;&gt; results.plot()
+</pre> <p>(<a class="reference external" href="../plots/var_plot_input.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_input.png/">png</a>, <a class="reference external" href="../plots/var_plot_input.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_input.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_input.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_input.png"> </div> <p>Plotting time series autocorrelation function:</p> <pre data-language="python">&gt;&gt;&gt; results.plot_acorr()
+</pre> <p>(<a class="reference external" href="../plots/var_plot_acorr.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_acorr.png/">png</a>, <a class="reference external" href="../plots/var_plot_acorr.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_acorr.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_acorr.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_acorr.png"> </div>   <h3 id="lag-order-selection">Lag order selection</h3> <p>Choice of lag order can be a difficult problem. Standard analysis employs likelihood test or information criteria-based order selection. We have implemented the latter, accessable through the <a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.var/#statsmodels.tsa.vector_ar.var_model.VAR" title="statsmodels.tsa.vector_ar.var_model.VAR"><code>VAR</code></a> class:</p> <pre data-language="python">&gt;&gt;&gt; model.select_order(15)
+                 VAR Order Selection
+======================================================
+            aic          bic          fpe         hqic
+------------------------------------------------------
+0        -27.70       -27.65    9.358e-13       -27.68
+1        -28.02      -27.82*    6.745e-13      -27.94*
+2        -28.03       -27.66    6.732e-13       -27.88
+3       -28.04*       -27.52   6.651e-13*       -27.83
+4        -28.03       -27.36    6.681e-13       -27.76
+5        -28.02       -27.19    6.773e-13       -27.69
+6        -27.97       -26.98    7.147e-13       -27.57
+7        -27.93       -26.79    7.446e-13       -27.47
+8        -27.94       -26.64    7.407e-13       -27.41
+9        -27.96       -26.50    7.280e-13       -27.37
+10       -27.91       -26.30    7.629e-13       -27.26
+11       -27.86       -26.09    8.076e-13       -27.14
+12       -27.83       -25.91    8.316e-13       -27.05
+13       -27.80       -25.73    8.594e-13       -26.96
+14       -27.80       -25.57    8.627e-13       -26.90
+15       -27.81       -25.43    8.599e-13       -26.85
+======================================================
+* Minimum
+
+{'aic': 3, 'bic': 1, 'fpe': 3, 'hqic': 1}
+</pre> <p>When calling the <code>fit</code> function, one can pass a maximum number of lags and the order criterion to use for order selection:</p> <pre data-language="python">&gt;&gt;&gt; results = model.fit(maxlags=15, ic='aic')
+</pre>   <h3 id="forecasting">Forecasting</h3> <p>The linear predictor is the optimal h-step ahead forecast in terms of mean-squared error:</p> <div class="math"> <p><img src="http://statsmodels.sourceforge.net/stable/_images/math/d0c9dd82df1d9329aa56db6b07c133976ddd9a9f.png" alt="y_t(h) = \nu + A_1 y_t(h − 1) + \cdots + A_p y_t(h − p)"></p> </div>
+<p>We can use the <code>forecast</code> function to produce this forecast. Note that we have to specify the “initial value” for the forecast:</p> <pre data-language="python">&gt;&gt;&gt; lag_order = results.k_ar
+&gt;&gt;&gt; results.forecast(data.values[-lag_order:], 5)
+array([[ 0.00616044,  0.00500006,  0.00916198],
+       [ 0.00427559,  0.00344836, -0.00238478],
+       [ 0.00416634,  0.0070728 , -0.01193629],
+       [ 0.00557873,  0.00642784,  0.00147152],
+       [ 0.00626431,  0.00666715,  0.00379567]])
+</pre> <p>The <code>forecast_interval</code> function will produce the above forecast along with asymptotic standard errors. These can be visualized using the <code>plot_forecast</code> function:</p> <p>(<a class="reference external" href="../plots/var_plot_forecast.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_forecast.png/">png</a>, <a class="reference external" href="../plots/var_plot_forecast.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_forecast.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_forecast.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_forecast.png"> </div>    <h2 id="impulse-response-analysis">Impulse Response Analysis</h2> <p><em>Impulse responses</em> are of interest in econometric studies: they are the estimated responses to a unit impulse in one of the variables. They are computed in practice using the MA(<img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/21181ff75a9f31fa18367f4502b35d8d8e46dbbd.png" alt="\infty" style="vertical-align: -1px">) representation of the VAR(p) process:</p> <div class="math"> <p><img src="http://statsmodels.sourceforge.net/stable/_images/math/3cf758e54efc429484c089b8ddadbcdb2bc5bda0.png" alt="Y_t = \mu + \sum_{i=0}^\infty \Phi_i u_{t-i}"></p> </div>
+<p>We can perform an impulse response analysis by calling the <code>irf</code> function on a <code>VARResults</code> object:</p> <pre data-language="python">&gt;&gt;&gt; irf = results.irf(10)
+</pre> <p>These can be visualized using the <code>plot</code> function, in either orthogonalized or non-orthogonalized form. Asymptotic standard errors are plotted by default at the 95% significance level, which can be modified by the user.</p> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">Orthogonalization is done using the Cholesky decomposition of the estimated error covariance matrix <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/80d76e1d7c93a78bab4aef3b63bf395800583ba3.png" alt="\hat \Sigma_u" style="vertical-align: -3px"> and hence interpretations may change depending on variable ordering.</p> </div> <pre data-language="python">&gt;&gt;&gt; irf.plot(orth=False)
+</pre> <p>(<a class="reference external" href="../plots/var_plot_irf.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_irf.png/">png</a>, <a class="reference external" href="../plots/var_plot_irf.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_irf.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_irf.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_irf.png"> </div> <p>Note the <code>plot</code> function is flexible and can plot only variables of interest if so desired:</p> <pre data-language="python">&gt;&gt;&gt; irf.plot(impulse='realgdp')
+</pre> <p>The cumulative effects <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/07a36fcab80890ba0b5064f560ed2768a669e01f.png" alt="\Psi_n = \sum_{i=0}^n \Phi_i" style="vertical-align: -5px"> can be plotted with the long run effects as follows:</p> <pre data-language="python">&gt;&gt;&gt; irf.plot_cum_effects(orth=False)
+</pre> <p>(<a class="reference external" href="../plots/var_plot_irf_cum.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_irf_cum.png/">png</a>, <a class="reference external" href="../plots/var_plot_irf_cum.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_irf_cum.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_irf_cum.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_irf_cum.png"> </div>   <h2 id="forecast-error-variance-decomposition-fevd">Forecast Error Variance Decomposition (FEVD)</h2> <p>Forecast errors of component j on k in an i-step ahead forecast can be decomposed using the orthogonalized impulse responses <img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/316dca41cbb7a23462d290fdebca9c58c6f19b15.png" alt="\Theta_i" style="vertical-align: -3px">:</p> <div class="math"> <p><img src="http://statsmodels.sourceforge.net/stable/_images/math/8fdc104916082d00d5faccb865bcff0b474e731e.png" alt="\omega_{jk, i} = \sum_{i=0}^{h-1} (e_j^\prime \Theta_i e_k)^2 / \mathrm{MSE}_j(h)
+
+\mathrm{MSE}_j(h) = \sum_{i=0}^{h-1} e_j^\prime \Phi_i \Sigma_u \Phi_i^\prime e_j"></p> </div>
+<p>These are computed via the <code>fevd</code> function up through a total number of steps ahead:</p> <pre data-language="python">&gt;&gt;&gt; fevd = results.fevd(5)
+
+&gt;&gt;&gt; fevd.summary()
+FEVD for realgdp
+      realgdp  realcons   realinv
+0    1.000000  0.000000  0.000000
+1    0.864889  0.129253  0.005858
+2    0.816725  0.177898  0.005378
+3    0.793647  0.197590  0.008763
+4    0.777279  0.208127  0.014594
+
+FEVD for realcons
+      realgdp  realcons   realinv
+0    0.359877  0.640123  0.000000
+1    0.358767  0.635420  0.005813
+2    0.348044  0.645138  0.006817
+3    0.319913  0.653609  0.026478
+4    0.317407  0.652180  0.030414
+
+FEVD for realinv
+      realgdp  realcons   realinv
+0    0.577021  0.152783  0.270196
+1    0.488158  0.293622  0.218220
+2    0.478727  0.314398  0.206874
+3    0.477182  0.315564  0.207254
+4    0.466741  0.324135  0.209124
+</pre> <p>They can also be visualized through the returned <a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.fevd/#statsmodels.tsa.vector_ar.var_model.FEVD" title="statsmodels.tsa.vector_ar.var_model.FEVD"><code>FEVD</code></a> object:</p> <pre data-language="python">&gt;&gt;&gt; results.fevd(20).plot()
+</pre> <p>(<a class="reference external" href="../plots/var_plot_fevd.py/">Source code</a>, <a class="reference external" href="../plots/var_plot_fevd.png/">png</a>, <a class="reference external" href="../plots/var_plot_fevd.hires.png/">hires.png</a>, <a class="reference external" href="../plots/var_plot_fevd.pdf/">pdf</a>)</p> <div class="figure"> <img alt="_images/var_plot_fevd.png" src="http://statsmodels.sourceforge.net/stable/_images/var_plot_fevd.png"> </div>   <h2 id="statistical-tests">Statistical tests</h2> <p>A number of different methods are provided to carry out hypothesis tests about the model results and also the validity of the model assumptions (normality, whiteness / “iid-ness” of errors, etc.).</p>  <h3 id="granger-causality">Granger causality</h3> <p>One is often interested in whether a variable or group of variables is “causal” for another variable, for some definition of “causal”. In the context of VAR models, one can say that a set of variables are Granger-causal within one of the VAR equations. We will not detail the mathematics or definition of Granger causality, but leave it to the reader. The <a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.varresults/#statsmodels.tsa.vector_ar.var_model.VARResults" title="statsmodels.tsa.vector_ar.var_model.VARResults"><code>VARResults</code></a> object has the <code>test_causality</code> method for performing either a Wald (<img class="math" src="http://statsmodels.sourceforge.net/stable/_images/math/4dcb4a08df7a8b829443c0b6705fa279c77218c3.png" alt="\chi^2" style="vertical-align: -4px">) test or an F-test.</p> <pre data-language="python">&gt;&gt;&gt; results.test_causality('realgdp', ['realinv', 'realcons'], kind='f')
+Granger causality f-test
+=============================================================
+   Test statistic   Critical Value          p-value        df
+-------------------------------------------------------------
+         6.999888         2.114554            0.000  (6, 567)
+=============================================================
+H_0: ['realinv', 'realcons'] do not Granger-cause realgdp
+Conclusion: reject H_0 at 5.00% significance level
+[88]:
+{'conclusion': 'reject',
+ 'crit_value': 2.1145543864562706,
+ 'df': (6, 567),
+ 'pvalue': 3.3805963773886478e-07,
+ 'signif': 0.05,
+ 'statistic': 6.9998875522543473}
+</pre>   <h3 id="normality">Normality</h3>   <h3 id="whiteness-of-residuals">Whiteness of residuals</h3>    <h2 id="dynamic-vector-autoregressions">Dynamic Vector Autoregressions</h2> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">To use this functionality, <a class="reference external" href="https://pypi.python.org/pypi/pandas" target="_blank">pandas</a> must be installed. See the <a class="reference external" href="http://pandas.pydata.org" target="_blank">pandas documentation</a> for more information on the below data structures.</p> </div> <p>One is often interested in estimating a moving-window regression on time series data for the purposes of making forecasts throughout the data sample. For example, we may wish to produce the series of 2-step-ahead forecasts produced by a VAR(p) model estimated at each point in time.</p> <pre data-language="python">&gt;&gt;&gt; data
+&lt;class 'pandas.core.frame.DataFrame'&gt;
+Index: 500 entries , 2000-01-03 00:00:00 to 2001-11-30 00:00:00
+A    500  non-null values
+B    500  non-null values
+C    500  non-null values
+D    500  non-null values
+
+&gt;&gt;&gt; var = DynamicVAR(data, lag_order=2, window_type='expanding')
+</pre> <p>The estimated coefficients for the dynamic model are returned as a <code>pandas.WidePanel</code> object, which can allow you to easily examine, for example, all of the model coefficients by equation or by date:</p> <pre data-language="python">&gt;&gt;&gt; var.coefs
+&lt;class 'pandas.core.panel.WidePanel'&gt;
+Dimensions: 9 (items) x 489 (major) x 4 (minor)
+Items: L1.A to intercept
+Major axis: 2000-01-18 00:00:00 to 2001-11-30 00:00:00
+Minor axis: A to D
+
+# all estimated coefficients for equation A
+&gt;&gt;&gt; var.coefs.minor_xs('A').info()
+Index: 489 entries , 2000-01-18 00:00:00 to 2001-11-30 00:00:00
+Data columns:
+L1.A         489  non-null values
+L1.B         489  non-null values
+L1.C         489  non-null values
+L1.D         489  non-null values
+L2.A         489  non-null values
+L2.B         489  non-null values
+L2.C         489  non-null values
+L2.D         489  non-null values
+intercept    489  non-null values
+dtype: float64(9)
+
+# coefficients on 11/30/2001
+&gt;&gt;&gt; var.coefs.major_xs(datetime(2001, 11, 30)).T
+             A              B              C              D
+L1.A         0.9567         -0.07389       0.0588         -0.02848
+L1.B         -0.00839       0.9757         -0.004945      0.005938
+L1.C         -0.01824       0.1214         0.8875         0.01431
+L1.D         0.09964        0.02951        0.05275        1.037
+L2.A         0.02481        0.07542        -0.04409       0.06073
+L2.B         0.006359       0.01413        0.02667        0.004795
+L2.C         0.02207        -0.1087        0.08282        -0.01921
+L2.D         -0.08795       -0.04297       -0.06505       -0.06814
+intercept    0.07778        -0.283         -0.1009        -0.6426
+</pre> <p>Dynamic forecasts for a given number of steps ahead can be produced using the <code>forecast</code> function and return a <code>pandas.DataMatrix</code> object:</p> <pre data-language="python">&gt;&gt;&gt; In [76]: var.forecast(2)
+                       A              B              C              D
+&lt;snip&gt;
+2001-11-23 00:00:00    -6.661         43.18          33.43          -23.71
+2001-11-26 00:00:00    -5.942         43.58          34.04          -22.13
+2001-11-27 00:00:00    -6.666         43.64          33.99          -22.85
+2001-11-28 00:00:00    -6.521         44.2           35.34          -24.29
+2001-11-29 00:00:00    -6.432         43.92          34.85          -26.68
+2001-11-30 00:00:00    -5.445         41.98          34.87          -25.94
+</pre> <p>The forecasts can be visualized using <code>plot_forecast</code>:</p> <pre data-language="python">&gt;&gt;&gt; var.plot_forecast(2)
+</pre>   <h2 id="class-reference">Class Reference</h2> <table class="longtable docutils">   <tr class="row-odd">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.var/#statsmodels.tsa.vector_ar.var_model.VAR" title="statsmodels.tsa.vector_ar.var_model.VAR"><code>var_model.VAR</code></a>(endog[, dates, freq, missing])</td> <td>Fit VAR(p) process and do lag order selection</td> </tr> <tr class="row-even">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.varprocess/#statsmodels.tsa.vector_ar.var_model.VARProcess" title="statsmodels.tsa.vector_ar.var_model.VARProcess"><code>var_model.VARProcess</code></a>(coefs, intercept, sigma_u)</td> <td>Class represents a known VAR(p) process</td> </tr> <tr class="row-odd">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.varresults/#statsmodels.tsa.vector_ar.var_model.VARResults" title="statsmodels.tsa.vector_ar.var_model.VARResults"><code>var_model.VARResults</code></a>(endog, endog_lagged, ...)</td> <td>Estimate VAR(p) process with fixed number of lags</td> </tr> <tr class="row-even">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.irf.iranalysis/#statsmodels.tsa.vector_ar.irf.IRAnalysis" title="statsmodels.tsa.vector_ar.irf.IRAnalysis"><code>irf.IRAnalysis</code></a>(model[, P, periods, order, svar])</td> <td>Impulse response analysis class.</td> </tr> <tr class="row-odd">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.var_model.fevd/#statsmodels.tsa.vector_ar.var_model.FEVD" title="statsmodels.tsa.vector_ar.var_model.FEVD"><code>var_model.FEVD</code></a>(model[, P, periods])</td> <td>Compute and plot Forecast error variance decomposition and asymptotic</td> </tr> <tr class="row-even">
+<td>
+<a class="reference internal" href="../generated/statsmodels.tsa.vector_ar.dynamic.dynamicvar/#statsmodels.tsa.vector_ar.dynamic.DynamicVAR" title="statsmodels.tsa.vector_ar.dynamic.DynamicVAR"><code>dynamic.DynamicVAR</code></a>(data[, lag_order, ...])</td> <td>Estimates time-varying vector autoregression (VAR(p)) using</td> </tr>  </table>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2012 Statsmodels Developers<br>© 2006–2008 Scipy Developers<br>© 2006 Jonathan E. Taylor<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://statsmodels.sourceforge.net/stable/vector_ar.html" class="_attribution-link" target="_blank">http://statsmodels.sourceforge.net/stable/vector_ar.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>

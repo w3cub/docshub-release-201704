@@ -1,0 +1,425 @@
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Manual&#58; Patsy&#58; Contrast Coding Systems for Categorical Variables - Statsmodels - W3cubDocs</title>
+  
+  <meta name="description" content=" Note ">
+  <meta name="keywords" content="patsy, contrast, coding, systems, for, categorical, variables, manual, -, statsmodels">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="canonical" href="http://docs.w3cub.com/statsmodels/contrasts/">
+  <link href="/favicon.png" rel="icon">
+  <link type="text/css" rel="stylesheet" href="/assets/application-50364fff564ce3b6327021805f3f00e2957b441cf27f576a7dd4ff63bbc47047.css">
+  <script type="text/javascript" src="/assets/application-db64bfd54ceb42be11af7995804cf4902548419ceb79d509b0b7d62c22d98e6f.js"></script>
+  <script src="/json/statsmodels.js"></script>
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-71174418-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body>
+	<div class="_app">
+	<header class="_header">
+  
+  <form class="_search">
+    <input type="search" class="_search-input" placeholder="Search&hellip;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20">
+    <a class="_search-clear"></a>
+    <div class="_search-tag"></div>
+  </form>
+  
+  <a class="_home-link" href="/" ></a>
+  <a class="_menu-link"></a>
+  <h1 class="_logo">
+    <a href="/" class="_nav-link" title="API Documentation Browser">W3cubDocs</a>
+  </h1>
+  
+  <span class="_logo-sub-nav">/</span><span class="_logo-sub-nav"><a href="/statsmodels/" class="_nav-link" title="" style="margin-left:0;">Statsmodels</a></span>
+  
+  <nav class="_nav">
+    <a href="/app/" class="_nav-link ">App</a>
+    <a href="/about/" class="_nav-link ">About</a>
+  </nav>
+</header>
+	<section class="_sidebar">
+		<div class="_list">
+			
+		</div>
+	</section>
+	<section class="_container ">
+		<div class="_content">
+			<div class="_page _sphinx">
+				
+<h1 id="patsy-contrast-coding-systems-for-categorical-variables">Patsy: Contrast Coding Systems for categorical variables</h1> <div class="admonition note"> <p class="first admonition-title">Note</p> <p class="last">This document is based heavily on <a class="reference external" href="http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm" target="_blank">this excellent resource from UCLA</a>.</p> </div> <p>A categorical variable of K categories, or levels, usually enters a regression as a sequence of K-1 dummy variables. This amounts to a linear hypothesis on the level means. That is, each test statistic for these variables amounts to testing whether the mean for that level is statistically significantly different from the mean of the base category. This dummy coding is called Treatment coding in R parlance, and we will follow this convention. There are, however, different coding methods that amount to different sets of linear hypotheses.</p> <p>In fact, the dummy coding is not technically a contrast coding. This is because the dummy variables add to one and are not functionally independent of the model’s intercept. On the other hand, a set of <em>contrasts</em> for a categorical variable with <code>k</code> levels is a set of <code>k-1</code> functionally independent linear combinations of the factor level means that are also independent of the sum of the dummy variables. The dummy coding isn’t wrong <em>per se</em>. It captures all of the coefficients, but it complicates matters when the model assumes independence of the coefficients such as in ANOVA. Linear regression models do not assume independence of the coefficients and thus dummy coding is often the only coding that is taught in this context.</p> <p>To have a look at the contrast matrices in Patsy, we will use data from UCLA ATS. First let’s load the data.</p>  <h2 id="example-data">Example Data</h2> <pre data-language="python">In [1]: import pandas
+
+In [2]: url = 'http://www.ats.ucla.edu/stat/data/hsb2.csv'
+
+In [3]: hsb2 = pandas.read_table(url, delimiter=",")
+</pre> <p>It will be instructive to look at the mean of the dependent variable, write, for each level of race ((1 = Hispanic, 2 = Asian, 3 = African American and 4 = Caucasian)).</p>   <h2 id="treatment-dummy-coding">Treatment (Dummy) Coding</h2> <p>Dummy coding is likely the most well known coding scheme. It compares each level of the categorical variable to a base reference level. The base reference level is the value of the intercept. It is the default contrast in Patsy for unordered categorical factors. The Treatment contrast matrix for race would be</p> <pre data-language="python">In [4]: from patsy.contrasts import Treatment
+
+In [5]: levels = [1,2,3,4]
+
+In [6]: contrast = Treatment(reference=0).code_without_intercept(levels)
+
+In [7]: print contrast.matrix
+[[ 0.  0.  0.]
+ [ 1.  0.  0.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]]
+</pre> <p>Here we used <code>reference=0</code>, which implies that the first level, Hispanic, is the reference category against which the other level effects are measured. As mentioned above, the columns do not sum to zero and are thus not independent of the intercept. To be explicit, let’s look at how this would encode the <code>race</code> variable.</p> <pre data-language="python">In [8]: contrast.matrix[hsb2.race-1, :][:20]
+Out[8]: 
+array([[ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  1.,  0.],
+       [ 0.,  0.,  0.],
+       [ 0.,  0.,  1.],
+       [ 0.,  1.,  0.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  1.,  0.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.],
+       [ 0.,  0.,  1.]])
+</pre> <p>This is a bit of a trick, as the <code>race</code> category conveniently maps to zero-based indices. If it does not, this conversion happens under the hood, so this won’t work in general but nonetheless is a useful exercise to fix ideas. The below illustrates the output using the three contrasts above</p> <pre data-language="python">In [9]: from statsmodels.formula.api import ols
+
+In [10]: mod = ols("write ~ C(race, Treatment)", data=hsb2)
+
+In [11]: res = mod.fit()
+
+In [12]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:54:32   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+===========================================================================================
+                              coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------------
+Intercept                  46.4583      1.842     25.218      0.000        42.825    50.091
+C(race, Treatment)[T.2]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Treatment)[T.3]     1.7417      2.732      0.637      0.525        -3.647     7.131
+C(race, Treatment)[T.4]     7.5968      1.989      3.820      0.000         3.675    11.519
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         8.25
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre> <p>We explicitly gave the contrast for race; however, since Treatment is the default, we could have omitted this.</p>   <h2 id="simple-coding">Simple Coding</h2> <p>Like Treatment Coding, Simple Coding compares each level to a fixed reference level. However, with simple coding, the intercept is the grand mean of all the levels of the factors. See <a class="reference internal" href="#user-defined">User-Defined Coding</a> for how to implement the Simple contrast.</p> <pre data-language="python">In [13]: contrast = Simple().code_without_intercept(levels)
+
+In [14]: print contrast.matrix
+[[-0.25 -0.25 -0.25]
+ [ 0.75 -0.25 -0.25]
+ [-0.25  0.75 -0.25]
+ [-0.25 -0.25  0.75]]
+
+In [15]: mod = ols("write ~ C(race, Simple)", data=hsb2)
+
+In [16]: res = mod.fit()
+
+In [17]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:54:32   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+===========================================================================================
+                              coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------------
+Intercept                  51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Simple)[Simp.1]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Simple)[Simp.2]     1.7417      2.732      0.637      0.525        -3.647     7.131
+C(race, Simple)[Simp.3]     7.5968      1.989      3.820      0.000         3.675    11.519
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         7.03
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre>   <h2 id="sum-deviation-coding">Sum (Deviation) Coding</h2> <p>Sum coding compares the mean of the dependent variable for a given level to the overall mean of the dependent variable over all the levels. That is, it uses contrasts between each of the first k-1 levels and level k In this example, level 1 is compared to all the others, level 2 to all the others, and level 3 to all the others.</p> <pre data-language="python">In [18]: from patsy.contrasts import Sum
+
+In [19]: contrast = Sum().code_without_intercept(levels)
+
+In [20]: print contrast.matrix
+[[ 1.  0.  0.]
+ [ 0.  1.  0.]
+ [ 0.  0.  1.]
+ [-1. -1. -1.]]
+
+In [21]: mod = ols("write ~ C(race, Sum)", data=hsb2)
+
+In [22]: res = mod.fit()
+
+In [23]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:54:32   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+=====================================================================================
+                        coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-------------------------------------------------------------------------------------
+Intercept            51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Sum)[S.1]    -5.2200      1.631     -3.200      0.002        -8.437    -2.003
+C(race, Sum)[S.2]     6.3216      2.160      2.926      0.004         2.061    10.582
+C(race, Sum)[S.3]    -3.4784      1.732     -2.008      0.046        -6.895    -0.062
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         6.72
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre> <p>This correspons to a parameterization that forces all the coefficients to sum to zero. Notice that the intercept here is the grand mean where the grand mean is the mean of means of the dependent variable by each level.</p> <pre data-language="python">In [24]: hsb2.groupby('race')['write'].mean().mean()
+Out[24]: 51.678376436781619
+</pre>   <h2 id="backward-difference-coding">Backward Difference Coding</h2> <p>In backward difference coding, the mean of the dependent variable for a level is compared with the mean of the dependent variable for the prior level. This type of coding may be useful for a nominal or an ordinal variable.</p> <pre data-language="python">In [25]: from patsy.contrasts import Diff
+
+In [26]: contrast = Diff().code_without_intercept(levels)
+
+In [27]: print contrast.matrix
+[[-0.75 -0.5  -0.25]
+ [ 0.25 -0.5  -0.25]
+ [ 0.25  0.5  -0.25]
+ [ 0.25  0.5   0.75]]
+
+In [28]: mod = ols("write ~ C(race, Diff)", data=hsb2)
+
+In [29]: res = mod.fit()
+
+In [30]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:54:32   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+======================================================================================
+                         coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+--------------------------------------------------------------------------------------
+Intercept             51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Diff)[D.1]    11.5417      3.286      3.512      0.001         5.061    18.022
+C(race, Diff)[D.2]    -9.8000      3.388     -2.893      0.004       -16.481    -3.119
+C(race, Diff)[D.3]     5.8552      2.153      2.720      0.007         1.610    10.101
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         8.30
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre> <p>For example, here the coefficient on level 1 is the mean of <code>write</code> at level 2 compared with the mean at level 1. Ie.,</p> <pre data-language="python">In [31]: res.params["C(race, Diff)[D.1]"]
+Out[31]: 11.541666666666604
+
+In [32]: hsb2.groupby('race').mean()["write"][2] - \
+   ....:      hsb2.groupby('race').mean()["write"][1]
+   ....: 
+Out[32]: 11.541666666666664
+</pre>   <h2 id="helmert-coding">Helmert Coding</h2> <p>Our version of Helmert coding is sometimes referred to as Reverse Helmert Coding. The mean of the dependent variable for a level is compared to the mean of the dependent variable over all previous levels. Hence, the name ‘reverse’ being sometimes applied to differentiate from forward Helmert coding. This comparison does not make much sense for a nominal variable such as race, but we would use the Helmert contrast like so:</p> <pre data-language="python">In [33]: from patsy.contrasts import Helmert
+
+In [34]: contrast = Helmert().code_without_intercept(levels)
+
+In [35]: print contrast.matrix
+[[-1. -1. -1.]
+ [ 1. -1. -1.]
+ [ 0.  2. -1.]
+ [ 0.  0.  3.]]
+
+In [36]: mod = ols("write ~ C(race, Helmert)", data=hsb2)
+
+In [37]: res = mod.fit()
+
+In [38]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.107
+Model:                            OLS   Adj. R-squared:                  0.093
+Method:                 Least Squares   F-statistic:                     7.833
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           5.78e-05
+Time:                        12:54:32   Log-Likelihood:                -721.77
+No. Observations:                 200   AIC:                             1452.
+Df Residuals:                     196   BIC:                             1465.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+=========================================================================================
+                            coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+-----------------------------------------------------------------------------------------
+Intercept                51.6784      0.982     52.619      0.000        49.741    53.615
+C(race, Helmert)[H.2]     5.7708      1.643      3.512      0.001         2.530     9.011
+C(race, Helmert)[H.3]    -1.3431      0.867     -1.548      0.123        -3.054     0.368
+C(race, Helmert)[H.4]     0.7923      0.372      2.130      0.034         0.059     1.526
+==============================================================================
+Omnibus:                       10.487   Durbin-Watson:                   1.779
+Prob(Omnibus):                  0.005   Jarque-Bera (JB):               11.031
+Skew:                          -0.551   Prob(JB):                      0.00402
+Kurtosis:                       2.670   Cond. No.                         7.26
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre> <p>To illustrate, the comparison on level 4 is the mean of the dependent variable at the previous three levels taken from the mean at level 4</p> <pre data-language="python">In [39]: grouped = hsb2.groupby('race')
+
+In [40]: grouped.mean()["write"][4] - grouped.mean()["write"][:3].mean()
+Out[40]: 3.1690613026819818
+</pre> <p>As you can see, these are only equal up to a constant. Other versions of the Helmert contrast give the actual difference in means. Regardless, the hypothesis tests are the same.</p> <pre data-language="python">In [41]: k = 4
+
+In [42]: 1./k * (grouped.mean()["write"][k] - grouped.mean()["write"][:k-1].mean())
+Out[42]: 0.79226532567049546
+
+In [43]: k = 3
+
+In [44]: 1./k * (grouped.mean()["write"][k] - grouped.mean()["write"][:k-1].mean())
+Out[44]: -1.3430555555555561
+</pre>   <h2 id="orthogonal-polynomial-coding">Orthogonal Polynomial Coding</h2> <p>The coefficients taken on by polynomial coding for <code>k=4</code> levels are the linear, quadratic, and cubic trends in the categorical variable. The categorical variable here is assumed to be represented by an underlying, equally spaced numeric variable. Therefore, this type of encoding is used only for ordered categorical variables with equal spacing. In general, the polynomial contrast produces polynomials of order <code>k-1</code>. Since <code>race</code> is not an ordered factor variable let’s use <code>read</code> as an example. First we need to create an ordered categorical from <code>read</code>.</p> <pre data-language="python">In [45]: _, bins = np.histogram(hsb2.read, 3)
+
+In [46]: try: # requires numpy master
+   ....:     readcat = np.digitize(hsb2.read, bins, True)
+   ....: except:
+   ....:     readcat = np.digitize(hsb2.read, bins)
+   ....: 
+
+In [47]: hsb2['readcat'] = readcat
+
+In [48]: hsb2.groupby('readcat').mean()['write']
+Out[48]: 
+readcat
+0          46.000000
+1          44.980392
+2          53.356436
+3          60.127660
+Name: write, dtype: float64
+</pre> <pre data-language="python">In [49]: from patsy.contrasts import Poly
+
+In [50]: levels = hsb2.readcat.unique().tolist()
+
+In [51]: contrast = Poly().code_without_intercept(levels)
+
+In [52]: print contrast.matrix
+[[-0.6708  0.5    -0.2236]
+ [-0.2236 -0.5     0.6708]
+ [ 0.2236 -0.5    -0.6708]
+ [ 0.6708  0.5     0.2236]]
+
+In [53]: mod = ols("write ~ C(readcat, Poly)", data=hsb2)
+
+In [54]: res = mod.fit()
+
+In [55]: print res.summary()
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  write   R-squared:                       0.320
+Model:                            OLS   Adj. R-squared:                  0.309
+Method:                 Least Squares   F-statistic:                     30.73
+Date:                Tue, 02 Dec 2014   Prob (F-statistic):           2.51e-16
+Time:                        12:54:32   Log-Likelihood:                -694.54
+No. Observations:                 200   AIC:                             1397.
+Df Residuals:                     196   BIC:                             1410.
+Df Model:                           3                                         
+Covariance Type:            nonrobust                                         
+==============================================================================================
+                                 coef    std err          t      P&gt;|t|      [95.0% Conf. Int.]
+----------------------------------------------------------------------------------------------
+Intercept                     51.1161      2.018     25.324      0.000        47.135    55.097
+C(readcat, Poly).Linear       11.3501      5.348      2.122      0.035         0.803    21.897
+C(readcat, Poly).Quadratic     3.8954      4.037      0.965      0.336        -4.066    11.857
+C(readcat, Poly).Cubic        -2.4598      1.998     -1.231      0.220        -6.400     1.480
+==============================================================================
+Omnibus:                        9.741   Durbin-Watson:                   1.699
+Prob(Omnibus):                  0.008   Jarque-Bera (JB):               10.263
+Skew:                          -0.535   Prob(JB):                      0.00591
+Kurtosis:                       2.703   Cond. No.                         13.7
+==============================================================================
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+</pre> <p>As you can see, readcat has a significant linear effect on the dependent variable <code>write</code> but not a significant quadratic or cubic effect.</p>   <h2 id="user-defined">User-Defined Coding</h2> <p id="user-defined-coding">If you want to use your own coding, you must do so by writing a coding class that contains a code_with_intercept and a code_without_intercept method that return a <code>patsy.contrast.ContrastMatrix</code> instance.</p> <pre data-language="python">In [56]: from patsy.contrasts import ContrastMatrix
+
+In [57]: def _name_levels(prefix, levels):
+   ....:     return ["[%s%s]" % (prefix, level) for level in levels]
+   ....: 
+
+In [58]: class Simple(object):
+   ....:     def _simple_contrast(self, levels):
+   ....:         nlevels = len(levels)
+   ....:         contr = -1./nlevels * np.ones((nlevels, nlevels-1))
+   ....:         contr[1:][np.diag_indices(nlevels-1)] = (nlevels-1.)/nlevels
+   ....:         return contr
+   ....: 
+
+In [59]: def code_with_intercept(self, levels):
+   ....:         contrast = np.column_stack((np.ones(len(levels)),
+   ....:                                     self._simple_contrast(levels)))
+   ....:         return ContrastMatrix(contrast, _name_levels("Simp.", levels))
+   ....: 
+</pre>
+<div class="_attribution">
+  <p class="_attribution-p">
+    © 2009–2012 Statsmodels Developers<br>© 2006–2008 Scipy Developers<br>© 2006 Jonathan E. Taylor<br>Licensed under the 3-clause BSD License.<br>
+    <a href="http://statsmodels.sourceforge.net/stable/contrasts.html" class="_attribution-link" target="_blank">http://statsmodels.sourceforge.net/stable/contrasts.html</a>
+  </p>
+</div>
+
+			</div>
+		</div>
+	</section>
+
+	</div>
+</body>
+</html>
